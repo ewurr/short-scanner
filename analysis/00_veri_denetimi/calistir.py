@@ -196,11 +196,15 @@ def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(satirlar)
 
 
-def bosluklari_grupla(detaylar: list[dict]) -> pd.DataFrame:
-    """Bar bosluklarini borsa geneli / sembole ozgu diye ayirir.
+def bosluklari_grupla(detaylar: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Bar bosluklarini OLAYLARA toplar ve borsa geneli / sembole ozgu ayirir.
 
-    Borsa geneli: ayni baslangic-bitis araligi, o tarihte verisi olan sembollerin
-    en az YARISINI etkiliyorsa.
+    Gruplama birebir ayni (bas, son) ciftine gore degil, ZAMAN ORTUSMESINE gore
+    yapilir: birbiriyle ortusen bosluklar tek bir olaydir. Olayin baslangici en
+    erken baslangic, bitisi en gec bitistir. O zaman araliginda verisi bulunan
+    sembollerin en az yarisini etkileyen olay "borsa geneli" sayilir.
+
+    Bu yalnizca bir TESHIS olcumudur; veri katmanini etkilemez.
     """
     satirlar = []
     for d in detaylar:
@@ -212,29 +216,128 @@ def bosluklari_grupla(detaylar: list[dict]) -> pd.DataFrame:
                 {"sembol": d["sembol"], "bas": r["bas"], "son": r["son"],
                  "eksik_bar": int(r["eksik_bar"])}
             )
+    bos_sutun = ["sembol", "bas", "son", "eksik_bar", "olay_id"]
     if not satirlar:
-        return pd.DataFrame(columns=["sembol", "bas", "son", "eksik_bar", "etki_sembol",
-                                     "o_tarihte_veri_olan", "borsa_geneli"])
-    tablo = pd.DataFrame(satirlar)
+        return (pd.DataFrame(columns=bos_sutun),
+                pd.DataFrame(columns=["olay_id", "bas", "son", "etki_sembol",
+                                      "o_aralikta_veri_olan", "borsa_geneli",
+                                      "azami_eksik_bar", "semboller"]))
 
-    # Ayni (bas, son) ciftini kac sembol yasadi?
-    etki = tablo.groupby(["bas", "son"]).size().rename("etki_sembol")
-    tablo = tablo.merge(etki, on=["bas", "son"])
+    tablo = pd.DataFrame(satirlar).sort_values("bas", ignore_index=True)
 
-    # O tarihte verisi olan sembol sayisi
-    def veri_olan(t) -> int:
+    # Ortusen araliklari tek olayda birlestir.
+    olay_id = []
+    su_an = 0
+    olay_bas, olay_son = tablo.loc[0, "bas"], tablo.loc[0, "son"]
+    sinirlar = []
+    for i, r in tablo.iterrows():
+        if r["bas"] <= olay_son:          # ortusuyor -> ayni olay
+            olay_son = max(olay_son, r["son"])
+        else:                              # yeni olay
+            sinirlar.append((su_an, olay_bas, olay_son))
+            su_an += 1
+            olay_bas, olay_son = r["bas"], r["son"]
+        olay_id.append(su_an)
+    sinirlar.append((su_an, olay_bas, olay_son))
+    tablo["olay_id"] = olay_id
+
+    def veri_olan(bas, son) -> int:
+        """O zaman araliginda verisi bulunan sembol sayisi."""
         n = 0
         for d in detaylar:
-            m = d["_mumlar"]
-            if m.empty:
+            mm = d["_mumlar"]
+            if mm.empty:
                 continue
-            if m["open_time"].iloc[0] <= t <= m["open_time"].iloc[-1]:
+            if mm["open_time"].iloc[0] <= son and bas <= mm["open_time"].iloc[-1]:
                 n += 1
         return n
 
-    tablo["o_tarihte_veri_olan"] = [veri_olan(t) for t in tablo["bas"]]
-    tablo["borsa_geneli"] = tablo["etki_sembol"] >= (tablo["o_tarihte_veri_olan"] / 2.0)
-    return tablo.sort_values("eksik_bar", ascending=False, ignore_index=True)
+    olaylar = []
+    for kimlik, bas, son in sinirlar:
+        parca = tablo.loc[tablo["olay_id"] == kimlik]
+        etki = parca["sembol"].nunique()
+        kapsam = veri_olan(bas, son)
+        olaylar.append(
+            {"olay_id": kimlik, "bas": bas, "son": son, "etki_sembol": etki,
+             "o_aralikta_veri_olan": kapsam,
+             "borsa_geneli": bool(kapsam and etki >= kapsam / 2.0),
+             "azami_eksik_bar": int(parca["eksik_bar"].max()),
+             "semboller": ",".join(sorted(parca["sembol"].unique())[:20])}
+        )
+    return tablo, pd.DataFrame(olaylar).sort_values(
+        "azami_eksik_bar", ascending=False, ignore_index=True
+    )
+
+
+def karantina_kaybi(evren: pd.DataFrame) -> tuple[int, pd.DataFrame]:
+    """Karantina yuzunden disarida kalan sembol-ay sayisi ve en cok kayipli 5 sembol."""
+    dahil = evren.loc[~evren["haric"]].drop_duplicates("sembol")
+    satirlar = []
+    for _, r in dahil.iterrows():
+        aylar = [a for a in str(r["karantina_aylari"]).split(",") if a]
+        if aylar:
+            satirlar.append({"sembol": r["sembol"], "karantina_ay": len(aylar),
+                             "aylar": ",".join(aylar)})
+    if not satirlar:
+        return 0, pd.DataFrame(columns=["sembol", "karantina_ay", "aylar"])
+    tablo = pd.DataFrame(satirlar).sort_values("karantina_ay", ascending=False, ignore_index=True)
+    return int(tablo["karantina_ay"].sum()), tablo
+
+
+def kisa_donemler(evren: pd.DataFrame, asgari_gun: int = 60) -> pd.DataFrame:
+    """60 gunden kisa listeleme donemleri (30 gunluk pencere bunlari etkisiz birakir)."""
+    dahil = evren.loc[(~evren["haric"]) & (evren["donem_id"] >= 0)]
+    satirlar = []
+    for _, r in dahil.iterrows():
+        bas, son = pd.Timestamp(r["donem_baslangic"]), pd.Timestamp(r["donem_bitis"])
+        gun = (son - bas) / pd.Timedelta(days=1)
+        if gun < asgari_gun:
+            satirlar.append(
+                {"sembol": r["sembol"], "donem_id": int(r["donem_id"]),
+                 "donem": f"{r['donem_bas_ay']} -> {r['donem_son_ay']}", "gun": round(gun, 1)}
+            )
+    return pd.DataFrame(satirlar, columns=["sembol", "donem_id", "donem", "gun"]).sort_values(
+        "gun", ignore_index=True
+    )
+
+
+def fiyat_farki_listeleme_yasi(detaylar: list[dict]) -> pd.DataFrame:
+    """Fiyat farki cikan gunler, sembolun ILK barindan kac gun sonra?"""
+    satirlar = []
+    for d in detaylar:
+        c = d["_capraz"]
+        if c.get("durum") != "karsilastirildi":
+            continue
+        ilk = d["ilk_bar"]
+        for tarih in c.get("_fiyat_tarihleri", []):
+            gun = (pd.Timestamp(tarih, tz="UTC") - pd.Timestamp(ilk)) / pd.Timedelta(days=1)
+            satirlar.append(
+                {"sembol": d["sembol"], "tarih": tarih, "ilk_bar": str(pd.Timestamp(ilk).date()),
+                 "listelemeden_sonra_gun": round(gun, 1), "ilk_30_gun_icinde": gun < 30}
+            )
+    return pd.DataFrame(
+        satirlar, columns=["sembol", "tarih", "ilk_bar", "listelemeden_sonra_gun",
+                           "ilk_30_gun_icinde"]
+    ).sort_values("listelemeden_sonra_gun", ignore_index=True)
+
+
+def ortam_kaydi() -> pd.DataFrame:
+    """Kosuyu ureten ortam: Python ve paket surumleri."""
+    import importlib.metadata as md
+    import platform
+
+    satirlar = [
+        {"bilesen": "python", "surum": platform.python_version()},
+        {"bilesen": "python_derleme", "surum": platform.python_build()[1]},
+        {"bilesen": "python_yolu", "surum": sys.executable},
+        {"bilesen": "platform", "surum": platform.platform()},
+    ]
+    for paket in ("pandas", "numpy", "pyarrow", "requests"):
+        try:
+            satirlar.append({"bilesen": paket, "surum": md.version(paket)})
+        except Exception:
+            satirlar.append({"bilesen": paket, "surum": "bulunamadi"})
+    return pd.DataFrame(satirlar)
 
 
 def sicramalari_grupla(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
@@ -369,14 +472,27 @@ def main() -> None:
     sicramalar = sicramalari_grupla(detaylar, evren)
     sicramalar.to_csv(CIKTI_DIZINI / f"butunluk_sicramalari_{etiket}.csv", index=False)
 
-    bosluklar = bosluklari_grupla(detaylar)
+    bosluklar, bosluk_olaylari = bosluklari_grupla(detaylar)
     bosluklar.to_csv(CIKTI_DIZINI / f"bosluklar_{etiket}.csv", index=False)
+    bosluk_olaylari.to_csv(CIKTI_DIZINI / f"bosluk_olaylari_{etiket}.csv", index=False)
 
     funding_dagilimi(detaylar).to_csv(CIKTI_DIZINI / f"funding_araliklari_{etiket}.csv", index=False)
 
     capraz, yogun = capraz_ozet(detaylar)
     capraz.to_csv(CIKTI_DIZINI / f"cross_dogrulama_{etiket}.csv", index=False)
     yogun.to_csv(CIKTI_DIZINI / f"cross_yogun_tarihler_{etiket}.csv", index=False)
+
+    fiyat_yasi = fiyat_farki_listeleme_yasi(detaylar)
+    fiyat_yasi.to_csv(CIKTI_DIZINI / f"fiyat_farki_listeleme_yasi_{etiket}.csv", index=False)
+
+    kayip_toplam, kayip_tablo = karantina_kaybi(evren)
+    kayip_tablo.to_csv(CIKTI_DIZINI / f"karantina_kaybi_{etiket}.csv", index=False)
+
+    kisa = kisa_donemler(evren)
+    kisa.to_csv(CIKTI_DIZINI / f"kisa_donemler_{etiket}.csv", index=False)
+
+    ortam = ortam_kaydi()
+    ortam.to_csv(CIKTI_DIZINI / f"ortam_{etiket}.csv", index=False)
 
     if hatalar:
         pd.DataFrame(hatalar, columns=["sembol", "hata"]).to_csv(
@@ -388,8 +504,14 @@ def main() -> None:
     _gunluk.info(f"toplam eksik bar   : {int(ozet['eksik_bar'].sum())}")
     _gunluk.info(f"sicrama            : {len(sicramalar)} "
                  f"(karantinali {int(sicramalar['karantina_ayinda'].sum()) if len(sicramalar) else 0})")
-    _gunluk.info(f"bosluk             : {len(bosluklar)} "
-                 f"(borsa geneli {int(bosluklar['borsa_geneli'].sum()) if len(bosluklar) else 0})")
+    _gunluk.info(f"bosluk             : {len(bosluklar)} adet, "
+                 f"{len(bosluk_olaylari)} olay "
+                 f"(borsa geneli {int(bosluk_olaylari['borsa_geneli'].sum()) if len(bosluk_olaylari) else 0})")
+    _gunluk.info(f"karantina kaybi    : {kayip_toplam} sembol-ay, "
+                 f"{len(kayip_tablo)} sembolde")
+    _gunluk.info(f"60 gunden kisa donem: {len(kisa)}")
+    _gunluk.info(f"fiyat farki gunleri : {len(fiyat_yasi)} "
+                 f"(ilk 30 gun icinde {int(fiyat_yasi['ilk_30_gun_icinde'].sum()) if len(fiyat_yasi) else 0})")
     _gunluk.info(f"capraz gun         : {capraz.attrs['toplam_gun']}, "
                  f"fiyat farkli {capraz.attrs['fiyat_gun']}, hacim farkli {capraz.attrs['hacim_gun']}")
     _gunluk.info(f"CSV ciktilari: {CIKTI_DIZINI}")
