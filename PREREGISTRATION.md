@@ -1,6 +1,6 @@
 # PREREGISTRATION.md — Short Öngörü Hipotezleri
 
-**Durum:** Sürüm 1. Veri indirilmeden ve hiçbir getiri hesaplanmadan önce commit edilir.
+**Durum:** Sürüm 2 (2026-09-11). Veri bölmesinden ve fiyat verisi indirilmeden önce commit edilir.
 **Kapsam:** F2 (keşif) ve F3 (onay). Taktik (F4) ve ileri-zaman testi (F5) ayrı revizyonla eklenir.
 
 Bu belge commit edildikten sonra aşağıdaki hiçbir tanım, eşik veya tarih sınırı
@@ -26,6 +26,40 @@ sonra short pozisyon, (a) aynı coini rastgele bir zamanda short'lamaktan ve
 | Toplam dönem | 2020-01-01 00:00 UTC → 2026-08-31 23:59 UTC |
 | Funding | Gerçek funding geçmişi. 4 saatlik veya 1 saatlik ödeme aralığına geçmiş sözleşmelerde oran, karşılaştırma için 8 saate normalleştirilir; getiri hesabında ise gerçek ödemeler kullanılır |
 
+**Kapsam netleştirmesi.** Evren, `fapi/v1/exchangeInfo` içinde `contractType = PERPETUAL`
+olan USDT marjinli sözleşmelerden oluşur. `contractType = TRADIFI_PERPETUAL` olan sözleşmeler
+(hisse senedi, emtia, premarket) kripto varlık olmadığı için kapsam dışıdır. exchangeInfo'da
+bulunmayan (delist edilmiş) semboller elle sınıflandırılmıştır.
+
+**Hariç tutma listesi (kesin).**
+- Endeks sözleşmeleri: BTCDOMUSDT, DEFIUSDT, ALLUSDT, BLUEBIRDUSDT, DOTECOUSDT, FOOTBALLUSDT
+- Stablecoin tabanlı: USDCUSDT
+- Stablecoin tanımı: sabit bir fiyata bağlı kalacak şekilde tasarlanmış ve bağını koruyan token.
+  Bu tanıma göre FRAXUSDT, USTCUSDT, STBLUSDT ve STABLEUSDT evrende kalır.
+
+**1 günlük barlar.** 1d barlar 4h barlardan türetilir: UTC günü; open ilk, high en yüksek,
+low en düşük, close son değer; volume ve quote_volume toplam. 6 adet 4h barı tam olmayan gün
+eksik (NaN) sayılır. Uygunluktaki günlük hacim bu seriden hesaplanır.
+
+**Listeleme dönemi.** Her sembolün verisi bir veya daha fazla listeleme dönemine ayrılır.
+- Bucket'ta `<SEMBOL>SETTLED` dizininde dosyası bulunan ve sembolün ilk ile son ayı arasında
+  kalan her ay, o sembol için **karantina ayıdır**.
+- Karantina ayındaki barlar olay veya kontrol barı olamaz; hiçbir geriye bakış penceresi ya da
+  ufuk karantina ayına giremez.
+- Karantina ayları dönemi böler. Önceki dönem, karantinadan önceki son barla biter. Yeni dönem,
+  karantinadan sonraki ilk barla başlar.
+- Aylık 4h dosyaları arasında 3 aydan uzun boşluk da dönemi böler.
+- Yeniden adlandırma zincirindeki her sembol ayrı bir dönemdir; fiyat serileri birleştirilmez.
+- Listeleme yaşı her dönem başında sıfırlanır.
+- Tüm geriye bakış pencereleri (uygunluk hacmi, H1 hacim medyanı, H2 30 bar, H3 hacim pencereleri
+  ve SMA50) dönem başlangıcını aşamaz. Aşıyorsa değer hesaplanmaz ve o barda olay oluşmaz.
+- Ufuk dönem sonunu aşarsa çıkış fiyatı dönemin son barının kapanışıdır.
+- Aynı kurallar K1 ve K2 kontrol barlarına da uygulanır.
+
+**Veri bütünlüğü kontrolü.** F1 denetim raporu, `|open[t] / close[t-1] - 1| > 0.30` olan tüm
+barları sembol ve zamanla listeler. Karantina ile açıklanamayan kayıtlar, F2 başlamadan önce
+ayrı bir revizyonla karantinaya alınır ya da gerekçesiyle bırakılır.
+
 **Uygunluk (t anında, yalnızca t'ye kadarki veriyle):**
 - Listeleme yaşı ≥ 30 gün.
 - H1, H2: son 30 günün medyan günlük işlem hacmi ≥ 10 milyon USDT.
@@ -36,9 +70,19 @@ sayısıyla yazılır ve sonuçlar "kötümser yanlılıklı" olarak etiketlenir
 
 ## 3. Veri bölmesi
 
-**Coin bölmesi.** Her sembol için `SHA256("short-lab-v1:" + SEMBOL)` hesaplanır.
-Onaltılık özetin tamsayı değeri çift ise **A**, tek ise **B** grubudur. Sonuç
-`data/split.csv` dosyasına yazılır ve commit edilir.
+**Coin bölmesi.** Bölme sembol değil **varlık anahtarı** üzerinden yapılır. Varlık
+anahtarı, yeniden adlandırma zincirindeki en eski semboldür; zincirde olmayan sembollerde
+sembolün kendisidir. Her varlık anahtarı için `SHA256("short-lab-v1:" + VARLIK_ANAHTARI)`
+hesaplanır. Onaltılık özetin tamsayı değeri çift ise **A**, tek ise **B** grubudur. Zincirdeki
+tüm semboller aynı gruba düşer.
+
+Kabul edilen yeniden adlandırma zincirleri (dokuz):
+LENDUSDT→AAVEUSDT · BTTUSDT→1000BTTCUSDT · RNDRUSDT→RENDERUSDT · GALUSDT→GUSDT ·
+MATICUSDT→POLUSDT · EOSUSDT→AUSDT · LUNAUSDT→1000LUNCUSDT · TOMOUSDT→VICUSDT ·
+DODOUSDT→DODOXUSDT
+
+KEEPUSDT, NUUSDT ve TUSDT birleşme olduğu için zincir sayılmaz. Sonuç `data/split.csv`
+dosyasına sembol, varlık anahtarı ve grup sütunlarıyla yazılır ve commit edilir.
 
 **Dönemler.**
 
@@ -179,3 +223,4 @@ Başarısız bir hipotez için onay yeniden koşulamaz.
 | Sürüm | Tarih | Değişiklik | Gerekçe | Etkilenen sonuçlar |
 |---|---|---|---|---|
 | 1 | — | İlk sürüm | — | — |
+| 2 | 2026-09-11 | Kapsam netleştirmesi (TRADIFI_PERPETUAL dışı), kesin hariç tutma listesi, 1d türetme kuralı, listeleme dönemi ve karantina kuralı, veri bütünlüğü kontrolü, varlık anahtarıyla bölme | exchangeInfo sınıflandırması, yeniden adlandırma zincirlerinin bölmeyi sızdırması ve SETTLED kayıtlarının yeniden fiyatlandırma sıçraması riski. Hiçbir fiyat verisine bakılmadan yapıldı. | Yok (henüz sonuç yok) |
