@@ -1,0 +1,7 @@
+# short-lab bagimliliklari. Surum araliklariyla sabitlenir (CLAUDE.md §5).
+pandas>=2.1,<3.0
+numpy>=1.26,<3.0
+pyarrow>=14.0,<22.0
+requests>=2.31,<3.0
+loguru>=0.7,<0.8
+pytest>=8.0,<9.0
