@@ -4,14 +4,18 @@ Yalnizca KAPSAMA ve BUTUNLUK olcer. Getiri, fiyat degisimi, volatilite, funding
 ortalamasi veya olay benzeri hicbir istatistik hesaplamaz ya da yazdirmaz.
 
 Kullanim:
-    python analysis/00_veri_denetimi/calistir.py --ornek     # 30 sembollu ornek
-    python analysis/00_veri_denetimi/calistir.py             # tam evren
+    python analysis/00_veri_denetimi/calistir.py --ornek       # 30 sembollu ornek
+    python analysis/00_veri_denetimi/calistir.py --is-parcaci 6  # tam evren
 """
 
 from __future__ import annotations
 
 import argparse
+import collections
+import logging
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -20,12 +24,10 @@ KOK = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(KOK))
 
 import config  # noqa: E402
-from data import binance_vision as bv  # noqa: E402
 from data import donem as donem_modulu  # noqa: E402
 from data import eligibility as uyg  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
 from data import klines as klines_modulu  # noqa: E402
-from data import split as split_modulu  # noqa: E402
 from data import universe as universe_modulu  # noqa: E402
 
 CIKTI_DIZINI = Path(__file__).resolve().parent
@@ -33,19 +35,32 @@ CIKTI_DIZINI = Path(__file__).resolve().parent
 # Ornek kume (F1 plani): >=5 delist, >=5 basliksiz 2020 dosyasi, >=5 4h funding,
 # >=3 karantinali (TLMUSDT ve BNXUSDT dahil), MATICUSDT ve POLUSDT.
 ORNEK_SEMBOLLER = [
-    # delist edilmis (7)
     "SRMUSDT", "HNTUSDT", "MATICUSDT", "EOSUSDT", "GALUSDT", "RNDRUSDT", "BTSUSDT",
-    # 2020'de listelenmis, basliksiz dosyalar (7)
     "BTCUSDT", "ETHUSDT", "ADAUSDT", "LINKUSDT", "XRPUSDT", "BCHUSDT", "LTCUSDT",
-    # 4h funding araligi adaylari (5)
     "WIFUSDT", "ORDIUSDT", "MYXUSDT", "AVNTUSDT", "ASTERUSDT",
-    # karantinali (6)
     "TLMUSDT", "BNXUSDT", "MINAUSDT", "CTKUSDT", "LITUSDT", "AERGOUSDT",
-    # yeniden adlandirma zincirinin yeni ucu (3)
     "POLUSDT", "RENDERUSDT", "AUSDT",
-    # karsilastirma icin (2)
     "SOLUSDT", "GUSDT",
 ]
+
+FIYAT_SUTUNLARI = ["open", "high", "low", "close"]
+HACIM_SUTUNLARI = ["volume", "quote_volume"]
+
+_kilit = threading.Lock()
+_gunluk = logging.getLogger("denetim")
+
+
+def _kaydedici_kur(etiket: str) -> Path:
+    log_yolu = CIKTI_DIZINI / f"indirme_{etiket}.log"
+    _gunluk.setLevel(logging.INFO)
+    _gunluk.handlers.clear()
+    for islemci in (logging.FileHandler(log_yolu, encoding="utf-8"), logging.StreamHandler()):
+        islemci.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+        _gunluk.addHandler(islemci)
+    return log_yolu
+
+
+# --- Sembol basina olcum -----------------------------------------------------
 
 
 def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
@@ -72,6 +87,32 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
     aralik = funding_modulu.aralik_ozeti(fund)
     sekiz_disi = aralik.loc[aralik["aralik_saat"] != 8] if not aralik.empty else aralik
 
+    # 1d capraz dogrulama
+    capraz = {"durum": "yapilmadi"}
+    try:
+        birincil = klines_modulu.birincil_gunluk_indir(sembol)
+        if not gunluk.empty and not birincil.empty:
+            fark = klines_modulu.cross_dogrula(gunluk, birincil)
+            fs = [f"{c}_bagil_fark" for c in FIYAT_SUTUNLARI]
+            hs = [f"{c}_bagil_fark" for c in HACIM_SUTUNLARI]
+            capraz = {
+                "durum": "karsilastirildi",
+                "ortak_gun": len(fark),
+                "fiyat_farkli_gun": int((fark[fs] > 1e-6).any(axis=1).sum()),
+                "hacim_farkli_gun": int((fark[hs] > 1e-6).any(axis=1).sum()),
+                "yalniz_birincil": fark.attrs.get("yalniz_birincil"),
+                "_fiyat_tarihleri": [
+                    str(t.date()) for t in fark.loc[(fark[fs] > 1e-6).any(axis=1), "open_time"]
+                ],
+                "_hacim_tarihleri": [
+                    str(t.date()) for t in fark.loc[(fark[hs] > 1e-6).any(axis=1), "open_time"]
+                ],
+            }
+        else:
+            capraz = {"durum": "veri yok"}
+    except Exception as hata:
+        capraz = {"durum": f"hata: {type(hata).__name__}"}
+
     return {
         "sembol": sembol,
         "bar_4h": len(mumlar),
@@ -93,24 +134,26 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
             str(int(a)) for a in sorted(aralik["aralik_saat"].dropna().unique())
         ) if not aralik.empty else "",
         "butunluk_sicrama_sayisi": len(sicramalar),
+        "capraz_durum": capraz.get("durum"),
+        "capraz_ortak_gun": capraz.get("ortak_gun"),
+        "capraz_fiyat_farkli_gun": capraz.get("fiyat_farkli_gun"),
+        "capraz_hacim_farkli_gun": capraz.get("hacim_farkli_gun"),
         "_mumlar": mumlar,
         "_gunluk": gunluk,
-        "_funding": fund,
         "_sicramalar": sicramalar,
         "_uzun_bosluk": uzun_bosluk,
         "_aralik": aralik,
+        "_capraz": capraz,
     }
 
 
-def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
-    """Yillara gore: veri bulunan sembol, 10M ve 2M esigini en az bir gun gecen.
+# --- Toplu olcumler ----------------------------------------------------------
 
-    Uygunluk on-kayit rev.2 kurallariyla hesaplanir: pencere donem baslangicini
-    asamaz, karantina gunleri uygun sayilmaz.
-    """
+
+def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
+    """Yillara gore: veri bulunan sembol, 10M ve 2M esigini en az bir gun gecen."""
     satirlar = []
-    yillar = range(2020, 2027)
-    for yil in yillar:
+    for yil in range(2020, 2027):
         bas = pd.Timestamp(f"{yil}-01-01", tz="UTC")
         son = pd.Timestamp(f"{yil}-12-31 23:59:59", tz="UTC")
         veri_var = esik_10m = esik_2m = 0
@@ -153,101 +196,203 @@ def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(satirlar)
 
 
-def cross_dogrulama_ozeti(detaylar: list[dict]) -> pd.DataFrame:
-    """Turetilmis 1d ile kaynaktaki birincil 1d dosyalarini karsilastirir."""
+def bosluklari_grupla(detaylar: list[dict]) -> pd.DataFrame:
+    """Bar bosluklarini borsa geneli / sembole ozgu diye ayirir.
+
+    Borsa geneli: ayni baslangic-bitis araligi, o tarihte verisi olan sembollerin
+    en az YARISINI etkiliyorsa.
+    """
     satirlar = []
     for d in detaylar:
-        try:
-            birincil = klines_modulu.birincil_gunluk_indir(d["sembol"])
-        except Exception as hata:  # kaynakta 1d dosyasi olmayabilir
-            satirlar.append({"sembol": d["sembol"], "durum": f"hata: {type(hata).__name__}"})
+        b = d["_uzun_bosluk"]
+        if b.empty:
             continue
-        turetilmis = d["_gunluk"]
-        if turetilmis.empty or birincil.empty:
-            satirlar.append({"sembol": d["sembol"], "durum": "veri yok"})
+        for _, r in b.iterrows():
+            satirlar.append(
+                {"sembol": d["sembol"], "bas": r["bas"], "son": r["son"],
+                 "eksik_bar": int(r["eksik_bar"])}
+            )
+    if not satirlar:
+        return pd.DataFrame(columns=["sembol", "bas", "son", "eksik_bar", "etki_sembol",
+                                     "o_tarihte_veri_olan", "borsa_geneli"])
+    tablo = pd.DataFrame(satirlar)
+
+    # Ayni (bas, son) ciftini kac sembol yasadi?
+    etki = tablo.groupby(["bas", "son"]).size().rename("etki_sembol")
+    tablo = tablo.merge(etki, on=["bas", "son"])
+
+    # O tarihte verisi olan sembol sayisi
+    def veri_olan(t) -> int:
+        n = 0
+        for d in detaylar:
+            m = d["_mumlar"]
+            if m.empty:
+                continue
+            if m["open_time"].iloc[0] <= t <= m["open_time"].iloc[-1]:
+                n += 1
+        return n
+
+    tablo["o_tarihte_veri_olan"] = [veri_olan(t) for t in tablo["bas"]]
+    tablo["borsa_geneli"] = tablo["etki_sembol"] >= (tablo["o_tarihte_veri_olan"] / 2.0)
+    return tablo.sort_values("eksik_bar", ascending=False, ignore_index=True)
+
+
+def sicramalari_grupla(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
+    """%30 acilis farkini karantinayla aciklanan / aciklanamayan diye ayirir."""
+    parcalar = []
+    for d in detaylar:
+        s = d["_sicramalar"].copy()
+        if s.empty:
             continue
-        fark = klines_modulu.cross_dogrula(turetilmis, birincil)
-        sutunlar = [s for s in fark.columns if s.endswith("_bagil_fark")]
-        satirlar.append(
-            {
-                "sembol": d["sembol"],
-                "durum": "karsilastirildi",
-                "ortak_gun": len(fark),
-                "yalniz_turetilmis": fark.attrs.get("yalniz_turetilmis"),
-                "yalniz_birincil": fark.attrs.get("yalniz_birincil"),
-                "azami_bagil_fark": float(fark[sutunlar].max().max()),
-                "fark_1e6_ustu_gun": int((fark[sutunlar] > 1e-6).any(axis=1).sum()),
-            }
+        karantina = universe_modulu.karantina_listesi(evren, d["sembol"])
+        s.insert(0, "sembol", d["sembol"])
+        s["karantina_ayinda"] = [donem_modulu.karantinada_mi(t, karantina) for t in s["open_time"]]
+        s["o_ay_settled_kaydi"] = [
+            str(pd.Period(pd.Timestamp(t), freq="M")) in set(karantina) for t in s["open_time"]
+        ]
+        s["sembolun_karantina_aylari"] = ",".join(karantina)
+        parcalar.append(s)
+    if not parcalar:
+        return pd.DataFrame(
+            columns=["sembol", "open_time", "onceki_close", "open", "bagil_fark",
+                     "karantina_ayinda", "o_ay_settled_kaydi", "sembolun_karantina_aylari"]
         )
-    return pd.DataFrame(satirlar)
+    return pd.concat(parcalar, ignore_index=True).sort_values(
+        "bagil_fark", ascending=False, ignore_index=True
+    )
+
+
+def funding_dagilimi(detaylar: list[dict]) -> pd.DataFrame:
+    """Odeme araligi dagilimi: kayit ve sembol sayisi."""
+    kayit = collections.Counter()
+    sembol = collections.defaultdict(set)
+    for d in detaylar:
+        a = d["_aralik"]
+        if a.empty:
+            continue
+        for _, r in a.iterrows():
+            saat = int(r["aralik_saat"])
+            kayit[saat] += int(r["kayit"])
+            sembol[saat].add(d["sembol"])
+    return pd.DataFrame(
+        [{"aralik_saat": s, "kayit": kayit[s], "sembol": len(sembol[s])} for s in sorted(kayit)]
+    )
+
+
+def capraz_ozet(detaylar: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """1d turetme karsilastirmasinin toplu ozeti ve en yogun tarihler."""
+    fiyat = collections.Counter()
+    hacim = collections.Counter()
+    toplam_gun = fiyat_gun = hacim_gun = 0
+    satirlar = []
+    for d in detaylar:
+        c = d["_capraz"]
+        if c.get("durum") != "karsilastirildi":
+            satirlar.append({"sembol": d["sembol"], "durum": c.get("durum")})
+            continue
+        toplam_gun += c["ortak_gun"]
+        fiyat_gun += c["fiyat_farkli_gun"]
+        hacim_gun += c["hacim_farkli_gun"]
+        for t in c["_fiyat_tarihleri"]:
+            fiyat[t] += 1
+        for t in c["_hacim_tarihleri"]:
+            hacim[t] += 1
+        satirlar.append(
+            {"sembol": d["sembol"], "durum": "karsilastirildi", "ortak_gun": c["ortak_gun"],
+             "fiyat_farkli_gun": c["fiyat_farkli_gun"], "hacim_farkli_gun": c["hacim_farkli_gun"],
+             "yalniz_birincil": c["yalniz_birincil"]}
+        )
+    yogun = pd.DataFrame(
+        [{"tarih": t, "tip": "fiyat", "sembol_sayisi": n} for t, n in fiyat.most_common(5)]
+        + [{"tarih": t, "tip": "hacim", "sembol_sayisi": n} for t, n in hacim.most_common(5)]
+    )
+    ozet = pd.DataFrame(satirlar)
+    ozet.attrs["toplam_gun"] = toplam_gun
+    ozet.attrs["fiyat_gun"] = fiyat_gun
+    ozet.attrs["hacim_gun"] = hacim_gun
+    return ozet, yogun
+
+
+# --- Ana akis ----------------------------------------------------------------
 
 
 def main() -> None:
     ayristirici = argparse.ArgumentParser()
     ayristirici.add_argument("--ornek", action="store_true", help="30 sembollu ornek kume")
+    ayristirici.add_argument("--is-parcaci", type=int, default=6,
+                             help="es zamanli indirme parcacigi (sinirli tutulur)")
     argumanlar = ayristirici.parse_args()
 
+    etiket = "ornek" if argumanlar.ornek else "tam"
+    log_yolu = _kaydedici_kur(etiket)
+
     evren = universe_modulu.evren_yukle()
-    split_tablosu = split_modulu.split_oku()
+    semboller = (
+        list(ORNEK_SEMBOLLER) if argumanlar.ornek else universe_modulu.dahil_semboller(evren)
+    )
 
-    if argumanlar.ornek:
-        semboller = [s for s in ORNEK_SEMBOLLER]
-        etiket = "ornek"
-    else:
-        semboller = universe_modulu.dahil_semboller(evren)
-        etiket = "tam"
+    _gunluk.info(f"[{etiket}] {len(semboller)} sembol, {argumanlar.is_parcaci} is parcacigi")
+    _gunluk.info(f"log: {log_yolu}")
 
-    print(f"[{etiket}] {len(semboller)} sembol denetlenecek", flush=True)
-    detaylar = []
-    for i, sembol in enumerate(semboller, 1):
-        detaylar.append(sembol_denetle(sembol, evren))
-        print(f"  {i}/{len(semboller)} {sembol}", flush=True)
+    detaylar: list[dict] = []
+    hatalar: list[tuple[str, str]] = []
+    tamam = 0
 
+    with ThreadPoolExecutor(max_workers=argumanlar.is_parcaci) as havuz:
+        isler = {havuz.submit(sembol_denetle, s, evren): s for s in semboller}
+        for is_ in as_completed(isler):
+            sembol = isler[is_]
+            try:
+                sonuc = is_.result()
+            except Exception as hata:
+                with _kilit:
+                    hatalar.append((sembol, f"{type(hata).__name__}: {hata}"))
+                    tamam += 1
+                    _gunluk.error(f"  {tamam}/{len(semboller)} {sembol} HATA: {hata}")
+                continue
+            with _kilit:
+                detaylar.append(sonuc)
+                tamam += 1
+                if tamam % 10 == 0 or tamam == len(semboller):
+                    _gunluk.info(f"  {tamam}/{len(semboller)} tamam (son: {sembol})")
+
+    detaylar.sort(key=lambda d: d["sembol"])
+    _gunluk.info(f"indirme bitti. basarili: {len(detaylar)}, hatali: {len(hatalar)}")
+
+    # --- Ciktilar
     ozet = pd.DataFrame([{k: v for k, v in d.items() if not k.startswith("_")} for d in detaylar])
     ozet.to_csv(CIKTI_DIZINI / f"sembol_ozeti_{etiket}.csv", index=False)
 
-    yillik = yillik_kapsama(detaylar, evren)
-    yillik.to_csv(CIKTI_DIZINI / f"yillik_kapsama_{etiket}.csv", index=False)
-
-    sicrama_tablo = []
-    for d in detaylar:
-        s = d["_sicramalar"].copy()
-        if not s.empty:
-            s.insert(0, "sembol", d["sembol"])
-            karantina = universe_modulu.karantina_listesi(evren, d["sembol"])
-            s["karantina_ayinda"] = [
-                donem_modulu.karantinada_mi(t, karantina) for t in s["open_time"]
-            ]
-            sicrama_tablo.append(s)
-    sicramalar = (
-        pd.concat(sicrama_tablo, ignore_index=True) if sicrama_tablo
-        else pd.DataFrame(columns=["sembol", "open_time", "onceki_close", "open",
-                                   "bagil_fark", "karantina_ayinda"])
+    yillik_kapsama(detaylar, evren).to_csv(
+        CIKTI_DIZINI / f"yillik_kapsama_{etiket}.csv", index=False
     )
+    sicramalar = sicramalari_grupla(detaylar, evren)
     sicramalar.to_csv(CIKTI_DIZINI / f"butunluk_sicramalari_{etiket}.csv", index=False)
 
-    capraz = cross_dogrulama_ozeti(detaylar)
+    bosluklar = bosluklari_grupla(detaylar)
+    bosluklar.to_csv(CIKTI_DIZINI / f"bosluklar_{etiket}.csv", index=False)
+
+    funding_dagilimi(detaylar).to_csv(CIKTI_DIZINI / f"funding_araliklari_{etiket}.csv", index=False)
+
+    capraz, yogun = capraz_ozet(detaylar)
     capraz.to_csv(CIKTI_DIZINI / f"cross_dogrulama_{etiket}.csv", index=False)
+    yogun.to_csv(CIKTI_DIZINI / f"cross_yogun_tarihler_{etiket}.csv", index=False)
 
-    bosluk_tablo = []
-    for d in detaylar:
-        b = d["_uzun_bosluk"].copy()
-        if not b.empty:
-            b.insert(0, "sembol", d["sembol"])
-            bosluk_tablo.append(b)
-    bosluklar = (
-        pd.concat(bosluk_tablo, ignore_index=True) if bosluk_tablo
-        else pd.DataFrame(columns=["sembol", "bas", "son", "eksik_bar"])
-    )
-    bosluklar.to_csv(CIKTI_DIZINI / f"uzun_bosluklar_{etiket}.csv", index=False)
+    if hatalar:
+        pd.DataFrame(hatalar, columns=["sembol", "hata"]).to_csv(
+            CIKTI_DIZINI / f"hatalar_{etiket}.csv", index=False
+        )
 
-    print("\nCSV ciktilari yazildi:", CIKTI_DIZINI)
-    print(ozet.to_string(index=False))
-    print("\nYillik kapsama:")
-    print(yillik.to_string(index=False))
-    print("\nButunluk sicramalari:", len(sicramalar))
-    print("\n1d capraz dogrulama:")
-    print(capraz.to_string(index=False))
+    _gunluk.info("--- OZET ---")
+    _gunluk.info(f"toplam 4h bar      : {int(ozet['bar_4h'].sum())}")
+    _gunluk.info(f"toplam eksik bar   : {int(ozet['eksik_bar'].sum())}")
+    _gunluk.info(f"sicrama            : {len(sicramalar)} "
+                 f"(karantinali {int(sicramalar['karantina_ayinda'].sum()) if len(sicramalar) else 0})")
+    _gunluk.info(f"bosluk             : {len(bosluklar)} "
+                 f"(borsa geneli {int(bosluklar['borsa_geneli'].sum()) if len(bosluklar) else 0})")
+    _gunluk.info(f"capraz gun         : {capraz.attrs['toplam_gun']}, "
+                 f"fiyat farkli {capraz.attrs['fiyat_gun']}, hacim farkli {capraz.attrs['hacim_gun']}")
+    _gunluk.info(f"CSV ciktilari: {CIKTI_DIZINI}")
 
 
 if __name__ == "__main__":

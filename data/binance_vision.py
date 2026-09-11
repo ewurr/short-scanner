@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import hashlib
 import io
+import os
+import threading
 import time
 import xml.etree.ElementTree as ET
 import zipfile
@@ -57,7 +59,9 @@ MUM_SUTUNLARI = [
 
 FUNDING_SUTUNLARI = ["calc_time", "funding_interval_hours", "last_funding_rate"]
 
-_OTURUM: requests.Session | None = None
+# Oturum is parcacigina ozeldir: tam indirmede sinirli eszamanlilik kullanilir
+# ve requests.Session parcaciklar arasinda paylasilmaya uygun degildir.
+_YEREL = threading.local()
 
 
 class VeriYok(Exception):
@@ -65,11 +69,12 @@ class VeriYok(Exception):
 
 
 def _oturum() -> requests.Session:
-    global _OTURUM
-    if _OTURUM is None:
-        _OTURUM = requests.Session()
-        _OTURUM.headers["User-Agent"] = "short-lab/1.0 (arastirma; yalnizca okuma)"
-    return _OTURUM
+    oturum = getattr(_YEREL, "oturum", None)
+    if oturum is None:
+        oturum = requests.Session()
+        oturum.headers["User-Agent"] = "short-lab/1.0 (arastirma; yalnizca okuma)"
+        _YEREL.oturum = oturum
+    return oturum
 
 
 def _iste(url: str, deneme: int = 5, bekleme: float = 2.0) -> requests.Response:
@@ -205,7 +210,9 @@ def onbellekten_oku(yol: Path) -> pd.DataFrame | None:
 
 def onbellege_yaz(cerceve: pd.DataFrame, yol: Path) -> None:
     yol.parent.mkdir(parents=True, exist_ok=True)
-    gecici = yol.with_suffix(yol.suffix + ".tmp")
+    # Gecici ad benzersizdir: sinirli eszamanlilikta ayni yolu iki parcacik
+    # yazmaya kalkarsa birbirinin yarim dosyasini gormemeli.
+    gecici = yol.with_suffix(f"{yol.suffix}.{os.getpid()}.{threading.get_ident()}.tmp")
     cerceve.to_parquet(gecici, index=False)
     gecici.replace(yol)  # yarim dosya birakmamak icin atomik degistirme
 

@@ -96,3 +96,35 @@ def test_basliksiz_funding_dosyasi_da_okunur():
     cerceve = bv.zip_csv_oku(govde, bv.FUNDING_SUTUNLARI)
     assert list(cerceve.columns) == bv.FUNDING_SUTUNLARI
     assert len(cerceve) == 2
+
+
+def test_iki_saatlik_aralik_normallestirme():
+    """Veride 2 saatlik aralik da var (SOLUSDT 2022-11, AERGOUSDT 2025-04).
+
+    On-kayit §2 yalnizca 4h ve 1h sayiyor; metin Revizyon 3'te duzeltilecek.
+    Kod genel formulle (oran x 8 / aralik) calistigi icin 2 saat de dogru
+    normallestirilir: oran x 4.
+    """
+    sonuc = funding.sekiz_saate_normallestir(pd.Series([0.0001]), pd.Series([2]))
+    assert sonuc.iloc[0] == 0.0004
+
+
+def test_genel_formul_her_araligi_kapsar():
+    """Normallestirme sayili bir listeye degil, oran x 8 / aralik formulune dayanir."""
+    oran = pd.Series([0.001] * 5)
+    aralik = pd.Series([1, 2, 4, 8, 12])
+    sonuc = funding.sekiz_saate_normallestir(oran, aralik)
+
+    assert list(sonuc) == [0.008, 0.004, 0.002, 0.001, 0.001 * 8 / 12]
+
+
+def test_iki_saatlik_kayit_ayristirilir():
+    govde = _funding_zip(
+        [
+            "calc_time,funding_interval_hours,last_funding_rate",
+            "1668038400000,2,0.00005000",
+        ]
+    )
+    cerceve = funding._ay_cercevesi(govde)
+    assert cerceve["aralik_saat"].iloc[0] == 2
+    assert cerceve["oran"].iloc[0] == 0.00005  # gercek odeme olceklenmez
