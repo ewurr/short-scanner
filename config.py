@@ -32,16 +32,54 @@ DONEM_SONU = dt.datetime(2026, 8, 31, 23, 59, 59, tzinfo=dt.timezone.utc)
 BAR_4H = "4h"
 BAR_1D = "1d"
 
-# Haric tutulan semboller (on-kayit §2: stablecoin tabanli ciftler ve endeks
-# sozlesmeleri). Kesin liste on-kayit revizyonuyla sabitlenir; revizyondan once
-# bos birakilamaz diye varsayilan olarak on-kayitta acikca sayilanlar durur.
-HARIC_SEMBOLLER: frozenset[str] = frozenset(
-    {
-        "USDCUSDT",  # stablecoin tabanli cift (on-kayit §2)
-        "BTCDOMUSDT",  # endeks sozlesmesi (on-kayit §2)
-        "DEFIUSDT",  # endeks sozlesmesi (on-kayit §2)
-    }
+# Kapsam netlestirmesi (on-kayit §2, revizyon 2): evren yalnizca
+# contractType = PERPETUAL olan USDT marjinli sozlesmelerden olusur.
+# TRADIFI_PERPETUAL (hisse senedi, emtia, premarket) kapsam disidir.
+PERPETUAL_TIPI = "PERPETUAL"
+TRADIFI_TIPI = "TRADIFI_PERPETUAL"
+ENDEKS_TIPI = "INDEX"
+
+# Haric tutma listesi (on-kayit §2, revizyon 2). Kesin ve aciktir; duzenli ifade
+# kullanilmaz, cunku BUSDT (BU) ve TUSDT (Threshold) stablecoin degildir.
+HARIC_ENDEKSLER: frozenset[str] = frozenset(
+    {"BTCDOMUSDT", "DEFIUSDT", "ALLUSDT", "BLUEBIRDUSDT", "DOTECOUSDT", "FOOTBALLUSDT"}
 )
+HARIC_STABLECOIN: frozenset[str] = frozenset({"USDCUSDT"})
+HARIC_SEMBOLLER: frozenset[str] = HARIC_ENDEKSLER | HARIC_STABLECOIN
+
+# On-kayit §2 revizyon 2 stablecoin tanimi "bagini koruyan token" oldugu icin
+# asagidakiler evrende KALIR. Liste yalnizca belge amaclidir.
+EVRENDE_KALAN_STABLECOIN_BENZERI: frozenset[str] = frozenset(
+    {"FRAXUSDT", "USTCUSDT", "STBLUSDT", "STABLEUSDT"}
+)
+
+# Kabul edilen yeniden adlandirma zincirleri (on-kayit §3, revizyon 2).
+# {yeni_sembol: eski_sembol}; varlik anahtari zincirin en eski uyesidir.
+# KEEPUSDT/NUUSDT -> TUSDT birlesme oldugu icin zincir SAYILMAZ.
+YENIDEN_ADLANDIRMA: dict[str, str] = {
+    "AAVEUSDT": "LENDUSDT",
+    "1000BTTCUSDT": "BTTUSDT",
+    "RENDERUSDT": "RNDRUSDT",
+    "GUSDT": "GALUSDT",
+    "POLUSDT": "MATICUSDT",
+    "AUSDT": "EOSUSDT",
+    "1000LUNCUSDT": "LUNAUSDT",
+    "VICUSDT": "TOMOUSDT",
+    "DODOXUSDT": "DODOUSDT",
+}
+
+# --- Listeleme donemi (on-kayit §2, revizyon 2) ------------------------------
+
+# Aylik 4h dosyalari arasinda bundan UZUN bosluk donemi boler.
+AZAMI_BOSLUK_AY = 3
+
+# Bucket'ta <SEMBOL>SETTLED dizini karantina ayini isaretler.
+SETTLED_SONEKI = "SETTLED"
+
+# --- Veri butunlugu kontrolu (on-kayit §2, revizyon 2) -----------------------
+
+# |open[t] / close[t-1] - 1| bu esigi asan barlar denetim raporunda listelenir.
+BUTUNLUK_ACILIS_ESIGI = 0.30
 
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 

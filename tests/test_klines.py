@@ -110,3 +110,63 @@ def test_cross_dogrulama_ayni_veride_sifir_fark():
     for sutun in fark.columns:
         if sutun.endswith("_bagil_fark"):
             assert fark[sutun].fillna(0).max() == 0
+
+
+# --- 1d turetme kurali (on-kayit rev.2) --------------------------------------
+
+
+def test_alti_bari_eksik_gun_nan_olur():
+    """On-kayit rev.2: 6 adet 4h bari tam olmayan gun eksik sayilir, kismi
+    toplanmaz."""
+    dort = sahte_4h("2021-05-01", 18)          # 3 tam gun
+    eksikli = dort.drop(index=8).reset_index(drop=True)  # 2. gunden bir bar eksik
+
+    gunluk = klines.gunluge_cevir(eksikli)
+    gunler = list(gunluk["open_time"])
+
+    assert pd.Timestamp("2021-05-02", tz="UTC") not in gunler   # eksik gun dusuruldu
+    assert pd.Timestamp("2021-05-01", tz="UTC") in gunler       # tam gunler duruyor
+    assert pd.Timestamp("2021-05-03", tz="UTC") in gunler
+    assert len(gunluk) == 2
+
+
+def test_kismi_gun_hacmi_toplanmaz():
+    """Eksik gunun hacmi kismi olarak raporlanmamali."""
+    dort = sahte_4h("2021-05-01", 12, hacim=1000.0)
+    eksikli = dort.drop(index=[6, 7]).reset_index(drop=True)
+
+    gunluk = klines.gunluge_cevir(eksikli)
+
+    assert len(gunluk) == 1
+    assert gunluk["quote_volume"].iloc[0] == 6000.0  # yalnizca tam gun
+
+
+# --- Veri butunlugu kontrolu (on-kayit rev.2) --------------------------------
+
+
+def test_butunluk_sicramasi_yakalanir():
+    """|open[t] / close[t-1] - 1| > 0.30 olan barlar listelenir."""
+    dort = sahte_4h("2021-05-01", 10)
+    dort.loc[5, "open"] = dort.loc[4, "close"] * 2.0   # %100 sicrama
+
+    sicramalar = klines.butunluk_sicramalari(dort)
+
+    assert len(sicramalar) == 1
+    assert sicramalar["open_time"].iloc[0] == dort.loc[5, "open_time"]
+    assert sicramalar["bagil_fark"].iloc[0] > 0.30
+
+
+def test_butunluk_esik_altinda_bos_doner():
+    dort = sahte_4h("2021-05-01", 10)
+    dort.loc[5, "open"] = dort.loc[4, "close"] * 1.10  # %10, esik alti
+    assert klines.butunluk_sicramalari(dort).empty
+
+
+def test_butunluk_asagi_yonlu_sicramayi_da_yakalar():
+    dort = sahte_4h("2021-05-01", 10)
+    dort.loc[3, "open"] = dort.loc[2, "close"] * 0.5   # -%50
+    assert len(klines.butunluk_sicramalari(dort)) == 1
+
+
+def test_butunluk_esigi_config_ten_gelir():
+    assert config.BUTUNLUK_ACILIS_ESIGI == 0.30

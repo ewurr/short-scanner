@@ -65,3 +65,46 @@ def test_on_kayit_haric_listesi_config_ile_ayni():
     assert "USDCUSDT" in config.HARIC_SEMBOLLER
     assert "BTCDOMUSDT" in config.HARIC_SEMBOLLER
     assert "DEFIUSDT" in config.HARIC_SEMBOLLER
+
+
+# --- Kapsam netlestirmesi ve karantina (on-kayit rev.2) ----------------------
+
+
+def test_tradifi_kapsam_disi():
+    """contractType = TRADIFI_PERPETUAL kripto varlik degildir (rev.2)."""
+    g = universe.haric_gerekce("AMZNUSDT", config.TRADIFI_TIPI, "EQUITY")
+    assert "TRADIFI_PERPETUAL" in g
+    assert universe.haric_gerekce("BTCUSDT", config.PERPETUAL_TIPI, "COIN") == ""
+
+
+def test_underlying_index_haric():
+    g = universe.haric_gerekce("ALLUSDT", config.PERPETUAL_TIPI, config.ENDEKS_TIPI)
+    assert "INDEX" in g
+
+
+def test_delist_endeksler_kesin_listeden_gelir():
+    """exchangeInfo'da olmayan delist endeksler icin sinif bilgisi None'dir."""
+    for s in ("BLUEBIRDUSDT", "DOTECOUSDT", "FOOTBALLUSDT"):
+        assert universe.haric_gerekce(s, None, None) != ""
+
+
+def test_stablecoin_benzerleri_evrende_kalir():
+    """Rev.2 tanimi: bagini koruyan token. FRAX/USTC/STBL/STABLE kalir."""
+    for s in ("FRAXUSDT", "USTCUSDT", "STBLUSDT", "STABLEUSDT"):
+        assert universe.haric_gerekce(s, config.PERPETUAL_TIPI, "COIN") == ""
+        assert universe.haric_mi(s) is False
+
+
+def test_usdcusdt_haric():
+    assert universe.haric_gerekce("USDCUSDT", config.PERPETUAL_TIPI, "COIN") != ""
+
+
+def test_karantina_kirpma_sembol_donemine_gore():
+    """Sembolun ilk/son ayi disindaki SETTLED kayitlari karantina degildir."""
+    aylar = ["2024-05", "2025-04", "2026-07"]
+    kirpik = universe.karantina_kirp(aylar, "2024-09", "2026-06")
+    assert kirpik == ["2025-04"]
+
+
+def test_karantina_kirpma_bos_liste():
+    assert universe.karantina_kirp([], "2024-01", "2025-01") == []

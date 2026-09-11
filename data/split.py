@@ -47,8 +47,11 @@ def varlik_anahtari(sembol: str, zincirler: Mapping[str, str] | None = None) -> 
     """Sembolun varlik anahtari: yeniden adlandirma zincirindeki en eski sembol.
 
     `zincirler` sozlugu {yeni_sembol: eski_sembol} eslemesidir; zincir birden
-    fazla adimsa kok bulunana kadar izlenir.
+    fazla adimsa kok bulunana kadar izlenir. Verilmezse on-kayit §3 rev.2'deki
+    dokuz kabul edilmis zincir kullanilir.
     """
+    if zincirler is None:
+        zincirler = config.YENIDEN_ADLANDIRMA
     if not zincirler:
         return sembol
     gorulen = {sembol}
@@ -65,6 +68,7 @@ def split_uret(semboller: list[str], zincirler: Mapping[str, str] | None = None)
     """Bolme tablosunu uretir: sembol, varlik_anahtari, grup.
 
     Cikti sembol adina gore siralidir ve deterministiktir. Saf fonksiyon.
+    `zincirler` verilmezse on-kayit §3 rev.2'deki dokuz zincir kullanilir.
     """
     satirlar = []
     for sembol in sorted(set(semboller)):

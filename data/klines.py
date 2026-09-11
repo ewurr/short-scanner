@@ -191,3 +191,34 @@ def eksik_barlar(cerceve: pd.DataFrame, bar: str) -> pd.DataFrame:
     bosluklar = seri.groupby(grup).agg(["first", "last", "size"])
     bosluklar.columns = ["bas", "son", "eksik_bar"]
     return bosluklar.reset_index(drop=True)
+
+
+def butunluk_sicramalari(
+    cerceve: pd.DataFrame, esik: float = config.BUTUNLUK_ACILIS_ESIGI
+) -> pd.DataFrame:
+    """`|open[t] / close[t-1] - 1| > esik` olan barlari listeler (on-kayit rev.2).
+
+    Token yeniden fiyatlandirmasi fiyat serisinde yapay bir sicrama birakir; bu
+    kontrol onlari denetim raporunda gorunur kilar. Yalnizca veri BUTUNLUGU
+    olcumudur: getiri, volatilite veya olay hesaplamaz. Saf fonksiyon.
+    """
+    bos = pd.DataFrame(columns=["open_time", "onceki_close", "open", "bagil_fark"])
+    if len(cerceve) < 2:
+        return bos
+
+    calisma = cerceve.sort_values("open_time")
+    onceki_close = calisma["close"].shift(1)
+    bagil = (calisma["open"] / onceki_close - 1.0).abs()
+    secili = bagil > esik
+    if not secili.any():
+        return bos
+
+    # .values kullanilmaz: zaman dilimi bilgisini dusurur.
+    return pd.DataFrame(
+        {
+            "open_time": calisma.loc[secili, "open_time"],
+            "onceki_close": onceki_close[secili],
+            "open": calisma.loc[secili, "open"],
+            "bagil_fark": bagil[secili],
+        }
+    ).reset_index(drop=True)
