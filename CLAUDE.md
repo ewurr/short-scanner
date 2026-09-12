@@ -88,6 +88,28 @@ F4'e geçmez; bu geçerli ve değerli bir sonuçtur.
 - Rastgelelik her zaman sabit tohumla (seed) ve tohum sonuç dosyasına yazılır.
 - Her analiz `analysis/<ad>/` altında: çalıştırma betiği, `RESULTS.md`, ham çıktı CSV.
 
+### Koruma katmanı
+
+**Kilitli dosyalar.** `PREREGISTRATION.md`, `data/split.csv`, `ONAY_KAYDI.md` ve
+bu dosya (`CLAUDE.md`) kilitlidir. `.claude/hooks/kilitli_dosya_korumasi.py`
+adlı `PreToolUse` hook'u bu dosyalara yapılan yazma ve düzenleme araç
+çağrılarını reddeder. Kilit yalnızca kullanıcının açık izniyle,
+`SHORT_LAB_KILIT_ACIK=1` ortam değişkeni ayarlanarak açılır.
+
+Hook yalnızca araç çağrılarını yakalar; çalışan Python kodunu etkilemez.
+`data/split.py` içindeki `onay_kaydet` bu yüzden `ONAY_KAYDI.md` dosyasına
+yazmaya devam eder. Hook `Bash` çağrılarını da kapsamaz: kilit, dikkatsiz bir
+düzenlemeye karşı korur, kararlı bir atlatmaya karşı değil.
+
+**Metodoloji denetçisi** (`.claude/agents/metodoloji-denetcisi.md`): her faz
+sonunda ve her analiz kodu yazıldıktan sonra çalıştırılır. Geleceğe bakış,
+pencere ve boşluk kuralı, dönem ve karantina, veri bölmesi, ön-kayıttan sapma,
+tohum ve tekrarlanabilirlik başlıklarında bulgu listesi döner. Kod düzeltmez.
+
+**Sızıntı testçisi** (`.claude/agents/sizinti-testcisi.md`): yeni hesaplama kodu
+yazıldıktan sonra çalıştırılır. Kodu kırmaya çalışan testler üretir; yalnızca
+`tests/` altına yazar.
+
 ## 6. Eski projeyle ilişki
 
 Bu proje `coin-scanner` deposundan **bağımsızdır**. Oradan kod import edilmez.
