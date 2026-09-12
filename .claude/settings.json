@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(command -v python || command -v python3)\" \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/kilitli_dosya_korumasi.py\"",
+            "timeout": 10,
+            "statusMessage": "Kilitli dosya kontrolu"
+          }
+        ]
+      }
+    ]
+  }
+}
