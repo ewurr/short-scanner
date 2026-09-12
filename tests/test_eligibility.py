@@ -100,12 +100,28 @@ def test_karantina_ayindaki_bar_uygun_degildir():
     karantina = ["2021-06"]
 
     icinde = pd.Timestamp("2021-06-15", tz="UTC")
-    disinda = pd.Timestamp("2021-07-15", tz="UTC")
-
     assert uyg.uygun_mu(seri, donem_bas, icinde, config.BAR_4H, karantina) is False
-    assert uyg.uygun_mu(seri, donem_bas, disinda, config.BAR_4H, karantina) is True
     # Karantina verilmezse ayni bar uygun
     assert uyg.uygun_mu(seri, donem_bas, icinde, config.BAR_4H) is True
+
+
+def test_karantinaya_uzanan_pencere_de_uygun_degildir():
+    """On-kayit rev.2: hicbir geriye bakis penceresi karantina ayina GIREMEZ.
+
+    t karantina disinda olsa bile 30 gunluk penceresi karantina ayina
+    uzaniyorsa deger hesaplanmaz.
+    """
+    seri = _hacim_serisi("2021-01-01", 400, 50_000_000.0)
+    donem_bas = pd.Timestamp("2021-01-01", tz="UTC")
+    karantina = ["2021-06"]
+
+    # 2021-07-15'in penceresi 2021-06-15..07-14 -> karantinaya uzaniyor
+    uzanan = pd.Timestamp("2021-07-15", tz="UTC")
+    assert uyg.uygun_mu(seri, donem_bas, uzanan, config.BAR_4H, karantina) is False
+
+    # 2021-08-05'in penceresi 2021-07-06..08-04 -> tamami karantina disinda
+    temiz = pd.Timestamp("2021-08-05", tz="UTC")
+    assert uyg.uygun_mu(seri, donem_bas, temiz, config.BAR_4H, karantina) is True
 
 
 def test_donem_disindaki_bar_uygun_degildir():

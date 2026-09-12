@@ -24,6 +24,8 @@ import pandas as pd
 
 import config
 from data import donem as donem_modulu
+from data import pencere as pencere_modulu
+from data.pencere import adim
 
 
 def gunluk_hacim_serisi(gunluk: pd.DataFrame) -> pd.Series:
@@ -40,31 +42,32 @@ def medyan_hacim(
     t,
     donem_baslangic=None,
     pencere_gun: int = config.HACIM_PENCERESI_GUN,
+    karantina_aylari=(),
 ) -> float:
-    """t anina kadarki son `pencere_gun` tam gunun medyan hacmi.
+    """t anina kadarki son `pencere_gun` GUNUN medyan hacmi (on-kayit §2 rev.3).
 
-    t'nin ait oldugu gun HENUZ KAPANMADIGI icin pencereye alinmaz; yalnizca
-    t'den once kapanmis gunler sayilir. Bu, gelecege bakisi imkansiz kilar.
-
-    `donem_baslangic` verilirse pencere onu asamaz (on-kayit rev.2): pencerenin
-    tamami donem icinde kalmiyorsa NaN doner.
+    Pencere zamanla tanimlidir ve `data.pencere` yardimcisindan gecer:
+      - t'nin ait oldugu gun HENUZ KAPANMADIGI icin pencereye alinmaz; pencere
+        t'den once kapanmis son gunde biter. Bu, gelecege bakisi imkansiz kilar.
+      - Pencere donem baslangicini asamaz (rev.2).
+      - Penceredeki gunlerden biri bile eksikse NaN doner (rev.3 tamlik sarti).
+        Eksik gun, 6 adet 4h barin tamami olmayan gundur.
     """
     zaman = pd.Timestamp(t)
-    kapanmis = gunluk_hacim.loc[gunluk_hacim.index + pd.Timedelta(days=1) <= zaman]
+    gunluk = adim(config.BAR_1D)
 
-    if donem_baslangic is not None:
-        bas = pd.Timestamp(donem_baslangic)
-        # Pencere donem baslangicini asiyorsa deger hesaplanmaz.
-        if not donem_modulu.pencere_gecerli_mi(zaman, bas, pd.Timedelta(days=pencere_gun)):
-            return float("nan")
-        kapanmis = kapanmis.loc[kapanmis.index >= bas]
+    # t'den once kapanmis son gun: acilisi t - 1 gun veya oncesi olan son gun.
+    son_kapanmis = (zaman - gunluk).floor("D")
 
-    if kapanmis.empty:
-        return float("nan")
-    son = kapanmis.iloc[-pencere_gun:]
-    if len(son) < pencere_gun:
-        return float("nan")
-    return float(son.median())
+    return pencere_modulu.pencere_degeri(
+        gunluk_hacim,
+        bitis=son_kapanmis,
+        bar_sayisi=pencere_gun,
+        bar=config.BAR_1D,
+        islev="median",
+        donem_baslangic=donem_baslangic,
+        karantina_aylari=karantina_aylari,
+    )
 
 
 def listeleme_yasi_gun(donem_baslangic, t) -> float:
@@ -113,7 +116,7 @@ def uygun_mu(
     if listeleme_yasi_gun(donem_baslangic, zaman) < config.ASGARI_LISTELEME_YASI_GUN:
         return False
 
-    medyan = medyan_hacim(gunluk_hacim, zaman, donem_baslangic)
+    medyan = medyan_hacim(gunluk_hacim, zaman, donem_baslangic, karantina_aylari=karantina_aylari)
     if pd.isna(medyan):
         return False
     return medyan >= hacim_esigi(bar)

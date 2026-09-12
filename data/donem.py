@@ -129,28 +129,31 @@ def cikis_bar_indeksi(
     giris_indeksi: int,
     ufuk: int,
     donem_bitis,
+    bar: str = config.BAR_4H,
 ) -> int:
-    """Ufuk donem sonunu asarsa cikis barini donem sonuna kirpar (on-kayit §2).
+    """Ufuk sonundaki cikis barinin indeksi (on-kayit §2 rev.2 + rev.3).
 
-    Getiri HESAPLAMAZ; yalnizca hangi barda cikilacagini soyler. Getiri hesabi
-    F2'de bu fonksiyonu kullanacak.
+    Revizyon 3'ten beri mantik `data.pencere.cikis_bari` icindedir: ufuk zamanla
+    olculur, hedef bar eksikse sonraki ilk mevcut bara kayilir, donem sonu ve
+    delist onceliklidir. Bu sarmalayici geriye donuk uyumluluk icindir ve
+    yalnizca indeksi doner; cikisin hangi fiyat alanindan (close / open)
+    okunacagini ogrenmek icin dogrudan `pencere.cikis_bari` kullanilmalidir.
 
-    `bar_zamanlari`: donemin bar acilis zamanlari (sirali).
-    `giris_indeksi` : giris barinin indeksi (t+1).
-    `ufuk`          : kac bar sonra cikilacagi (h).
-    Doner: cikis barinin indeksi; her zaman donem icinde kalir.
+    Getiri HESAPLAMAZ.
     """
+    from data import pencere as pencere_modulu
+
     zamanlar = pd.DatetimeIndex(bar_zamanlari)
     if len(zamanlar) == 0:
         raise ValueError("Bar listesi bos.")
     if not 0 <= giris_indeksi < len(zamanlar):
         raise IndexError(f"Giris indeksi donem disinda: {giris_indeksi}")
 
-    hedef = giris_indeksi + ufuk
-    # Donemin son bari, hem bar sayisiyla hem de zaman siniriyla kisitlanir.
-    son_gecerli = len(zamanlar) - 1
-    sinir = pd.Timestamp(donem_bitis)
-    zaman_icinde = zamanlar <= sinir
-    if zaman_icinde.any():
-        son_gecerli = min(son_gecerli, int(np.flatnonzero(zaman_icinde)[-1]))
-    return min(hedef, son_gecerli)
+    sonuc = pencere_modulu.cikis_bari(
+        zamanlar,
+        giris_zamani=zamanlar[giris_indeksi],
+        ufuk=ufuk,
+        bar=bar,
+        donem_bitis=donem_bitis,
+    )
+    return sonuc.indeks

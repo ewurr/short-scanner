@@ -284,3 +284,30 @@ Koşu **Miniconda Python** ile yapılmıştır.
 
 Revizyon 3 metninden sonra F2 (keşif). Bu rapordaki hiçbir sayı getiri, olay ya
 da fiyat davranışı içermez; keşif verisine bakılmamıştır.
+
+---
+
+## 13. Revizyon 3 sonrası: veri boşluğu kuralının etkisi
+
+Ön-kayıt §2 rev.3'ün tamlık şartı (bir pencerede tek bar bile eksikse değer
+hesaplanmaz), 4 saatlik seride aşağıdaki kadar bar-sembol kombinasyonunu olay
+üretmekten çıkarır. Tarama tüm evren üzerinde yapılmıştır (3.692.251 bar,
+boşluk içeren 60 sembol).
+
+| Pencere | Uzunluk | Elenen bar-sembol |
+|---|---|---|
+| H1 hacim medyanı | 180 bar | 19.647 |
+| H2 önceki yükseliş | 30 bar | 3.248 |
+| H2 yapı kırılımı (k azami) | 12 bar | 1.232 |
+| H1 yükseliş penceresi | 6 bar | 560 |
+| **En az bir pencereden elenen (birleşik)** | — | **19.763** |
+
+Birleşik eleme toplam barın **%0.535**'idir. Baskın katkı H1'in 180 barlık
+hacim penceresinden gelir; uzun pencere, bir boşluğu daha uzun süre "taşır".
+
+Bu sayım yalnızca kaç barın pencere kuralına takıldığını ölçer; hiçbir olay,
+getiri veya fiyat davranışı hesaplanmamıştır.
+
+Kuralın hedeflediği iki kayıt (WAVESUSDT ve KNCUSDT, 2022-03-01 00:00) bu
+elemenin içindedir ve `tests/test_pencere.py` içinde gerçek veriyle
+doğrulanmıştır.
