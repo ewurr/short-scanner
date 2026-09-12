@@ -1,6 +1,6 @@
 # PREREGISTRATION.md — Short Öngörü Hipotezleri
 
-**Durum:** Sürüm 2 (2026-09-11). Veri bölmesinden ve fiyat verisi indirilmeden önce commit edilir.
+**Durum:** Sürüm 3 (2026-09-11). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
 **Kapsam:** F2 (keşif) ve F3 (onay). Taktik (F4) ve ileri-zaman testi (F5) ayrı revizyonla eklenir.
 
 Bu belge commit edildikten sonra aşağıdaki hiçbir tanım, eşik veya tarih sınırı
@@ -24,7 +24,7 @@ sonra short pozisyon, (a) aynı coini rastgele bir zamanda short'lamaktan ve
 | Hariç | Stablecoin tabanlı çiftler (ör. USDCUSDT) ve endeks sözleşmeleri (ör. BTCDOMUSDT, DEFIUSDT) |
 | Bar | H1, H2: 4 saat · H3: 1 gün |
 | Toplam dönem | 2020-01-01 00:00 UTC → 2026-08-31 23:59 UTC |
-| Funding | Gerçek funding geçmişi. 4 saatlik veya 1 saatlik ödeme aralığına geçmiş sözleşmelerde oran, karşılaştırma için 8 saate normalleştirilir; getiri hesabında ise gerçek ödemeler kullanılır |
+| Funding | Gerçek funding geçmişi. 8 saat dışında bir ödeme aralığı (1, 2, 4 saat veya başka) kullanan sözleşmelerde oran, karşılaştırma için 8 saate normalleştirilir; getiri hesabında ise gerçek ödemeler kullanılır. Normalleştirme genel formülle tanımlanır: `oran × 8 / aralık`; yukarıda sayılan aralıklar örnektir, sınırlayıcı değildir |
 
 **Kapsam netleştirmesi.** Evren, `fapi/v1/exchangeInfo` içinde `contractType = PERPETUAL`
 olan USDT marjinli sözleşmelerden oluşur. `contractType = TRADIFI_PERPETUAL` olan sözleşmeler
@@ -56,6 +56,30 @@ eksik (NaN) sayılır. Uygunluktaki günlük hacim bu seriden hesaplanır.
 - Ufuk dönem sonunu aşarsa çıkış fiyatı dönemin son barının kapanışıdır.
 - Aynı kurallar K1 ve K2 kontrol barlarına da uygulanır.
 
+**Veri boşlukları.** Bar dizisinde eksik bar bulunabilir (F1 denetimi: 105 kayıt, 10 olay;
+en büyüğü 48 ve 49 sembolü aynı anda etkilemiştir). Aşağıdaki kurallar dönem kurallarına ek
+olarak uygulanır ve dönem bölmezler.
+
+- **Pencereler zamanla tanımlanır.** "Son N bar" ifadesi son N × 4 saatlik zaman aralığı
+  demektir (1 günlük seride N × 24 saat). Bar sayısıyla değil, zaman damgasıyla hesaplanır.
+- **Tamlık şartı.** Bir pencerede beklenen barlardan biri bile eksikse değer hesaplanmaz
+  (NaN). O barda olay ya da kontrol oluşmaz. Bu, H1'in hacim ve yükseliş pencerelerini,
+  H2'nin 30 barlık ve k barlık pencerelerini, H3'ün hacim pencerelerini ve SMA50'yi, ayrıca
+  uygunluk hacmini kapsar.
+- **Ufuk.** Ufuk zamanla ölçülür: h bar = h × 4 saat. Hedef çıkış barı eksikse çıkış, sonraki
+  ilk mevcut barın **açılış** fiyatındandır. Dönem sonu ve delist kuralları önceliklidir.
+- **Giriş.** t+1 barı eksikse olay oluşmaz.
+- 1 günlük seride bir gün yalnızca 6 adet 4 saatlik barın tamamı varsa oluşur; eksik gün
+  zaten NaN'dir ve pencerelerde eksik sayılır.
+- Aynı kurallar K1 ve K2 kontrol barlarına da uygulanır.
+
+**Gerekçe.** F1 denetiminde açıklanamayan iki bütünlük sıçraması (WAVESUSDT +%54,1 ve
+KNCUSDT +%31,3, ikisi de 2022-03-01 00:00) 2022-02-26…28 arasındaki 18 barlık kesintinin
+ardından gelen ilk bardır. Fiyat kesinti sırasında hareket etmiştir. Kesinti üzerinden
+atlayan bir pencere sahte bir yükseliş, kesinti üzerinden geçen bir ufuk ise gerçekte
+alınamayacak bir çıkış fiyatı üretir. Bu iki kayıt karantinaya alınmaz; bu kural onları
+zaten dışarıda bırakır.
+
 **Veri bütünlüğü kontrolü.** F1 denetim raporu, `|open[t] / close[t-1] - 1| > 0.30` olan tüm
 barları sembol ve zamanla listeler. Karantina ile açıklanamayan kayıtlar, F2 başlamadan önce
 ayrı bir revizyonla karantinaya alınır ya da gerekçesiyle bırakılır.
@@ -67,6 +91,8 @@ ayrı bir revizyonla karantinaya alınır ya da gerekçesiyle bırakılır.
 
 Delist edilen sözleşmelerin geçmişi elde edilemezse bu durum F1 denetim raporunda
 sayısıyla yazılır ve sonuçlar "kötümser yanlılıklı" olarak etiketlenir.
+F1 denetiminde 28 delist sembolün tümünün geçmişi eksiksiz indirilmiştir; bu veri
+kümesinde hayatta kalma yanlılığı yoktur.
 
 ## 3. Veri bölmesi
 
@@ -224,3 +250,4 @@ Başarısız bir hipotez için onay yeniden koşulamaz.
 |---|---|---|---|---|
 | 1 | — | İlk sürüm | — | — |
 | 2 | 2026-09-11 | Kapsam netleştirmesi (TRADIFI_PERPETUAL dışı), kesin hariç tutma listesi, 1d türetme kuralı, listeleme dönemi ve karantina kuralı, veri bütünlüğü kontrolü, varlık anahtarıyla bölme | exchangeInfo sınıflandırması, yeniden adlandırma zincirlerinin bölmeyi sızdırması ve SETTLED kayıtlarının yeniden fiyatlandırma sıçraması riski. Hiçbir fiyat verisine bakılmadan yapıldı. | Yok (henüz sonuç yok) |
+| 3 | 2026-09-11 | Funding aralığı metni genel formüle bağlandı; veri boşluğu kuralı (zamanla tanımlı pencere, tamlık şartı, ufukta ileri kayma); delist kapsamasının tam olduğu notu | F1 denetimi: 8 saat dışında dört farklı funding aralığı; 10 boşluk olayı ve bunların ardından oluşan iki sahte sıçrama. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
