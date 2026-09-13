@@ -216,7 +216,9 @@ def cikis_bari(
 ) -> CikisSonucu:
     """Ufuk sonundaki cikis barini secer (on-kayit §2 rev.3, §4 rev.4).
 
-    - Ufuk zamanla olculur: `giris + ufuk x adim`.
+    - On-kayit §4: `P0 = open[t+1]`, `P1 = close[t+h]`. Pozisyon t+1..t+h
+      arasinda h bar tutulur. `giris_zamani` t+1 barinin zamanidir, dolayisiyla
+      hedef cikis bari `giris + (h-1) x adim` = t+h'dir. Ufuk zamanla olculur.
     - Hedef bar mevcutsa cikis o barin KAPANISIDIR.
     - Hedef bar eksikse cikis, sonraki ilk mevcut barin ACILISIDIR (ileri kayma).
     - Ileri kaymadan ONCELIKLI uc sinir vardir; en erken olan uygulanir ve cikis
@@ -235,8 +237,11 @@ def cikis_bari(
     giris = pd.Timestamp(giris_zamani)
     if giris not in indeks:
         raise KeyError(f"Giris bari seride yok: {giris}")
+    if ufuk < 1:
+        raise ValueError(f"ufuk en az 1 bar olmali: {ufuk}")
 
-    hedef = giris + ufuk * adim(bar)
+    # giris = t+1; cikis bari t+h = giris + (h-1) x adim (on-kayit §4).
+    hedef = giris + (ufuk - 1) * adim(bar)
 
     adaylar: list[tuple[pd.Timestamp, str]] = []
     karantina_siniri = _karantina_siniri(giris, karantina_aylari)

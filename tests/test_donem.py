@@ -100,7 +100,8 @@ def test_pencere_gecerli_mi():
 def test_ufuk_donem_icindeyse_kirpilmaz():
     zamanlar = pd.date_range("2021-01-01", periods=50, freq="4h", tz="UTC")
     bitis = pd.Timestamp("2021-12-31", tz="UTC")
-    assert donem.cikis_bar_indeksi(zamanlar, giris_indeksi=5, ufuk=18, donem_bitis=bitis) == 23
+    # giris t+1 = indeks 5 -> t = 4 -> cikis t+18 = indeks 22 (on-kayit §4)
+    assert donem.cikis_bar_indeksi(zamanlar, giris_indeksi=5, ufuk=18, donem_bitis=bitis) == 22
 
 
 def test_ufuk_donem_sonunu_asarsa_son_bara_kirpilir():

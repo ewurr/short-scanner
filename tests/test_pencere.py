@@ -131,7 +131,7 @@ def test_normal_cikis_kapanistan():
     seri = _seri("2021-01-01", 60)
     sonuc = pencere.cikis_bari(seri.index, seri.index[5], 18, config.BAR_4H)
 
-    assert sonuc.zaman == seri.index[23]
+    assert sonuc.zaman == seri.index[22]  # t=4, cikis t+18 (on-kayit §4)
     assert sonuc.fiyat_alani == "close"
     assert sonuc.kaydi is False
     assert sonuc.kirpildi is False
@@ -142,12 +142,12 @@ def test_cikis_bari_eksikse_sonraki_mevcut_barin_acilisi():
     ACILIS fiyatindandir."""
     seri = _seri("2021-01-01", 60)
     giris = seri.index[5]
-    hedef = seri.index[23]  # 18 bar sonrasi
+    hedef = seri.index[22]  # t+18
 
-    eksik = seri.drop([hedef, seri.index[24]])
+    eksik = seri.drop([hedef, seri.index[23]])
     sonuc = pencere.cikis_bari(eksik.index, giris, 18, config.BAR_4H)
 
-    assert sonuc.zaman == seri.index[25]  # sonraki ilk MEVCUT bar
+    assert sonuc.zaman == seri.index[24]  # sonraki ilk MEVCUT bar
     assert sonuc.fiyat_alani == "open"
     assert sonuc.kaydi is True
 
@@ -156,7 +156,7 @@ def test_donem_sonu_ileri_kaymaya_gore_onceliklidir():
     """Donem sonu ve delist kurallari ileri kaymadan onceliklidir."""
     seri = _seri("2021-01-01", 60)
     giris = seri.index[5]
-    hedef = seri.index[23]
+    hedef = seri.index[22]  # t+18
     donem_bitis = seri.index[20]
 
     eksik = seri.drop(hedef)
@@ -360,7 +360,7 @@ def test_karantinaya_uzanmayan_ufuk_etkilenmez():
 
     sonuc = pencere.cikis_bari(seri.index, giris, 6, config.BAR_4H, karantina_aylari=["2021-06"])
 
-    assert sonuc.zaman == giris + 6 * pd.Timedelta(hours=4)
+    assert sonuc.zaman == giris + 5 * pd.Timedelta(hours=4)  # t+6
     assert sonuc.kirpildi is False
     assert sonuc.kirpma_nedeni is None
 
@@ -372,7 +372,7 @@ def test_giristen_onceki_karantina_ayi_cikisi_etkilemez():
     sonuc = pencere.cikis_bari(seri.index, giris, 18, config.BAR_4H, karantina_aylari=["2021-05"])
 
     assert sonuc.kirpildi is False
-    assert sonuc.zaman == giris + 18 * pd.Timedelta(hours=4)
+    assert sonuc.zaman == giris + 17 * pd.Timedelta(hours=4)  # t+18
 
 
 def test_karantina_ileri_kaymaya_gore_onceliklidir():
@@ -395,10 +395,10 @@ def test_eksik_hedefin_sonraki_bari_karantinadaysa_oraya_kayilmaz():
     """
     seri = _seri("2021-05-25", 100)
     giris = pd.Timestamp("2021-05-30 20:00", tz="UTC")
-    hedef = pd.Timestamp("2021-05-31 20:00", tz="UTC")  # ayin son bari, eksik
+    hedef = pd.Timestamp("2021-05-31 20:00", tz="UTC")  # t+7, ayin son bari, eksik
     eksik = seri.drop(hedef)
 
-    sonuc = pencere.cikis_bari(eksik.index, giris, 6, config.BAR_4H, karantina_aylari=["2021-06"])
+    sonuc = pencere.cikis_bari(eksik.index, giris, 7, config.BAR_4H, karantina_aylari=["2021-06"])
 
     assert sonuc.zaman == pd.Timestamp("2021-05-31 16:00", tz="UTC")
     assert sonuc.fiyat_alani == "close"
@@ -482,4 +482,39 @@ def test_litusdt_sicrama_barina_uzanan_ufuk_sicramadan_okunmaz():
             seri.index, pd.Timestamp("2025-12-22 16:00", tz="UTC"), 6, config.BAR_4H,
             karantina_aylari=["2025-12"],
         )
+
+
+# --- Ufuk uzunlugu (on-kayit §4) ---------------------------------------------
+
+
+def test_ufuk_h_bar_tutar_cikis_t_arti_h_kapanisi():
+    """On-kayit §4: P0 = open[t+1], P1 = close[t+h]; pozisyon h bar tutulur.
+
+    Onceki uygulama hedefi giris + h x adim hesapliyordu; giris zaten t+1
+    oldugu icin cikis t+h+1'e dusuyor ve pozisyon h+1 bar tutuluyordu.
+    """
+    seri = _seri("2021-01-01", 60)
+    t = seri.index[4]
+    giris = pencere.giris_bari(seri.index, t, config.BAR_4H)
+    assert giris == seri.index[5]
+
+    for h in (1, 6, 18, 42):
+        sonuc = pencere.cikis_bari(seri.index, giris, h, config.BAR_4H)
+        assert sonuc.zaman == t + h * pd.Timedelta(hours=4), h
+        tutulan = seri.index[(seri.index >= giris) & (seri.index <= sonuc.zaman)]
+        assert len(tutulan) == h, h
+
+
+def test_ufuk_bir_ise_cikis_giris_barinin_kapanisi():
+    seri = _seri("2021-01-01", 20)
+    sonuc = pencere.cikis_bari(seri.index, seri.index[5], 1, config.BAR_4H)
+    assert sonuc.zaman == seri.index[5]
+    assert sonuc.fiyat_alani == "close"
+
+
+@pytest.mark.parametrize("ufuk", [0, -3])
+def test_ufuk_birden_kucukse_hata(ufuk):
+    seri = _seri("2021-01-01", 20)
+    with pytest.raises(ValueError):
+        pencere.cikis_bari(seri.index, seri.index[5], ufuk, config.BAR_4H)
 
