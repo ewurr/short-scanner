@@ -59,11 +59,18 @@ def sahte_ham(monkeypatch):
     monkeypatch.setattr(klines, "ham_mumlari_yukle", mumlar)
     monkeypatch.setattr(funding, "ham_funding_yukle", fund)
 
+    def birincil(sembol, yenile=False):
+        return mumlar(sembol, config.BAR_1D)
+
+    monkeypatch.setattr(klines, "ham_birincil_gunluk_indir", birincil)
+
 
 # --- Kume zorunlu ------------------------------------------------------------
 
 
-@pytest.mark.parametrize("fonksiyon", [klines.mumlari_yukle, funding.funding_yukle])
+@pytest.mark.parametrize(
+    "fonksiyon", [klines.mumlari_yukle, funding.funding_yukle, klines.birincil_gunluk_indir]
+)
 def test_kume_parametresinin_varsayilani_yok(fonksiyon):
     assert inspect.signature(fonksiyon).parameters["kume"].default is inspect.Parameter.empty
 
@@ -73,6 +80,8 @@ def test_kumesiz_cagri_hata_verir():
         klines.mumlari_yukle("AAUSDT", config.BAR_4H)
     with pytest.raises(TypeError):
         funding.funding_yukle("AAUSDT")
+    with pytest.raises(TypeError):
+        klines.birincil_gunluk_indir("AAUSDT")
 
 
 @pytest.mark.parametrize(
@@ -197,7 +206,7 @@ def test_analiz_kodu_ham_yukleyici_cagirmaz():
     korumasi sessizce atlanir; bu test onu yakalar.
     """
     izinli = {KOK / "data", KOK / "tests", KOK / "analysis" / "00_veri_denetimi", KOK / ".claude"}
-    desen = re.compile(r"\bham_(mumlari|funding)_yukle\b")
+    desen = re.compile(r"\bham_(mumlari_yukle|funding_yukle|birincil_gunluk_indir)\b")
     ihlaller = []
     for yol in KOK.rglob("*.py"):
         if any(p in izinli for p in yol.parents) or "cache" in yol.parts:
@@ -205,3 +214,33 @@ def test_analiz_kodu_ham_yukleyici_cagirmaz():
         if desen.search(yol.read_text(encoding="utf-8", errors="replace")):
             ihlaller.append(str(yol.relative_to(KOK)))
     assert ihlaller == []
+
+
+# --- Birincil 1d (capraz dogrulama dosyalari) --------------------------------
+
+
+def test_birincil_1d_kesif_a_grubu_kume_araligina_kesilir(tablo, sahte_ham):
+    bas, son = split.kume_araligi("KESIF")
+    gunluk = klines.birincil_gunluk_indir("AAUSDT", "KESIF", split=tablo)
+    assert not gunluk.empty
+    assert gunluk["open_time"].min() >= bas
+    assert gunluk["open_time"].max() <= son
+
+
+def test_birincil_1d_kesif_b_grubu_bos_doner(tablo, sahte_ham):
+    assert klines.birincil_gunluk_indir("BBUSDT", "KESIF", split=tablo).empty
+
+
+@pytest.mark.parametrize("kume", ["C1", "C2"])
+def test_birincil_1d_onay_kumesi_onaysiz_reddedilir_kayit_yazilmaz(kume, tablo, sahte_ham, kayit):
+    once = kayit.read_text(encoding="utf-8")
+    with pytest.raises(PermissionError):
+        klines.birincil_gunluk_indir("BBUSDT", kume, split=tablo)
+    assert kayit.read_text(encoding="utf-8") == once
+
+
+def test_birincil_1d_onayli_cagri_kaynagiyla_kaydedilir(tablo, sahte_ham, kayit):
+    klines.birincil_gunluk_indir("BBUSDT", "C1", onay=True, split=tablo)
+    metin = kayit.read_text(encoding="utf-8")
+    assert "| C1 |" in metin and "BBUSDT" in metin and "kaynak=birincil_1d" in metin
+

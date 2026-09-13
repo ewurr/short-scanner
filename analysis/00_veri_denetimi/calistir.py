@@ -93,7 +93,8 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
     # 1d capraz dogrulama
     capraz = {"durum": "yapilmadi"}
     try:
-        birincil = klines_modulu.birincil_gunluk_indir(sembol)
+        # Capraz dogrulama da tum gecmisi olcer; kume korumasiz ham yol bilerek.
+        birincil = klines_modulu.ham_birincil_gunluk_indir(sembol)
         if not gunluk.empty and not birincil.empty:
             fark = klines_modulu.cross_dogrula(gunluk, birincil)
             fs = [f"{c}_bagil_fark" for c in FIYAT_SUTUNLARI]

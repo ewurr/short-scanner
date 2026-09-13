@@ -183,8 +183,37 @@ def cross_dogrula(turetilmis: pd.DataFrame, birincil: pd.DataFrame) -> pd.DataFr
     return sonuc
 
 
-def birincil_gunluk_indir(sembol: str, yenile: bool = False) -> pd.DataFrame:
-    """Kaynaktaki 1d dosyalarini indirir. Yalnizca capraz dogrulama icindir."""
+def birincil_gunluk_indir(
+    sembol: str,
+    kume: str,
+    onay: bool = False,
+    yenile: bool = False,
+    split=None,
+) -> pd.DataFrame:
+    """Kaynaktaki birincil 1d dosyalarini KUME KORUMASIYLA yukler (CLAUDE.md §3.2-3.3).
+
+    `mumlari_yukle` ve `funding_yukle` ile ayni kapidan (`split.kume_erisimi`)
+    gecer: `kume` zorunludur ve varsayilani yoktur; C1/C2 icin `onay=True`
+    sarttir, onayli her cagri onay kaydina `kaynak=birincil_1d` notuyla eklenir;
+    sembol kumenin grubunda degilse bos cerceve doner; veri kume araligina kesilir.
+    """
+    from data import split as split_modulu  # split bu modulu import eder; dongu onlenir
+
+    izinli, bas, son = split_modulu.kume_erisimi(
+        sembol, kume, onay=onay, split=split, not_metni="kaynak=birincil_1d"
+    )
+    if not izinli:
+        return pd.DataFrame(columns=[s for s in bv.MUM_SUTUNLARI if s != "ignore"])
+    return donem_kes(ham_birincil_gunluk_indir(sembol, yenile=yenile), bas, son)
+
+
+def ham_birincil_gunluk_indir(sembol: str, yenile: bool = False) -> pd.DataFrame:
+    """Kaynaktaki birincil 1d dosyalarini KUME KORUMASI OLMADAN indirir.
+
+    B grubu ve C2 donemi dahil tum gecmisi dondurur. Yalnizca tum gecmisi olcmesi
+    gereken F1 capraz dogrulamasi icindir (CLAUDE.md §3.1). Analiz ve olay kodu
+    bunu CAGIRMAZ.
+    """
     anahtarlar = bv.mum_dosyalari(sembol, config.BAR_1D)
     parcalar = []
     for anahtar in anahtarlar:
