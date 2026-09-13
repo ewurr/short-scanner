@@ -155,6 +155,42 @@ def test_ileri_kayma_kume_sinirini_asamaz():
         pencere.cikis_bari(eksik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None)
 
 
+@pytest.mark.parametrize(
+    "donem_bitis",
+    [None, pd.Timestamp("2026-08-31 23:59:59", tz="UTC")],
+    ids=["donem_bilinmiyor", "donem_kumeden_sonra_suruyor"],
+)
+def test_kesik_seride_kume_sonuna_yakin_eksik_bar_kirpilmaz_hata_verir(donem_bitis):
+    """F1 kapanis bulgusu 5: ayni senaryo, kume sinirinda KESILMIS seriyle.
+
+    split.yukle KESIF verisini 2025-08-31 20:00'de keser; o bar eksikse seri
+    16:00'da biter. Hedef tam 20:00 oldugu icin `hedef <= kume_son` saglanir ve
+    eskiden kod serinin sonunu delist sanip `seri_sonu` kirpmasi donduruyordu.
+    Oysa bir sonraki mevcut bar kumenin disindadir: olay olusmaz.
+    """
+    _, kume_son = split.kume_araligi("KESIF")
+    son_bar = kume_son.floor("4h")
+    kesik = _izgara("2025-08-20", "2025-08-31 20:00").drop(son_bar)
+    giris = son_bar - 17 * DORT_SAAT  # t+18 = son_bar
+    assert kesik[-1] == son_bar - DORT_SAAT
+
+    with pytest.raises(split.KumeSiniriHatasi):
+        pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=donem_bitis, karantina_aylari=None)
+
+
+def test_kesik_seride_kume_icinde_biten_donem_delist_olarak_kirpilir():
+    """Ayni kesik seri, ama sembolun donemi kume icinde bitiyor (delist): kirpma gecerli."""
+    _, kume_son = split.kume_araligi("KESIF")
+    son_bar = kume_son.floor("4h")
+    kesik = _izgara("2025-08-20", "2025-08-31 20:00").drop(son_bar)
+    giris = son_bar - 17 * DORT_SAAT
+
+    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=kume_son, karantina_aylari=None)
+
+    assert sonuc.kirpildi and sonuc.kirpma_nedeni == "seri_sonu"
+    assert sonuc.zaman == son_bar - DORT_SAAT
+
+
 def test_kumeye_sigan_ufuk_normal_cikar():
     _, kume_son = split.kume_araligi("KESIF")
     son_bar = kume_son.floor("4h")
@@ -169,12 +205,16 @@ def test_kumeye_sigan_ufuk_normal_cikar():
 
 
 def test_kume_icinde_gercek_delist_kirpmasi_korunur():
-    """Kume icinde veri gercekten biterse (delist) §4 kurali gecerli kalir."""
+    """Kume icinde veri gercekten biterse (delist) §4 kurali gecerli kalir.
+
+    Delist, sembolun donem sonunun kumenin icinde olmasiyla anlasilir (bulgu 5).
+    """
     _, kume_son = split.kume_araligi("KESIF")
     delist = _izgara("2023-05-01", "2023-05-10 12:00")
     giris = pd.Timestamp("2023-05-09 00:00", tz="UTC")
+    donem_bitis = pd.Timestamp("2023-05-31 23:59:59.999999999", tz="UTC")
 
-    sonuc = pencere.cikis_bari(delist, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None)
+    sonuc = pencere.cikis_bari(delist, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=donem_bitis, karantina_aylari=None)
 
     assert sonuc.kirpildi and sonuc.kirpma_nedeni == "seri_sonu"
     assert sonuc.zaman == delist[-1]

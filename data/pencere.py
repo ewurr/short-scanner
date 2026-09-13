@@ -91,6 +91,12 @@ def _zaman_dizisi_dogrula(zamanlar, yer: str) -> pd.DatetimeIndex:
     tekrarlanan cagrilar her seferinde tum diziyi taramaz.
     """
     indeks = zamanlar if isinstance(zamanlar, pd.DatetimeIndex) else pd.DatetimeIndex(zamanlar)
+    if len(indeks) and indeks.tz is None:
+        raise ZamanDizisiHatasi(
+            f"{yer}: zaman dizisi saat dilimsiz (tz-naive). Tum zaman damgalari UTC olmali "
+            "(CLAUDE.md §5); saat dilimsiz dizi UTC'li bir anla karsilastirilinca her "
+            "pencere sessizce NaN olurdu."
+        )
     if indeks.has_duplicates:
         tekrarlar = [str(z) for z in indeks[indeks.duplicated()].unique()[:3]]
         raise ZamanDizisiHatasi(
@@ -109,8 +115,21 @@ def _zaman_dizisi_dogrula(zamanlar, yer: str) -> pd.DatetimeIndex:
 
 
 def utc_zamani(deger, ad: str) -> pd.Timestamp:
-    """Bir ani zaman damgasina cevirir."""
-    return pd.Timestamp(deger)
+    """Bir ani saat dilimli zaman damgasina cevirir; saat dilimsizse TypeError.
+
+    F1 kapanis bulgusu 15: saat dilimsiz bir t, UTC'li bir seriyle
+    karsilastirilinca hicbir bar eslesmez ve her pencere sessizce NaN, her giris
+    sessizce None olur -- calisma "negatif sonuc" gibi gorunur. Tum zaman
+    damgalari UTC'dir (CLAUDE.md §5); saat dilimsiz deger bir programlama
+    hatasidir ve acikca reddedilir.
+    """
+    zaman = pd.Timestamp(deger)
+    if zaman.tzinfo is None:
+        raise TypeError(
+            f"{ad} saat dilimsiz (tz-naive): {deger!r}. Tum zaman damgalari UTC olmali "
+            "(CLAUDE.md §5); ör. pd.Timestamp('2025-09-01', tz='UTC')."
+        )
+    return zaman
 
 
 def sinir_zamani(deger, ad: str) -> pd.Timestamp | None:
@@ -412,6 +431,19 @@ def cikis_bari(
     sinir, sinir_nedeni = min(adaylar, key=lambda aday: aday[0])
 
     def _kirp() -> CikisSonucu:
+        # F1 kapanis bulgusu 5: kume icinde calisirken serinin bitmesi iki sey
+        # olabilir -- gercek delist ya da verinin kume sinirinda KESILMIS olmasi.
+        # Kesim delist sayilirsa kirpilmis cikis kullanilir (rev.4 ihlali). Seri
+        # sonu ancak sembolun donemi kumenin icinde bitiyorsa delisttir; donem
+        # bilinmiyorsa ya da kumeden sonra suruyorsa bir sonraki mevcut bar kume
+        # disindadir ve olay bu kumede olusmaz.
+        if sinir_nedeni == "seri_sonu" and kume_son is not None:
+            if donem_son is None or donem_son > kume_son:
+                raise KumeSiniriHatasi(
+                    f"Seri {indeks[-1]}'de bitiyor ama hedef cikis {hedef} kume icinde ve "
+                    f"sembolun donemi kume icinde bitmiyor (donem_bitis={donem_son}); bu "
+                    "bir delist degil kume kesimidir (on-kayit §3 rev.4: olay olusmaz)."
+                )
         gecerli = indeks[indeks <= sinir]
         if len(gecerli) == 0:
             raise ValueError("Sinir icinde hic bar yok.")
