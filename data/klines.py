@@ -116,8 +116,29 @@ def ham_mumlari_yukle(sembol: str, bar: str = config.BAR_4H, yenile: bool = Fals
     if not parcalar:
         return pd.DataFrame(columns=[s for s in bv.MUM_SUTUNLARI if s != "ignore"])
 
+    return _tekrarsiz_birlestir(parcalar, f"ham_mumlari_yukle({sembol}, {bar})")
+
+
+def _tekrarsiz_birlestir(parcalar: list[pd.DataFrame], yer: str) -> pd.DataFrame:
+    """Aylik parcalari birlestirir; tekrarlanan `open_time` varsa HATA verir.
+
+    F1 kapanis bulgusu 14: eskiden `drop_duplicates(keep="last")` ile tekrarlar
+    sessizce siliniyordu. Iki kayit celisiyorsa hangisinin dogru oldugu bilinemez
+    ve secim iz birakmazdi. `data.pencere` tekrarlanan damgayi bozuk veri sayar;
+    yukleyici de ayni tutumu izler. F1 kapanis taramasinda onbellekte hic tekrar
+    bulunmadi (678 sembol, 3.692.573 4h bar, 615.689 birincil 1d bar).
+    """
+    from data.pencere import ZamanDizisiHatasi
+
     tum = pd.concat(parcalar, ignore_index=True)
-    tum = tum.drop_duplicates("open_time", keep="last")
+    tekrar = tum["open_time"].duplicated(keep=False)
+    if tekrar.any():
+        ornek = ", ".join(str(z) for z in tum.loc[tekrar, "open_time"].unique()[:3])
+        raise ZamanDizisiHatasi(
+            f"{yer}: {int(tum['open_time'].duplicated().sum())} tekrarlanan bar damgasi "
+            f"(ornek: {ornek}). Bozuk onbellek; sessizce silinmez, dosyalar yeniden "
+            "indirilmeli (yenile=True) ve denetlenmeli."
+        )
     return tum.sort_values("open_time", ignore_index=True)
 
 
@@ -226,8 +247,7 @@ def ham_birincil_gunluk_indir(sembol: str, yenile: bool = False) -> pd.DataFrame
         parcalar.append(cerceve)
     if not parcalar:
         return pd.DataFrame(columns=[s for s in bv.MUM_SUTUNLARI if s != "ignore"])
-    tum = pd.concat(parcalar, ignore_index=True).drop_duplicates("open_time", keep="last")
-    return tum.sort_values("open_time", ignore_index=True)
+    return _tekrarsiz_birlestir(parcalar, f"ham_birincil_gunluk_indir({sembol})")
 
 
 # --- Butunluk olcumleri (denetim icin) ---------------------------------------
