@@ -20,11 +20,11 @@ def test_gelecege_bakmaz_t_sonrasi_degisiklik_sonucu_degistirmez():
     """t+1'deki hacim degisikligi t'deki sonucu degistirmemeli."""
     seri = _hacim_serisi("2021-01-01", 60, 20_000_000.0)
     t = pd.Timestamp("2021-02-10", tz="UTC")
-    once = uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
+    once = uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN)
 
     bozuk = seri.copy()
     bozuk.loc[bozuk.index >= t] = 0.0
-    sonra = uyg.medyan_hacim(bozuk, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
+    sonra = uyg.medyan_hacim(bozuk, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN)
 
     assert once == sonra
 
@@ -36,13 +36,24 @@ def test_t_gunu_henuz_kapanmadigi_icin_pencereye_girmez():
     bozuk = seri.copy()
     bozuk.loc[pd.Timestamp("2021-02-10", tz="UTC")] = 0.0
 
-    assert uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None) == uyg.medyan_hacim(bozuk, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
+    assert uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN) == uyg.medyan_hacim(bozuk, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN)
+
+
+def test_pencere_gun_varsayilansizdir():
+    """F1 kapanis denetimi bulgu 9: yanlis gun sayisi sessizce gecmemeli."""
+    seri = _hacim_serisi("2021-01-01", 60, 20_000_000.0)
+    t = pd.Timestamp("2021-02-10", tz="UTC")
+    try:
+        uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
+    except TypeError:
+        return
+    raise AssertionError("pencere_gun verilmeden medyan_hacim calisti")
 
 
 def test_pencere_dolmadan_uygunluk_verilmez():
     seri = _hacim_serisi("2021-01-01", 10, 50_000_000.0)
     t = pd.Timestamp("2021-01-08", tz="UTC")
-    assert pd.isna(uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None))
+    assert pd.isna(uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN))
 
 
 # --- Listeleme donemi (rev.2) ------------------------------------------------
@@ -55,11 +66,11 @@ def test_donem_baslangicini_asan_pencere_nan_doner():
 
     # t, donem baslangicindan yalnizca 10 gun sonra -> 30 gunluk pencere asiyor
     erken = pd.Timestamp("2021-03-11", tz="UTC")
-    assert pd.isna(uyg.medyan_hacim(seri, erken, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None))
+    assert pd.isna(uyg.medyan_hacim(seri, erken, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN))
 
     # t, donem baslangicindan 40 gun sonra -> pencere donem icinde
     gec = pd.Timestamp("2021-04-10", tz="UTC")
-    assert not pd.isna(uyg.medyan_hacim(seri, gec, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None))
+    assert not pd.isna(uyg.medyan_hacim(seri, gec, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN))
 
 
 def test_pencere_donem_oncesi_veriyi_kullanmaz():
@@ -71,7 +82,7 @@ def test_pencere_donem_oncesi_veriyi_kullanmaz():
     bozuk = seri.copy()
     bozuk.loc[bozuk.index < donem_bas] = 999_000_000.0  # donem oncesi cop veri
 
-    assert uyg.medyan_hacim(seri, t, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None) == uyg.medyan_hacim(bozuk, t, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None)
+    assert uyg.medyan_hacim(seri, t, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN) == uyg.medyan_hacim(bozuk, t, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN)
 
 
 def test_listeleme_yasi_donem_basinda_sifirlanir():

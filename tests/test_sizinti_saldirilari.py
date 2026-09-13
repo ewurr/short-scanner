@@ -139,12 +139,12 @@ def test_medyan_hacim_serinin_sonuna_eklenen_gelecek_bar_gecmisi_degistirmez():
     donem_bas = gunler[0]
     t = gunler[35]
 
-    once = eligibility.medyan_hacim(hacim, t, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None)
+    once = eligibility.medyan_hacim(hacim, t, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN)
 
     genisletilmis = pd.concat(
         [hacim, pd.Series([1e15], index=[gunler[-1] + pd.Timedelta(days=1)])]
     )
-    sonra = eligibility.medyan_hacim(genisletilmis, t, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None)
+    sonra = eligibility.medyan_hacim(genisletilmis, t, donem_baslangic=donem_bas, kume_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN)
 
     assert once == sonra, "gelecege eklenen bar gecmisteki medyan hacmi degistirdi (gelecege bakis)."
 

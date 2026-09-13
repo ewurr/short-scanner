@@ -47,7 +47,7 @@ def test_pencere_fonksiyonlarinda_kume_baslangici_verilmezse_hata(cagri):
 @pytest.mark.parametrize(
     "cagri",
     [
-        lambda h, t: eligibility.medyan_hacim(h, t, donem_baslangic=None, karantina_aylari=None),
+        lambda h, t: eligibility.medyan_hacim(h, t, donem_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN),
         lambda h, t: eligibility.uygun_mu(h, t, config.BAR_4H, donem_baslangic=pd.Timestamp("2020-01-01", tz="UTC"), donem_bitis=None, karantina_aylari=None),
         lambda h, t: eligibility.uygunluk_serisi(h, [t], config.BAR_4H, donem_baslangic=pd.Timestamp("2020-01-01", tz="UTC"), donem_bitis=None, karantina_aylari=None),
     ],
@@ -235,5 +235,5 @@ def test_gercek_veride_c2_ilk_gununde_medyan_hacim_nan():
     gunluk = klines.gunluge_cevir(_gercek_4h())
     hacim = eligibility.gunluk_hacim_serisi(gunluk)
 
-    assert not pd.isna(eligibility.medyan_hacim(hacim, C2_BAS, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None))
-    assert pd.isna(eligibility.medyan_hacim(hacim, C2_BAS, kume_baslangic=C2_BAS, donem_baslangic=None, karantina_aylari=None))
+    assert not pd.isna(eligibility.medyan_hacim(hacim, C2_BAS, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN))
+    assert pd.isna(eligibility.medyan_hacim(hacim, C2_BAS, kume_baslangic=C2_BAS, donem_baslangic=None, karantina_aylari=None, pencere_gun=config.HACIM_PENCERESI_GUN))

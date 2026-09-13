@@ -5,8 +5,9 @@ Kosullar:
   - H1, H2 (4h bar) : son 30 gunun medyan gunluk hacmi >= 10.000.000 USDT,
   - H3 (1d bar)     : son 30 gunun medyan gunluk hacmi >=  2.000.000 USDT.
 
-Gelecege bakis yoktur: t anindaki uygunluk yalnizca t'ye kadar (t dahil) kapanmis
-gunlerin verisiyle hesaplanir. Gunluk hacim, on-kayit rev.2 uyarinca 4h barlardan
+Gelecege bakis yoktur: t anindaki uygunluk, t barinin ait oldugu UTC gunu HARIC,
+ondan onceki tam gunlerin verisiyle hesaplanir (on-kayit §2 rev.6 "Uygunluk
+penceresi ve t gunu"; 4h ve 1d barda ayni kural). Gunluk hacim, on-kayit rev.2 uyarinca 4h barlardan
 turetilen gunluk veriden gelir (bkz. klines.gunluge_cevir) ve her uc hipotez icin
 ayni kaynagi kullanir.
 
@@ -48,9 +49,12 @@ def medyan_hacim(
     donem_baslangic,
     karantina_aylari,
     kume_baslangic,
-    pencere_gun: int = config.HACIM_PENCERESI_GUN,
+    pencere_gun: int,
 ) -> float:
-    """t anina kadarki son `pencere_gun` GUNUN medyan hacmi (on-kayit §2 rev.3).
+    """t gunu haric, ondan onceki son `pencere_gun` GUNUN medyan hacmi (on-kayit §2 rev.3, rev.6).
+
+    `pencere_gun` zorunludur (varsayilan yoktur); on-kayit degeri
+    `config.HACIM_PENCERESI_GUN`.
 
     Pencere zamanla tanimlidir ve `data.pencere` yardimcisindan gecer:
       - t'nin ait oldugu gun HENUZ KAPANMADIGI icin pencereye alinmaz; pencere
@@ -143,6 +147,7 @@ def uygun_mu(
         donem_baslangic=donem_bas,
         karantina_aylari=karantina,
         kume_baslangic=kume_baslangic,
+        pencere_gun=config.HACIM_PENCERESI_GUN,
     )
     if pd.isna(medyan):
         return False
