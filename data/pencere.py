@@ -54,7 +54,10 @@ class CikisSonucu:
     zaman: pd.Timestamp
     fiyat_alani: str  # "close" (normal) veya "open" (ileri kaymali cikis)
     kaydi: bool  # hedef bar eksikti, sonraki mevcut bara kayildi mi?
-    kirpildi: bool  # donem sonu / delist nedeniyle kirpildi mi?
+    kirpildi: bool  # donem sonu / seri sonu / karantina nedeniyle kirpildi mi?
+    # Kirpildiysa neden: "karantina", "donem_sonu" ya da "seri_sonu" (delist
+    # veya verinin bittigi yer). Kirpilmadiysa None.
+    kirpma_nedeni: str | None = None
 
 
 # --- Tamlik ------------------------------------------------------------------
@@ -183,20 +186,45 @@ def giris_bari(zamanlar, sinyal_zamani, bar: str) -> pd.Timestamp | None:
     return hedef if hedef in pd.DatetimeIndex(zamanlar) else None
 
 
+def _karantina_siniri(giris: pd.Timestamp, karantina_aylari) -> pd.Timestamp | None:
+    """Giristen sonraki ilk karantina ayinin baslangicindan hemen onceki an.
+
+    Hicbir cikis (ileri kaymali olan dahil) bu anin otesine gecemez. Giris bir
+    karantina ayinin icindeyse ValueError: karantina ayinda olay olamaz
+    (on-kayit §2 rev.2).
+    """
+    if not len(karantina_aylari):
+        return None
+    for ay in sorted({donem_modulu._ay(a) for a in karantina_aylari}):
+        bas, son = ay.start_time, ay.end_time
+        if giris.tzinfo is not None:
+            bas, son = bas.tz_localize("UTC"), son.tz_localize("UTC")
+        if bas <= giris <= son:
+            raise ValueError(f"Giris bari karantina ayinda: {giris} ({ay})")
+        if giris < bas:
+            return bas - pd.Timedelta(1, "ns")
+    return None
+
+
 def cikis_bari(
     zamanlar,
     giris_zamani,
     ufuk: int,
     bar: str,
     donem_bitis=None,
+    karantina_aylari=(),
 ) -> CikisSonucu:
-    """Ufuk sonundaki cikis barini secer (on-kayit §2 rev.3).
+    """Ufuk sonundaki cikis barini secer (on-kayit §2 rev.3, §4 rev.4).
 
     - Ufuk zamanla olculur: `giris + ufuk x adim`.
     - Hedef bar mevcutsa cikis o barin KAPANISIDIR.
-    - Hedef bar eksikse cikis, sonraki ilk mevcut barin ACILISIDIR.
-    - Donem sonu (ve delist = serinin son bari) onceliklidir: kirpma yapilir ve
-      cikis o barin kapanisidir.
+    - Hedef bar eksikse cikis, sonraki ilk mevcut barin ACILISIDIR (ileri kayma).
+    - Ileri kaymadan ONCELIKLI uc sinir vardir; en erken olan uygulanir ve cikis
+      sinirdan onceki son barin KAPANISIDIR:
+        * karantina : giristen sonraki ilk karantina ayinin baslangici (rev.4),
+        * donem_sonu: listeleme doneminin bitisi,
+        * seri_sonu : serinin son bari (delist ya da verinin bittigi yer).
+      Esitlikte oncelik bu siradadir.
 
     Getiri HESAPLAMAZ; yalnizca cikis barini ve hangi fiyat alanindan
     okunacagini soyler.
@@ -208,25 +236,33 @@ def cikis_bari(
     if giris not in indeks:
         raise KeyError(f"Giris bari seride yok: {giris}")
 
-    sinir = indeks[-1]
-    if donem_bitis is not None:
-        sinir = min(sinir, pd.Timestamp(donem_bitis))
-
     hedef = giris + ufuk * adim(bar)
 
-    # Donem sonu / delist onceliklidir.
-    if hedef >= sinir:
+    adaylar: list[tuple[pd.Timestamp, str]] = []
+    karantina_siniri = _karantina_siniri(giris, karantina_aylari)
+    if karantina_siniri is not None:
+        adaylar.append((karantina_siniri, "karantina"))
+    if donem_bitis is not None:
+        adaylar.append((pd.Timestamp(donem_bitis), "donem_sonu"))
+    adaylar.append((indeks[-1], "seri_sonu"))
+    sinir, sinir_nedeni = min(adaylar, key=lambda aday: aday[0])
+
+    def _kirp() -> CikisSonucu:
         gecerli = indeks[indeks <= sinir]
         if len(gecerli) == 0:
-            raise ValueError("Donem siniri icinde hic bar yok.")
+            raise ValueError("Sinir icinde hic bar yok.")
         son = gecerli[-1]
         return CikisSonucu(
             indeks=int(np.flatnonzero(indeks == son)[0]),
             zaman=son,
             fiyat_alani="close",
             kaydi=False,
-            kirpildi=hedef > sinir,
+            kirpildi=True,
+            kirpma_nedeni=sinir_nedeni,
         )
+
+    if hedef > sinir:
+        return _kirp()
 
     if hedef in indeks:
         return CikisSonucu(
@@ -237,18 +273,10 @@ def cikis_bari(
             kirpildi=False,
         )
 
-    # Hedef bar eksik: sonraki ilk mevcut barin ACILISI.
+    # Hedef bar eksik: sinir icindeki sonraki ilk mevcut barin ACILISI.
     sonrakiler = indeks[(indeks > hedef) & (indeks <= sinir)]
     if len(sonrakiler) == 0:
-        gecerli = indeks[indeks <= sinir]
-        son = gecerli[-1]
-        return CikisSonucu(
-            indeks=int(np.flatnonzero(indeks == son)[0]),
-            zaman=son,
-            fiyat_alani="close",
-            kaydi=False,
-            kirpildi=True,
-        )
+        return _kirp()
     ilk = sonrakiler[0]
     return CikisSonucu(
         indeks=int(np.flatnonzero(indeks == ilk)[0]),

@@ -334,3 +334,152 @@ def test_h1_dip_penceresi_t_barinin_dibini_icermez():
 
     assert pencere.pencere_degeri(low, t, 6, config.BAR_4H, t_dahil=False, islev="min") == 100.0
 
+
+# --- Karantina ve cikis (on-kayit §4 rev.4) ----------------------------------
+#
+# "Ufuk bir karantina ayina uzanirsa cikis, karantinadan onceki son barin
+# kapanisidir. Donem sonu, delist ve karantina kurallari ileri kayma kuralindan
+# onceliklidir."
+
+
+def test_ufuk_karantinaya_uzanirsa_karantina_oncesi_son_kapanis():
+    seri = _seri("2021-05-25", 100)
+    giris = pd.Timestamp("2021-05-30 08:00", tz="UTC")  # ufuk 2021-06-02 08:00'e uzanir
+
+    sonuc = pencere.cikis_bari(seri.index, giris, 18, config.BAR_4H, karantina_aylari=["2021-06"])
+
+    assert sonuc.zaman == pd.Timestamp("2021-05-31 20:00", tz="UTC")
+    assert sonuc.fiyat_alani == "close"
+    assert sonuc.kirpildi is True
+    assert sonuc.kirpma_nedeni == "karantina"
+
+
+def test_karantinaya_uzanmayan_ufuk_etkilenmez():
+    seri = _seri("2021-05-25", 100)
+    giris = pd.Timestamp("2021-05-26 00:00", tz="UTC")
+
+    sonuc = pencere.cikis_bari(seri.index, giris, 6, config.BAR_4H, karantina_aylari=["2021-06"])
+
+    assert sonuc.zaman == giris + 6 * pd.Timedelta(hours=4)
+    assert sonuc.kirpildi is False
+    assert sonuc.kirpma_nedeni is None
+
+
+def test_giristen_onceki_karantina_ayi_cikisi_etkilemez():
+    seri = _seri("2021-06-01", 100)
+    giris = pd.Timestamp("2021-06-02 00:00", tz="UTC")
+
+    sonuc = pencere.cikis_bari(seri.index, giris, 18, config.BAR_4H, karantina_aylari=["2021-05"])
+
+    assert sonuc.kirpildi is False
+    assert sonuc.zaman == giris + 18 * pd.Timedelta(hours=4)
+
+
+def test_karantina_ileri_kaymaya_gore_onceliklidir():
+    """Hedef bar eksik VE karantinada: karantinaya kayilmaz, oncesinde kapanis."""
+    seri = _seri("2021-05-25", 100)
+    giris = pd.Timestamp("2021-05-30 08:00", tz="UTC")
+    eksik = seri.drop(pd.Timestamp("2021-06-02 08:00", tz="UTC"))
+
+    sonuc = pencere.cikis_bari(eksik.index, giris, 18, config.BAR_4H, karantina_aylari=["2021-06"])
+
+    assert sonuc.zaman == pd.Timestamp("2021-05-31 20:00", tz="UTC")
+    assert sonuc.fiyat_alani == "close"
+    assert sonuc.kaydi is False
+
+
+def test_eksik_hedefin_sonraki_bari_karantinadaysa_oraya_kayilmaz():
+    """Hedef karantinadan ONCE ama eksik; sonraki mevcut bar karantina ayinda.
+
+    Ileri kayma karantinaya girmemeli; cikis karantina oncesi son barin kapanisi.
+    """
+    seri = _seri("2021-05-25", 100)
+    giris = pd.Timestamp("2021-05-30 20:00", tz="UTC")
+    hedef = pd.Timestamp("2021-05-31 20:00", tz="UTC")  # ayin son bari, eksik
+    eksik = seri.drop(hedef)
+
+    sonuc = pencere.cikis_bari(eksik.index, giris, 6, config.BAR_4H, karantina_aylari=["2021-06"])
+
+    assert sonuc.zaman == pd.Timestamp("2021-05-31 16:00", tz="UTC")
+    assert sonuc.fiyat_alani == "close"
+    assert sonuc.kirpma_nedeni == "karantina"
+
+
+def test_donem_sonu_karantinadan_onceyse_neden_donem_sonu():
+    seri = _seri("2021-05-25", 100)
+    giris = pd.Timestamp("2021-05-30 08:00", tz="UTC")
+    donem_bitis = pd.Timestamp("2021-05-31 08:00", tz="UTC")
+
+    sonuc = pencere.cikis_bari(
+        seri.index, giris, 18, config.BAR_4H, donem_bitis=donem_bitis, karantina_aylari=["2021-06"]
+    )
+
+    assert sonuc.zaman == donem_bitis
+    assert sonuc.kirpma_nedeni == "donem_sonu"
+
+
+def test_seri_sonu_kirpmasinin_nedeni_seri_sonu():
+    seri = _seri("2021-01-01", 20)
+    sonuc = pencere.cikis_bari(seri.index, seri.index[10], 18, config.BAR_4H)
+    assert sonuc.kirpma_nedeni == "seri_sonu"
+
+
+def test_giris_karantina_ayindaysa_hata():
+    """Karantina ayinda giris olamaz; uygunluk bunu zaten engeller, cikis da reddeder."""
+    seri = _seri("2021-05-25", 100)
+    with pytest.raises(ValueError):
+        pencere.cikis_bari(
+            seri.index, pd.Timestamp("2021-06-02 00:00", tz="UTC"), 6, config.BAR_4H,
+            karantina_aylari=["2021-06"],
+        )
+
+
+def test_donem_sarmalayicisi_karantinayi_iletir():
+    from data import donem
+
+    seri = _seri("2021-05-25", 100)
+    giris_indeksi = int(seri.index.get_loc(pd.Timestamp("2021-05-30 08:00", tz="UTC")))
+
+    indeks = donem.cikis_bar_indeksi(
+        seri.index, giris_indeksi, 18, None, config.BAR_4H, karantina_aylari=["2021-06"]
+    )
+
+    assert seri.index[indeks] == pd.Timestamp("2021-05-31 20:00", tz="UTC")
+
+
+@pytest.mark.skipif(not _veri_var("LITUSDT"), reason="onbellekte LITUSDT verisi yok")
+def test_litusdt_karantina_ayina_uzanan_ufuk_gercek_veri():
+    """LITUSDT 2025-12 karantinasi: bu ayda +%531'lik yeniden fiyatlandirma var.
+
+    Karantina oncesi giren bir pozisyonun ufku 2025-12'ye uzanirsa cikis,
+    2025-11-30 20:00 barinin kapanisidir; yeniden fiyatlandirma sonrasi bir
+    bardan okunmaz (on-kayit §4 rev.4).
+    """
+    seri = _onbellekten_oku("LITUSDT")
+    karantina = ["2025-12"]
+    sicrama = pd.Timestamp("2025-12-23 16:00", tz="UTC")
+    assert pd.Period(sicrama, freq="M") == pd.Period("2025-12", freq="M")
+
+    giris = pd.Timestamp("2025-11-29 20:00", tz="UTC")
+    assert giris in seri.index
+
+    sonuc = pencere.cikis_bari(seri.index, giris, 18, config.BAR_4H, karantina_aylari=karantina)
+    assert sonuc.zaman == pd.Timestamp("2025-11-30 20:00", tz="UTC")
+    assert sonuc.fiyat_alani == "close"
+    assert sonuc.kirpma_nedeni == "karantina"
+
+    # Karantina verilmezse cikis karantina ayinin icine duserdi.
+    korumasiz = pencere.cikis_bari(seri.index, giris, 18, config.BAR_4H)
+    assert pd.Period(korumasiz.zaman, freq="M") == pd.Period("2025-12", freq="M")
+
+
+@pytest.mark.skipif(not _veri_var("LITUSDT"), reason="onbellekte LITUSDT verisi yok")
+def test_litusdt_sicrama_barina_uzanan_ufuk_sicramadan_okunmaz():
+    """Sicramadan hemen once (karantina ayinda) giris zaten gecersiz."""
+    seri = _onbellekten_oku("LITUSDT")
+    with pytest.raises(ValueError):
+        pencere.cikis_bari(
+            seri.index, pd.Timestamp("2025-12-22 16:00", tz="UTC"), 6, config.BAR_4H,
+            karantina_aylari=["2025-12"],
+        )
+

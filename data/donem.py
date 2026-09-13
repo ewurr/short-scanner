@@ -130,12 +130,13 @@ def cikis_bar_indeksi(
     ufuk: int,
     donem_bitis,
     bar: str = config.BAR_4H,
+    karantina_aylari=(),
 ) -> int:
     """Ufuk sonundaki cikis barinin indeksi (on-kayit §2 rev.2 + rev.3).
 
     Revizyon 3'ten beri mantik `data.pencere.cikis_bari` icindedir: ufuk zamanla
     olculur, hedef bar eksikse sonraki ilk mevcut bara kayilir, donem sonu ve
-    delist onceliklidir. Bu sarmalayici geriye donuk uyumluluk icindir ve
+    delist ve karantina (rev.4) onceliklidir. Bu sarmalayici geriye donuk uyumluluk icindir ve
     yalnizca indeksi doner; cikisin hangi fiyat alanindan (close / open)
     okunacagini ogrenmek icin dogrudan `pencere.cikis_bari` kullanilmalidir.
 
@@ -155,5 +156,6 @@ def cikis_bar_indeksi(
         ufuk=ufuk,
         bar=bar,
         donem_bitis=donem_bitis,
+        karantina_aylari=karantina_aylari,
     )
     return sonuc.indeks
