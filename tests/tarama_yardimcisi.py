@@ -30,3 +30,9 @@ def ihlaller(desen: str, kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR) -> list[s
 
 
 KUME_NONE_DESENI = r"\bkume_(baslangic|bitis)\s*=\s*None\b"
+
+# Bar sayisiyla calisan ve pencere kapisini (data.pencere) atlayan turetilmis seri
+# islemleri. Bunlar seride bosluk, donem, kume ya da karantina sinirini bilmez.
+TURETILMIS_SERI_DESENI = (
+    r"\.(rolling|expanding|ewm|shift|diff|pct_change|cumsum|cumprod|cummax|cummin|resample)\s*\("
+)

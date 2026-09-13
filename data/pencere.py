@@ -298,6 +298,119 @@ def pencere_degeri(
     return float(getattr(dilim, islev)())
 
 
+# --- Ic ice ve ofsetli pencereler (F1 kapanis bulgusu 3) ----------------------
+#
+# Turetilmis bir seriyi (ör. `seri.rolling(6).sum()`) `pencere_degeri`ne vermek
+# kapiyi atlatir: kapi yalnizca DIS pencerenin damgalarini denetler; ilk ic
+# pencere kume/donem basindan onceki barlari icerebilir ve rolling bar sayisiyla
+# calistigi icin bosluk uzerinden toplar. Asagidaki iki fonksiyon turetilmis
+# serinin kendisini de ayni kapidan gecirir. Analiz kodu (events/, study/)
+# bar sayisiyla calisan turetilmis seri islemleri kullanmaz; bir kaynak tarama
+# testi bunu dogrular.
+
+
+def _islev_uygula(dilim: pd.Series, islev) -> float:
+    if callable(islev):
+        return float(islev(dilim))
+    return float(getattr(dilim, islev)())
+
+
+def ic_ice_pencere_degeri(
+    seri: pd.Series,
+    t,
+    bar: str,
+    *,
+    dis_bar_sayisi: int,
+    dis_t_dahil: bool,
+    dis_islev,
+    ic_bar_sayisi: int,
+    ic_t_dahil: bool,
+    ic_islev,
+    kume_baslangic,
+    donem_baslangic,
+    karantina_aylari,
+) -> float:
+    """Ic pencere degerlerinin dis penceredeki toplayicisi; kural ihlalinde NaN.
+
+    Tanim (zamanla):
+      - Dis izgara: `beklenen_zamanlar(t, dis_bar_sayisi, t_dahil=dis_t_dahil)`.
+      - Her dis bar s icin ic deger: `ic_islev` uygulanmis
+        `beklenen_zamanlar(s, ic_bar_sayisi, t_dahil=ic_t_dahil)` penceresi.
+      - Sonuc: ic degerlere `dis_islev`.
+    Ornek, H1'in hacim kosulu: dis 180 bar (t dahil) x ic 6 barlik toplam, medyan.
+
+    Tum ic pencerelerin birlesimi tek bir kesintisiz araliktir; o aralik
+    `pencere_dilimi`nden gecer. Boylece HER ic pencere tamlik, donem, kume ve
+    karantina kontrolunden gecmis olur; biri bile gecemezse sonuc NaN.
+    Bu aralik tam oldugu icin icerdeki bar sayisiyla hesap zamanla hesapla aynidir.
+    Tum parametreler zorunludur; varsayilan yoktur.
+    """
+    _t_dahil_dogrula(dis_t_dahil)
+    _t_dahil_dogrula(ic_t_dahil)
+    if dis_bar_sayisi < 1 or ic_bar_sayisi < 1:
+        raise ValueError("dis_bar_sayisi ve ic_bar_sayisi en az 1 olmali.")
+
+    dis = beklenen_zamanlar(t, dis_bar_sayisi, bar, t_dahil=dis_t_dahil)
+    kapsam_sonu = dis[-1] if ic_t_dahil else dis[-1] - adim(bar)
+    kapsam_uzunlugu = dis_bar_sayisi + ic_bar_sayisi - 1
+
+    dilim = pencere_dilimi(
+        seri,
+        kapsam_sonu,
+        kapsam_uzunlugu,
+        bar,
+        t_dahil=True,
+        kume_baslangic=kume_baslangic,
+        donem_baslangic=donem_baslangic,
+        karantina_aylari=karantina_aylari,
+    )
+    if dilim is None or dilim.isna().any():
+        return float("nan")
+
+    degerler = np.array(
+        [_islev_uygula(dilim.iloc[i : i + ic_bar_sayisi], ic_islev) for i in range(dis_bar_sayisi)]
+    )
+    return _islev_uygula(pd.Series(degerler, index=dis), dis_islev)
+
+
+def ofsetli_pencere_degeri(
+    seri: pd.Series,
+    t,
+    bar_sayisi: int,
+    bar: str,
+    *,
+    bitis_ofseti: int,
+    islev,
+    kume_baslangic,
+    donem_baslangic,
+    karantina_aylari,
+) -> float:
+    """t'den `bitis_ofseti` bar once biten `bar_sayisi` barlik pencere; ihlalde NaN.
+
+    Pencere: `[t - (bitis_ofseti + bar_sayisi - 1) x adim, t - bitis_ofseti x adim]`.
+    Ornek, H3'un "gun -120 ile -31": `bar_sayisi=90, bitis_ofseti=31`.
+    `bitis_ofseti=0` t dahil, `1` t haric pencereyle aynidir. Negatif ofset
+    gelecege bakis olurdu ve reddedilir. Pencere `pencere_dilimi`nden gecer.
+    Tum parametreler zorunludur; varsayilan yoktur.
+    """
+    if isinstance(bitis_ofseti, bool) or not isinstance(bitis_ofseti, (int, np.integer)):
+        raise TypeError(f"bitis_ofseti tamsayi olmali: {bitis_ofseti!r}")
+    if bitis_ofseti < 0:
+        raise ValueError(f"bitis_ofseti negatif olamaz (gelecege bakis): {bitis_ofseti}")
+    son = utc_zamani(t, "t") - int(bitis_ofseti) * adim(bar)
+    return pencere_degeri(
+        seri,
+        son,
+        bar_sayisi,
+        bar,
+        t_dahil=True,
+        islev=islev,
+        kume_baslangic=kume_baslangic,
+        donem_baslangic=donem_baslangic,
+        karantina_aylari=karantina_aylari,
+    )
+
+
 # --- Giris ve cikis ----------------------------------------------------------
 
 
