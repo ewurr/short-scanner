@@ -257,10 +257,14 @@ def test_donem_sonuna_kirpilmamis_cikis_reddedilir():
         _fon(fund, "2021-05-30 00:00", _cikis("2021-06-01 00:00"), donem_bitis=donem_bitis)
 
 
-def test_giris_donem_basindan_onceyse_nan():
+def test_giris_donem_basindan_onceyse_hata():
+    """Bulgu 11: donem oncesi giris veri eksikligi degil programlama hatasidir;
+    NaN donseydi olay dusme nedenlerinde "veri eksik" sayilirdi."""
     fund = _funding("2021-01-20", "2021-03-01")
     donem_bas = _ts("2021-02-01")
-    assert pd.isna(_fon(fund, "2021-01-31 20:00", _cikis("2021-02-01 12:00"), donem_baslangic=donem_bas))
+    with pytest.raises(ValueError) as hata:
+        _fon(fund, "2021-01-31 20:00", _cikis("2021-02-01 12:00"), donem_baslangic=donem_bas)
+    assert not isinstance(hata.value, pencere.KumeSiniriHatasi)
     assert not pd.isna(_fon(fund, "2021-02-01 00:00", _cikis("2021-02-01 12:00"), donem_baslangic=donem_bas))
 
 

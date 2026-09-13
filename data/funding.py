@@ -247,7 +247,23 @@ def pozisyon_fundingi(
         kirpilmis cikis anindaki odeme (ör. karantina ayinin ilk anindaki 00:00
         odemesi) normal toplanir. Kirpilmamis bir cikis (sinirdan onceki son
         barin kapanisindan gec) ya da karantina ayindaki giris ValueError verir.
-        Donem baslangicindan once giris NaN.
+
+    NaN ile hata ayrimi (F1 kapanis denetimi bulgu 11):
+      - **NaN yalnizca VERI EKSIKLIGIDIR** ve olay olusmaz: aralikta beklenen bir
+        odeme eksik, oran ya da aralik NaN, aralik <= 0, odemesiz aralikta
+        onceki kayit yok.
+      - **KumeSiniriHatasi** (ValueError alt sinifi): kume kurali geregi olay bu
+        kumede olusmaz (giris kume basindan once, cikis anindaki odeme araligi
+        kume sonunu asiyor).
+      - **ValueError**: cagiran tarafin onlemesi gereken PROGRAMLAMA HATASI --
+        giris donem baslangicindan once, giris karantina ayinda, cikis donem
+        sonuna ya da karantinaya gore kirpilmamis, tutarsiz CikisSonucu, cikis
+        giristen once.
+      - **ZamanDizisiHatasi** (ValueError alt sinifi): bozuk veri (sirasiz,
+        tekrarli, saat dilimsiz ya da 1 dakikadan yakin kayit).
+      - **TypeError**: eksik ya da yanlis tipte parametre, saat dilimsiz zaman.
+    Boylece olay dusme nedenleri raporunda "veri eksik" ile "kural" ve "hata"
+    birbirine karismaz.
       - **Tamlik.** Aralikta beklenen odemelerin tamami bulunmali; her kaydin
         `aralik_saat` degeri bir onceki odemeye kadar olan sureyi verir:
           * ilk odemeden onceki odeme (ilk - aralik) araliktan ONCE olmali,
@@ -289,7 +305,10 @@ def pozisyon_fundingi(
             "(on-kayit §4 rev.6: olay bu kumede olusmaz)."
         )
     if donem_bas is not None and giris < donem_bas:
-        return nan
+        raise ValueError(
+            f"Giris {giris} donem baslangicindan ({donem_bas}) once; uygunluk bunu engeller "
+            "(on-kayit §2 rev.2). Veri eksikligi degil programlama hatasi."
+        )
     # Donem sonu ve karantina olayi DUSURMEZ: cikis `cikis_bari` tarafindan bu
     # sinirlara gore kirpilmistir ve kirpilmis cikis anina kadarki odemeler
     # normal toplanir. Asagidaki kontroller yalnizca KIRPILMAMIS bir cikisin
