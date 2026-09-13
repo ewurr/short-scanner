@@ -1,32 +1,34 @@
-"""Yukleyicilerde kume korumasi (CLAUDE.md §3.2-3.3, denetci bulgusu B5).
+"""Yukleyicilerde kume korumasi (CLAUDE.md §3.2-3.3, denetci bulgulari B5, 8, 9).
 
-`klines.mumlari_yukle` ve `funding.funding_yukle`, `split.yukle` ile ayni kapidan
-gecer: kume zorunlu, C1/C2 icin onay=True sart, onayli cagri kaydedilir,
-onaysiz cagri kayda yazmadan reddedilir, yanlis grup bos doner, veri kume
-araligina kesilir. Korumasiz `ham_*` yukleyiciler yalnizca veri katmani ve F1
-kapsama denetimi icindir.
+`klines.mumlari_yukle`, `klines.birincil_gunluk_indir` ve `funding.funding_yukle`,
+`split.yukle` ile ayni kapidan gecer: kume zorunlu; C1/C2 icin onay=True VE acik
+bir onay kosusu sart; onaysiz ya da kosusuz cagri kayda yazmadan reddedilir; kayit
+kosu basina tek satirdir; yanlis grup bos doner; veri kume araligina kesilir;
+bolme tablosu disaridan verilemez. Korumasiz `ham_*` yukleyiciler yalnizca veri
+katmani ve F1 kapsama denetimi icindir.
 """
 
 from __future__ import annotations
 
 import inspect
-import re
-from pathlib import Path
 
 import pandas as pd
 import pytest
 
 import config
 from data import funding, klines, split
-
-KOK = Path(__file__).resolve().parents[1]
+from tarama_yardimcisi import ihlaller
 
 
 @pytest.fixture
-def tablo():
-    return pd.DataFrame(
-        {"sembol": ["AAUSDT", "BBUSDT"], "varlik_anahtari": ["AAUSDT", "BBUSDT"], "grup": ["A", "B"]}
-    )
+def tablo(tmp_path, monkeypatch):
+    """Gecici, kurala uygun bir split.csv: AAUSDT -> A, BBUSDT -> B."""
+    cerceve = split.split_uret(["AAUSDT", "BBUSDT"])
+    assert dict(zip(cerceve["sembol"], cerceve["grup"])) == {"AAUSDT": "A", "BBUSDT": "B"}
+    yol = tmp_path / "split.csv"
+    split.split_yaz(cerceve, yol)
+    monkeypatch.setattr(config, "SPLIT_CSV", yol)
+    return cerceve
 
 
 @pytest.fixture
@@ -65,6 +67,13 @@ def sahte_ham(monkeypatch):
     monkeypatch.setattr(klines, "ham_birincil_gunluk_indir", birincil)
 
 
+YUKLEYICILER = {
+    "mum": lambda s, k, **o: klines.mumlari_yukle(s, config.BAR_4H, k, **o),
+    "funding": lambda s, k, **o: funding.funding_yukle(s, k, **o),
+    "birincil_1d": lambda s, k, **o: klines.birincil_gunluk_indir(s, k, **o),
+}
+
+
 # --- Kume zorunlu ------------------------------------------------------------
 
 
@@ -84,119 +93,204 @@ def test_kumesiz_cagri_hata_verir():
         klines.birincil_gunluk_indir("AAUSDT")
 
 
-@pytest.mark.parametrize(
-    "cagri",
-    [
-        lambda t: klines.mumlari_yukle("AAUSDT", config.BAR_4H, "C3", split=t),
-        lambda t: funding.funding_yukle("AAUSDT", "C3", split=t),
-    ],
-)
-def test_bilinmeyen_kume_reddedilir(cagri, tablo):
+@pytest.mark.parametrize("yukleyici", YUKLEYICILER.values(), ids=YUKLEYICILER.keys())
+def test_bilinmeyen_kume_reddedilir(yukleyici, tablo):
     with pytest.raises(ValueError):
-        cagri(tablo)
+        yukleyici("AAUSDT", "C3")
 
 
 def test_split_disindaki_sembol_reddedilir(tablo, sahte_ham):
     with pytest.raises(KeyError):
-        funding.funding_yukle("ZZUSDT", "KESIF", split=tablo)
+        funding.funding_yukle("ZZUSDT", "KESIF")
 
 
-# --- Mumlar ------------------------------------------------------------------
+# --- KESIF: grup ve aralik ---------------------------------------------------
 
 
 def test_mum_kesif_a_grubu_kume_araligina_kesilir(tablo, sahte_ham):
     bas, son = split.kume_araligi("KESIF")
-    mumlar = klines.mumlari_yukle("AAUSDT", config.BAR_4H, "KESIF", split=tablo)
+    mumlar = klines.mumlari_yukle("AAUSDT", config.BAR_4H, "KESIF")
     assert not mumlar.empty
     assert mumlar["open_time"].min() >= bas
     assert mumlar["open_time"].max() <= son
     assert (mumlar["open_time"] < pd.Timestamp("2025-09-01", tz="UTC")).all()
 
 
-def test_mum_kesif_b_grubu_bos_doner(tablo, sahte_ham):
-    assert klines.mumlari_yukle("BBUSDT", config.BAR_4H, "KESIF", split=tablo).empty
-
-
 def test_gunluk_mum_da_kume_araligina_kesilir(tablo, sahte_ham):
     _, son = split.kume_araligi("KESIF")
-    gunluk = klines.mumlari_yukle("AAUSDT", config.BAR_1D, "KESIF", split=tablo)
+    gunluk = klines.mumlari_yukle("AAUSDT", config.BAR_1D, "KESIF")
     assert not gunluk.empty
     assert gunluk["open_time"].max() <= son
 
 
-@pytest.mark.parametrize("kume", ["C1", "C2"])
-def test_mum_onay_kumesi_onaysiz_reddedilir_kayit_yazilmaz(kume, tablo, sahte_ham, kayit):
-    with pytest.raises(PermissionError):
-        klines.mumlari_yukle("BBUSDT", config.BAR_4H, kume, split=tablo)
-    assert kayit.read_text(encoding="utf-8") == "bas\n"
-
-
-def test_mum_onayli_cagri_kaydedilir(tablo, sahte_ham, kayit):
-    klines.mumlari_yukle("BBUSDT", config.BAR_4H, "C1", onay=True, split=tablo)
-    metin = kayit.read_text(encoding="utf-8")
-    assert metin.startswith("bas\n")
-    assert "| C1 |" in metin and "BBUSDT" in metin
-
-
-def test_mum_c2_donemi_c2_araligina_kesilir(tablo, sahte_ham, kayit):
-    bas, _ = split.kume_araligi("C2")
-    mumlar = klines.mumlari_yukle("AAUSDT", config.BAR_4H, "C2", onay=True, split=tablo)
-    assert mumlar["open_time"].min() >= bas
-
-
-# --- Funding -----------------------------------------------------------------
-
-
 def test_funding_kesif_a_grubu_kume_araligina_kesilir(tablo, sahte_ham):
     bas, son = split.kume_araligi("KESIF")
-    fund = funding.funding_yukle("AAUSDT", "KESIF", split=tablo)
+    fund = funding.funding_yukle("AAUSDT", "KESIF")
     assert not fund.empty
     assert fund["odeme_zamani"].min() >= bas
     assert fund["odeme_zamani"].max() <= son
 
 
-def test_funding_kesif_b_grubu_bos_doner(tablo, sahte_ham):
-    fund = funding.funding_yukle("BBUSDT", "KESIF", split=tablo)
-    assert fund.empty
-    assert list(fund.columns) == funding.FUNDING_CIKTI_SUTUNLARI
+def test_birincil_1d_kesif_a_grubu_kume_araligina_kesilir(tablo, sahte_ham):
+    bas, son = split.kume_araligi("KESIF")
+    gunluk = klines.birincil_gunluk_indir("AAUSDT", "KESIF")
+    assert not gunluk.empty
+    assert gunluk["open_time"].min() >= bas
+    assert gunluk["open_time"].max() <= son
+
+
+@pytest.mark.parametrize("yukleyici", YUKLEYICILER.values(), ids=YUKLEYICILER.keys())
+def test_kesif_b_grubu_bos_doner(yukleyici, tablo, sahte_ham):
+    assert yukleyici("BBUSDT", "KESIF").empty
+
+
+def test_funding_bos_cerceve_sutunlari(tablo, sahte_ham):
+    assert list(funding.funding_yukle("BBUSDT", "KESIF").columns) == funding.FUNDING_CIKTI_SUTUNLARI
+
+
+# --- Onay kumeleri: kosu olmadan erisim yok ----------------------------------
 
 
 @pytest.mark.parametrize("kume", ["C1", "C2"])
-def test_funding_onay_kumesi_onaysiz_reddedilir_kayit_yazilmaz(kume, tablo, sahte_ham, kayit):
+@pytest.mark.parametrize("yukleyici", YUKLEYICILER.values(), ids=YUKLEYICILER.keys())
+def test_onaysiz_cagri_reddedilir_kayit_yazilmaz(yukleyici, kume, tablo, sahte_ham, kayit):
     with pytest.raises(PermissionError):
-        funding.funding_yukle("BBUSDT", kume, split=tablo)
+        yukleyici("BBUSDT", kume)
     assert kayit.read_text(encoding="utf-8") == "bas\n"
 
 
-def test_funding_onayli_cagri_kaynagiyla_kaydedilir(tablo, sahte_ham, kayit):
-    funding.funding_yukle("BBUSDT", "C1", onay=True, split=tablo)
+@pytest.mark.parametrize("kume", ["C1", "C2"])
+@pytest.mark.parametrize("yukleyici", YUKLEYICILER.values(), ids=YUKLEYICILER.keys())
+def test_onay_true_ama_kosu_yoksa_reddedilir_kayit_yazilmaz(yukleyici, kume, tablo, sahte_ham, kayit):
+    with pytest.raises(PermissionError):
+        yukleyici("BBUSDT", kume, onay=True)
+    assert kayit.read_text(encoding="utf-8") == "bas\n"
+
+
+@pytest.mark.parametrize("deger", ["False", "True", 1, 0, None, "evet"])
+def test_onay_yalnizca_gercek_bool(deger, tablo, sahte_ham, kayit):
+    """Bulgu 8: `onay="False"` gibi dogruluk degeri tasiyan her sey reddedilir."""
+    with split.onay_kosusu("HTEST", "C1"):
+        with pytest.raises(PermissionError):
+            klines.mumlari_yukle("BBUSDT", config.BAR_4H, "C1", onay=deger)
+    with pytest.raises(PermissionError):
+        split.kume_erisimi("AAUSDT", "KESIF", onay=deger)
+
+
+def test_baska_kumenin_kosusu_kapiyi_acmaz(tablo, sahte_ham, kayit):
+    with split.onay_kosusu("HTEST", "C1"):
+        with pytest.raises(PermissionError):
+            klines.mumlari_yukle("AAUSDT", config.BAR_4H, "C2", onay=True)
+
+
+def test_kosu_kapaninca_erisim_kapanir(tablo, sahte_ham, kayit):
+    with split.onay_kosusu("HTEST", "C1"):
+        assert not klines.mumlari_yukle("BBUSDT", config.BAR_4H, "C1", onay=True).empty
+    assert split.aktif_onay_kosusu() is None
+    with pytest.raises(PermissionError):
+        klines.mumlari_yukle("BBUSDT", config.BAR_4H, "C1", onay=True)
+
+
+def test_kosu_icinde_hata_olsa_da_kosu_kapanir(tablo, sahte_ham, kayit):
+    with pytest.raises(RuntimeError, match="deneme"):
+        with split.onay_kosusu("HTEST", "C1"):
+            raise RuntimeError("deneme")
+    assert split.aktif_onay_kosusu() is None
+
+
+# --- Onay kumeleri: kosu basina tek satir, tek atis --------------------------
+
+
+def test_kosu_basina_tek_satir_sembol_basina_degil(tablo, sahte_ham, kayit):
+    with split.onay_kosusu("H2", "C1"):
+        for yukleyici in YUKLEYICILER.values():
+            for sembol in ("AAUSDT", "BBUSDT"):
+                yukleyici(sembol, "C1", onay=True)
+
     metin = kayit.read_text(encoding="utf-8")
-    assert metin.startswith("bas\n")
-    assert "| C1 |" in metin and "BBUSDT" in metin and "kaynak=funding" in metin
+    satirlar = [s for s in metin.splitlines() if s.startswith("|")]
+    assert len(satirlar) == 1
+    assert "| C1 |" in satirlar[0] and "hipotez=H2" in satirlar[0]
+    assert "AAUSDT" not in metin and "BBUSDT" not in metin
+    assert split.kayittaki_kosular(metin) == {("H2", "C1")}
 
 
-def test_funding_yanlis_gruba_onayli_uzanma_da_kaydedilir(tablo, sahte_ham, kayit):
-    """split.yukle ile ayni: grup uymasa bile onay verisine uzanma iz birakir."""
-    fund = funding.funding_yukle("AAUSDT", "C1", onay=True, split=tablo)
-    assert fund.empty
-    assert "AAUSDT" in kayit.read_text(encoding="utf-8")
+def test_satirda_commit_ve_calisma_agaci_durumu_var(tablo, kayit, monkeypatch):
+    monkeypatch.setattr(split, "_git_commit", lambda: "0123456789abcdef")
+    monkeypatch.setattr(split, "_calisma_agaci_durumu", lambda: "KIRLI")
+    with split.onay_kosusu("H1", "C2"):
+        pass
+    satir = [s for s in kayit.read_text(encoding="utf-8").splitlines() if s.startswith("|")][0]
+    hucreler = [h.strip() for h in satir.strip("|").split("|")]
+    assert hucreler[1] == "C2"
+    assert hucreler[3] == "0123456789ab (KIRLI)"
+    assert hucreler[4] == "hipotez=H1"
 
 
-def test_funding_c2_donemi_c2_araligina_kesilir(tablo, sahte_ham, kayit):
+def test_ayni_hipotez_ve_kume_ikinci_kez_kosulamaz(tablo, sahte_ham, kayit):
+    with split.onay_kosusu("H2", "C1"):
+        pass
+    once = kayit.read_bytes()
+    with pytest.raises(split.OnayTekrari):
+        with split.onay_kosusu("H2", "C1"):
+            pytest.fail("ikinci kosu blogu calismamali")
+    assert kayit.read_bytes() == once
+    assert split.aktif_onay_kosusu() is None
+
+    # Ayni hipotezin diger kumesi ve baska hipotezin ayni kumesi kosulabilir.
+    with split.onay_kosusu("H2", "C2"):
+        pass
+    with split.onay_kosusu("H3", "C1"):
+        pass
+    assert split.kayittaki_kosular(kayit.read_text(encoding="utf-8")) == {("H2", "C1"), ("H2", "C2"), ("H3", "C1")}
+
+
+def test_ic_ice_kosu_acilamaz(tablo, kayit):
+    with split.onay_kosusu("H1", "C1"):
+        with pytest.raises(RuntimeError):
+            with split.onay_kosusu("H1", "C2"):
+                pass
+
+
+@pytest.mark.parametrize(("hipotez", "kume"), [("H1", "KESIF"), ("", "C1"), ("H 1", "C1"), ("H1|x", "C1"), (None, "C1")])
+def test_gecersiz_kosu_reddedilir(hipotez, kume, tablo, kayit):
+    with pytest.raises(ValueError):
+        with split.onay_kosusu(hipotez, kume):
+            pass
+    assert kayit.read_text(encoding="utf-8") == "bas\n"
+
+
+def test_c2_donemi_c2_araligina_kesilir(tablo, sahte_ham, kayit):
     bas, _ = split.kume_araligi("C2")
-    fund = funding.funding_yukle("BBUSDT", "C2", onay=True, split=tablo)
-    assert not fund.empty
-    assert fund["odeme_zamani"].min() >= bas
+    with split.onay_kosusu("HTEST", "C2"):
+        mumlar = klines.mumlari_yukle("AAUSDT", config.BAR_4H, "C2", onay=True)
+        fund = funding.funding_yukle("BBUSDT", "C2", onay=True)
+    assert mumlar["open_time"].min() >= bas
+    assert not fund.empty and fund["odeme_zamani"].min() >= bas
 
 
-# --- Ortak kapi ve ham yukleyici disiplini -----------------------------------
+# --- Bolme tablosu disaridan verilemez ---------------------------------------
 
 
-def test_kume_erisimi_ortak_kapidir(tablo):
-    izinli, bas, son = split.kume_erisimi("AAUSDT", "KESIF", split=tablo)
-    assert izinli is True
-    assert (bas, son) == split.kume_araligi("KESIF")
-    assert split.kume_erisimi("BBUSDT", "KESIF", split=tablo)[0] is False
+@pytest.mark.parametrize(
+    "fonksiyon",
+    [split.kume_erisimi, split.yukle, klines.mumlari_yukle, funding.funding_yukle, klines.birincil_gunluk_indir],
+)
+def test_yukleyicilere_split_tablosu_verilemez(fonksiyon):
+    """Bulgu 9: `split=` parametresi kaldirildi; tablo yalnizca split_oku ile gelir."""
+    assert "split" not in inspect.signature(fonksiyon).parameters
+
+
+def test_kurala_uymayan_split_csv_kapida_reddedilir(tmp_path, monkeypatch, sahte_ham):
+    """Betikle degistirilmis bir split.csv (B grubu sembol A isaretli) kullanilamaz."""
+    yol = tmp_path / "split.csv"
+    yol.write_text("sembol,varlik_anahtari,grup\nAAUSDT,AAUSDT,A\nBBUSDT,BBUSDT,A\n", encoding="utf-8")
+    monkeypatch.setattr(config, "SPLIT_CSV", yol)
+    with pytest.raises(split.BolmeTutarsizligi):
+        klines.mumlari_yukle("BBUSDT", config.BAR_4H, "KESIF")
+
+
+# --- Ham yukleyici disiplini -------------------------------------------------
 
 
 def test_analiz_kodu_ham_yukleyici_cagirmaz():
@@ -205,42 +299,4 @@ def test_analiz_kodu_ham_yukleyici_cagirmaz():
     events/, study/ ve diger analizler (F2 ve sonrasi) bunlari cagirirsa kume
     korumasi sessizce atlanir; bu test onu yakalar.
     """
-    izinli = {KOK / "data", KOK / "tests", KOK / "analysis" / "00_veri_denetimi", KOK / ".claude"}
-    desen = re.compile(r"\bham_(mumlari_yukle|funding_yukle|birincil_gunluk_indir)\b")
-    ihlaller = []
-    for yol in KOK.rglob("*.py"):
-        if any(p in izinli for p in yol.parents) or "cache" in yol.parts:
-            continue
-        if desen.search(yol.read_text(encoding="utf-8", errors="replace")):
-            ihlaller.append(str(yol.relative_to(KOK)))
-    assert ihlaller == []
-
-
-# --- Birincil 1d (capraz dogrulama dosyalari) --------------------------------
-
-
-def test_birincil_1d_kesif_a_grubu_kume_araligina_kesilir(tablo, sahte_ham):
-    bas, son = split.kume_araligi("KESIF")
-    gunluk = klines.birincil_gunluk_indir("AAUSDT", "KESIF", split=tablo)
-    assert not gunluk.empty
-    assert gunluk["open_time"].min() >= bas
-    assert gunluk["open_time"].max() <= son
-
-
-def test_birincil_1d_kesif_b_grubu_bos_doner(tablo, sahte_ham):
-    assert klines.birincil_gunluk_indir("BBUSDT", "KESIF", split=tablo).empty
-
-
-@pytest.mark.parametrize("kume", ["C1", "C2"])
-def test_birincil_1d_onay_kumesi_onaysiz_reddedilir_kayit_yazilmaz(kume, tablo, sahte_ham, kayit):
-    once = kayit.read_text(encoding="utf-8")
-    with pytest.raises(PermissionError):
-        klines.birincil_gunluk_indir("BBUSDT", kume, split=tablo)
-    assert kayit.read_text(encoding="utf-8") == once
-
-
-def test_birincil_1d_onayli_cagri_kaynagiyla_kaydedilir(tablo, sahte_ham, kayit):
-    klines.birincil_gunluk_indir("BBUSDT", "C1", onay=True, split=tablo)
-    metin = kayit.read_text(encoding="utf-8")
-    assert "| C1 |" in metin and "BBUSDT" in metin and "kaynak=birincil_1d" in metin
-
+    assert ihlaller(r"\bham_(mumlari_yukle|funding_yukle|birincil_gunluk_indir)\b") == []

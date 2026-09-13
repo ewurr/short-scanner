@@ -13,14 +13,29 @@ Donem korumasi:
   - C1     : yalnizca B grubu, 2020-01-01 -> 2025-08-31  (onay, tek atis)
   - C2     : A + B,            2025-09-01 -> 2026-08-31  (onay, tek atis)
 
-C1 ve C2 yalnizca `onay=True` ile acilir; her acilis ONAY_KAYDI.md'ye eklenir.
+Onay kumeleri (F1 kapanis bulgusu 8):
+  - C1 ve C2 yalnizca bir **onay kosusu** icinde acilir:
+        with split.onay_kosusu("H2", "C1"):
+            mumlari_yukle(sembol, bar, "C1", onay=True)
+  - Kosu acilirken ONAY_KAYDI.md'ye KOSU BASINA TEK SATIR yazilir: tarih,
+    kume, cagiran betik, commit hash ve calisma agacinin temiz olup olmadigi,
+    hipotez adi. Sembol basina satir yazilmaz.
+  - Ayni (hipotez, kume) cifti kayitta zaten varsa kosu reddedilir: tek atis.
+  - `onay` yalnizca gercek `True` ile kapiyi acar; `"False"` gibi dogruluk
+    degeri tasiyan baska her sey reddedilir.
+
+Bolme tablosu (F1 kapanis bulgusu 9): `split_oku` tabloyu okurken her satiri
+bolme kuralina gore yeniden hesaplar; yukleyicilere disaridan tablo verme yolu
+yoktur.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import re
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Mapping
 
@@ -28,14 +43,24 @@ import pandas as pd
 
 import config
 from data import klines, pencere
-from data.pencere import KumeSiniriHatasi
+from data.pencere import KumeSiniriHatasi  # noqa: F401  (disari acik ad)
 
 
 class OnayGerekli(PermissionError):
-    """Onay kumesine `onay=True` olmadan erisim denendi (CLAUDE.md §3.3)."""
+    """Onay kumesine gecerli bir onay kosusu olmadan erisim denendi (CLAUDE.md §3.3)."""
+
+
+class OnayTekrari(PermissionError):
+    """Ayni hipotez icin ayni onay kumesi ikinci kez kosulmak istendi (tek atis)."""
+
+
+class BolmeTutarsizligi(ValueError):
+    """Bolme tablosu on-kayit §3 kuraliyla uyusmuyor (CLAUDE.md §3.2)."""
 
 
 # --- Bolme -------------------------------------------------------------------
+
+BOLME_SUTUNLARI = ["sembol", "varlik_anahtari", "grup"]
 
 
 def grup(anahtar: str) -> str:
@@ -75,7 +100,43 @@ def split_uret(semboller: list[str], zincirler: Mapping[str, str] | None = None)
     for sembol in sorted(set(semboller)):
         anahtar = varlik_anahtari(sembol, zincirler)
         satirlar.append({"sembol": sembol, "varlik_anahtari": anahtar, "grup": grup(anahtar)})
-    return pd.DataFrame(satirlar, columns=["sembol", "varlik_anahtari", "grup"])
+    return pd.DataFrame(satirlar, columns=BOLME_SUTUNLARI)
+
+
+def split_dogrula(tablo: pd.DataFrame) -> pd.DataFrame:
+    """Bolme tablosunu on-kayit §3 kuralina gore dogrular; uyusmazlikta hata.
+
+    Grubu TURETMEK icin degil DOGRULAMAK icindir: commit edilmis tablo tek
+    kaynaktir, ama betikle degistirilmis ya da elle duzeltilmis bir tablo
+    (hook yalnizca arac cagrilarini kilitler) burada yakalanir. Denetlenenler:
+      - sutunlar tam olarak sembol, varlik_anahtari, grup,
+      - bos hucre yok, tekrarlanan sembol yok,
+      - grup yalnizca A ya da B,
+      - varlik anahtari kabul edilmis zincirlerle yeniden hesaplanan anahtara esit,
+      - grup, varlik anahtarinin SHA256 kuraliyla yeniden hesaplanan grubuna esit.
+    """
+    if list(tablo.columns) != BOLME_SUTUNLARI:
+        raise BolmeTutarsizligi(f"Bolme tablosu sutunlari {BOLME_SUTUNLARI} olmali: {list(tablo.columns)}")
+    if tablo.isna().any().any() or (tablo.astype(str).apply(lambda s: s.str.strip()) == "").any().any():
+        raise BolmeTutarsizligi("Bolme tablosunda bos hucre var.")
+    tekrar = tablo["sembol"][tablo["sembol"].duplicated()]
+    if not tekrar.empty:
+        raise BolmeTutarsizligi(f"Bolme tablosunda tekrarlanan sembol: {sorted(set(tekrar))[:5]}")
+    gecersiz = tablo.loc[~tablo["grup"].isin(["A", "B"]), "grup"]
+    if not gecersiz.empty:
+        raise BolmeTutarsizligi(f"A/B disi grup degeri: {sorted(set(gecersiz))[:5]}")
+
+    hatali = []
+    for sembol, anahtar, grp in tablo[BOLME_SUTUNLARI].itertuples(index=False):
+        beklenen_anahtar = varlik_anahtari(sembol)
+        if anahtar != beklenen_anahtar or grp != grup(beklenen_anahtar):
+            hatali.append(sembol)
+    if hatali:
+        raise BolmeTutarsizligi(
+            f"{len(hatali)} satir bolme kuraliyla uyusmuyor (ornek: {hatali[:5]}). "
+            "Veri bolmesi dokunulmazdir (CLAUDE.md §3.2)."
+        )
+    return tablo
 
 
 def split_yaz(cerceve: pd.DataFrame, yol: Path | None = None) -> Path:
@@ -85,16 +146,18 @@ def split_yaz(cerceve: pd.DataFrame, yol: Path | None = None) -> Path:
         raise FileExistsError(
             f"{hedef} zaten var. Veri bolmesi dokunulmazdir (CLAUDE.md §3.2)."
         )
+    split_dogrula(cerceve)
     hedef.parent.mkdir(parents=True, exist_ok=True)
     cerceve.to_csv(hedef, index=False, lineterminator="\n")
     return hedef
 
 
 def split_oku(yol: Path | None = None) -> pd.DataFrame:
+    """Commit edilmis bolme tablosunu okur ve `split_dogrula`dan gecirir."""
     hedef = config.SPLIT_CSV if yol is None else yol
     if not hedef.exists():
         raise FileNotFoundError(f"{hedef} yok. Once split.csv uretilip commit edilmeli.")
-    return pd.read_csv(hedef)
+    return split_dogrula(pd.read_csv(hedef, dtype=str, keep_default_na=False))
 
 
 # --- Donem korumasi ----------------------------------------------------------
@@ -131,18 +194,32 @@ def ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk: int, bar: str, kume: str) -> bool:
     return pencere.ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk, bar, kume_baslangic=bas, kume_bitis=son)
 
 
-def _git_commit() -> str:
+# --- Onay kaydi --------------------------------------------------------------
+
+
+def _git(*argumanlar: str) -> str | None:
     try:
         cikti = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=config.KOK,
-            capture_output=True,
-            text=True,
-            timeout=10,
+            ["git", *argumanlar], cwd=config.KOK, capture_output=True, text=True, timeout=10
         )
-        return cikti.stdout.strip() or "bilinmiyor"
     except Exception:
+        return None
+    if cikti.returncode != 0:
+        return None
+    return cikti.stdout
+
+
+def _git_commit() -> str:
+    cikti = _git("rev-parse", "HEAD")
+    return cikti.strip() if cikti and cikti.strip() else "bilinmiyor"
+
+
+def _calisma_agaci_durumu() -> str:
+    """`temiz`, `KIRLI` (commit edilmemis ya da izlenmeyen dosya var) ya da `bilinmiyor`."""
+    cikti = _git("status", "--porcelain")
+    if cikti is None:
         return "bilinmiyor"
+    return "temiz" if not cikti.strip() else "KIRLI"
 
 
 def _cagiran_betik() -> str:
@@ -153,6 +230,7 @@ def _cagiran_betik() -> str:
 
 
 ONAY_TABLO_BASLIGI = "| Tarih (UTC) |"
+HIPOTEZ_DESENI = re.compile(r"^[A-Za-z0-9_.-]{1,40}$")
 
 
 def kayda_satir_ekle(metin: str, satir: str) -> str:
@@ -183,15 +261,44 @@ def kayda_satir_ekle(metin: str, satir: str) -> str:
     return "".join(satirlar[: son + 1] + [yeni] + satirlar[son + 1 :])
 
 
-def onay_kaydet(kume: str, sembol: str, not_metni: str = "", yol: Path | None = None) -> None:
-    """ONAY_KAYDI.md tablosuna bir satir ekler. Yalnizca ekleme yapar (CLAUDE.md §3.3)."""
+def kayittaki_kosular(metin: str) -> set[tuple[str, str]]:
+    """Kayit metnindeki onay kosularinin (hipotez, kume) ciftleri. Saf.
+
+    Satir bicimi: `| tarih | kume | betik | commit (durum) | hipotez=<ad> |`.
+    """
+    kosular: set[tuple[str, str]] = set()
+    for satir in metin.splitlines():
+        if not satir.startswith("|") or satir.startswith(ONAY_TABLO_BASLIGI):
+            continue
+        hucreler = [h.strip() for h in satir.strip().strip("|").split("|")]
+        if len(hucreler) < 5:
+            continue
+        for parca in hucreler[4].split():
+            if parca.startswith("hipotez="):
+                kosular.add((parca[len("hipotez="):], hucreler[1]))
+    return kosular
+
+
+def _hipotez_dogrula(hipotez) -> str:
+    if not isinstance(hipotez, str) or not HIPOTEZ_DESENI.match(hipotez):
+        raise ValueError(
+            f"Hipotez adi harf, rakam, '_', '.', '-' iceren 1-40 karakterlik bir metin olmali: {hipotez!r}"
+        )
+    return hipotez
+
+
+def onay_kaydet(hipotez: str, kume: str, yol: Path | None = None) -> None:
+    """ONAY_KAYDI.md tablosuna BIR onay kosusu satiri ekler (CLAUDE.md §3.3).
+
+    - Yalnizca ekleme yapar; mevcut satirlar bayt bayt korunur.
+    - Ayni (hipotez, kume) kayitta varsa `OnayTekrari`: hicbir sey yazilmaz.
+    - Satir: tarih (UTC), kume, cagiran betik, commit hash + calisma agaci
+      durumu (temiz / KIRLI / bilinmiyor), hipotez adi.
+    """
+    _hipotez_dogrula(hipotez)
+    if kume not in config.ONAY_KUMELERI:
+        raise ValueError(f"{kume!r} bir onay kumesi degil: {config.ONAY_KUMELERI}")
     hedef = config.ONAY_KAYDI if yol is None else Path(yol)
-    zaman = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    satir = (
-        f"| {zaman} | {kume} | {_cagiran_betik()} | {_git_commit()[:12]} | "
-        f"{sembol} {not_metni}".rstrip()
-        + " |"
-    )
 
     # newline="" satir sonlarini cevirmeden okur/yazar; aksi halde Windows'ta tum
     # dosyanin LF'leri CRLF'e donusur ve mevcut satirlar degismis olur.
@@ -199,6 +306,17 @@ def onay_kaydet(kume: str, sembol: str, not_metni: str = "", yol: Path | None = 
     if hedef.exists():
         with hedef.open("r", encoding="utf-8", newline="") as dosya:
             eski = dosya.read()
+    if (hipotez, kume) in kayittaki_kosular(eski):
+        raise OnayTekrari(
+            f"{hipotez} icin {kume} onay kosusu zaten kayitli. Onay kumeleri her hipotez "
+            "icin BIR KEZ kosulur (CLAUDE.md §3.3, on-kayit §9)."
+        )
+
+    zaman = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    satir = (
+        f"| {zaman} | {kume} | {_cagiran_betik()} | "
+        f"{_git_commit()[:12]} ({_calisma_agaci_durumu()}) | hipotez={hipotez} |"
+    )
     yeni = kayda_satir_ekle(eski, satir)
 
     # Yalnizca ekleme guvencesi: eklenen satir cikarilinca eski metin aynen kalmali.
@@ -214,6 +332,36 @@ def onay_kaydet(kume: str, sembol: str, not_metni: str = "", yol: Path | None = 
     gecici.replace(hedef)
 
 
+_AKTIF_KOSU: tuple[str, str] | None = None
+
+
+def aktif_onay_kosusu() -> tuple[str, str] | None:
+    """Acik onay kosusu varsa (hipotez, kume)."""
+    return _AKTIF_KOSU
+
+
+@contextmanager
+def onay_kosusu(hipotez: str, kume: str, yol: Path | None = None):
+    """Bir hipotez icin bir onay kumesinin TEK kosusunu acar.
+
+    Girerken kayda tek satir yazilir (tekrar ise `OnayTekrari`, hicbir sey
+    yazilmaz); blok icinde o kumeye `onay=True` ile erisilebilir; cikista kosu
+    kapanir. Ic ice kosu acilamaz.
+    """
+    global _AKTIF_KOSU
+    if _AKTIF_KOSU is not None:
+        raise RuntimeError(f"Zaten acik bir onay kosusu var: {_AKTIF_KOSU}. Ic ice kosu acilamaz.")
+    onay_kaydet(hipotez, kume, yol=yol)
+    _AKTIF_KOSU = (hipotez, kume)
+    try:
+        yield
+    finally:
+        _AKTIF_KOSU = None
+
+
+# --- Kume kapisi -------------------------------------------------------------
+
+
 def _bos_mum_cercevesi() -> pd.DataFrame:
     from data import binance_vision as bv
 
@@ -224,40 +372,45 @@ def kume_erisimi(
     sembol: str,
     kume: str,
     onay: bool = False,
-    split: pd.DataFrame | None = None,
-    not_metni: str = "",
 ) -> tuple[bool, pd.Timestamp, pd.Timestamp]:
     """Tum veri yukleyicilerinin ortak kume kapisi (CLAUDE.md §3.2-3.3).
 
-    `yukle`, `klines.mumlari_yukle` ve `funding.funding_yukle` bu kapidan gecer.
-    Sirasiyla:
+    `yukle`, `klines.mumlari_yukle`, `klines.birincil_gunluk_indir` ve
+    `funding.funding_yukle` bu kapidan gecer. Sirasiyla:
       1. Bilinmeyen kume -> ValueError.
-      2. C1/C2 icin `onay=True` yoksa `OnayGerekli` (PermissionError); kayda
-         hicbir sey yazilmaz.
-      3. Sembol split.csv icinde yoksa KeyError.
-      4. `onay=True` ile yapilan HER cagri onay kaydina eklenir; sembol kumenin
-         grubunda olmasa bile onay verisine uzanma girisimi iz birakir.
+      2. `onay` bool degilse (ör. "False") -> `OnayGerekli`.
+      3. C1/C2 icin `onay is True` ve ayni kumeye ait acik bir `onay_kosusu`
+         yoksa -> `OnayGerekli`; kayda hicbir sey yazilmaz.
+      4. Bolme tablosu `split_oku` ile okunur ve dogrulanir; disaridan tablo
+         verilemez. Sembol tabloda yoksa KeyError.
 
+    Kayit sembol basina degil, `onay_kosusu` acilirken kosu basina yazilir.
     Doner: (sembol kumenin grubunda mi, kume baslangici, kume sonu).
     """
     if kume not in config.KUMELER:
         raise ValueError(f"Bilinmeyen kume: {kume!r}. Gecerli degerler: {config.KUMELER}")
-
-    if kume in config.ONAY_KUMELERI and not onay:
+    if not isinstance(onay, bool):
         raise OnayGerekli(
-            f"{kume} bir onay kumesidir ve tek atistir. Erisim icin onay=True "
-            f"gerekir; her erisim ONAY_KAYDI.md'ye yazilir (CLAUDE.md §3.3)."
+            f"onay yalnizca True ya da False olabilir; {onay!r} ({type(onay).__name__}) reddedildi."
         )
+    if kume in config.ONAY_KUMELERI:
+        if onay is not True:
+            raise OnayGerekli(
+                f"{kume} bir onay kumesidir ve tek atistir. Erisim icin onay=True ve "
+                f"acik bir onay kosusu gerekir (CLAUDE.md §3.3)."
+            )
+        if _AKTIF_KOSU is None or _AKTIF_KOSU[1] != kume:
+            raise OnayGerekli(
+                f"{kume} verisine yalnizca `with split.onay_kosusu(hipotez, {kume!r}):` blogu "
+                f"icinde erisilir. Acik kosu: {_AKTIF_KOSU}."
+            )
 
     gruplar, _, _ = kume_tanimi(kume)
     bas, son = kume_araligi(kume)
-    tablo = split_oku() if split is None else split
+    tablo = split_oku()
     satir = tablo.loc[tablo["sembol"] == sembol]
     if satir.empty:
         raise KeyError(f"{sembol} split.csv icinde yok.")
-
-    if kume in config.ONAY_KUMELERI:
-        onay_kaydet(kume, sembol, not_metni)
 
     return bool(satir["grup"].iloc[0] in gruplar), bas, son
 
@@ -267,16 +420,14 @@ def yukle(
     bar: str,
     kume: str,
     onay: bool = False,
-    split: pd.DataFrame | None = None,
     mum_yukleyici=None,
 ) -> pd.DataFrame:
     """Bir sembolun mumlarini kume kisitlarina uyarak yukler.
 
-    Kume kapisi `kume_erisimi`dir: C1/C2 icin `onay=True` sart, onayli her
-    cagri kaydedilir, onaysiz cagri kayda yazmadan reddedilir. Sembol istenen
-    kumenin grubunda degilse bos cerceve doner; veri kume araligina kesilir.
+    Kume kapisi `kume_erisimi`dir. Sembol istenen kumenin grubunda degilse bos
+    cerceve doner; veri kume araligina kesilir.
     """
-    izinli, bas, son = kume_erisimi(sembol, kume, onay=onay, split=split, not_metni=f"bar={bar}")
+    izinli, bas, son = kume_erisimi(sembol, kume, onay=onay)
     if not izinli:
         return _bos_mum_cercevesi()
 

@@ -58,22 +58,19 @@ def funding_yukle(
     kume: str,
     onay: bool = False,
     yenile: bool = False,
-    split=None,
 ) -> pd.DataFrame:
     """Funding gecmisini KUME KORUMASIYLA yukler (CLAUDE.md §3.2-3.3).
 
-    `split.yukle` ile ayni davranis: `kume` zorunludur ve varsayilani yoktur;
-    C1/C2 icin `onay=True` sarttir, her onayli cagri onay kaydina eklenir,
-    onaysiz cagri kayda hicbir sey yazmadan PermissionError verir; sembol
+    `split.yukle` ile ayni kapi (`split.kume_erisimi`): `kume` zorunludur ve
+    varsayilani yoktur; C1/C2 icin `onay=True` ve acik bir `split.onay_kosusu`
+    sarttir, aksi halde kayda hicbir sey yazmadan PermissionError; sembol
     kumenin grubunda degilse bos cerceve doner; kayitlar odeme zamanina gore
     kume tarih araligina kesilir. On-kayit §4 funding'i net getirinin parcasi
     yaptigi icin getiri kodu funding'e yalnizca bu yoldan erisir.
     """
     from data import split as split_modulu  # split, klines uzerinden bu katmani import eder
 
-    izinli, bas, son = split_modulu.kume_erisimi(
-        sembol, kume, onay=onay, split=split, not_metni="kaynak=funding"
-    )
+    izinli, bas, son = split_modulu.kume_erisimi(sembol, kume, onay=onay)
     if not izinli:
         return pd.DataFrame(columns=FUNDING_CIKTI_SUTUNLARI)
     tum = ham_funding_yukle(sembol, yenile=yenile)

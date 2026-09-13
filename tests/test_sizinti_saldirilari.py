@@ -214,10 +214,11 @@ def test_gercek_onay_kaydina_onaysiz_erisim_dosyayi_degistirmez(tmp_path, monkey
     once = kopya.read_bytes()
     monkeypatch.setattr(config, "ONAY_KAYDI", kopya)
 
-    tablo = pd.DataFrame({"sembol": ["XXUSDT"], "varlik_anahtari": ["XXUSDT"], "grup": ["B"]})
     for kume in ("C1", "C2"):
         with pytest.raises(PermissionError):
-            split.kume_erisimi("XXUSDT", kume, split=tablo)
+            split.kume_erisimi("XXUSDT", kume)
+        with pytest.raises(PermissionError):  # onay=True da kosu olmadan yetmez
+            split.kume_erisimi("XXUSDT", kume, onay=True)
 
     assert kopya.read_bytes() == once, "onaysiz cagri kopya kayit dosyasini degistirdi"
 

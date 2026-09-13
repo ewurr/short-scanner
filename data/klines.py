@@ -67,15 +67,14 @@ def mumlari_yukle(
     kume: str,
     onay: bool = False,
     yenile: bool = False,
-    split=None,
 ) -> pd.DataFrame:
     """Bir sembolun mumlarini KUME KORUMASIYLA yukler (CLAUDE.md §3.2-3.3).
 
     `split.yukle` ile ayni davranis: `kume` zorunludur ve varsayilani yoktur;
-    C1/C2 icin `onay=True` sarttir, her onayli cagri onay kaydina eklenir,
-    onaysiz cagri kayda hicbir sey yazmadan PermissionError verir; sembol
-    kumenin grubunda degilse bos cerceve doner; veri kume tarih araligina
-    kesilir. Analiz ve olay kodu mumlara yalnizca bu yoldan erisir.
+    C1/C2 icin `onay=True` ve acik bir `split.onay_kosusu` sarttir, aksi halde
+    kayda hicbir sey yazmadan PermissionError; sembol kumenin grubunda degilse
+    bos cerceve doner; veri kume tarih araligina kesilir. Analiz ve olay kodu
+    mumlara yalnizca bu yoldan erisir.
     """
     from data import split as split_modulu  # split bu modulu import eder; dongu onlenir
 
@@ -84,7 +83,6 @@ def mumlari_yukle(
         bar,
         kume,
         onay=onay,
-        split=split,
         mum_yukleyici=lambda s, b: ham_mumlari_yukle(s, b, yenile=yenile),
     )
 
@@ -209,20 +207,17 @@ def birincil_gunluk_indir(
     kume: str,
     onay: bool = False,
     yenile: bool = False,
-    split=None,
 ) -> pd.DataFrame:
     """Kaynaktaki birincil 1d dosyalarini KUME KORUMASIYLA yukler (CLAUDE.md §3.2-3.3).
 
     `mumlari_yukle` ve `funding_yukle` ile ayni kapidan (`split.kume_erisimi`)
-    gecer: `kume` zorunludur ve varsayilani yoktur; C1/C2 icin `onay=True`
-    sarttir, onayli her cagri onay kaydina `kaynak=birincil_1d` notuyla eklenir;
-    sembol kumenin grubunda degilse bos cerceve doner; veri kume araligina kesilir.
+    gecer: `kume` zorunludur ve varsayilani yoktur; C1/C2 icin `onay=True` ve
+    acik bir `split.onay_kosusu` sarttir; sembol kumenin grubunda degilse bos
+    cerceve doner; veri kume araligina kesilir.
     """
     from data import split as split_modulu  # split bu modulu import eder; dongu onlenir
 
-    izinli, bas, son = split_modulu.kume_erisimi(
-        sembol, kume, onay=onay, split=split, not_metni="kaynak=birincil_1d"
-    )
+    izinli, bas, son = split_modulu.kume_erisimi(sembol, kume, onay=onay)
     if not izinli:
         return pd.DataFrame(columns=[s for s in bv.MUM_SUTUNLARI if s != "ignore"])
     return donem_kes(ham_birincil_gunluk_indir(sembol, yenile=yenile), bas, son)
