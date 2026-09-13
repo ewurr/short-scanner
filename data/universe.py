@@ -183,8 +183,14 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
     return pd.DataFrame(satirlar).sort_values(["sembol", "donem_id"], ignore_index=True)
 
 
-def evren_yukle(yenile: bool = False, haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
-    """Evreni onbellekten okur, yoksa (veya `yenile`) kaynaktan kurar."""
+def evren_turet(yenile: bool = False, haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
+    """Evreni onbellekten okur, yoksa (veya `yenile`) bucket ve exchangeInfo'dan kurar.
+
+    YALNIZCA `data/universe.csv` dosyasini uretmek ve dogrulamak icindir.
+    Analiz bu yolu kullanmaz: exchangeInfo zamanla degisir (delist olan sembol
+    yanittan duser), yeniden turetilen evren commit edilmis tablodan sapabilir
+    (on-kayit §2 rev.4).
+    """
     yol = bv.onbellek_yolu(ONBELLEK_ADI)
     if not yenile:
         onbellek = bv.onbellekten_oku(yol)
@@ -193,6 +199,131 @@ def evren_yukle(yenile: bool = False, haric_liste: frozenset[str] | None = None)
     evren = evren_kur(haric_liste)
     bv.onbellege_yaz(evren, yol)
     return evren
+
+
+# --- Sabit evren tablosu (on-kayit §2 rev.4) ---------------------------------
+
+# CSV'ye zaman damgasi yazilmaz; donem sinirlari aylardan deterministik kurulur.
+CSV_SUTUNLARI = [
+    "sembol",
+    "ilk_ay",
+    "son_ay",
+    "dosya_sayisi_4h",
+    "funding_dosya_sayisi",
+    "sozlesme_tipi",
+    "dayanak_tipi",
+    "karantina_aylari",
+    "haric",
+    "haric_gerekce",
+    "donem_id",
+    "donem_bas_ay",
+    "donem_son_ay",
+]
+_METIN_SUTUNLARI = (
+    "sembol",
+    "ilk_ay",
+    "son_ay",
+    "sozlesme_tipi",
+    "dayanak_tipi",
+    "karantina_aylari",
+    "haric_gerekce",
+    "donem_bas_ay",
+    "donem_son_ay",
+)
+
+
+class EvrenUyusmazligi(ValueError):
+    """Commit edilmis evren tablosu onbellekteki turetilmis evrenle uyusmuyor."""
+
+
+def _csv_bicimine(evren: pd.DataFrame) -> pd.DataFrame:
+    """Evreni CSV'nin tuttugu sutun ve tiplere indirger; deterministik sira."""
+    tablo = evren.loc[:, CSV_SUTUNLARI].copy()
+    for sutun in _METIN_SUTUNLARI:
+        tablo[sutun] = tablo[sutun].fillna("").astype(str)
+    tablo["haric"] = tablo["haric"].astype(bool)
+    for sutun in ("dosya_sayisi_4h", "funding_dosya_sayisi", "donem_id"):
+        tablo[sutun] = tablo[sutun].astype("int64")
+    return tablo.sort_values(["sembol", "donem_id"], ignore_index=True)
+
+
+def _donem_zamanlarini_kur(tablo: pd.DataFrame) -> pd.DataFrame:
+    """donem_bas_ay / donem_son_ay'dan UTC donem sinirlarini kurar (donem_sinirlari ile ayni)."""
+    sonuc = tablo.copy()
+    baslangic, bitis = [], []
+    for bas_ay, son_ay, kimlik in zip(sonuc["donem_bas_ay"], sonuc["donem_son_ay"], sonuc["donem_id"]):
+        if kimlik < 0 or not bas_ay:
+            baslangic.append(pd.NaT)
+            bitis.append(pd.NaT)
+            continue
+        baslangic.append(pd.Period(bas_ay, freq="M").to_timestamp(how="start").tz_localize("UTC"))
+        bitis.append(pd.Period(son_ay, freq="M").to_timestamp(how="end").tz_localize("UTC"))
+    sonuc["donem_baslangic"] = pd.to_datetime(pd.Series(baslangic, index=sonuc.index), utc=True)
+    sonuc["donem_bitis"] = pd.to_datetime(pd.Series(bitis, index=sonuc.index), utc=True)
+    return sonuc
+
+
+def evren_csv_yaz(evren: pd.DataFrame, yol=None):
+    """`data/universe.csv` dosyasini yazar. Dosya varsa uzerine yazmaz (split.csv gibi)."""
+    from pathlib import Path
+
+    hedef = config.UNIVERSE_CSV if yol is None else Path(yol)
+    if hedef.exists():
+        raise FileExistsError(
+            f"{hedef} zaten var. Evren tablosu split.csv gibi sabittir (on-kayit §2 rev.4)."
+        )
+    hedef.parent.mkdir(parents=True, exist_ok=True)
+    _csv_bicimine(evren).to_csv(hedef, index=False, lineterminator="\n", encoding="utf-8")
+    return hedef
+
+
+def evren_yukle(yol=None) -> pd.DataFrame:
+    """Commit edilmis evren tablosunu okur (on-kayit §2 rev.4).
+
+    Ag ve onbellek kullanmaz; canli exchangeInfo'dan yeniden turetmez. Donen
+    cerceve `evren_kur` ile ayni sutunlara sahiptir (donem sinirlari dahil).
+    """
+    from pathlib import Path
+
+    hedef = config.UNIVERSE_CSV if yol is None else Path(yol)
+    if not hedef.exists():
+        raise FileNotFoundError(f"{hedef} yok. Once evren tablosu uretilip commit edilmeli.")
+    tablo = pd.read_csv(
+        hedef,
+        dtype={sutun: str for sutun in _METIN_SUTUNLARI},
+        keep_default_na=False,
+        encoding="utf-8",
+    )
+    haric = tablo["haric"].astype(str).map({"True": True, "False": False})
+    if haric.isna().any():
+        raise ValueError(f"{hedef}: 'haric' sutununda True/False disi deger var.")
+    tablo["haric"] = haric.astype(bool)
+    return _donem_zamanlarini_kur(_csv_bicimine(tablo))
+
+
+def evren_onbellekle_dogrula(yol=None, onbellek=None) -> None:
+    """Commit edilmis evren tablosu onbellekteki turetilmis evrenle birebir ayni mi?
+
+    Uyusmazlikta `EvrenUyusmazligi` firlatir. `onbellek` verilmezse
+    `cache/universe.parquet` okunur.
+    """
+    csv_evren = evren_yukle(yol)
+    if onbellek is None:
+        onbellek = bv.onbellekten_oku(bv.onbellek_yolu(ONBELLEK_ADI))
+        if onbellek is None:
+            raise FileNotFoundError("Onbellekte evren yok; karsilastirma yapilamaz.")
+    beklenen = _donem_zamanlarini_kur(_csv_bicimine(onbellek))
+    try:
+        pd.testing.assert_frame_equal(
+            csv_evren.reset_index(drop=True), beklenen.reset_index(drop=True), check_dtype=False
+        )
+    except AssertionError as hata:
+        raise EvrenUyusmazligi(f"Evren tablosu onbellekle uyusmuyor: {hata}") from None
+    # Donem sinirlari aylardan kuruldu; onbellekteki zaman damgalariyla da ayni olmali.
+    onb = onbellek.sort_values(["sembol", "donem_id"], ignore_index=True)
+    for sutun in ("donem_baslangic", "donem_bitis"):
+        if not csv_evren[sutun].equals(pd.to_datetime(onb[sutun], utc=True)):
+            raise EvrenUyusmazligi(f"'{sutun}' onbellekteki zaman damgalariyla uyusmuyor.")
 
 
 def dahil_semboller(evren: pd.DataFrame) -> list[str]:

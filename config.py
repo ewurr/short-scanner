@@ -17,6 +17,8 @@ VERI_DIZINI = KOK / "data"
 ONBELLEK_DIZINI = KOK / "cache"
 ANALIZ_DIZINI = KOK / "analysis"
 SPLIT_CSV = VERI_DIZINI / "split.csv"
+# Karantina aylari ve listeleme donemleri; split.csv gibi sabit (on-kayit §2 rev.4).
+UNIVERSE_CSV = VERI_DIZINI / "universe.csv"
 ONAY_KAYDI = KOK / "ONAY_KAYDI.md"
 
 # --- Piyasa ve evren (on-kayit §2) -------------------------------------------
