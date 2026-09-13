@@ -1,6 +1,6 @@
 # PREREGISTRATION.md — Short Öngörü Hipotezleri
 
-**Durum:** Sürüm 3 (2026-09-11). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
+**Durum:** Sürüm 4 (2026-09-11). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
 **Kapsam:** F2 (keşif) ve F3 (onay). Taktik (F4) ve ileri-zaman testi (F5) ayrı revizyonla eklenir.
 
 Bu belge commit edildikten sonra aşağıdaki hiçbir tanım, eşik veya tarih sınırı
@@ -94,6 +94,10 @@ sayısıyla yazılır ve sonuçlar "kötümser yanlılıklı" olarak etiketlenir
 F1 denetiminde 28 delist sembolün tümünün geçmişi eksiksiz indirilmiştir; bu veri
 kümesinde hayatta kalma yanlılığı yoktur.
 
+**Evren tablosunun sabitlenmesi.** Karantina ayları ve listeleme dönemi sınırları
+`data/universe.csv` dosyasına yazılır ve commit edilir. Bu dosya `split.csv` gibi
+sabittir; analiz bu dosyadan okur, canlı exchangeInfo'dan yeniden türetmez.
+
 ## 3. Veri bölmesi
 
 **Coin bölmesi.** Bölme sembol değil **varlık anahtarı** üzerinden yapılır. Varlık
@@ -120,6 +124,12 @@ dosyasına sembol, varlık anahtarı ve grup sütunlarıyla yazılır ve commit 
 
 C1 ve C2 verisine keşif sırasında hiçbir biçimde bakılmaz. Olay sayıları dahil.
 
+**Küme sınırı ve ufuk.** Bir olayın birincil ufku, ait olduğu kümenin tarih
+aralığına tam olarak sığmalıdır. Sığmayan olay o kümede hiç oluşmaz; kırpılmış
+getiri kullanılmaz. İkincil ufuklar raporlanırken aynı kural kendi ufuk
+uzunluklarıyla uygulanır. Kümeler arası veri ödünç alınmaz: keşif kümesindeki bir
+olayın ufku C2 verisine uzanamaz.
+
 ## 4. Getiri tanımları
 
 Olay t barının kapanışında tespit edilir. Giriş fiyatı `P0 = open[t+1]`.
@@ -134,12 +144,23 @@ Ufuk h bar sonra çıkış fiyatı `P1 = close[t+h]`.
 
 Ufuk içinde sözleşme delist olursa çıkış, son mevcut barın kapanışıdır.
 
+**Karantina ve çıkış.** Ufuk bir karantina ayına uzanırsa çıkış, karantinadan
+önceki son barın kapanışıdır. Dönem sonu, delist ve karantina kuralları ileri
+kayma kuralından önceliklidir.
+
 | Hipotez | Birincil ufuk | İkincil ufuklar (yalnızca rapor) |
 |---|---|---|
 | H1, H2 | 18 bar (3 gün) | 6 bar, 42 bar |
 | H3 | 14 gün | 7 gün, 30 gün |
 
 ## 5. Hipotezler
+
+**Pencere sınırları.** Her koşulun geriye bakış penceresinin t barını içerip
+içermediği, §5'teki formülle belirlenir ve uygulamada açıkça belirtilir. H1'in
+6 barlık dip penceresi ve H2'nin k barlık kırılım penceresi t'yi **içermez**
+(t-6..t-1, t-k..t-1). H2'nin 30 barlık yükseliş penceresi ve H1'in 180 barlık
+hacim penceresi t'yi **içerir**. Varsayılan davranış yoktur; belirtilmeyen çağrı
+hata verir.
 
 Her hipotezin keşif ızgarası en fazla 9 yapılandırmadır. Aynı coinde bir olaydan
 sonra, o hipotezin birincil ufku boyunca yeni olay sayılmaz (bekleme süresi).
@@ -251,3 +272,4 @@ Başarısız bir hipotez için onay yeniden koşulamaz.
 | 1 | — | İlk sürüm | — | — |
 | 2 | 2026-09-11 | Kapsam netleştirmesi (TRADIFI_PERPETUAL dışı), kesin hariç tutma listesi, 1d türetme kuralı, listeleme dönemi ve karantina kuralı, veri bütünlüğü kontrolü, varlık anahtarıyla bölme | exchangeInfo sınıflandırması, yeniden adlandırma zincirlerinin bölmeyi sızdırması ve SETTLED kayıtlarının yeniden fiyatlandırma sıçraması riski. Hiçbir fiyat verisine bakılmadan yapıldı. | Yok (henüz sonuç yok) |
 | 3 | 2026-09-11 | Funding aralığı metni genel formüle bağlandı; veri boşluğu kuralı (zamanla tanımlı pencere, tamlık şartı, ufukta ileri kayma); delist kapsamasının tam olduğu notu | F1 denetimi: 8 saat dışında dört farklı funding aralığı; 10 boşluk olayı ve bunların ardından oluşan iki sahte sıçrama. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
+| 4 | 2026-09-11 | Küme sınırı ve ufuk kuralı; karantinanın çıkışa uygulanması; pencere sınırlarının açık belirtilmesi; evren tablosunun commit edilmesi | F2 öncesi metodoloji denetimi (B1, B2, B3, B10): ön-kayıtta tanımsız kalan ve ilk getiri hesabında devreye girecek noktalar. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
