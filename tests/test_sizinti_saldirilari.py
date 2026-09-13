@@ -96,7 +96,7 @@ def test_pencere_dilimi_tekrarlanan_zaman_damgasini_reddeder():
     bozuk = pd.concat([seri, pd.Series([999.0], index=[dup_zaman])])
 
     with pytest.raises(pencere.ZamanDizisiHatasi, match="tekrarlanan"):
-        pencere.pencere_degeri(bozuk, t, 10, config.BAR_4H, t_dahil=True)
+        pencere.pencere_degeri(bozuk, t, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None)
 
 
 # --- Gelecege bakis: t'nin kendi gununun hacmini bozmak kararini degistirmemeli
@@ -114,12 +114,12 @@ def test_uygun_mu_t_gununun_kendi_hacmini_bozmak_karari_degistirmez():
     donem_bas = gunler[0]
     t = gunler[35]  # listeleme yasi > 30 gun, hacim esigini gecer
 
-    dogru = eligibility.uygun_mu(hacim, donem_bas, t, config.BAR_4H)
+    dogru = eligibility.uygun_mu(hacim, donem_bas, t, config.BAR_4H, kume_baslangic=None)
     assert dogru is True
 
     bozuk = hacim.copy()
     bozuk.loc[t.floor("D")] = 0.0  # t'nin kendi gununu sifirla
-    bozuk_sonuc = eligibility.uygun_mu(bozuk, donem_bas, t, config.BAR_4H)
+    bozuk_sonuc = eligibility.uygun_mu(bozuk, donem_bas, t, config.BAR_4H, kume_baslangic=None)
 
     assert bozuk_sonuc == dogru, (
         "t anindaki uygunluk karari, t'nin KENDI gununun hacmine gore "
@@ -129,7 +129,7 @@ def test_uygun_mu_t_gununun_kendi_hacmini_bozmak_karari_degistirmez():
     # Ayni sekilde asiri YUKSEK bir deger de karari degistirmemeli.
     tersi = hacim.copy()
     tersi.loc[t.floor("D")] = 1e12
-    assert eligibility.uygun_mu(tersi, donem_bas, t, config.BAR_4H) == dogru
+    assert eligibility.uygun_mu(tersi, donem_bas, t, config.BAR_4H, kume_baslangic=None) == dogru
 
 
 def test_medyan_hacim_serinin_sonuna_eklenen_gelecek_bar_gecmisi_degistirmez():
@@ -139,12 +139,12 @@ def test_medyan_hacim_serinin_sonuna_eklenen_gelecek_bar_gecmisi_degistirmez():
     donem_bas = gunler[0]
     t = gunler[35]
 
-    once = eligibility.medyan_hacim(hacim, t, donem_bas)
+    once = eligibility.medyan_hacim(hacim, t, donem_bas, kume_baslangic=None)
 
     genisletilmis = pd.concat(
         [hacim, pd.Series([1e15], index=[gunler[-1] + pd.Timedelta(days=1)])]
     )
-    sonra = eligibility.medyan_hacim(genisletilmis, t, donem_bas)
+    sonra = eligibility.medyan_hacim(genisletilmis, t, donem_bas, kume_baslangic=None)
 
     assert once == sonra, "gelecege eklenen bar gecmisteki medyan hacmi degistirdi (gelecege bakis)."
 
@@ -154,10 +154,10 @@ def test_pencere_degeri_serinin_sonuna_eklenen_gelecek_bar_gecmisi_degistirmez()
     seri = _seri("2021-01-01", 40, deger=1.0)
     t = seri.index[30]
 
-    once = pencere.pencere_degeri(seri, t, 10, config.BAR_4H, t_dahil=True, islev="mean")
+    once = pencere.pencere_degeri(seri, t, 10, config.BAR_4H, t_dahil=True, islev="mean", kume_baslangic=None)
 
     genisletilmis = pd.concat([seri, _seri("2030-01-01", 5, deger=9999.0)])
-    sonra = pencere.pencere_degeri(genisletilmis, t, 10, config.BAR_4H, t_dahil=True, islev="mean")
+    sonra = pencere.pencere_degeri(genisletilmis, t, 10, config.BAR_4H, t_dahil=True, islev="mean", kume_baslangic=None)
 
     assert once == sonra
 
@@ -242,10 +242,10 @@ def test_karantina_ayina_tam_giris_bariyla_uzanan_pencere_nan():
     t = pd.Timestamp("2022-01-01 00:00", tz="UTC")  # karantina ayinin ilk bari
     assert t in seri.index
     assert pd.isna(
-        pencere.pencere_degeri(seri, t, 6, config.BAR_4H, t_dahil=True, karantina_aylari=["2022-01"])
+        pencere.pencere_degeri(seri, t, 6, config.BAR_4H, t_dahil=True, karantina_aylari=["2022-01"], kume_baslangic=None)
     )
     # Bir bar onceki t icin (hala karantina disinda pencere) NaN OLMAMALI.
     t_once = t - pd.Timedelta(hours=4)
     assert not pd.isna(
-        pencere.pencere_degeri(seri, t_once, 6, config.BAR_4H, t_dahil=True, karantina_aylari=["2022-01"])
+        pencere.pencere_degeri(seri, t_once, 6, config.BAR_4H, t_dahil=True, karantina_aylari=["2022-01"], kume_baslangic=None)
     )

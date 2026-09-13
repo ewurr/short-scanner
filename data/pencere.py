@@ -145,6 +145,25 @@ def pencere_tam_mi(zamanlar, t, bar_sayisi: int, bar: str, *, t_dahil: bool) -> 
     return bool(beklenen.isin(mevcut).all())
 
 
+def _kume_baslangic_dogrula(kume_baslangic) -> pd.Timestamp | None:
+    """On-kayit §3 rev.5: kume baslangici cagiran tarafindan acikca verilir.
+
+    Varsayilan yoktur; anahtar sozcuk unutulursa Python TypeError verir. Deger
+    ya bir zaman damgasidir (`split.kume_araligi(kume)[0]`) ya da bilincli
+    olarak `None`'dir. `None` yalnizca bir kumeye ait olmayan hesaplar icindir
+    (ör. tum gecmisi olcen F1 veri denetimi); F2 ve F3 hesaplari kume
+    baslangicini vermek zorundadir.
+    """
+    if kume_baslangic is None:
+        return None
+    if isinstance(kume_baslangic, bool):
+        raise TypeError(
+            "kume_baslangic bir zaman damgasi ya da acikca None olmali "
+            f"(on-kayit §3 rev.5). Verilen: {kume_baslangic!r}"
+        )
+    return pd.Timestamp(kume_baslangic)
+
+
 def pencere_dilimi(
     seri: pd.Series,
     t,
@@ -152,6 +171,7 @@ def pencere_dilimi(
     bar: str,
     *,
     t_dahil: bool,
+    kume_baslangic,
     donem_baslangic=None,
     karantina_aylari=(),
 ) -> pd.Series | None:
@@ -159,14 +179,22 @@ def pencere_dilimi(
 
     Sirasiyla su kosullar aranir:
       1. Pencere donem baslangicini asmamali (on-kayit §2 rev.2),
-      2. Pencerenin hicbir bari karantina ayina dusmemeli,
-      3. Penceredeki beklenen barlarin tamami mevcut olmali (rev.3 tamlik sarti).
+      2. Pencere kume baslangicini asmamali (on-kayit §3 rev.5),
+      3. Pencerenin hicbir bari karantina ayina dusmemeli,
+      4. Penceredeki beklenen barlarin tamami mevcut olmali (rev.3 tamlik sarti).
+
+    Kume siniri, seride kume oncesi veri BULUNSA BILE uygulanir: kural verinin
+    kume sinirinda kesilmis olmasina dayanmaz. `kume_baslangic` zorunludur.
     """
+    kume_bas = _kume_baslangic_dogrula(kume_baslangic)
     beklenen = beklenen_zamanlar(t, bar_sayisi, bar, t_dahil=t_dahil)
 
     if donem_baslangic is not None:
         if beklenen[0] < pd.Timestamp(donem_baslangic):
             return None
+
+    if kume_bas is not None and beklenen[0] < kume_bas:
+        return None  # pencere kume oncesi veriyi odunc alamaz (rev.5)
 
     if len(karantina_aylari):
         karantina = {donem_modulu.ay_donemi(a) for a in karantina_aylari}
@@ -187,6 +215,7 @@ def pencere_degeri(
     bar: str,
     *,
     t_dahil: bool,
+    kume_baslangic,
     islev="median",
     donem_baslangic=None,
     karantina_aylari=(),
@@ -194,7 +223,8 @@ def pencere_degeri(
     """Zamanla tanimli pencereye bir toplayici uygular; kural ihlalinde NaN.
 
     `islev` bir Series metodu adi ("median", "mean", "min", "max", "sum") ya da
-    Series alan bir cagrilabilirdir. `t_dahil` zorunludur (on-kayit §5 rev.4).
+    Series alan bir cagrilabilirdir. `t_dahil` (on-kayit §5 rev.4) ve
+    `kume_baslangic` (on-kayit §3 rev.5) zorunludur.
     """
     dilim = pencere_dilimi(
         seri,
@@ -202,6 +232,7 @@ def pencere_degeri(
         bar_sayisi,
         bar,
         t_dahil=t_dahil,
+        kume_baslangic=kume_baslangic,
         donem_baslangic=donem_baslangic,
         karantina_aylari=karantina_aylari,
     )

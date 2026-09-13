@@ -42,6 +42,8 @@ def medyan_hacim(
     donem_baslangic=None,
     pencere_gun: int = config.HACIM_PENCERESI_GUN,
     karantina_aylari=(),
+    *,
+    kume_baslangic,
 ) -> float:
     """t anina kadarki son `pencere_gun` GUNUN medyan hacmi (on-kayit §2 rev.3).
 
@@ -49,6 +51,8 @@ def medyan_hacim(
       - t'nin ait oldugu gun HENUZ KAPANMADIGI icin pencereye alinmaz; pencere
         t'den once kapanmis son gunde biter. Bu, gelecege bakisi imkansiz kilar.
       - Pencere donem baslangicini asamaz (rev.2).
+      - Pencere kume baslangicini asamaz (on-kayit §3 rev.5); `kume_baslangic`
+        zorunludur, kume disi hesaplarda acikca None verilir.
       - Penceredeki gunlerden biri bile eksikse NaN doner (rev.3 tamlik sarti).
         Eksik gun, 6 adet 4h barin tamami olmayan gundur.
     """
@@ -63,6 +67,7 @@ def medyan_hacim(
         bar_sayisi=pencere_gun,
         bar=config.BAR_1D,
         t_dahil=False,
+        kume_baslangic=kume_baslangic,
         islev="median",
         donem_baslangic=donem_baslangic,
         karantina_aylari=karantina_aylari,
@@ -94,6 +99,8 @@ def uygun_mu(
     bar: str,
     karantina_aylari=(),
     donem_bitis=None,
+    *,
+    kume_baslangic,
 ) -> bool:
     """t aninda sembol uygun mu? Yalnizca t'ye kadarki veriyi kullanir.
 
@@ -102,6 +109,8 @@ def uygun_mu(
       - t donem sinirlarinin disindaysa uygun degildir,
       - listeleme yasi donem baslangicina gore olculur,
       - hacim penceresi donem baslangicini asamaz.
+    On-kayit §3 rev.5: hacim penceresi kume baslangicini da asamaz
+    (`kume_baslangic` zorunlu; kume disi hesaplarda acikca None).
     """
     zaman = pd.Timestamp(t)
 
@@ -115,7 +124,13 @@ def uygun_mu(
     if listeleme_yasi_gun(donem_baslangic, zaman) < config.ASGARI_LISTELEME_YASI_GUN:
         return False
 
-    medyan = medyan_hacim(gunluk_hacim, zaman, donem_baslangic, karantina_aylari=karantina_aylari)
+    medyan = medyan_hacim(
+        gunluk_hacim,
+        zaman,
+        donem_baslangic,
+        karantina_aylari=karantina_aylari,
+        kume_baslangic=kume_baslangic,
+    )
     if pd.isna(medyan):
         return False
     return medyan >= hacim_esigi(bar)
@@ -128,15 +143,26 @@ def uygunluk_serisi(
     bar: str,
     karantina_aylari=(),
     donem_bitis=None,
+    *,
+    kume_baslangic,
 ) -> pd.Series:
     """Verilen zamanlarin her biri icin uygunluk bayragi.
 
     Denetim raporunda "esigi en az bir gun gecen sembol" sayimi icin kullanilir.
+    `kume_baslangic` zorunludur (on-kayit §3 rev.5).
     """
     indeks = pd.DatetimeIndex(zamanlar)
     return pd.Series(
         [
-            uygun_mu(gunluk_hacim, donem_baslangic, t, bar, karantina_aylari, donem_bitis)
+            uygun_mu(
+                gunluk_hacim,
+                donem_baslangic,
+                t,
+                bar,
+                karantina_aylari,
+                donem_bitis,
+                kume_baslangic=kume_baslangic,
+            )
             for t in indeks
         ],
         index=indeks,
