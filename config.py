@@ -83,6 +83,26 @@ SETTLED_SONEKI = "SETTLED"
 # |open[t] / close[t-1] - 1| bu esigi asan barlar denetim raporunda listelenir.
 BUTUNLUK_ACILIS_ESIGI = 0.30
 
+# --- F1 denetim teshis esikleri ----------------------------------------------
+#
+# ON-KAYIT DEGILDIR. Yalnizca F1 kapsama ve butunluk raporunun sunumunu belirler;
+# hicbir olay, uygunluk ya da getiri hesabina girmez. Degerler F1 gorevindeki
+# kullanici talimatlarindan gelir. Denetci bulgusu B8: analysis betigine
+# gomuluydu.
+
+# "3 bardan uzun bosluklar" listesi
+DENETIM_UZUN_BOSLUK_BAR = 3
+
+# 1d turetmesi ile birincil 1d dosyalari arasinda "fark var" sayilan bagil esik
+DENETIM_CAPRAZ_TOLERANS = 1e-6
+
+# Bosluk olayi, o aralikta verisi olan sembollerin en az bu oranini etkiliyorsa
+# "borsa geneli" sayilir
+DENETIM_BORSA_GENELI_ORANI = 0.5
+
+# Raporda listelenen kisa listeleme donemi esigi (gun)
+DENETIM_KISA_DONEM_GUN = 60
+
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 
 # Listeleme yasi >= 30 gun

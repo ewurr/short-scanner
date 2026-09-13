@@ -138,7 +138,7 @@ def pencere_dilimi(
             return None
 
     if len(karantina_aylari):
-        karantina = {donem_modulu._ay(a) for a in karantina_aylari}
+        karantina = {donem_modulu.ay_donemi(a) for a in karantina_aylari}
         if any(pd.Period(t, freq="M") in karantina for t in beklenen):
             return None
 
@@ -203,7 +203,7 @@ def _karantina_siniri(giris: pd.Timestamp, karantina_aylari) -> pd.Timestamp | N
     """
     if not len(karantina_aylari):
         return None
-    for ay in sorted({donem_modulu._ay(a) for a in karantina_aylari}):
+    for ay in sorted({donem_modulu.ay_donemi(a) for a in karantina_aylari}):
         bas, son = ay.start_time, ay.end_time
         if giris.tzinfo is not None:
             bas, son = bas.tz_localize("UTC"), son.tz_localize("UTC")

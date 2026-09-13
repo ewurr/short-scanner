@@ -76,7 +76,7 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
     donemler = universe_modulu.sembol_donemleri(evren, sembol)
 
     bosluklar = klines_modulu.eksik_barlar(mumlar, config.BAR_4H)
-    uzun_bosluk = bosluklar.loc[bosluklar["eksik_bar"] > 3] if not bosluklar.empty else bosluklar
+    uzun_bosluk = bosluklar.loc[bosluklar["eksik_bar"] > config.DENETIM_UZUN_BOSLUK_BAR] if not bosluklar.empty else bosluklar
 
     beklenen = 0
     if not mumlar.empty:
@@ -101,14 +101,14 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
             capraz = {
                 "durum": "karsilastirildi",
                 "ortak_gun": len(fark),
-                "fiyat_farkli_gun": int((fark[fs] > 1e-6).any(axis=1).sum()),
-                "hacim_farkli_gun": int((fark[hs] > 1e-6).any(axis=1).sum()),
+                "fiyat_farkli_gun": int((fark[fs] > config.DENETIM_CAPRAZ_TOLERANS).any(axis=1).sum()),
+                "hacim_farkli_gun": int((fark[hs] > config.DENETIM_CAPRAZ_TOLERANS).any(axis=1).sum()),
                 "yalniz_birincil": fark.attrs.get("yalniz_birincil"),
                 "_fiyat_tarihleri": [
-                    str(t.date()) for t in fark.loc[(fark[fs] > 1e-6).any(axis=1), "open_time"]
+                    str(t.date()) for t in fark.loc[(fark[fs] > config.DENETIM_CAPRAZ_TOLERANS).any(axis=1), "open_time"]
                 ],
                 "_hacim_tarihleri": [
-                    str(t.date()) for t in fark.loc[(fark[hs] > 1e-6).any(axis=1), "open_time"]
+                    str(t.date()) for t in fark.loc[(fark[hs] > config.DENETIM_CAPRAZ_TOLERANS).any(axis=1), "open_time"]
                 ],
             }
         else:
@@ -156,7 +156,7 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
 def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
     """Yillara gore: veri bulunan sembol, 10M ve 2M esigini en az bir gun gecen."""
     satirlar = []
-    for yil in range(2020, 2027):
+    for yil in range(config.DONEM_BASI.year, config.DONEM_SONU.year + 1):
         bas = pd.Timestamp(f"{yil}-01-01", tz="UTC")
         son = pd.Timestamp(f"{yil}-12-31 23:59:59", tz="UTC")
         veri_var = esik_10m = esik_2m = 0
@@ -263,7 +263,7 @@ def bosluklari_grupla(detaylar: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]
         olaylar.append(
             {"olay_id": kimlik, "bas": bas, "son": son, "etki_sembol": etki,
              "o_aralikta_veri_olan": kapsam,
-             "borsa_geneli": bool(kapsam and etki >= kapsam / 2.0),
+             "borsa_geneli": bool(kapsam and etki >= kapsam * config.DENETIM_BORSA_GENELI_ORANI),
              "azami_eksik_bar": int(parca["eksik_bar"].max()),
              "semboller": ",".join(sorted(parca["sembol"].unique())[:20])}
         )
@@ -287,7 +287,7 @@ def karantina_kaybi(evren: pd.DataFrame) -> tuple[int, pd.DataFrame]:
     return int(tablo["karantina_ay"].sum()), tablo
 
 
-def kisa_donemler(evren: pd.DataFrame, asgari_gun: int = 60) -> pd.DataFrame:
+def kisa_donemler(evren: pd.DataFrame, asgari_gun: int = config.DENETIM_KISA_DONEM_GUN) -> pd.DataFrame:
     """60 gunden kisa listeleme donemleri (30 gunluk pencere bunlari etkisiz birakir)."""
     dahil = evren.loc[(~evren["haric"]) & (evren["donem_id"] >= 0)]
     satirlar = []

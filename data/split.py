@@ -160,17 +160,66 @@ def _cagiran_betik() -> str:
     return Path(yol).name if yol else "etkilesimli"
 
 
+ONAY_TABLO_BASLIGI = "| Tarih (UTC) |"
+
+
+def kayda_satir_ekle(metin: str, satir: str) -> str:
+    """Yeni satiri onay tablosunun son satirinin hemen altina yerlestirir. Saf.
+
+    Denetci bulgusu B7: satir eskiden dosyanin SONUNA ekleniyordu; kayit
+    dosyasi tablonun altinda bir aciklama cumlesiyle bittigi icin ilk gercek onay
+    kosusu tablonun disina dusecek ve tablo olarak gorunmeyecekti.
+
+    Mevcut hicbir satir silinmez ya da degistirilmez; yalnizca bir satir eklenir
+    (CLAUDE.md §3.3). Eklenen satir, tablonun satir sonu stilini (LF / CRLF) izler.
+    Tablo basligi bulunamazsa satir dosyanin sonuna eklenir.
+    """
+    satirlar = metin.splitlines(keepends=True)
+    baslik = next((i for i, s in enumerate(satirlar) if s.startswith(ONAY_TABLO_BASLIGI)), None)
+    if baslik is None:
+        if metin and not metin.endswith("\n"):
+            metin += "\n"
+        return metin + satir.rstrip("\r\n") + "\n"
+
+    son = baslik
+    while son + 1 < len(satirlar) and satirlar[son + 1].startswith("|"):
+        son += 1
+    sonek = "\r\n" if satirlar[baslik].endswith("\r\n") else "\n"
+    if not satirlar[son].endswith("\n"):  # tablo dosyanin son satiri ve sonek yok
+        satirlar[son] += sonek
+    yeni = satir.rstrip("\r\n") + sonek
+    return "".join(satirlar[: son + 1] + [yeni] + satirlar[son + 1 :])
+
+
 def onay_kaydet(kume: str, sembol: str, not_metni: str = "", yol: Path | None = None) -> None:
-    """ONAY_KAYDI.md'ye bir satir ekler. Yalnizca ekleme yapar (CLAUDE.md §3.3)."""
-    hedef = config.ONAY_KAYDI if yol is None else yol
+    """ONAY_KAYDI.md tablosuna bir satir ekler. Yalnizca ekleme yapar (CLAUDE.md §3.3)."""
+    hedef = config.ONAY_KAYDI if yol is None else Path(yol)
     zaman = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     satir = (
         f"| {zaman} | {kume} | {_cagiran_betik()} | {_git_commit()[:12]} | "
         f"{sembol} {not_metni}".rstrip()
-        + " |\n"
+        + " |"
     )
-    with hedef.open("a", encoding="utf-8") as dosya:
-        dosya.write(satir)
+
+    # newline="" satir sonlarini cevirmeden okur/yazar; aksi halde Windows'ta tum
+    # dosyanin LF'leri CRLF'e donusur ve mevcut satirlar degismis olur.
+    eski = ""
+    if hedef.exists():
+        with hedef.open("r", encoding="utf-8", newline="") as dosya:
+            eski = dosya.read()
+    yeni = kayda_satir_ekle(eski, satir)
+
+    # Yalnizca ekleme guvencesi: eklenen satir cikarilinca eski metin aynen kalmali.
+    eski_satirlar = eski.splitlines()
+    yeni_satirlar = yeni.splitlines()
+    yeni_satirlar.remove(satir)
+    if yeni_satirlar != eski_satirlar:
+        raise RuntimeError("Onay kaydi yazimi mevcut satirlari degistirecekti; yazilmadi.")
+
+    gecici = hedef.with_name(hedef.name + ".tmp")
+    with gecici.open("w", encoding="utf-8", newline="") as dosya:
+        dosya.write(yeni)
+    gecici.replace(hedef)
 
 
 def _bos_mum_cercevesi() -> pd.DataFrame:

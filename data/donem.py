@@ -28,7 +28,12 @@ import pandas as pd
 import config
 
 
-def _ay(deger) -> pd.Period:
+def ay_donemi(deger) -> pd.Period:
+    """Ay degerini ("2025-12", Period ya da zaman damgasi) aylik pd.Period'a cevirir.
+
+    Acik (alt cizgisiz) bir fonksiyondur: data/pencere.py karantina kontrollerinde
+    kullanir.
+    """
     return deger if isinstance(deger, pd.Period) else pd.Period(str(deger), freq="M")
 
 
@@ -45,8 +50,8 @@ def listeleme_donemleri(
 
     Doner: [(baslangic_ayi, bitis_ayi), ...] ay sirasinda.
     """
-    aylar = sorted({_ay(a) for a in mevcut_aylar})
-    karantina = {_ay(a) for a in karantina_aylari}
+    aylar = sorted({ay_donemi(a) for a in mevcut_aylar})
+    karantina = {ay_donemi(a) for a in karantina_aylari}
 
     donemler: list[tuple[pd.Period, pd.Period]] = []
     su_anki: list[pd.Period] = []
@@ -103,7 +108,7 @@ def karantinada_mi(t, karantina_aylari) -> bool:
     """t ani bir karantina ayina mi dusuyor?"""
     if not len(karantina_aylari):
         return False
-    return pd.Period(pd.Timestamp(t), freq="M") in {_ay(a) for a in karantina_aylari}
+    return pd.Period(pd.Timestamp(t), freq="M") in {ay_donemi(a) for a in karantina_aylari}
 
 
 def donem_bul(t, donemler) -> int | None:
@@ -113,15 +118,6 @@ def donem_bul(t, donemler) -> int | None:
         if bas <= ay <= son:
             return i
     return None
-
-
-def pencere_gecerli_mi(t, donem_baslangic, pencere_uzunlugu) -> bool:
-    """Geriye bakis penceresi donem baslangicini asmiyor mu? (on-kayit §2)
-
-    `pencere_uzunlugu` bir pd.Timedelta'dir. Pencere [t - uzunluk, t] araligidir;
-    donem baslangicindan once basliyorsa gecersizdir.
-    """
-    return pd.Timestamp(t) - pd.Timedelta(pencere_uzunlugu) >= pd.Timestamp(donem_baslangic)
 
 
 def cikis_bar_indeksi(

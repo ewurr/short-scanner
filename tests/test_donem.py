@@ -86,14 +86,6 @@ def test_donem_bul():
     assert donem.donem_bul(pd.Timestamp("2021-04-10", tz="UTC"), donemler) is None
 
 
-def test_pencere_gecerli_mi():
-    bas = pd.Timestamp("2021-01-01", tz="UTC")
-    otuz = pd.Timedelta(days=30)
-
-    assert donem.pencere_gecerli_mi(pd.Timestamp("2021-02-15", tz="UTC"), bas, otuz) is True
-    assert donem.pencere_gecerli_mi(pd.Timestamp("2021-01-10", tz="UTC"), bas, otuz) is False
-
-
 # --- Ufuk kirpma (getiri hesabinda F2'de kullanilacak) -----------------------
 
 
@@ -130,3 +122,24 @@ def test_gecersiz_giris_indeksi_hata_verir():
     zamanlar = pd.date_range("2021-01-01", periods=10, freq="4h", tz="UTC")
     with pytest.raises(IndexError):
         donem.cikis_bar_indeksi(zamanlar, 99, 1, pd.Timestamp("2021-12-31", tz="UTC"))
+
+
+# --- B4 / B9 -----------------------------------------------------------------
+
+
+def test_donem_pencere_gecerlilik_yardimcisi_kaldirildi():
+    """B4: donem.pencere_gecerli_mi, pencere.pencere_dilimi ile bir bar celisiyordu.
+
+    [t - uzunluk, t] N+1 barlik yer isterken pencere_dilimi N bar istiyor. Uretim
+    kodunda kullanilmayan olu koddu ve F2'de yanlislikla secilebilirdi. Donem
+    baslangici kontrolu yalnizca data/pencere.py icinde yapilir.
+    """
+    assert not hasattr(donem, "pencere_gecerli_mi")
+
+
+def test_ay_donemi_acik_fonksiyon():
+    """B9: pencere.py artik baska modulun ozel _ay fonksiyonunu cagirmiyor."""
+    assert donem.ay_donemi("2025-12") == pd.Period("2025-12", freq="M")
+    assert donem.ay_donemi(pd.Period("2021-06", freq="M")) == pd.Period("2021-06", freq="M")
+    assert not hasattr(donem, "_ay")
+
