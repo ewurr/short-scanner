@@ -90,15 +90,22 @@ F4'e geçmez; bu geçerli ve değerli bir sonuçtur.
 
 ### Koruma katmanı
 
-**Kilitli dosyalar.** `PREREGISTRATION.md`, `data/split.csv`, `ONAY_KAYDI.md` ve
-bu dosya (`CLAUDE.md`) kilitlidir. `.claude/hooks/kilitli_dosya_korumasi.py`
-adlı `PreToolUse` hook'u bu dosyalara yapılan yazma ve düzenleme araç
-çağrılarını reddeder. Kilit yalnızca kullanıcının açık izniyle,
-`SHORT_LAB_KILIT_ACIK=1` ortam değişkeni ayarlanarak açılır.
+**Kilitli dosyalar.** `PREREGISTRATION.md`, `data/split.csv`, `data/universe.csv`,
+`ONAY_KAYDI.md` ve bu dosya (`CLAUDE.md`) kilitlidir.
+`.claude/hooks/kilitli_dosya_korumasi.py` adlı `PreToolUse` hook'u bu dosyalara
+yapılan yazma ve düzenleme araç çağrılarını reddeder. Kilit yalnızca kullanıcının
+açık izniyle, `SHORT_LAB_KILIT_ACIK=1` ortam değişkeni ayarlanarak açılır.
 
-Hook yalnızca araç çağrılarını yakalar; çalışan Python kodunu etkilemez.
+`ONAY_KAYDI.md` yalnızca ekleme kuralına tabidir. Başlıktaki "Henüz onay koşusu
+yok" yer tutucu cümlesi ilk onay koşusunda kaldırılabilir; kayıt satırları hiçbir
+zaman silinemez.
+
+Hook araç çağrılarını yakalar; çalışan Python kodunu etkilemez.
 `data/split.py` içindeki `onay_kaydet` bu yüzden `ONAY_KAYDI.md` dosyasına
-yazmaya devam eder. Hook `Bash` çağrılarını da kapsamaz: kilit, dikkatsiz bir
+yazmaya devam eder. Hook `Bash` çağrılarını da denetler: kilitli bir dosyaya
+yazma niyeti taşıyan komutları (yönlendirme, `sed -i`, `mv`, `rm`, çalışma
+ağacını değiştiren git alt komutları vb.) reddeder, salt okuma komutları geçer.
+Kilitli dosyayı adıyla anmadan yazan bir betik yakalanamaz: kilit, dikkatsiz bir
 düzenlemeye karşı korur, kararlı bir atlatmaya karşı değil.
 
 **Metodoloji denetçisi** (`.claude/agents/metodoloji-denetcisi.md`): her faz
