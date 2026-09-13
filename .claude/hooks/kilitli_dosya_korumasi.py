@@ -50,6 +50,7 @@ if hasattr(sys.stdout, "reconfigure"):
 KILITLI = (
     "PREREGISTRATION.md",
     "data/split.csv",
+    "data/universe.csv",
     "ONAY_KAYDI.md",
     "CLAUDE.md",
 )
