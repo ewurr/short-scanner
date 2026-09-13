@@ -68,6 +68,37 @@ class KumeSiniriHatasi(ValueError):
     """
 
 
+class ZamanDizisiHatasi(ValueError):
+    """Zaman damgalari sirasiz ya da tekrarli: bu bir VERI BOZUKLUGUDUR.
+
+    On-kayit §2 rev.3'un "deger hesaplanmaz (NaN)" kurali EKSIK bar icindir;
+    sirasiz ya da tekrarli damga eksik veri degil bozuk veridir ve sessizce
+    NaN'a cevrilmez, hata olarak yuzeye cikar.
+    """
+
+
+def _zaman_dizisi_dogrula(zamanlar, yer: str) -> pd.DatetimeIndex:
+    """Zaman dizisinin kesin artan ve tekrarsiz oldugunu dogrular.
+
+    Gecilen DatetimeIndex nesnesinin kendisi kullanilir; pandas monotonluk ve
+    tekrar kontrollerini nesne uzerinde onbellege aldigi icin ayni seri ile
+    tekrarlanan cagrilar her seferinde tum diziyi taramaz.
+    """
+    indeks = zamanlar if isinstance(zamanlar, pd.DatetimeIndex) else pd.DatetimeIndex(zamanlar)
+    if indeks.has_duplicates:
+        tekrarlar = [str(z) for z in indeks[indeks.duplicated()].unique()[:3]]
+        raise ZamanDizisiHatasi(
+            f"{yer}: zaman dizisinde tekrarlanan damga var (ornek: {', '.join(tekrarlar)}). "
+            "Bu bir veri bozuklugudur, eksik bar degildir; deger NaN'a cevrilmez."
+        )
+    if not indeks.is_monotonic_increasing:
+        raise ZamanDizisiHatasi(
+            f"{yer}: zaman dizisi artan sirada degil. Bu bir veri bozuklugudur; "
+            "girdi zamana gore siralanmadan pencere ya da cikis hesaplanmaz."
+        )
+    return indeks
+
+
 # --- Tamlik ------------------------------------------------------------------
 
 
@@ -142,7 +173,7 @@ def pencere_dilimi(
         if any(pd.Period(t, freq="M") in karantina for t in beklenen):
             return None
 
-    indeks = pd.DatetimeIndex(seri.index)
+    indeks = _zaman_dizisi_dogrula(seri.index, "pencere_dilimi")
     if not beklenen.isin(indeks).all():
         return None  # tamlik sarti saglanmadi
 
@@ -244,7 +275,7 @@ def cikis_bari(
     Getiri HESAPLAMAZ; yalnizca cikis barini ve hangi fiyat alanindan
     okunacagini soyler.
     """
-    indeks = pd.DatetimeIndex(zamanlar)
+    indeks = _zaman_dizisi_dogrula(zamanlar, "cikis_bari")
     if len(indeks) == 0:
         raise ValueError("Bar listesi bos.")
     giris = pd.Timestamp(giris_zamani)
