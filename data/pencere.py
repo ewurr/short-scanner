@@ -60,32 +60,56 @@ class CikisSonucu:
 # --- Tamlik ------------------------------------------------------------------
 
 
-def beklenen_zamanlar(bitis, bar_sayisi: int, bar: str) -> pd.DatetimeIndex:
-    """`bitis` dahil, geriye dogru `bar_sayisi` adetlik beklenen izgara.
+def _t_dahil_dogrula(t_dahil) -> bool:
+    """On-kayit §5 rev.4: pencerenin t barini icerip icermedigi acikca verilir.
 
-    Pencere zamanla tanimlidir: [bitis - (bar_sayisi-1) x adim, bitis].
+    Varsayilan davranis yoktur. Anahtar sozcuk zorunlu oldugu icin unutulursa
+    Python zaten TypeError verir; bu kontrol `None` gibi bool olmayan degerleri
+    de reddeder.
     """
+    if not isinstance(t_dahil, bool):
+        raise TypeError(
+            "t_dahil acikca True ya da False verilmeli (on-kayit §5 rev.4: pencere "
+            f"sinirlari acikca belirtilir, varsayilan yoktur). Verilen: {t_dahil!r}"
+        )
+    return t_dahil
+
+
+def beklenen_zamanlar(t, bar_sayisi: int, bar: str, *, t_dahil: bool) -> pd.DatetimeIndex:
+    """t'ye gore geriye dogru `bar_sayisi` adetlik beklenen izgara.
+
+    Pencere zamanla tanimlidir (on-kayit §2 rev.3) ve t barini icerip icermedigi
+    cagiran tarafindan acikca belirtilir (on-kayit §5 rev.4):
+      - t_dahil=True : [t - (N-1) x adim, t]    ör. H2'nin 30 barlik yukselisi,
+                                               H1'in 180 barlik hacim penceresi
+      - t_dahil=False: [t - N x adim, t - adim] ör. H1'in 6 barlik dip penceresi
+                                               (t-6..t-1), H2'nin k barlik
+                                               kirilim penceresi (t-k..t-1)
+    """
+    _t_dahil_dogrula(t_dahil)
     if bar_sayisi < 1:
         raise ValueError("bar_sayisi en az 1 olmali.")
-    son = pd.Timestamp(bitis)
+    son = pd.Timestamp(t) if t_dahil else pd.Timestamp(t) - adim(bar)
     return pd.date_range(end=son, periods=bar_sayisi, freq=adim(bar))
 
 
-def pencere_tam_mi(zamanlar, bitis, bar_sayisi: int, bar: str) -> bool:
+def pencere_tam_mi(zamanlar, t, bar_sayisi: int, bar: str, *, t_dahil: bool) -> bool:
     """Penceredeki beklenen barlarin TAMAMI mevcut mu? (on-kayit §2 rev.3)
 
     Tek bir bar eksikse False doner; cagiran taraf degeri hesaplamaz.
     """
-    beklenen = beklenen_zamanlar(bitis, bar_sayisi, bar)
+    beklenen = beklenen_zamanlar(t, bar_sayisi, bar, t_dahil=t_dahil)
     mevcut = pd.DatetimeIndex(zamanlar)
     return bool(beklenen.isin(mevcut).all())
 
 
 def pencere_dilimi(
     seri: pd.Series,
-    bitis,
+    t,
     bar_sayisi: int,
     bar: str,
+    *,
+    t_dahil: bool,
     donem_baslangic=None,
     karantina_aylari=(),
 ) -> pd.Series | None:
@@ -96,8 +120,7 @@ def pencere_dilimi(
       2. Pencerenin hicbir bari karantina ayina dusmemeli,
       3. Penceredeki beklenen barlarin tamami mevcut olmali (rev.3 tamlik sarti).
     """
-    son = pd.Timestamp(bitis)
-    beklenen = beklenen_zamanlar(son, bar_sayisi, bar)
+    beklenen = beklenen_zamanlar(t, bar_sayisi, bar, t_dahil=t_dahil)
 
     if donem_baslangic is not None:
         if beklenen[0] < pd.Timestamp(donem_baslangic):
@@ -117,9 +140,11 @@ def pencere_dilimi(
 
 def pencere_degeri(
     seri: pd.Series,
-    bitis,
+    t,
     bar_sayisi: int,
     bar: str,
+    *,
+    t_dahil: bool,
     islev="median",
     donem_baslangic=None,
     karantina_aylari=(),
@@ -127,9 +152,17 @@ def pencere_degeri(
     """Zamanla tanimli pencereye bir toplayici uygular; kural ihlalinde NaN.
 
     `islev` bir Series metodu adi ("median", "mean", "min", "max", "sum") ya da
-    Series alan bir cagrilabilirdir.
+    Series alan bir cagrilabilirdir. `t_dahil` zorunludur (on-kayit §5 rev.4).
     """
-    dilim = pencere_dilimi(seri, bitis, bar_sayisi, bar, donem_baslangic, karantina_aylari)
+    dilim = pencere_dilimi(
+        seri,
+        t,
+        bar_sayisi,
+        bar,
+        t_dahil=t_dahil,
+        donem_baslangic=donem_baslangic,
+        karantina_aylari=karantina_aylari,
+    )
     if dilim is None or dilim.isna().any():
         return float("nan")
     if callable(islev):

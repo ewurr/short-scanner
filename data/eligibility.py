@@ -25,7 +25,6 @@ import pandas as pd
 import config
 from data import donem as donem_modulu
 from data import pencere as pencere_modulu
-from data.pencere import adim
 
 
 def gunluk_hacim_serisi(gunluk: pd.DataFrame) -> pd.Series:
@@ -54,16 +53,16 @@ def medyan_hacim(
         Eksik gun, 6 adet 4h barin tamami olmayan gundur.
     """
     zaman = pd.Timestamp(t)
-    gunluk = adim(config.BAR_1D)
 
-    # t'den once kapanmis son gun: acilisi t - 1 gun veya oncesi olan son gun.
-    son_kapanmis = (zaman - gunluk).floor("D")
-
+    # Pencere t'nin kendi GUNUNU icermez: o gun henuz kapanmadi. Pencere, t'nin
+    # gunune gore t_dahil=False ile tanimlanir; son gun t'den onceki gundur
+    # (on-kayit §5 rev.4: pencere siniri acikca belirtilir).
     return pencere_modulu.pencere_degeri(
         gunluk_hacim,
-        bitis=son_kapanmis,
+        t=zaman.floor("D"),
         bar_sayisi=pencere_gun,
         bar=config.BAR_1D,
+        t_dahil=False,
         islev="median",
         donem_baslangic=donem_baslangic,
         karantina_aylari=karantina_aylari,
