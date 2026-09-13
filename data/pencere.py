@@ -135,13 +135,22 @@ def beklenen_zamanlar(t, bar_sayisi: int, bar: str, *, t_dahil: bool) -> pd.Date
     return pd.date_range(end=son, periods=bar_sayisi, freq=adim(bar))
 
 
-def pencere_tam_mi(zamanlar, t, bar_sayisi: int, bar: str, *, t_dahil: bool) -> bool:
+def _pencere_tam_mi(beklenen: pd.DatetimeIndex, mevcut: pd.DatetimeIndex) -> bool:
     """Penceredeki beklenen barlarin TAMAMI mevcut mu? (on-kayit §2 rev.3)
 
-    Tek bir bar eksikse False doner; cagiran taraf degeri hesaplamaz.
+    Tek bir bar eksikse False doner.
+
+    Neden modul ici (on-kayit §3 rev.5): bu kontrol YALNIZCA tamligi olcer;
+    donem, kume ve karantina sinirlarini bilmez. Eskiden herkese acik
+    `pencere_tam_mi` olarak duruyordu ve F2'de tek basina kapi olarak
+    kullanilsaydi, kume oncesi veriyi iceren tam bir pencereye "gecerli"
+    derdi -- yani kume kuralini sessizce atlardi. Sinirlari zorunlu parametre
+    olarak eklemek `pencere_dilimi`nin ikinci bir kopyasini yaratirdi ve iki
+    kopya zamanla birbirinden ayrisabilirdi (B4'teki `donem.pencere_gecerli_mi`
+    ornegi). Bu yuzden tek kapi `pencere_dilimi` / `pencere_degeri`dir; bu
+    fonksiyon yalnizca onun, donem/kume/karantina kontrolleri GECILDIKTEN
+    SONRA cagirdigi ic adimdir. Modul disindan cagrilmaz.
     """
-    beklenen = beklenen_zamanlar(t, bar_sayisi, bar, t_dahil=t_dahil)
-    mevcut = pd.DatetimeIndex(zamanlar)
     return bool(beklenen.isin(mevcut).all())
 
 
@@ -202,7 +211,7 @@ def pencere_dilimi(
             return None
 
     indeks = _zaman_dizisi_dogrula(seri.index, "pencere_dilimi")
-    if not beklenen.isin(indeks).all():
+    if not _pencere_tam_mi(beklenen, indeks):
         return None  # tamlik sarti saglanmadi
 
     return seri.reindex(beklenen)

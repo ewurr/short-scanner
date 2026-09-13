@@ -42,12 +42,20 @@ def test_nan_degerli_bar_da_pencereyi_gecersiz_kilar():
     assert pd.isna(pencere.pencere_degeri(seri, seri.index[-1], 10, config.BAR_4H, t_dahil=True, kume_baslangic=None))
 
 
-def test_pencere_tam_mi():
+def test_tamlik_kontrolu_pencere_dilimi_uzerinden():
     tam = _seri("2021-01-01", 20)
-    assert pencere.pencere_tam_mi(tam.index, tam.index[-1], 5, config.BAR_4H, t_dahil=True) is True
+    assert pencere.pencere_dilimi(tam, tam.index[-1], 5, config.BAR_4H, t_dahil=True, kume_baslangic=None) is not None
 
     eksik = tam.drop(tam.index[-2])
-    assert pencere.pencere_tam_mi(eksik.index, tam.index[-1], 5, config.BAR_4H, t_dahil=True) is False
+    assert pencere.pencere_dilimi(eksik, tam.index[-1], 5, config.BAR_4H, t_dahil=True, kume_baslangic=None) is None
+
+
+def test_tamlik_kontrolu_tek_basina_kapi_olarak_disari_acik_degil():
+    """On-kayit §3 rev.5: sinirlari bilmeyen tamlik kontrolu kume kuralini atlatabilirdi.
+
+    Herkese acik `pencere_tam_mi` kaldirildi; tek kapi pencere_dilimi/pencere_degeri.
+    """
+    assert not hasattr(pencere, "pencere_tam_mi")
 
 
 # --- Zamanla olcum -----------------------------------------------------------
@@ -274,7 +282,6 @@ def test_kesintiyi_asan_ufuk_ileri_kayar():
     "cagri",
     [
         lambda s: pencere.beklenen_zamanlar(s.index[-1], 5, config.BAR_4H),
-        lambda s: pencere.pencere_tam_mi(s.index, s.index[-1], 5, config.BAR_4H),
         lambda s: pencere.pencere_dilimi(s, s.index[-1], 5, config.BAR_4H, kume_baslangic=None),
         lambda s: pencere.pencere_degeri(s, s.index[-1], 5, config.BAR_4H, kume_baslangic=None),
     ],
