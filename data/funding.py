@@ -110,6 +110,101 @@ def ham_funding_yukle(sembol: str, yenile: bool = False) -> pd.DataFrame:
     return tum
 
 
+# --- Funding penceresi (H2.1) ------------------------------------------------
+
+# Ayni odeme anina ait kayitlarin kayabilecegi en buyuk fark. Iki odeme arasindaki
+# en kisa gercek aralik 1 saattir; 1 dakikadan yakin iki kayit bozuk veridir.
+ODEME_TOLERANSI = pd.Timedelta(minutes=1)
+
+
+def funding_ortalamasi(
+    funding: pd.DataFrame,
+    t,
+    bar: str,
+    *,
+    saat: int,
+    kume_baslangic,
+    donem_baslangic,
+    karantina_aylari,
+) -> float:
+    """t barinin kapanisina kadarki son `saat` saatteki 8 saate normallestirilmis
+    funding oranlarinin ortalamasi (on-kayit §5 H2.1); kural ihlalinde NaN.
+
+    Mum pencereleriyle (`data.pencere.pencere_dilimi`) ayni korumalar:
+      - **Gelecege bakis yok.** Sinyal t barinin KAPANISINDA hesaplanir
+        (CLAUDE.md §3.6). Pencere yari acik `[kapanis - saat, kapanis)`:
+        tam kapanis anindaki odeme ALINMAZ. Bir odeme o anda gerceklesir; ms
+        duzeyindeki kayit farklari yuzunden kapanisla ayni ana dusen odemenin
+        sinyalden once bilindigi varsayilmaz (ihtiyatli secim).
+      - **Donem ve kume.** Pencere donem ya da kume baslangicini asarsa NaN
+        (on-kayit §2 rev.2, §3 rev.5); kume oncesi odeme seride bulunsa bile.
+      - **Karantina.** Pencerenin dokundugu aylardan biri karantinadaysa NaN.
+      - **Tamlik.** Penceredeki odemeler boslugsuz olmali; her kaydin
+        `aralik_saat` degeri bir onceki odemeye kadar olan sureyi verir:
+          * ilk odemeden onceki odeme (ilk - aralik) pencereden ONCE olmali,
+          * ardisik iki odeme arasinda aralik + tolerans'tan uzun bosluk olmamali,
+          * son odemeden sonraki odeme (son + aralik) kapanistan once olmamali.
+        Eksik odeme, NaN oran ya da NaN aralik -> NaN. Bir dakikadan yakin iki
+        kayit bozuk veridir -> ZamanDizisiHatasi.
+
+    Tum sinirlar zorunlu anahtar sozcuktur; sinir yoksa acikca None.
+    Saf fonksiyon.
+    """
+    from data import pencere as pencere_modulu
+
+    if not isinstance(saat, int) or isinstance(saat, bool) or saat < 1:
+        raise ValueError(f"saat pozitif bir tamsayi olmali: {saat!r}")
+    zaman = pencere_modulu.utc_zamani(t, "t")
+    kume_bas = pencere_modulu.sinir_zamani(kume_baslangic, "kume_baslangic")
+    donem_bas = pencere_modulu.sinir_zamani(donem_baslangic, "donem_baslangic")
+    karantina = pencere_modulu.karantina_dogrula(karantina_aylari)
+
+    kapanis = zaman + pencere_modulu.adim(bar)
+    bas = kapanis - pd.Timedelta(hours=saat)
+    nan = float("nan")
+
+    if donem_bas is not None and bas < donem_bas:
+        return nan
+    if kume_bas is not None and bas < kume_bas:
+        return nan
+    if karantina:
+        from data import donem as donem_modulu
+
+        karantina_aylari_kumesi = {donem_modulu.ay_donemi(a) for a in karantina}
+        aylar = pd.period_range(bas.tz_localize(None), (kapanis - pd.Timedelta(1, "ns")).tz_localize(None), freq="M")
+        if any(ay in karantina_aylari_kumesi for ay in aylar):
+            return nan
+
+    zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], "funding_ortalamasi")
+    if len(zamanlar) > 1:
+        farklar = zamanlar[1:] - zamanlar[:-1]
+        if (farklar < ODEME_TOLERANSI).any():
+            ilk = int((farklar < ODEME_TOLERANSI).argmax())
+            raise pencere_modulu.ZamanDizisiHatasi(
+                f"funding_ortalamasi: {zamanlar[ilk]} ve {zamanlar[ilk + 1]} birbirine "
+                f"{ODEME_TOLERANSI}'dan yakin; ayni odeme iki kez yazilmis olabilir (bozuk veri)."
+            )
+
+    maske = (zamanlar >= bas) & (zamanlar < kapanis)
+    if not maske.any():
+        return nan
+    secili = funding.loc[maske]
+    oran = pd.to_numeric(secili["oran_8h"], errors="coerce")
+    aralik = pd.to_numeric(secili["aralik_saat"], errors="coerce")
+    if oran.isna().any() or aralik.isna().any() or (aralik <= 0).any():
+        return nan
+
+    odemeler = zamanlar[maske]
+    araliklar = pd.to_timedelta(aralik.to_numpy(), unit="h")
+    if not odemeler[0] - araliklar[0] < bas:
+        return nan  # pencerenin basindaki odeme eksik
+    if len(odemeler) > 1 and ((odemeler[1:] - araliklar[1:]) > odemeler[:-1] + ODEME_TOLERANSI).any():
+        return nan  # ic bosluk
+    if odemeler[-1] + araliklar[-1] < kapanis:
+        return nan  # pencerenin sonundaki odeme eksik
+    return float(oran.mean())
+
+
 # --- Denetim olcumleri -------------------------------------------------------
 
 
