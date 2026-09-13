@@ -61,14 +61,46 @@ def ay_indir(sembol: str, bar: str, ay: str) -> pd.DataFrame:
     return _ay_cercevesi(bv.zip_indir(anahtar))
 
 
-def mumlari_yukle(sembol: str, bar: str = config.BAR_4H, yenile: bool = False) -> pd.DataFrame:
-    """Bir sembolun tum mumlarini doner; yalnizca eksik aylari indirir.
+def mumlari_yukle(
+    sembol: str,
+    bar: str,
+    kume: str,
+    onay: bool = False,
+    yenile: bool = False,
+    split=None,
+) -> pd.DataFrame:
+    """Bir sembolun mumlarini KUME KORUMASIYLA yukler (CLAUDE.md §3.2-3.3).
+
+    `split.yukle` ile ayni davranis: `kume` zorunludur ve varsayilani yoktur;
+    C1/C2 icin `onay=True` sarttir, her onayli cagri onay kaydina eklenir,
+    onaysiz cagri kayda hicbir sey yazmadan PermissionError verir; sembol
+    kumenin grubunda degilse bos cerceve doner; veri kume tarih araligina
+    kesilir. Analiz ve olay kodu mumlara yalnizca bu yoldan erisir.
+    """
+    from data import split as split_modulu  # split bu modulu import eder; dongu onlenir
+
+    return split_modulu.yukle(
+        sembol,
+        bar,
+        kume,
+        onay=onay,
+        split=split,
+        mum_yukleyici=lambda s, b: ham_mumlari_yukle(s, b, yenile=yenile),
+    )
+
+
+def ham_mumlari_yukle(sembol: str, bar: str = config.BAR_4H, yenile: bool = False) -> pd.DataFrame:
+    """Bir sembolun TUM mumlari, KUME KORUMASI OLMADAN; yalnizca eksik aylari indirir.
+
+    B grubu ve C2 donemi dahil tum gecmisi dondurur. Yalnizca veri katmani
+    (`split.yukle`) ve tum gecmisi olcmesi gereken F1 kapsama denetimi icindir
+    (CLAUDE.md §3.1). Analiz ve olay kodu bunu CAGIRMAZ.
 
     Onbellek ay basina tek parquet dosyasidir (`cache/klines/<sembol>/<bar>/<ay>.parquet`),
     bu sayede yeniden calistirma tamamlanmis aylari yeniden indirmez.
     """
     if bar == config.BAR_1D:
-        return gunluge_cevir(mumlari_yukle(sembol, config.BAR_4H, yenile))
+        return gunluge_cevir(ham_mumlari_yukle(sembol, config.BAR_4H, yenile))
 
     anahtarlar = bv.mum_dosyalari(sembol, bar)
     parcalar = []

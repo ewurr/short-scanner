@@ -179,20 +179,25 @@ def _bos_mum_cercevesi() -> pd.DataFrame:
     return pd.DataFrame(columns=[s for s in bv.MUM_SUTUNLARI if s != "ignore"])
 
 
-def yukle(
+def kume_erisimi(
     sembol: str,
-    bar: str,
     kume: str,
     onay: bool = False,
     split: pd.DataFrame | None = None,
-    mum_yukleyici=None,
-) -> pd.DataFrame:
-    """Bir sembolun mumlarini kume kisitlarina uyarak yukler.
+    not_metni: str = "",
+) -> tuple[bool, pd.Timestamp, pd.Timestamp]:
+    """Tum veri yukleyicilerinin ortak kume kapisi (CLAUDE.md §3.2-3.3).
 
-    KESIF disindaki kumeler (C1, C2) `onay=True` istemez ise `OnayGerekli`
-    (PermissionError) firlatir ve kayit dosyasina hicbir sey yazilmaz.
+    `yukle`, `klines.mumlari_yukle` ve `funding.funding_yukle` bu kapidan gecer.
+    Sirasiyla:
+      1. Bilinmeyen kume -> ValueError.
+      2. C1/C2 icin `onay=True` yoksa `OnayGerekli` (PermissionError); kayda
+         hicbir sey yazilmaz.
+      3. Sembol split.csv icinde yoksa KeyError.
+      4. `onay=True` ile yapilan HER cagri onay kaydina eklenir; sembol kumenin
+         grubunda olmasa bile onay verisine uzanma girisimi iz birakir.
 
-    Sembol istenen kumenin grubunda degilse bos cerceve doner.
+    Doner: (sembol kumenin grubunda mi, kume baslangici, kume sonu).
     """
     if kume not in config.KUMELER:
         raise ValueError(f"Bilinmeyen kume: {kume!r}. Gecerli degerler: {config.KUMELER}")
@@ -203,19 +208,36 @@ def yukle(
             f"gerekir; her erisim ONAY_KAYDI.md'ye yazilir (CLAUDE.md §3.3)."
         )
 
-    gruplar, bas, son = kume_tanimi(kume)
+    gruplar, _, _ = kume_tanimi(kume)
+    bas, son = kume_araligi(kume)
     tablo = split_oku() if split is None else split
     satir = tablo.loc[tablo["sembol"] == sembol]
     if satir.empty:
         raise KeyError(f"{sembol} split.csv icinde yok.")
 
-    # onay=True ile yapilan HER cagri kaydedilir; sembol kumenin grubunda
-    # olmasa bile onay verisine uzanma girisimi ize birakir (CLAUDE.md §3.3).
     if kume in config.ONAY_KUMELERI:
-        onay_kaydet(kume, sembol, f"bar={bar}")
+        onay_kaydet(kume, sembol, not_metni)
 
-    if satir["grup"].iloc[0] not in gruplar:
+    return bool(satir["grup"].iloc[0] in gruplar), bas, son
+
+
+def yukle(
+    sembol: str,
+    bar: str,
+    kume: str,
+    onay: bool = False,
+    split: pd.DataFrame | None = None,
+    mum_yukleyici=None,
+) -> pd.DataFrame:
+    """Bir sembolun mumlarini kume kisitlarina uyarak yukler.
+
+    Kume kapisi `kume_erisimi`dir: C1/C2 icin `onay=True` sart, onayli her
+    cagri kaydedilir, onaysiz cagri kayda yazmadan reddedilir. Sembol istenen
+    kumenin grubunda degilse bos cerceve doner; veri kume araligina kesilir.
+    """
+    izinli, bas, son = kume_erisimi(sembol, kume, onay=onay, split=split, not_metni=f"bar={bar}")
+    if not izinli:
         return _bos_mum_cercevesi()
 
-    yukleyici = klines.mumlari_yukle if mum_yukleyici is None else mum_yukleyici
+    yukleyici = klines.ham_mumlari_yukle if mum_yukleyici is None else mum_yukleyici
     return klines.donem_kes(yukleyici(sembol, bar), bas, son)

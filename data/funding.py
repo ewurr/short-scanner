@@ -47,8 +47,45 @@ def sekiz_saate_normallestir(oran: pd.Series, aralik_saat: pd.Series) -> pd.Seri
     return pd.to_numeric(oran, errors="coerce") * carpan
 
 
-def funding_yukle(sembol: str, yenile: bool = False) -> pd.DataFrame:
-    """Bir sembolun tum funding gecmisi; yalnizca eksik aylar indirilir.
+FUNDING_CIKTI_SUTUNLARI = ["odeme_zamani", "aralik_saat", "oran", "oran_8h"]
+
+
+def funding_yukle(
+    sembol: str,
+    kume: str,
+    onay: bool = False,
+    yenile: bool = False,
+    split=None,
+) -> pd.DataFrame:
+    """Funding gecmisini KUME KORUMASIYLA yukler (CLAUDE.md §3.2-3.3).
+
+    `split.yukle` ile ayni davranis: `kume` zorunludur ve varsayilani yoktur;
+    C1/C2 icin `onay=True` sarttir, her onayli cagri onay kaydina eklenir,
+    onaysiz cagri kayda hicbir sey yazmadan PermissionError verir; sembol
+    kumenin grubunda degilse bos cerceve doner; kayitlar odeme zamanina gore
+    kume tarih araligina kesilir. On-kayit §4 funding'i net getirinin parcasi
+    yaptigi icin getiri kodu funding'e yalnizca bu yoldan erisir.
+    """
+    from data import split as split_modulu  # split, klines uzerinden bu katmani import eder
+
+    izinli, bas, son = split_modulu.kume_erisimi(
+        sembol, kume, onay=onay, split=split, not_metni="kaynak=funding"
+    )
+    if not izinli:
+        return pd.DataFrame(columns=FUNDING_CIKTI_SUTUNLARI)
+    tum = ham_funding_yukle(sembol, yenile=yenile)
+    if tum.empty:
+        return tum
+    maske = (tum["odeme_zamani"] >= bas) & (tum["odeme_zamani"] <= son)
+    return tum.loc[maske].reset_index(drop=True)
+
+
+def ham_funding_yukle(sembol: str, yenile: bool = False) -> pd.DataFrame:
+    """Bir sembolun TUM funding gecmisi, KUME KORUMASI OLMADAN; eksik aylar indirilir.
+
+    B grubu ve C2 donemi dahil tum gecmisi dondurur. Yalnizca veri katmani ve
+    tum gecmisi olcmesi gereken F1 kapsama denetimi icindir (CLAUDE.md §3.1).
+    Analiz ve olay kodu bunu CAGIRMAZ.
 
     Sutunlar: odeme_zamani (UTC), aralik_saat, oran (gercek), oran_8h (normal).
     """

@@ -65,9 +65,12 @@ def _kaydedici_kur(etiket: str) -> Path:
 
 def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
     """Tek sembolun kapsama ve butunluk olcumleri. Getiri hesaplamaz."""
-    mumlar = klines_modulu.mumlari_yukle(sembol, config.BAR_4H)
+    # F1 kapsama denetimi TUM gecmisi (B grubu ve C2 dahil) olcer ve getiri
+    # hesaplamaz (CLAUDE.md §3.1); bu yuzden kume korumasiz ham yukleyiciler
+    # bilerek kullanilir. Analiz ve olay kodu bunlari cagirmaz.
+    mumlar = klines_modulu.ham_mumlari_yukle(sembol, config.BAR_4H)
     gunluk = klines_modulu.gunluge_cevir(mumlar)
-    fund = funding_modulu.funding_yukle(sembol)
+    fund = funding_modulu.ham_funding_yukle(sembol)
 
     karantina = universe_modulu.karantina_listesi(evren, sembol)
     donemler = universe_modulu.sembol_donemleri(evren, sembol)
