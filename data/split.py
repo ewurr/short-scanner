@@ -28,6 +28,7 @@ import pandas as pd
 
 import config
 from data import klines
+from data.pencere import KumeSiniriHatasi, adim
 
 
 class OnayGerekli(PermissionError):
@@ -108,6 +109,34 @@ def kume_tanimi(kume: str) -> tuple[tuple[str, ...], dt.datetime, dt.datetime]:
     if kume == "C2":
         return ("A", "B"), config.C2_BASI, config.C2_SONU
     raise ValueError(f"Bilinmeyen kume: {kume!r}. Gecerli degerler: {config.KUMELER}")
+
+
+def kume_araligi(kume: str) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """Kumenin kapali tarih araligi [bas, son] (UTC).
+
+    Tek kaynak `kume_tanimi`dir; kume sinirlari baska bir yerde elle yazilmaz.
+    """
+    _, bas, son = kume_tanimi(kume)
+    return pd.Timestamp(bas), pd.Timestamp(son)
+
+
+def ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk: int, bar: str, kume: str) -> bool:
+    """Olayin ufku ait oldugu kumenin tarih araligina tam olarak sigiyor mu?
+
+    On-kayit §3 rev.4: sigmayan olay o kumede hic olusmaz; kirpilmis getiri
+    kullanilmaz ve komsu kumeden veri odunc alinmaz. Ikincil ufuklar ayni
+    kurala kendi uzunluklariyla tabidir.
+
+    - Olayin kumesi, sinyal barinin (t) dustugu kumedir: `bas <= t`.
+    - Pozisyon t+1..t+h tutulur (§4), cikis bari t+h: `t + h x adim <= son`.
+    - Bar zamani acilis zamanidir; kumenin son bari, acilisi kume sonuna esit
+      ya da ondan once olan bardir (`klines.donem_kes` ile ayni kural).
+    """
+    if ufuk < 1:
+        raise ValueError(f"ufuk en az 1 bar olmali: {ufuk}")
+    bas, son = kume_araligi(kume)
+    t = pd.Timestamp(sinyal_zamani)
+    return bool(bas <= t and t + ufuk * adim(bar) <= son)
 
 
 def _git_commit() -> str:

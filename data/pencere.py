@@ -60,6 +60,14 @@ class CikisSonucu:
     kirpma_nedeni: str | None = None
 
 
+class KumeSiniriHatasi(ValueError):
+    """Olayin ufku ait oldugu kumenin tarih araligina sigmiyor (on-kayit §3 rev.4).
+
+    Kume sinirinda kirpilmis cikis kullanilmaz ve komsu kumeden veri okunmaz;
+    olay o kumede hic olusmaz. Kume sinirlari `split.kume_araligi` uzerinden gelir.
+    """
+
+
 # --- Tamlik ------------------------------------------------------------------
 
 
@@ -213,6 +221,7 @@ def cikis_bari(
     bar: str,
     donem_bitis=None,
     karantina_aylari=(),
+    kume_bitis=None,
 ) -> CikisSonucu:
     """Ufuk sonundaki cikis barini secer (on-kayit §2 rev.3, §4 rev.4).
 
@@ -227,6 +236,10 @@ def cikis_bari(
         * donem_sonu: listeleme doneminin bitisi,
         * seri_sonu : serinin son bari (delist ya da verinin bittigi yer).
       Esitlikte oncelik bu siradadir.
+    - `kume_bitis` verilirse (on-kayit §3 rev.4): cikis bari t+h ya da ileri
+      kaymali cikis bari kume sonunu asiyorsa `KumeSiniriHatasi` firlatilir.
+      Kume sinirinda kirpma YAPILMAZ; komsu kumeden veri okunmaz. Kume icinde
+      verinin gercekten bitmesi (delist) ise §4 uyarinca kirpilmaya devam eder.
 
     Getiri HESAPLAMAZ; yalnizca cikis barini ve hangi fiyat alanindan
     okunacagini soyler.
@@ -242,6 +255,13 @@ def cikis_bari(
 
     # giris = t+1; cikis bari t+h = giris + (h-1) x adim (on-kayit §4).
     hedef = giris + (ufuk - 1) * adim(bar)
+
+    kume_son = pd.Timestamp(kume_bitis) if kume_bitis is not None else None
+    if kume_son is not None and hedef > kume_son:
+        raise KumeSiniriHatasi(
+            f"Ufuk kume sinirini asiyor: cikis bari {hedef} > kume sonu {kume_son} "
+            "(on-kayit §3 rev.4: olay bu kumede olusmaz)"
+        )
 
     adaylar: list[tuple[pd.Timestamp, str]] = []
     karantina_siniri = _karantina_siniri(giris, karantina_aylari)
@@ -283,6 +303,11 @@ def cikis_bari(
     if len(sonrakiler) == 0:
         return _kirp()
     ilk = sonrakiler[0]
+    if kume_son is not None and ilk > kume_son:
+        raise KumeSiniriHatasi(
+            f"Ileri kayma kume sinirini asiyor: {ilk} > kume sonu {kume_son} "
+            "(on-kayit §3 rev.4: kumeler arasi veri odunc alinmaz)"
+        )
     return CikisSonucu(
         indeks=int(np.flatnonzero(indeks == ilk)[0]),
         zaman=ilk,
