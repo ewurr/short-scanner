@@ -293,20 +293,24 @@ def pozisyon_fundingi(
     # Donem sonu ve karantina olayi DUSURMEZ: cikis `cikis_bari` tarafindan bu
     # sinirlara gore kirpilmistir ve kirpilmis cikis anina kadarki odemeler
     # normal toplanir. Asagidaki kontroller yalnizca KIRPILMAMIS bir cikisin
-    # verilmesini (programlama hatasi) reddeder: sinirdan onceki son barin
-    # kapanisindan daha gec bir cikis ani olamaz.
-    adim = pencere_modulu.adim(bar)
-    if donem_son is not None and son_an > donem_son + adim:
+    # verilmesini (programlama hatasi) reddeder. Olcu cikis ANI degil cikis
+    # BARIDIR (bulgu 5): `cikis_bari` yalnizca acilisi sinirdan once ya da sinira
+    # esit barlari secer; kapanistan da acilistan da cikista ayni kural.
+    if donem_son is not None and cikis.zaman > donem_son:
         raise ValueError(
-            f"Cikis ani {son_an} donem sonunu ({donem_son}) asiyor; cikis donem sonuna "
-            "gore kirpilmamis (pencere.cikis_bari kullanilmali)."
+            f"Cikis bari {cikis.zaman} donem sonundan ({donem_son}) sonra; cikis donem "
+            "sonuna gore kirpilmamis (pencere.cikis_bari kullanilmali)."
         )
     karantina_siniri = pencere_modulu._karantina_siniri(giris, karantina)  # giris karantinadaysa ValueError
-    if karantina_siniri is not None and son_an > karantina_siniri + adim:
+    if karantina_siniri is not None and cikis.zaman > karantina_siniri:
         raise ValueError(
-            f"Cikis ani {son_an} karantina ayinin icinde; cikis karantinaya gore "
+            f"Cikis bari {cikis.zaman} karantina ayinin icinde; cikis karantinaya gore "
             "kirpilmamis (pencere.cikis_bari kullanilmali)."
         )
+    if cikis.kirpma_nedeni == "donem_sonu" and donem_son is None:
+        raise ValueError("Cikis donem sonuna gore kirpilmis ama donem_bitis verilmemis.")
+    if cikis.kirpma_nedeni == "karantina" and karantina_siniri is None:
+        raise ValueError("Cikis karantinaya gore kirpilmis ama giristen sonra karantina ayi verilmemis.")
 
     zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], "pozisyon_fundingi")
     if len(zamanlar) > 1:

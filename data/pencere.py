@@ -502,13 +502,45 @@ def cikis_ani(cikis: CikisSonucu, bar: str) -> pd.Timestamp:
     kaymali (acilistan) cikista an `zaman`dir. Funding hesabi cikis anini bu
     fonksiyondan alir; bar zamanini cikis ani sanmak son odemeyi kacirirdi.
     """
-    if not isinstance(cikis, CikisSonucu):
-        raise TypeError(f"cikis bir CikisSonucu olmali (cikis_bari ciktisi). Verilen: {cikis!r}")
+    cikis_tutarliligi_dogrula(cikis)
     if cikis.fiyat_alani == "close":
         return cikis.zaman + adim(bar)
-    if cikis.fiyat_alani == "open":
-        return cikis.zaman
-    raise ValueError(f"Bilinmeyen fiyat_alani: {cikis.fiyat_alani!r}")
+    return cikis.zaman
+
+
+KIRPMA_NEDENLERI = ("karantina", "donem_sonu", "seri_sonu")
+
+
+def cikis_tutarliligi_dogrula(cikis: CikisSonucu) -> None:
+    """Elle kurulmus bir CikisSonucu'nun `cikis_bari`nin uretebilecegi bir bicimde
+    oldugunu dogrular (F1 kapanis denetimi bulgu 5); degilse ValueError.
+
+    `cikis_bari` yalnizca su bicimleri uretir:
+      - normal cikis     : fiyat_alani="close", kaydi=False, kirpildi=False, neden None
+      - ileri kaymali    : fiyat_alani="open",  kaydi=True,  kirpildi=False, neden None
+      - kirpilmis cikis  : fiyat_alani="close", kaydi=False, kirpildi=True,
+                           neden KIRPMA_NEDENLERI'nden biri
+    Sinira gore dogrulama (cikis bari donem sonu ya da karantina sinirini asiyor
+    mu) sinirlari bilen cagiran tarafta yapilir (`funding.pozisyon_fundingi`).
+    """
+    if not isinstance(cikis, CikisSonucu):
+        raise TypeError(f"cikis bir CikisSonucu olmali (cikis_bari ciktisi). Verilen: {cikis!r}")
+    utc_zamani(cikis.zaman, "cikis.zaman")
+    if cikis.fiyat_alani not in ("close", "open"):
+        raise ValueError(f"Bilinmeyen fiyat_alani: {cikis.fiyat_alani!r}")
+    if cikis.kaydi is not (cikis.fiyat_alani == "open"):
+        raise ValueError(f"Tutarsiz cikis: kaydi={cikis.kaydi!r} ama fiyat_alani={cikis.fiyat_alani!r}")
+    if cikis.kirpildi is True:
+        if cikis.fiyat_alani != "close" or cikis.kirpma_nedeni not in KIRPMA_NEDENLERI:
+            raise ValueError(
+                f"Tutarsiz kirpilmis cikis: fiyat_alani={cikis.fiyat_alani!r}, "
+                f"kirpma_nedeni={cikis.kirpma_nedeni!r}"
+            )
+    elif cikis.kirpildi is False:
+        if cikis.kirpma_nedeni is not None:
+            raise ValueError(f"Kirpilmamis cikista kirpma_nedeni olamaz: {cikis.kirpma_nedeni!r}")
+    else:
+        raise ValueError(f"kirpildi bool olmali: {cikis.kirpildi!r}")
 
 
 def cikis_bari(
