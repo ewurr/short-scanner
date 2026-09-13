@@ -24,9 +24,12 @@ def _ay_cercevesi(govde: bytes) -> pd.DataFrame:
     ham = ham[bv.FUNDING_SUTUNLARI].copy()
     cerceve = pd.DataFrame(
         {
-            # calc_time bazen 1 ms kayik yazilir (ornek: ...0001); odeme ani
-            # icin saniyeye yuvarlamak yerine ham deger korunur, gruplama
-            # yapilirken saate yuvarlanir.
+            # calc_time bazen 1 ms kayik yazilir (ornek: ...0001). Ham deger
+            # korunur; hicbir yerde saate YUVARLANMAZ. Ayni odemenin kayik iki
+            # kaydi `drop_duplicates` ile birlesmez; bu durum
+            # `funding_ortalamasi` icinde bozuk veri olarak hata verir. F1
+            # kapanis taramasinda onbellekte 1 dakikadan yakin iki kayit
+            # bulunmadi (678 sembol, 2.562.456 kayit).
             "odeme_zamani": pd.to_datetime(
                 pd.to_numeric(ham["calc_time"], errors="coerce"), unit="ms", utc=True
             ),
