@@ -13,6 +13,7 @@ sutun olarak tutulur; gercek odeme sutunu hicbir zaman olceklenmez.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 import config
@@ -203,6 +204,141 @@ def funding_ortalamasi(
     if odemeler[-1] + araliklar[-1] < kapanis:
         return nan  # pencerenin sonundaki odeme eksik
     return float(oran.mean())
+
+
+# --- Pozisyon funding'i (on-kayit §4 rev.6) ----------------------------------
+
+
+def pozisyon_fundingi(
+    funding: pd.DataFrame,
+    giris_zamani,
+    cikis,
+    bar: str,
+    *,
+    kume_baslangic,
+    kume_bitis,
+    donem_baslangic,
+    donem_bitis,
+    karantina_aylari,
+) -> float:
+    """Short pozisyonun tuttugu sure boyunca aldigi (+) ya da odedigi (-) funding.
+
+    On-kayit §4: her funding aninda `+oran` (GERCEK odeme orani, `oran`;
+    8 saate normallestirilmis `oran_8h` kullanilmaz). Toplam doner.
+
+    Sinirlar (on-kayit §4 rev.6):
+      - Giris anindaki odeme HARIC, cikis anindaki DAHIL.
+      - 1 dakikadan kucuk kayma ayni an sayilir. Odeme p dahildir ancak ve ancak
+        `giris + 1 dk <= p < cikis_ani + 1 dk`.
+      - Giris ani t+1 barinin acilisi (`giris_zamani`); cikis ani
+        `pencere.cikis_ani(cikis, bar)`: kapanistan cikista barin kapanisi,
+        ileri kaymali cikista barin acilisi.
+
+    Korumalar (`funding_ortalamasi` ve `pencere.cikis_bari` ile ayni):
+      - **Kume.** Odeme araligi kume baslangicindan once basliyor ya da kume
+        sonunu asiyorsa `KumeSiniriHatasi` (rev.6: "cikis anindaki odeme kumenin
+        tarih araligi disina dusuyorsa olay o kumede olusmaz"; `cikis_bari` ile
+        ayni istisna). Kontrol ZAMANLA yapilir, verinin kume sinirinda kesilmis
+        olmasina dayanilmaz (rev.5).
+      - **Donem ve karantina.** Odeme araligi donem disina tasiyor ya da bir
+        karantina ayina dokunuyorsa NaN (olay olusmaz). Sinir anlarla olculur:
+        karantinadan onceki son barin kapanisi karantina ayinin ilk anidir ve o
+        andaki odeme karantina ayina duser.
+      - **Tamlik.** Aralikta beklenen odemelerin tamami bulunmali; her kaydin
+        `aralik_saat` degeri bir onceki odemeye kadar olan sureyi verir:
+          * ilk odemeden onceki odeme (ilk - aralik) araliktan ONCE olmali,
+          * ardisik iki odeme arasinda aralik + tolerans'tan uzun bosluk olmamali,
+          * son odemeden sonraki odeme (son + aralik) araliktan SONRA olmali.
+        Aralikta hic odeme yoksa, araliktan onceki son odemenin bir sonrakinin
+        araliktan sonra oldugu gosterilmeli. Eksik odeme, NaN oran ya da NaN
+        aralik -> NaN. Bir dakikadan yakin iki kayit bozuk veridir ->
+        ZamanDizisiHatasi.
+      - Tum sinirlar zorunlu anahtar sozcuktur; sinir yoksa acikca None.
+        Saat dilimsiz zaman TypeError.
+
+    Saf fonksiyon.
+    """
+    from data import donem as donem_modulu
+    from data import pencere as pencere_modulu
+
+    giris = pencere_modulu.utc_zamani(giris_zamani, "giris_zamani")
+    son_an = pencere_modulu.cikis_ani(cikis, bar)
+    kume_bas = pencere_modulu.sinir_zamani(kume_baslangic, "kume_baslangic")
+    kume_son = pencere_modulu.sinir_zamani(kume_bitis, "kume_bitis")
+    donem_bas = pencere_modulu.sinir_zamani(donem_baslangic, "donem_baslangic")
+    donem_son = pencere_modulu.sinir_zamani(donem_bitis, "donem_bitis")
+    karantina = pencere_modulu.karantina_dogrula(karantina_aylari)
+    if not son_an > giris:
+        raise ValueError(f"Cikis ani giristen sonra olmali: giris {giris}, cikis {son_an}")
+
+    alt = giris + ODEME_TOLERANSI  # dahil
+    ust = son_an + ODEME_TOLERANSI  # haric
+    son_dahil = ust - pd.Timedelta(1, "ns")
+    nan = float("nan")
+
+    if kume_bas is not None and giris < kume_bas:
+        raise pencere_modulu.KumeSiniriHatasi(
+            f"Giris {giris} kume baslangicindan ({kume_bas}) once (on-kayit §3 rev.4)."
+        )
+    if kume_son is not None and son_dahil > kume_son:
+        raise pencere_modulu.KumeSiniriHatasi(
+            f"Cikis anindaki funding odemesi ({son_an}) kume sonunu ({kume_son}) asiyor "
+            "(on-kayit §4 rev.6: olay bu kumede olusmaz)."
+        )
+    if donem_bas is not None and giris < donem_bas:
+        return nan
+    if donem_son is not None and son_dahil > donem_son:
+        return nan
+    if karantina:
+        karantina_kumesi = {donem_modulu.ay_donemi(a) for a in karantina}
+        aylar = pd.period_range(giris.tz_localize(None), son_dahil.tz_localize(None), freq="M")
+        if any(ay in karantina_kumesi for ay in aylar):
+            return nan
+
+    zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], "pozisyon_fundingi")
+    if len(zamanlar) > 1:
+        farklar = zamanlar[1:] - zamanlar[:-1]
+        if (farklar < ODEME_TOLERANSI).any():
+            ilk = int((farklar < ODEME_TOLERANSI).argmax())
+            raise pencere_modulu.ZamanDizisiHatasi(
+                f"pozisyon_fundingi: {zamanlar[ilk]} ve {zamanlar[ilk + 1]} birbirine "
+                f"{ODEME_TOLERANSI}'dan yakin; ayni odeme iki kez yazilmis olabilir (bozuk veri)."
+            )
+
+    maske = (zamanlar >= alt) & (zamanlar < ust)
+    if not maske.any():
+        # Aralikta odeme yok: bu ancak araliktan onceki son odemenin bir
+        # sonrakinin araliktan sonra oldugu gosterilebilirse gecerlidir. Sonraki
+        # odeme kume disinda olabilecegi icin okunmaz; onceki odemenin araliginin
+        # degismedigi varsayilir (`funding_ortalamasi`nin son odeme kontroluyle
+        # ayni varsayim). Kume ve donem oncesi kayitlar okunmaz.
+        taban = max((s for s in (kume_bas, donem_bas) if s is not None), default=None)
+        onceki = (zamanlar < alt) if taban is None else ((zamanlar < alt) & (zamanlar >= taban))
+        if not onceki.any():
+            return nan
+        konum = int(np.flatnonzero(onceki)[-1])
+        aralik = pd.to_numeric(pd.Series([funding["aralik_saat"].iloc[konum]]), errors="coerce").iloc[0]
+        if pd.isna(aralik) or aralik <= 0:
+            return nan
+        if zamanlar[konum] + pd.Timedelta(hours=float(aralik)) < ust:
+            return nan  # aralikta beklenen odeme eksik
+        return 0.0
+
+    secili = funding.loc[maske]
+    oran = pd.to_numeric(secili["oran"], errors="coerce")
+    aralik = pd.to_numeric(secili["aralik_saat"], errors="coerce")
+    if oran.isna().any() or aralik.isna().any() or (aralik <= 0).any():
+        return nan
+
+    odemeler = zamanlar[maske]
+    araliklar = pd.to_timedelta(aralik.to_numpy(), unit="h")
+    if not odemeler[0] - araliklar[0] < alt:
+        return nan  # araligin basindaki odeme eksik
+    if len(odemeler) > 1 and ((odemeler[1:] - araliklar[1:]) > odemeler[:-1] + ODEME_TOLERANSI).any():
+        return nan  # ic bosluk
+    if odemeler[-1] + araliklar[-1] < ust:
+        return nan  # araligin sonundaki odeme eksik
+    return float(oran.sum())
 
 
 # --- Denetim olcumleri -------------------------------------------------------

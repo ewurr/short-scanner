@@ -485,6 +485,22 @@ def _karantina_siniri(giris: pd.Timestamp, karantina_aylari: tuple) -> pd.Timest
     return None
 
 
+def cikis_ani(cikis: CikisSonucu, bar: str) -> pd.Timestamp:
+    """Pozisyonun kapandigi AN (on-kayit §4 rev.6 funding siniri icin).
+
+    Bar zamani acilis zamanidir. Kapanistan cikista an `zaman + adim`, ileri
+    kaymali (acilistan) cikista an `zaman`dir. Funding hesabi cikis anini bu
+    fonksiyondan alir; bar zamanini cikis ani sanmak son odemeyi kacirirdi.
+    """
+    if not isinstance(cikis, CikisSonucu):
+        raise TypeError(f"cikis bir CikisSonucu olmali (cikis_bari ciktisi). Verilen: {cikis!r}")
+    if cikis.fiyat_alani == "close":
+        return cikis.zaman + adim(bar)
+    if cikis.fiyat_alani == "open":
+        return cikis.zaman
+    raise ValueError(f"Bilinmeyen fiyat_alani: {cikis.fiyat_alani!r}")
+
+
 def cikis_bari(
     zamanlar,
     giris_zamani,
