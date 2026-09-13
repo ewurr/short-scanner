@@ -28,7 +28,7 @@ SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=None, karantina_aylari=None
 H1 = dict(dis_bar_sayisi=180, dis_t_dahil=True, dis_islev="median", ic_bar_sayisi=6, ic_t_dahil=True, ic_islev="sum")
 
 
-def _seri(bas, bitis, bar=config.BAR_4H, tohum=20260911) -> pd.Series:
+def _seri(bas, bitis, bar=config.BAR_4H, tohum=config.TOHUM) -> pd.Series:
     indeks = pd.date_range(bas, bitis, freq=pencere.adim(bar), tz="UTC")
     rng = np.random.default_rng(tohum)
     return pd.Series(rng.uniform(1.0, 100.0, len(indeks)), index=indeks)
