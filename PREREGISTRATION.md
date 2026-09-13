@@ -1,6 +1,6 @@
 # PREREGISTRATION.md — Short Öngörü Hipotezleri
 
-**Durum:** Sürüm 5 (2026-09-11). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
+**Durum:** Sürüm 6 (2026-09-13). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
 **Kapsam:** F2 (keşif) ve F3 (onay). Taktik (F4) ve ileri-zaman testi (F5) ayrı revizyonla eklenir.
 
 Bu belge commit edildikten sonra aşağıdaki hiçbir tanım, eşik veya tarih sınırı
@@ -89,6 +89,9 @@ ayrı bir revizyonla karantinaya alınır ya da gerekçesiyle bırakılır.
 - H1, H2: son 30 günün medyan günlük işlem hacmi ≥ 10 milyon USDT.
 - H3: son 30 günün medyan günlük işlem hacmi ≥ 2 milyon USDT.
 
+**Uygunluk penceresi ve t günü.** Uygunluk hacmi, t barının ait olduğu UTC günü hariç,
+ondan önceki 30 tam günün medyanıdır. Kural 4 saatlik ve 1 günlük barlarda aynıdır.
+
 Delist edilen sözleşmelerin geçmişi elde edilemezse bu durum F1 denetim raporunda
 sayısıyla yazılır ve sonuçlar "kötümser yanlılıklı" olarak etiketlenir.
 F1 denetiminde 28 delist sembolün tümünün geçmişi eksiksiz indirilmiştir; bu veri
@@ -144,6 +147,11 @@ Ufuk h bar sonra çıkış fiyatı `P1 = close[t+h]`.
 - **Brüt short getirisi:** `-(P1 / P0 - 1)`
 - **Funding katkısı:** giriş ile çıkış arasındaki her funding anında `+oran`
   (pozitif oran short'a ödeme demektir, negatif oran short'tan kesinti).
+
+  **Funding ödemesinin sınırları.** Pozisyon, giriş anından sonra ve çıkış anına kadar
+  gerçekleşen funding ödemelerini alır ya da öder: giriş anındaki ödeme hariç, çıkış
+  anındaki dahildir. 1 dakikadan küçük zaman kayması aynı an sayılır. Çıkış anındaki
+  ödeme kümenin tarih aralığı dışına düşüyorsa olay o kümede oluşmaz.
 - **Maliyet:** gidiş-dönüş `0.20%`.
 - **Net short getirisi:** `brüt + funding - 0.0020`
 - **MAE (en kötü ara zarar):** `max(high[t+1..t+h]) / P0 - 1`. Raporlanır, eşik değildir.
@@ -153,6 +161,10 @@ Ufuk içinde sözleşme delist olursa çıkış, son mevcut barın kapanışıd�
 **Karantina ve çıkış.** Ufuk bir karantina ayına uzanırsa çıkış, karantinadan
 önceki son barın kapanışıdır. Dönem sonu, delist ve karantina kuralları ileri
 kayma kuralından önceliklidir.
+
+**İleri kaymanın üst sınırı.** Hedef çıkış barı eksikse ileri kayma, olayın birincil
+ufku kadar süre ile sınırlıdır (H1 ve H2 için 18 bar, H3 için 14 gün). Sonraki mevcut
+bar bu sınırdan uzaksa olay oluşmaz; kırpılmış getiri kullanılmaz.
 
 | Hipotez | Birincil ufuk | İkincil ufuklar (yalnızca rapor) |
 |---|---|---|
@@ -179,6 +191,11 @@ başarısızlığı teyit edilince satış zincirleme hızlanır.
 
 1. **Pump barı:** `close[t] / min(low[t-6..t-1]) - 1 ≥ θ`
    ve son 6 barın toplam hacmi ≥ önceki 180 barın 6'lı toplam hacim medyanının 3 katı.
+
+   H1'in 6'lı toplam hacim medyanı kayan pencereyle hesaplanır: her bar için son 6 barın
+   toplamı alınır ve bu toplamların 180 barlık medyanı kullanılır. Ardışık, çakışmayan
+   bloklara bölünmez.
+
 2. **Tepe:** pump barından itibaren görülen en yüksek `high`, en fazla 12 bar izlenir.
 3. **Olay (başarısızlık teyidi):** pump barından sonraki 12 bar içinde ilk kez
    `close ≤ tepe × (1 - δ)` olan ve aynı barda `high < tepe` olan bar.
@@ -278,5 +295,6 @@ Başarısız bir hipotez için onay yeniden koşulamaz.
 | 1 | — | İlk sürüm | — | — |
 | 2 | 2026-09-11 | Kapsam netleştirmesi (TRADIFI_PERPETUAL dışı), kesin hariç tutma listesi, 1d türetme kuralı, listeleme dönemi ve karantina kuralı, veri bütünlüğü kontrolü, varlık anahtarıyla bölme | exchangeInfo sınıflandırması, yeniden adlandırma zincirlerinin bölmeyi sızdırması ve SETTLED kayıtlarının yeniden fiyatlandırma sıçraması riski. Hiçbir fiyat verisine bakılmadan yapıldı. | Yok (henüz sonuç yok) |
 | 3 | 2026-09-11 | Funding aralığı metni genel formüle bağlandı; veri boşluğu kuralı (zamanla tanımlı pencere, tamlık şartı, ufukta ileri kayma); delist kapsamasının tam olduğu notu | F1 denetimi: 8 saat dışında dört farklı funding aralığı; 10 boşluk olayı ve bunların ardından oluşan iki sahte sıçrama. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
-| 4 | 2026-09-11 | Küme sınırı ve ufuk kuralı; karantinanın çıkışa uygulanması; pencere sınırlarının açık belirtilmesi; evren tablosunun commit edilmesi | F2 öncesi metodoloji denetimi (B1, B2, B3, B10): ön-kayıtta tanımsız kalan ve ilk getiri hesabında devreye girecek noktalar. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
-| 5 | 2026-09-11 | Geriye bakış pencerelerinin küme sınırını aşamayacağı açıkça yazıldı | F2 öncesi sızıntı testleri: kural yalnızca verinin kesilmiş olmasıyla sağlanıyordu, kod düzeyinde garanti edilmiyordu. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
+| 4 | 2026-09-13 | Küme sınırı ve ufuk kuralı; karantinanın çıkışa uygulanması; pencere sınırlarının açık belirtilmesi; evren tablosunun commit edilmesi | F2 öncesi metodoloji denetimi (B1, B2, B3, B10): ön-kayıtta tanımsız kalan ve ilk getiri hesabında devreye girecek noktalar. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
+| 5 | 2026-09-13 | Geriye bakış pencerelerinin küme sınırını aşamayacağı açıkça yazıldı | F2 öncesi sızıntı testleri: kural yalnızca verinin kesilmiş olmasıyla sağlanıyordu, kod düzeyinde garanti edilmiyordu. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
+| 6 | 2026-09-13 | Funding ödemesinin giriş/çıkış sınırları; ileri kaymanın üst sınırı; uygunluk penceresinin t gününü dışlaması; H1 hacim medyanının kayan pencere okuması; revizyon 4-5 tarih düzeltmesi | F1 kapanış denetimi: ön-kayıtta tanımsız kalan ve F2'de ilk getiri hesabında devreye girecek dört nokta. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
