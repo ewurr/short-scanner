@@ -36,16 +36,19 @@ def gercek_kopya(tmp_path):
 def test_gercek_kayit_dosyasinda_satir_tablonun_icine_duser(gercek_kopya):
     once_bayt = gercek_kopya.read_bytes()
     once = once_bayt.decode("utf-8")
-    assert len(_tablo_satirlari(once)) == 2  # baslik + ayirici, henuz satir yok
+    # Tablodaki mevcut satir sayisi sabitlenmez: ilk F3 kosusundan sonra gercek
+    # kayitta satir olacak. Test yalnizca EKLENEN satirlari sayar.
+    onceki = len(_tablo_satirlari(once))
+    assert onceki >= 2  # en az baslik + ayirici
 
     split.onay_kaydet("C1", "BBUSDT", "bar=4h", yol=gercek_kopya)
     split.onay_kaydet("C2", "AAUSDT", "kaynak=funding", yol=gercek_kopya)
 
     sonra = gercek_kopya.read_bytes().decode("utf-8")
     tablo = _tablo_satirlari(sonra)
-    assert len(tablo) == 4, "iki onay satiri tablonun kesintisiz parcasi olmali"
-    assert "| C1 |" in tablo[2] and "BBUSDT" in tablo[2]
-    assert "| C2 |" in tablo[3] and "kaynak=funding" in tablo[3]
+    assert len(tablo) == onceki + 2, "iki onay satiri tablonun kesintisiz parcasi olmali"
+    assert "| C1 |" in tablo[-2] and "BBUSDT" in tablo[-2]
+    assert "| C2 |" in tablo[-1] and "kaynak=funding" in tablo[-1]
 
     # Tablonun disinda kalan aciklama cumlesi hala tablodan SONRA geliyor.
     son_tablo_satiri = sonra.splitlines().index(tablo[-1])
