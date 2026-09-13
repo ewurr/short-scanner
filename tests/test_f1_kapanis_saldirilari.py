@@ -71,12 +71,12 @@ def test_donem_cikis_bar_indeksi_kume_sinirini_kontrol_etmiyor():
 
     with pytest.raises(pencere.KumeSiniriHatasi):
         pencere.cikis_bari(
-            seri.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None
+            seri.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18
         )
 
     assert not hasattr(donem_modulu, "cikis_bar_indeksi"), "kume korumasiz sarmalayici hala duruyor"
     with pytest.raises(TypeError):  # kume_bitis unutulamaz
-        pencere.cikis_bari(seri.index, giris, ufuk, config.BAR_4H, donem_bitis=None, karantina_aylari=None)
+        pencere.cikis_bari(seri.index, giris, ufuk, config.BAR_4H, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
 
 
 # --- 2) onay parametresi bool dogrulanmiyor: "False" stringi kapiyi aciyor --
@@ -333,12 +333,12 @@ def test_kume_kirpilmis_seri_kume_bitis_verilmezse_delist_gibi_kirpilir():
     ufuk = 20  # hedef = index[29] (asil izgarada), kume_son'u (index24) asar
 
     with pytest.raises(pencere.KumeSiniriHatasi):
-        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None)
+        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
 
     with pytest.raises(TypeError):
-        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, donem_bitis=None, karantina_aylari=None)
+        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
 
     # Hedef kume icinde (index 24) ama son iki bar eksik: seri index 22'de bitiyor.
     eksik_sonlu = kirpilmis.drop(kirpilmis.index[-2:])
     with pytest.raises(pencere.KumeSiniriHatasi):
-        pencere.cikis_bari(eksik_sonlu.index, giris, 15, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None)
+        pencere.cikis_bari(eksik_sonlu.index, giris, 15, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)

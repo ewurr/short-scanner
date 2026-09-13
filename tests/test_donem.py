@@ -92,7 +92,7 @@ def test_donem_bul():
 def _cikis(zamanlar, giris_indeksi, ufuk, donem_bitis):
     return pencere.cikis_bari(
         zamanlar, zamanlar[giris_indeksi], ufuk, config.BAR_4H,
-        donem_bitis=donem_bitis, karantina_aylari=None, kume_bitis=None,
+        donem_bitis=donem_bitis, karantina_aylari=None, kume_bitis=None, birincil_ufuk=18,
     )
 
 

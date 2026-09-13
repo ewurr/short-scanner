@@ -46,7 +46,7 @@ def test_cikis_bari_tam_ters_sirali_seriyi_reddeder():
     ters = seri.index[::-1]
 
     with pytest.raises(pencere.ZamanDizisiHatasi):
-        pencere.cikis_bari(ters, giris, 5, config.BAR_4H, donem_bitis=None, karantina_aylari=None, kume_bitis=None)
+        pencere.cikis_bari(ters, giris, 5, config.BAR_4H, donem_bitis=None, karantina_aylari=None, kume_bitis=None, birincil_ufuk=18)
 
 
 def test_cikis_bari_karisik_sirali_seriyi_reddeder():
@@ -74,7 +74,7 @@ def test_cikis_bari_karisik_sirali_seriyi_reddeder():
     assert bozuk[-1] == seri.index[-1]  # seri_sonu siniri degismedi
 
     with pytest.raises(pencere.ZamanDizisiHatasi):
-        pencere.cikis_bari(bozuk, giris, 18, config.BAR_4H, donem_bitis=None, karantina_aylari=None, kume_bitis=None)
+        pencere.cikis_bari(bozuk, giris, 18, config.BAR_4H, donem_bitis=None, karantina_aylari=None, kume_bitis=None, birincil_ufuk=18)
 
 
 # --- Tekrarlanan zaman damgasi: bozuk veri NaN'a cevrilmez, hata verir --------

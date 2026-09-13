@@ -74,6 +74,16 @@ class KumeSiniriHatasi(ValueError):
     """
 
 
+class IleriKaymaSiniriHatasi(ValueError):
+    """Hedef cikis bari eksik ve sonraki mevcut bar ileri kayma sinirindan uzak
+    (on-kayit §4 rev.6).
+
+    Ileri kayma, olayin birincil ufku kadar sureyle sinirlidir (H1, H2: 18 bar;
+    H3: 14 gun). Daha uzaktaki bardan cikilmaz ve kirpilmis getiri kullanilmaz;
+    olay olusmaz.
+    """
+
+
 class ZamanDizisiHatasi(ValueError):
     """Zaman damgalari sirasiz ya da tekrarli: bu bir VERI BOZUKLUGUDUR.
 
@@ -507,6 +517,7 @@ def cikis_bari(
     ufuk: int,
     bar: str,
     *,
+    birincil_ufuk: int,
     donem_bitis,
     karantina_aylari,
     kume_bitis,
@@ -528,11 +539,22 @@ def cikis_bari(
       bari kume sonunu asiyorsa `KumeSiniriHatasi` firlatilir. Kume sinirinda
       kirpma YAPILMAZ; komsu kumeden veri okunmaz. Kume icinde verinin gercekten
       bitmesi (delist) ise §4 uyarinca kirpilmaya devam eder.
+    - `birincil_ufuk` (on-kayit §4 rev.6): ileri kaymanin ust siniri, olayin
+      BIRINCIL ufku kadar suredir (bar sayisi; H1, H2: 18, H3: 14). Ikincil
+      ufuklar da ayni siniri kullanir. Kayma, hedef bardan sonraki mevcut bara
+      olan mesafedir (`sonraki - hedef`); `birincil_ufuk x adim`dan uzunsa
+      `IleriKaymaSiniriHatasi` (olay olusmaz). Donem sonu, delist ve karantina
+      bu kuraldan onceliklidir: sinir bu kayma araliginin icindeyse kirpilir.
 
-    `donem_bitis`, `karantina_aylari` ve `kume_bitis` zorunludur; sinir yoksa
-    acikca None. Getiri HESAPLAMAZ; yalnizca cikis barini ve hangi fiyat
-    alanindan okunacagini soyler.
+    `birincil_ufuk`, `donem_bitis`, `karantina_aylari` ve `kume_bitis`
+    zorunludur; sinir yoksa acikca None (`birincil_ufuk` icin None yoktur).
+    Getiri HESAPLAMAZ; yalnizca cikis barini ve hangi fiyat alanindan
+    okunacagini soyler.
     """
+    if isinstance(birincil_ufuk, bool) or not isinstance(birincil_ufuk, (int, np.integer)):
+        raise TypeError(f"birincil_ufuk tamsayi bar sayisi olmali: {birincil_ufuk!r}")
+    if birincil_ufuk < 1:
+        raise ValueError(f"birincil_ufuk en az 1 bar olmali: {birincil_ufuk}")
     indeks = _zaman_dizisi_dogrula(zamanlar, "cikis_bari")
     if len(indeks) == 0:
         raise ValueError("Bar listesi bos.")
@@ -607,6 +629,13 @@ def cikis_bari(
         raise KumeSiniriHatasi(
             f"Ileri kayma kume sinirini asiyor: {ilk} > kume sonu {kume_son} "
             "(on-kayit §3 rev.4: kumeler arasi veri odunc alinmaz)"
+        )
+    kayma_siniri = int(birincil_ufuk) * adim(bar)
+    if ilk - hedef > kayma_siniri:
+        raise IleriKaymaSiniriHatasi(
+            f"Hedef cikis bari {hedef} eksik ve sonraki mevcut bar {ilk} ileri kayma "
+            f"sinirindan ({birincil_ufuk} bar = {kayma_siniri}) uzak "
+            "(on-kayit §4 rev.6: olay olusmaz)"
         )
     return CikisSonucu(
         indeks=int(np.flatnonzero(indeks == ilk)[0]),

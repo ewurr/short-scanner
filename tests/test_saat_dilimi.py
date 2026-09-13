@@ -62,7 +62,7 @@ def test_cikis_bari_saat_dilimsiz(alan):
     else:
         parametreler[alan] = pd.Timestamp("2021-12-31")
     with pytest.raises(TypeError):
-        pencere.cikis_bari(seri.index, giris, 6, config.BAR_4H, **parametreler)
+        pencere.cikis_bari(seri.index, giris, 6, config.BAR_4H, **parametreler, birincil_ufuk=18)
 
 
 def test_uygun_mu_saat_dilimsiz_t():
