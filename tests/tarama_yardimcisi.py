@@ -31,6 +31,14 @@ def ihlaller(desen: str, kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR) -> list[s
 
 KUME_NONE_DESENI = r"\bkume_(baslangic|bitis)\s*=\s*None\b"
 
+# Funding'e kume kapisi (`funding.funding_yukle`) disindan erisim: kume korumasiz
+# yukleyici, ic ay ayristiricisi, bucket listeleme/onek ve funding onbellek dizini
+# (F1 kapanis denetimi bulgu 10).
+FUNDING_KAPI_DISI_DESENI = (
+    r"\bham_funding_yukle\b|\b_ay_cercevesi\b|\bfunding_dosyalari\b|\bFUNDING_ONEKI\b"
+    r"|fundingRate|[\"']funding[\"']"
+)
+
 # Bar sayisiyla calisan ve pencere kapisini (data.pencere) atlayan turetilmis seri
 # islemleri. Bunlar seride bosluk, donem, kume ya da karantina sinirini bilmez.
 TURETILMIS_SERI_DESENI = (
