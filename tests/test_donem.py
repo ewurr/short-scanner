@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 import config
-from data import donem
+from data import donem, pencere
 
 
 def test_karantinasiz_kesintisiz_seri_tek_donem():
@@ -89,11 +89,18 @@ def test_donem_bul():
 # --- Ufuk kirpma (getiri hesabinda F2'de kullanilacak) -----------------------
 
 
+def _cikis(zamanlar, giris_indeksi, ufuk, donem_bitis):
+    return pencere.cikis_bari(
+        zamanlar, zamanlar[giris_indeksi], ufuk, config.BAR_4H,
+        donem_bitis=donem_bitis, karantina_aylari=None, kume_bitis=None,
+    )
+
+
 def test_ufuk_donem_icindeyse_kirpilmaz():
     zamanlar = pd.date_range("2021-01-01", periods=50, freq="4h", tz="UTC")
     bitis = pd.Timestamp("2021-12-31", tz="UTC")
     # giris t+1 = indeks 5 -> t = 4 -> cikis t+18 = indeks 22 (on-kayit §4)
-    assert donem.cikis_bar_indeksi(zamanlar, giris_indeksi=5, ufuk=18, donem_bitis=bitis) == 22
+    assert _cikis(zamanlar, 5, 18, bitis).indeks == 22
 
 
 def test_ufuk_donem_sonunu_asarsa_son_bara_kirpilir():
@@ -101,10 +108,10 @@ def test_ufuk_donem_sonunu_asarsa_son_bara_kirpilir():
     zamanlar = pd.date_range("2021-01-01", periods=20, freq="4h", tz="UTC")
     bitis = pd.Timestamp("2021-12-31", tz="UTC")
 
-    indeks = donem.cikis_bar_indeksi(zamanlar, giris_indeksi=15, ufuk=18, donem_bitis=bitis)
+    sonuc = _cikis(zamanlar, 15, 18, bitis)
 
-    assert indeks == 19  # son bar
-    assert zamanlar[indeks] == zamanlar[-1]
+    assert sonuc.indeks == 19  # son bar
+    assert sonuc.zaman == zamanlar[-1] and sonuc.fiyat_alani == "close"
 
 
 def test_ufuk_zaman_siniriyla_da_kirpilir():
@@ -112,16 +119,16 @@ def test_ufuk_zaman_siniriyla_da_kirpilir():
     zamanlar = pd.date_range("2021-01-01", periods=100, freq="4h", tz="UTC")
     bitis = pd.Timestamp("2021-01-02 23:59:59", tz="UTC")  # ilk 12 bar
 
-    indeks = donem.cikis_bar_indeksi(zamanlar, giris_indeksi=2, ufuk=18, donem_bitis=bitis)
+    sonuc = _cikis(zamanlar, 2, 18, bitis)
 
-    assert zamanlar[indeks] <= bitis
-    assert indeks == 11
+    assert sonuc.zaman <= bitis
+    assert sonuc.indeks == 11 and sonuc.kirpma_nedeni == "donem_sonu"
 
 
-def test_gecersiz_giris_indeksi_hata_verir():
-    zamanlar = pd.date_range("2021-01-01", periods=10, freq="4h", tz="UTC")
-    with pytest.raises(IndexError):
-        donem.cikis_bar_indeksi(zamanlar, 99, 1, pd.Timestamp("2021-12-31", tz="UTC"))
+def test_cikis_bar_indeksi_sarmalayicisi_kaldirildi():
+    """F1 kapanis bulgusu 1: sarmalayici kume_bitis iletmiyor, fiyat_alani'ni
+    kaybediyor ve bar=4h varsayilani tasiyordu. Tek kapi pencere.cikis_bari."""
+    assert not hasattr(donem, "cikis_bar_indeksi")
 
 
 # --- B4 / B9 -----------------------------------------------------------------

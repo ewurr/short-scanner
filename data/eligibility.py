@@ -15,6 +15,11 @@ Listeleme donemi (on-kayit rev.2):
     (NaN) ve o barda olay olusmaz.
   - Karantina ayindaki barlar uygun sayilmaz.
 
+Sinir parametreleri (F1 kapanis bulgulari 2 ve 15): donem, karantina ve kume
+sinirlari anahtar sozcukle ve VARSAYILANSIZ verilir; unutulan sinir TypeError
+verir, sessizce atlanmaz. Tum fonksiyonlarda konumsal sira aynidir: once seri,
+sonra t (ya da zamanlar), sonra bar.
+
 Bu modul saftir: ag veya disk kullanmaz.
 """
 
@@ -39,11 +44,11 @@ def gunluk_hacim_serisi(gunluk: pd.DataFrame) -> pd.Series:
 def medyan_hacim(
     gunluk_hacim: pd.Series,
     t,
-    donem_baslangic=None,
-    pencere_gun: int = config.HACIM_PENCERESI_GUN,
-    karantina_aylari=(),
     *,
+    donem_baslangic,
+    karantina_aylari,
     kume_baslangic,
+    pencere_gun: int = config.HACIM_PENCERESI_GUN,
 ) -> float:
     """t anina kadarki son `pencere_gun` GUNUN medyan hacmi (on-kayit §2 rev.3).
 
@@ -51,21 +56,22 @@ def medyan_hacim(
       - t'nin ait oldugu gun HENUZ KAPANMADIGI icin pencereye alinmaz; pencere
         t'den once kapanmis son gunde biter. Bu, gelecege bakisi imkansiz kilar.
       - Pencere donem baslangicini asamaz (rev.2).
-      - Pencere kume baslangicini asamaz (on-kayit §3 rev.5); `kume_baslangic`
-        zorunludur, kume disi hesaplarda acikca None verilir.
+      - Pencere kume baslangicini asamaz (on-kayit §3 rev.5).
       - Penceredeki gunlerden biri bile eksikse NaN doner (rev.3 tamlik sarti).
         Eksik gun, 6 adet 4h barin tamami olmayan gundur.
+    `donem_baslangic`, `karantina_aylari` ve `kume_baslangic` zorunludur; sinir
+    yoksa acikca None verilir.
     """
-    zaman = pd.Timestamp(t)
+    zaman = pencere_modulu.utc_zamani(t, "t")
 
     # Pencere t'nin kendi GUNUNU icermez: o gun henuz kapanmadi. Pencere, t'nin
     # gunune gore t_dahil=False ile tanimlanir; son gun t'den onceki gundur
     # (on-kayit §5 rev.4: pencere siniri acikca belirtilir).
     return pencere_modulu.pencere_degeri(
         gunluk_hacim,
-        t=zaman.floor("D"),
-        bar_sayisi=pencere_gun,
-        bar=config.BAR_1D,
+        zaman.floor("D"),
+        pencere_gun,
+        config.BAR_1D,
         t_dahil=False,
         kume_baslangic=kume_baslangic,
         islev="median",
@@ -94,12 +100,12 @@ def hacim_esigi(bar: str) -> float:
 
 def uygun_mu(
     gunluk_hacim: pd.Series,
-    donem_baslangic,
     t,
     bar: str,
-    karantina_aylari=(),
-    donem_bitis=None,
     *,
+    donem_baslangic,
+    donem_bitis,
+    karantina_aylari,
     kume_baslangic,
 ) -> bool:
     """t aninda sembol uygun mu? Yalnizca t'ye kadarki veriyi kullanir.
@@ -109,26 +115,33 @@ def uygun_mu(
       - t donem sinirlarinin disindaysa uygun degildir,
       - listeleme yasi donem baslangicina gore olculur,
       - hacim penceresi donem baslangicini asamaz.
-    On-kayit §3 rev.5: hacim penceresi kume baslangicini da asamaz
-    (`kume_baslangic` zorunlu; kume disi hesaplarda acikca None).
+    On-kayit §3 rev.5: hacim penceresi kume baslangicini da asamaz.
+
+    Tum sinirlar zorunlu anahtar sozcuktur. `donem_baslangic` None OLAMAZ:
+    listeleme yasi onsuz hesaplanamaz. Digerleri sinir yoksa acikca None alir.
     """
-    zaman = pd.Timestamp(t)
+    zaman = pencere_modulu.utc_zamani(t, "t")
+    donem_bas = pencere_modulu.sinir_zamani(donem_baslangic, "donem_baslangic")
+    if donem_bas is None:
+        raise TypeError("uygun_mu: donem_baslangic None olamaz; listeleme yasi donem basina gore olculur.")
+    donem_son = pencere_modulu.sinir_zamani(donem_bitis, "donem_bitis")
+    karantina = pencere_modulu.karantina_dogrula(karantina_aylari)
 
-    if donem_modulu.karantinada_mi(zaman, karantina_aylari):
+    if donem_modulu.karantinada_mi(zaman, karantina):
         return False
-    if zaman < pd.Timestamp(donem_baslangic):
+    if zaman < donem_bas:
         return False
-    if donem_bitis is not None and zaman > pd.Timestamp(donem_bitis):
+    if donem_son is not None and zaman > donem_son:
         return False
 
-    if listeleme_yasi_gun(donem_baslangic, zaman) < config.ASGARI_LISTELEME_YASI_GUN:
+    if listeleme_yasi_gun(donem_bas, zaman) < config.ASGARI_LISTELEME_YASI_GUN:
         return False
 
     medyan = medyan_hacim(
         gunluk_hacim,
         zaman,
-        donem_baslangic,
-        karantina_aylari=karantina_aylari,
+        donem_baslangic=donem_bas,
+        karantina_aylari=karantina,
         kume_baslangic=kume_baslangic,
     )
     if pd.isna(medyan):
@@ -138,29 +151,29 @@ def uygun_mu(
 
 def uygunluk_serisi(
     gunluk_hacim: pd.Series,
-    donem_baslangic,
     zamanlar,
     bar: str,
-    karantina_aylari=(),
-    donem_bitis=None,
     *,
+    donem_baslangic,
+    donem_bitis,
+    karantina_aylari,
     kume_baslangic,
 ) -> pd.Series:
     """Verilen zamanlarin her biri icin uygunluk bayragi.
 
     Denetim raporunda "esigi en az bir gun gecen sembol" sayimi icin kullanilir.
-    `kume_baslangic` zorunludur (on-kayit §3 rev.5).
+    Sinirlar `uygun_mu` ile aynidir ve zorunludur.
     """
     indeks = pd.DatetimeIndex(zamanlar)
     return pd.Series(
         [
             uygun_mu(
                 gunluk_hacim,
-                donem_baslangic,
                 t,
                 bar,
-                karantina_aylari,
-                donem_bitis,
+                donem_baslangic=donem_baslangic,
+                donem_bitis=donem_bitis,
+                karantina_aylari=karantina_aylari,
                 kume_baslangic=kume_baslangic,
             )
             for t in indeks

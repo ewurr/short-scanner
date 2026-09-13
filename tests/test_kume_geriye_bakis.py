@@ -34,8 +34,8 @@ def _seri(bas, bitis, bar: str = config.BAR_4H, deger: float = 1.0) -> pd.Series
 @pytest.mark.parametrize(
     "cagri",
     [
-        lambda s, t: pencere.pencere_dilimi(s, t, 5, config.BAR_4H, t_dahil=True),
-        lambda s, t: pencere.pencere_degeri(s, t, 5, config.BAR_4H, t_dahil=True),
+        lambda s, t: pencere.pencere_dilimi(s, t, 5, config.BAR_4H, t_dahil=True, donem_baslangic=None, karantina_aylari=None),
+        lambda s, t: pencere.pencere_degeri(s, t, 5, config.BAR_4H, t_dahil=True, donem_baslangic=None, karantina_aylari=None),
     ],
 )
 def test_pencere_fonksiyonlarinda_kume_baslangici_verilmezse_hata(cagri):
@@ -47,9 +47,9 @@ def test_pencere_fonksiyonlarinda_kume_baslangici_verilmezse_hata(cagri):
 @pytest.mark.parametrize(
     "cagri",
     [
-        lambda h, t: eligibility.medyan_hacim(h, t),
-        lambda h, t: eligibility.uygun_mu(h, pd.Timestamp("2020-01-01", tz="UTC"), t, config.BAR_4H),
-        lambda h, t: eligibility.uygunluk_serisi(h, pd.Timestamp("2020-01-01", tz="UTC"), [t], config.BAR_4H),
+        lambda h, t: eligibility.medyan_hacim(h, t, donem_baslangic=None, karantina_aylari=None),
+        lambda h, t: eligibility.uygun_mu(h, t, config.BAR_4H, donem_baslangic=pd.Timestamp("2020-01-01", tz="UTC"), donem_bitis=None, karantina_aylari=None),
+        lambda h, t: eligibility.uygunluk_serisi(h, [t], config.BAR_4H, donem_baslangic=pd.Timestamp("2020-01-01", tz="UTC"), donem_bitis=None, karantina_aylari=None),
     ],
 )
 def test_uygunluk_fonksiyonlarinda_kume_baslangici_verilmezse_hata(cagri):
@@ -62,7 +62,7 @@ def test_uygunluk_fonksiyonlarinda_kume_baslangici_verilmezse_hata(cagri):
 def test_kume_baslangici_bool_olamaz(deger):
     seri = _seri("2025-08-01", "2025-09-10")
     with pytest.raises(TypeError):
-        pencere.pencere_degeri(seri, seri.index[-1], 5, config.BAR_4H, t_dahil=True, kume_baslangic=deger)
+        pencere.pencere_degeri(seri, seri.index[-1], 5, config.BAR_4H, t_dahil=True, kume_baslangic=deger, donem_baslangic=None, karantina_aylari=None)
 
 
 # --- Kural: veri kesilmemis olsa bile sinir uygulanir ------------------------
@@ -73,9 +73,9 @@ def test_kume_oncesi_veri_mevcutken_siniri_asan_pencere_nan():
     seri = _seri("2025-07-01", "2025-09-30 20:00")
     t = C2_BAS + 10 * DORT_SAAT  # pencerenin 170 bari kume oncesinde
 
-    assert not pd.isna(pencere.pencere_degeri(seri, t, 180, config.BAR_4H, t_dahil=True, kume_baslangic=None))
-    assert pd.isna(pencere.pencere_degeri(seri, t, 180, config.BAR_4H, t_dahil=True, kume_baslangic=C2_BAS))
-    assert pencere.pencere_dilimi(seri, t, 180, config.BAR_4H, t_dahil=True, kume_baslangic=C2_BAS) is None
+    assert not pd.isna(pencere.pencere_degeri(seri, t, 180, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None))
+    assert pd.isna(pencere.pencere_degeri(seri, t, 180, config.BAR_4H, t_dahil=True, kume_baslangic=C2_BAS, donem_baslangic=None, karantina_aylari=None))
+    assert pencere.pencere_dilimi(seri, t, 180, config.BAR_4H, t_dahil=True, kume_baslangic=C2_BAS, donem_baslangic=None, karantina_aylari=None) is None
 
 
 @pytest.mark.parametrize(
@@ -89,12 +89,10 @@ def test_ilk_gecerli_bar_tam_kume_basinda_baslayan_penceredir(t_dahil, ilk_gecer
     seri = _seri("2025-06-01", "2025-11-30 20:00")
 
     assert not pd.isna(
-        pencere.pencere_degeri(seri, ilk_gecerli, 180, config.BAR_4H, t_dahil=t_dahil, kume_baslangic=C2_BAS)
+        pencere.pencere_degeri(seri, ilk_gecerli, 180, config.BAR_4H, t_dahil=t_dahil, kume_baslangic=C2_BAS, donem_baslangic=None, karantina_aylari=None)
     )
     assert pd.isna(
-        pencere.pencere_degeri(
-            seri, ilk_gecerli - DORT_SAAT, 180, config.BAR_4H, t_dahil=t_dahil, kume_baslangic=C2_BAS
-        )
+        pencere.pencere_degeri(seri, ilk_gecerli - DORT_SAAT, 180, config.BAR_4H, t_dahil=t_dahil, kume_baslangic=C2_BAS, donem_baslangic=None, karantina_aylari=None)
     )
 
 
@@ -107,8 +105,8 @@ def test_kume_oncesi_veriyi_bozmak_kume_icindeki_hicbir_pencereyi_degistirmez():
 
     for t in seri.index[seri.index >= C2_BAS]:
         for t_dahil in (True, False):
-            once = pencere.pencere_degeri(seri, t, 30, config.BAR_4H, t_dahil=t_dahil, kume_baslangic=C2_BAS, islev="mean")
-            sonra = pencere.pencere_degeri(bozuk, t, 30, config.BAR_4H, t_dahil=t_dahil, kume_baslangic=C2_BAS, islev="mean")
+            once = pencere.pencere_degeri(seri, t, 30, config.BAR_4H, t_dahil=t_dahil, kume_baslangic=C2_BAS, islev="mean", donem_baslangic=None, karantina_aylari=None)
+            sonra = pencere.pencere_degeri(bozuk, t, 30, config.BAR_4H, t_dahil=t_dahil, kume_baslangic=C2_BAS, islev="mean", donem_baslangic=None, karantina_aylari=None)
             assert (pd.isna(once) and pd.isna(sonra)) or once == sonra, f"{t} t_dahil={t_dahil}"
 
 
@@ -125,15 +123,7 @@ def test_donem_ve_kume_sinirindan_gec_olani_uygulanir(donem_bas, kume_bas):
     ilk_gecerli = sinir + 29 * DORT_SAAT
 
     def deger(t):
-        return pencere.pencere_degeri(
-            seri,
-            t,
-            30,
-            config.BAR_4H,
-            t_dahil=True,
-            donem_baslangic=pd.Timestamp(donem_bas, tz="UTC"),
-            kume_baslangic=pd.Timestamp(kume_bas, tz="UTC"),
-        )
+        return pencere.pencere_degeri(seri, t, 30, config.BAR_4H, t_dahil=True, donem_baslangic=pd.Timestamp(donem_bas, tz="UTC"), kume_baslangic=pd.Timestamp(kume_bas, tz="UTC"), karantina_aylari=None)
 
     assert not pd.isna(deger(ilk_gecerli))
     assert pd.isna(deger(ilk_gecerli - DORT_SAAT))
@@ -148,13 +138,29 @@ def test_c2_basinda_hacim_penceresi_kume_oncesine_uzanamaz():
 
     # Kume oncesi hacim tam ve esigin cok ustunde; kume siniri olmasa uygun olurdu.
     erken = C2_BAS + pd.Timedelta(days=10)
-    assert eligibility.uygun_mu(hacim, donem_bas, erken, config.BAR_4H, kume_baslangic=None) is True
-    assert eligibility.uygun_mu(hacim, donem_bas, erken, config.BAR_4H, kume_baslangic=C2_BAS) is False
+    assert eligibility.uygun_mu(hacim, erken, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=None, karantina_aylari=None) is True
+    assert eligibility.uygun_mu(hacim, erken, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=C2_BAS, donem_bitis=None, karantina_aylari=None) is False
 
     # Pencere t'nin gununu icermez: 30 gunluk pencere ilk kez kume basindan 30 gun sonra dolar.
     ilk_gun = C2_BAS + pd.Timedelta(days=30)
-    assert eligibility.uygun_mu(hacim, donem_bas, ilk_gun - pd.Timedelta(days=1), config.BAR_4H, kume_baslangic=C2_BAS) is False
-    assert eligibility.uygun_mu(hacim, donem_bas, ilk_gun, config.BAR_4H, kume_baslangic=C2_BAS) is True
+    assert eligibility.uygun_mu(hacim, ilk_gun - pd.Timedelta(days=1), config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=C2_BAS, donem_bitis=None, karantina_aylari=None) is False
+    assert eligibility.uygun_mu(hacim, ilk_gun, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=C2_BAS, donem_bitis=None, karantina_aylari=None) is True
+
+
+# --- Kume sinirini None ile kapatma yalnizca veri katmani ve F1 denetiminde ----
+
+
+def test_kume_siniri_none_yalnizca_izinli_dizinlerde():
+    """F1 kapanis bulgusu 4: `kume_baslangic` / `kume_bitis` bilincli `None`
+    alabilir, ama `None` kural(lar)i kapatir. Bu yalnizca kumeye ait olmayan
+    hesaplarda mesrudur: veri katmani, testler ve tum gecmisi olcen F1 denetimi.
+
+    events/, study/ ve diger analizler (F2 ve sonrasi) kume sinirini `None` ile
+    kapatirsa rev.4/rev.5 sessizce devre disi kalir; bu test onu yakalar.
+    """
+    from tarama_yardimcisi import KUME_NONE_DESENI, ihlaller
+
+    assert ihlaller(KUME_NONE_DESENI) == []
 
 
 # --- Gercek veri: C2'nin ilk bari, 180 barlik pencere -------------------------
@@ -216,11 +222,11 @@ def test_gercek_veride_c2_ilk_barinda_180_barlik_pencere_nan():
 
     # Kume siniri olmadan pencere bir deger uretirdi...
     assert not pd.isna(
-        pencere.pencere_degeri(hacim, t, 180, config.BAR_4H, t_dahil=False, kume_baslangic=None)
+        pencere.pencere_degeri(hacim, t, 180, config.BAR_4H, t_dahil=False, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
     )
     # ...C2 kume baslangiciyla NaN doner.
     assert pd.isna(
-        pencere.pencere_degeri(hacim, t, 180, config.BAR_4H, t_dahil=False, kume_baslangic=C2_BAS)
+        pencere.pencere_degeri(hacim, t, 180, config.BAR_4H, t_dahil=False, kume_baslangic=C2_BAS, donem_baslangic=None, karantina_aylari=None)
     )
 
 
@@ -229,5 +235,5 @@ def test_gercek_veride_c2_ilk_gununde_medyan_hacim_nan():
     gunluk = klines.gunluge_cevir(_gercek_4h())
     hacim = eligibility.gunluk_hacim_serisi(gunluk)
 
-    assert not pd.isna(eligibility.medyan_hacim(hacim, C2_BAS, kume_baslangic=None))
-    assert pd.isna(eligibility.medyan_hacim(hacim, C2_BAS, kume_baslangic=C2_BAS))
+    assert not pd.isna(eligibility.medyan_hacim(hacim, C2_BAS, kume_baslangic=None, donem_baslangic=None, karantina_aylari=None))
+    assert pd.isna(eligibility.medyan_hacim(hacim, C2_BAS, kume_baslangic=C2_BAS, donem_baslangic=None, karantina_aylari=None))

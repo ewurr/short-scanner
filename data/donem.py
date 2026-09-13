@@ -120,38 +120,8 @@ def donem_bul(t, donemler) -> int | None:
     return None
 
 
-def cikis_bar_indeksi(
-    bar_zamanlari,
-    giris_indeksi: int,
-    ufuk: int,
-    donem_bitis,
-    bar: str = config.BAR_4H,
-    karantina_aylari=(),
-) -> int:
-    """Ufuk sonundaki cikis barinin indeksi (on-kayit §2 rev.2 + rev.3).
-
-    Revizyon 3'ten beri mantik `data.pencere.cikis_bari` icindedir: ufuk zamanla
-    olculur, hedef bar eksikse sonraki ilk mevcut bara kayilir, donem sonu ve
-    delist ve karantina (rev.4) onceliklidir. Bu sarmalayici geriye donuk uyumluluk icindir ve
-    yalnizca indeksi doner; cikisin hangi fiyat alanindan (close / open)
-    okunacagini ogrenmek icin dogrudan `pencere.cikis_bari` kullanilmalidir.
-
-    Getiri HESAPLAMAZ.
-    """
-    from data import pencere as pencere_modulu
-
-    zamanlar = pd.DatetimeIndex(bar_zamanlari)
-    if len(zamanlar) == 0:
-        raise ValueError("Bar listesi bos.")
-    if not 0 <= giris_indeksi < len(zamanlar):
-        raise IndexError(f"Giris indeksi donem disinda: {giris_indeksi}")
-
-    sonuc = pencere_modulu.cikis_bari(
-        zamanlar,
-        giris_zamani=zamanlar[giris_indeksi],
-        ufuk=ufuk,
-        bar=bar,
-        donem_bitis=donem_bitis,
-        karantina_aylari=karantina_aylari,
-    )
-    return sonuc.indeks
+# Cikis bari secimi yalnizca `data.pencere.cikis_bari` icindedir. Eskiden burada
+# duran `cikis_bar_indeksi` sarmalayicisi F1 kapanis denetiminde (bulgu 1)
+# kaldirildi: `kume_bitis` iletmiyordu, `fiyat_alani` bilgisini kaybediyordu
+# (ileri kaymali cikista acilis yerine kapanis okunurdu) ve `bar=4h` varsayilani
+# vardi.

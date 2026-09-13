@@ -126,11 +126,11 @@ def test_kume_disina_tasan_ufuk_kirpilmaz_hata_verir():
     giris = t + DORT_SAAT
 
     # Kume bilgisi olmadan kod bunu delist sanip sessizce kirpardi (B1).
-    korumasiz = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H)
+    korumasiz = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, donem_bitis=None, karantina_aylari=None, kume_bitis=None)
     assert korumasiz.kirpildi and korumasiz.kirpma_nedeni == "seri_sonu"
 
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son)
+        pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None)
 
 
 def test_kume_disina_tasan_ufuk_sonraki_kumenin_verisini_okumaz():
@@ -140,7 +140,7 @@ def test_kume_disina_tasan_ufuk_sonraki_kumenin_verisini_okumaz():
     giris = pd.Timestamp("2025-08-29 16:00", tz="UTC")
 
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(tam, giris, 18, config.BAR_4H, kume_bitis=kume_son)
+        pencere.cikis_bari(tam, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None)
 
 
 def test_ileri_kayma_kume_sinirini_asamaz():
@@ -152,7 +152,7 @@ def test_ileri_kayma_kume_sinirini_asamaz():
     giris = son_bar - 17 * DORT_SAAT  # t+18 = son_bar
 
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(eksik, giris, 18, config.BAR_4H, kume_bitis=kume_son)
+        pencere.cikis_bari(eksik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None)
 
 
 def test_kumeye_sigan_ufuk_normal_cikar():
@@ -161,7 +161,7 @@ def test_kumeye_sigan_ufuk_normal_cikar():
     kesik = _izgara("2025-08-20", "2025-08-31 20:00")
     giris = son_bar - 17 * DORT_SAAT
 
-    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son)
+    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None)
 
     assert sonuc.zaman == son_bar
     assert sonuc.fiyat_alani == "close"
@@ -174,7 +174,7 @@ def test_kume_icinde_gercek_delist_kirpmasi_korunur():
     delist = _izgara("2023-05-01", "2023-05-10 12:00")
     giris = pd.Timestamp("2023-05-09 00:00", tz="UTC")
 
-    sonuc = pencere.cikis_bari(delist, giris, 18, config.BAR_4H, kume_bitis=kume_son)
+    sonuc = pencere.cikis_bari(delist, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None)
 
     assert sonuc.kirpildi and sonuc.kirpma_nedeni == "seri_sonu"
     assert sonuc.zaman == delist[-1]

@@ -186,9 +186,10 @@ def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
                 d_son = donemler[kimlik][1].to_timestamp(how="end").tz_localize("UTC")
                 # F1 denetimi tum gecmisi olcer, bir kumeye ait degildir: kume
                 # baslangici bilincli olarak None (on-kayit §3 rev.5 kume hesaplari icindir).
-                if not on_m and uyg.uygun_mu(hacim, d_bas, t, config.BAR_4H, karantina, d_son, kume_baslangic=None):
+                sinirlar = dict(donem_baslangic=d_bas, donem_bitis=d_son, karantina_aylari=karantina, kume_baslangic=None)
+                if not on_m and uyg.uygun_mu(hacim, t, config.BAR_4H, **sinirlar):
                     on_m = True
-                if not iki_m and uyg.uygun_mu(hacim, d_bas, t, config.BAR_1D, karantina, d_son, kume_baslangic=None):
+                if not iki_m and uyg.uygun_mu(hacim, t, config.BAR_1D, **sinirlar):
                     iki_m = True
                 if on_m and iki_m:
                     break
