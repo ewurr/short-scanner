@@ -239,12 +239,22 @@ def test_c2_basinda_giris_anindaki_odeme_kume_oncesi_kayit_okunmadan_haric():
 # --- Donem ve karantina ------------------------------------------------------
 
 
-def test_odeme_araligi_donem_sonunu_asarsa_nan():
+def test_donem_sonuna_kirpilmis_cikista_funding_hesaplanir():
+    """Donem sonu olayi dusurmez: donemin son barinin kapanisindaki odeme dahildir."""
     fund = _funding("2021-05-01", "2021-06-30")
+    _oran_ata(fund, "2021-06-01 00:00", 7e-4)
     donem_bitis = _ts("2021-05-31 23:59:59.999999999")
     giris = "2021-05-30 00:00"
-    assert pd.isna(_fon(fund, giris, _cikis("2021-05-31 20:00"), donem_bitis=donem_bitis))  # an 06-01 00:00
+    deger = _fon(fund, giris, _cikis("2021-05-31 20:00"), donem_bitis=donem_bitis)  # an 06-01 00:00
+    assert deger == pytest.approx(5e-4 + 7e-4)
     assert _fon(fund, giris, _cikis("2021-05-31 16:00"), donem_bitis=donem_bitis) == pytest.approx(5e-4)
+
+
+def test_donem_sonuna_kirpilmamis_cikis_reddedilir():
+    fund = _funding("2021-05-01", "2021-06-30")
+    donem_bitis = _ts("2021-05-31 23:59:59.999999999")
+    with pytest.raises(ValueError):
+        _fon(fund, "2021-05-30 00:00", _cikis("2021-06-01 00:00"), donem_bitis=donem_bitis)
 
 
 def test_giris_donem_basindan_onceyse_nan():
@@ -254,16 +264,55 @@ def test_giris_donem_basindan_onceyse_nan():
     assert not pd.isna(_fon(fund, "2021-02-01 00:00", _cikis("2021-02-01 12:00"), donem_baslangic=donem_bas))
 
 
-def test_karantina_ayina_dusen_cikis_odemesi_nan():
-    """Karantina oncesi son barin kapanisi karantina ayinin ilk anidir; o andaki
-    odeme karantina ayina duser (on-kayit §2: hicbir ufuk karantina ayina giremez)."""
+def test_karantina_oncesi_son_kapanista_biten_cikista_funding_hesaplanir():
+    """Karantina olayi dusurmez (kullanici karari, Revizyon 7'de yazilacak).
+
+    cikis_bari ufku karantinaya uzanan pozisyonu 2021-05-31 20:00 barinin
+    kapanisinda kirpar; cikis ani 06-01 00:00 karantina ayinin ilk anidir ve o
+    andaki odeme dahil edilir. Olay olusur.
+    """
+    zamanlar = pd.date_range("2021-05-25", periods=100, freq="4h", tz="UTC")
+    giris = _ts("2021-05-30 08:00")
+    cikis = pencere.cikis_bari(
+        zamanlar, giris, 18, config.BAR_4H,
+        birincil_ufuk=18, donem_bitis=None, karantina_aylari=["2021-06"], kume_bitis=None,
+    )
+    assert cikis.kirpma_nedeni == "karantina" and cikis.zaman == _ts("2021-05-31 20:00")
+    assert pencere.cikis_ani(cikis, config.BAR_4H) == _ts("2021-06-01 00:00")
+
     fund = _funding("2021-05-01", "2021-07-31")
-    giris = "2021-05-30 08:00"
-    son_bar = _cikis("2021-05-31 20:00")  # an 06-01 00:00
-    assert not pd.isna(_fon(fund, giris, son_bar))
-    assert pd.isna(_fon(fund, giris, son_bar, karantina_aylari=["2021-06"]))
-    assert not pd.isna(_fon(fund, giris, _cikis("2021-05-31 16:00"), karantina_aylari=["2021-06"]))
-    assert not pd.isna(_fon(fund, giris, son_bar, karantina_aylari=["2021-04", "2021-07"]))
+    _oran_ata(fund, "2021-06-01 00:00", 7e-4)
+    deger = funding.pozisyon_fundingi(
+        fund, giris, cikis, config.BAR_4H, **{**SINIRSIZ, "karantina_aylari": ["2021-06"]}
+    )
+    # 05-30 16:00, 05-31 00:00, 08:00, 16:00 ve 06-01 00:00
+    assert deger == pytest.approx(4e-4 + 7e-4)
+    assert deger == _fon(fund, "2021-05-30 08:00", cikis)  # karantina sonucu degistirmez
+
+
+def test_karantina_ayina_kirpilmamis_cikis_ve_karantinada_giris_reddedilir():
+    fund = _funding("2021-05-01", "2021-07-31")
+    with pytest.raises(ValueError):
+        _fon(fund, "2021-05-30 08:00", _cikis("2021-06-01 00:00"), karantina_aylari=["2021-06"])
+    with pytest.raises(ValueError):
+        _fon(fund, "2021-06-02 00:00", _cikis("2021-06-02 20:00"), karantina_aylari=["2021-06"])
+    assert not pd.isna(_fon(fund, "2021-05-30 08:00", _cikis("2021-06-01 00:00"), karantina_aylari=["2021-04", "2021-07"]))
+
+
+def test_cikis_bari_ile_kume_sonunda_biten_cikis_hata_verir():
+    """Kume siniri davranisi degismedi: cikis_bari kume icinde son bari verir,
+    ama o barin kapanisindaki odeme C2'ye duser -> olay olusmaz."""
+    son_bar = KESIF_SON.floor("4h")
+    zamanlar = pd.date_range(end=son_bar, periods=60, freq="4h")
+    giris = son_bar - 17 * DORT_SAAT
+    kume = dict(kume_baslangic=KESIF_BAS, kume_bitis=KESIF_SON)
+    cikis = pencere.cikis_bari(
+        zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=None, karantina_aylari=None, kume_bitis=KESIF_SON
+    )
+    assert cikis.zaman == son_bar and not cikis.kirpildi
+    fund = _funding("2025-08-20", "2025-08-31 23:00")
+    with pytest.raises(pencere.KumeSiniriHatasi):
+        funding.pozisyon_fundingi(fund, giris, cikis, config.BAR_4H, **{**SINIRSIZ, **kume})
 
 
 # --- Zorunluluk --------------------------------------------------------------

@@ -240,10 +240,14 @@ def pozisyon_fundingi(
         tarih araligi disina dusuyorsa olay o kumede olusmaz"; `cikis_bari` ile
         ayni istisna). Kontrol ZAMANLA yapilir, verinin kume sinirinda kesilmis
         olmasina dayanilmaz (rev.5).
-      - **Donem ve karantina.** Odeme araligi donem disina tasiyor ya da bir
-        karantina ayina dokunuyorsa NaN (olay olusmaz). Sinir anlarla olculur:
-        karantinadan onceki son barin kapanisi karantina ayinin ilk anidir ve o
-        andaki odeme karantina ayina duser.
+      - **Donem sonu ve karantina olayi dusurmez** (kullanici karari, Revizyon 7
+        olarak yazilacak). Karantina kurali yeniden fiyatlandirma sicramasinin
+        FIYATA bulasmasini onler; funding bir fiyat degildir. §4 karantina
+        oncesi son barin kapanisindaki cikisin olustugunu varsayar. Bu yuzden
+        kirpilmis cikis anindaki odeme (ör. karantina ayinin ilk anindaki 00:00
+        odemesi) normal toplanir. Kirpilmamis bir cikis (sinirdan onceki son
+        barin kapanisindan gec) ya da karantina ayindaki giris ValueError verir.
+        Donem baslangicindan once giris NaN.
       - **Tamlik.** Aralikta beklenen odemelerin tamami bulunmali; her kaydin
         `aralik_saat` degeri bir onceki odemeye kadar olan sureyi verir:
           * ilk odemeden onceki odeme (ilk - aralik) araliktan ONCE olmali,
@@ -258,7 +262,6 @@ def pozisyon_fundingi(
 
     Saf fonksiyon.
     """
-    from data import donem as donem_modulu
     from data import pencere as pencere_modulu
 
     giris = pencere_modulu.utc_zamani(giris_zamani, "giris_zamani")
@@ -287,13 +290,23 @@ def pozisyon_fundingi(
         )
     if donem_bas is not None and giris < donem_bas:
         return nan
-    if donem_son is not None and son_dahil > donem_son:
-        return nan
-    if karantina:
-        karantina_kumesi = {donem_modulu.ay_donemi(a) for a in karantina}
-        aylar = pd.period_range(giris.tz_localize(None), son_dahil.tz_localize(None), freq="M")
-        if any(ay in karantina_kumesi for ay in aylar):
-            return nan
+    # Donem sonu ve karantina olayi DUSURMEZ: cikis `cikis_bari` tarafindan bu
+    # sinirlara gore kirpilmistir ve kirpilmis cikis anina kadarki odemeler
+    # normal toplanir. Asagidaki kontroller yalnizca KIRPILMAMIS bir cikisin
+    # verilmesini (programlama hatasi) reddeder: sinirdan onceki son barin
+    # kapanisindan daha gec bir cikis ani olamaz.
+    adim = pencere_modulu.adim(bar)
+    if donem_son is not None and son_an > donem_son + adim:
+        raise ValueError(
+            f"Cikis ani {son_an} donem sonunu ({donem_son}) asiyor; cikis donem sonuna "
+            "gore kirpilmamis (pencere.cikis_bari kullanilmali)."
+        )
+    karantina_siniri = pencere_modulu._karantina_siniri(giris, karantina)  # giris karantinadaysa ValueError
+    if karantina_siniri is not None and son_an > karantina_siniri + adim:
+        raise ValueError(
+            f"Cikis ani {son_an} karantina ayinin icinde; cikis karantinaya gore "
+            "kirpilmamis (pencere.cikis_bari kullanilmali)."
+        )
 
     zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], "pozisyon_fundingi")
     if len(zamanlar) > 1:
