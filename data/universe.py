@@ -1,7 +1,6 @@
-"""Tarihsel USDⓈ-M USDT perpetual evreni (on-kayit §2, revizyon 2).
+"""Tarihsel USDⓈ-M USDT perpetual evreni (on-kayit §2, rev.2 ve rev.7).
 
-Delist edilmis sozlesmeler dahildir; on-kayit §2 bunlari acikca evrene katar ve
-disarida kalmalarinin sonuclari kotumser yonde saptiracagini soyler.
+Delist edilmis sozlesmeler dahildir; on-kayit §2 bunlari acikca evrene katar.
 
 Kapsam (revizyon 2):
   - Yalnizca `contractType = PERPETUAL` olan USDT marjinli sozlesmeler.
@@ -10,11 +9,17 @@ Kapsam (revizyon 2):
   - exchangeInfo'da bulunmayan (delist) semboller elle siniflandirilmistir; bunlar
     icin haric karari yalnizca kesin listeden gelir.
 
-Bu modul bucket'taki dizin ve dosya ADLARINI ve herkese acik exchangeInfo uc
-noktasini kullanir. API anahtari kullanilmaz.
+Listeleme donemleri (revizyon 7): bar duzeyinde, mum hacminden turetilir
+(`data.donem.listeleme_donemleri`). Karantina kurali kaldirildi; bucket'taki
+`<SEMBOL>SETTLED` aylari yalnizca denetim sutunu olarak tutulur (`settled_aylari`).
+
+Bu modul bucket'taki dizin ve dosya ADLARINI, onbellekteki 4h mumlari ve herkese
+acik exchangeInfo uc noktasini kullanir. API anahtari kullanilmaz.
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 import pandas as pd
 import requests
@@ -88,15 +93,15 @@ def exchange_info_siniflari() -> dict[str, tuple[str, str]]:
     }
 
 
-# --- Karantina ---------------------------------------------------------------
+# --- SETTLED aylari (yalnizca denetim, on-kayit §2 rev.7) ---------------------
 
 
-def karantina_haritasi(sembol_dizinleri: list[str]) -> dict[str, list[str]]:
-    """`<SEMBOL>SETTLED` dizinlerinden sembol basina karantina ayi adaylari.
+def settled_aylari_haritasi(sembol_dizinleri: list[str]) -> dict[str, list[str]]:
+    """`<SEMBOL>SETTLED` dizinlerindeki 4h dosya aylari, sembol basina.
 
-    Ay listesi dosya adlarindan gelir. Sembolun ilk/son ayina gore kirpma
-    `karantina_kirp` ile yapilir (on-kayit rev.2: yalnizca ilk ile son ay
-    ARASINDA kalan aylar karantinadir).
+    Rev.7: SETTLED bilgisi hicbir kurala girmez; evren tablosunda denetim
+    sutunudur. F1 olcumu SETTLED aylarinin yeniden listeleme aylari oldugunu
+    gostermistir.
     """
     harita: dict[str, list[str]] = {}
     for dizin in sembol_dizinleri:
@@ -112,29 +117,40 @@ def karantina_haritasi(sembol_dizinleri: list[str]) -> dict[str, list[str]]:
     return {k: sorted(set(v)) for k, v in harita.items()}
 
 
-def karantina_kirp(karantina_aylari, ilk_ay: str, son_ay: str) -> list[str]:
-    """Yalnizca sembolun ilk ile son ayi arasinda kalan karantina aylari. Saf."""
+def settled_kirp(settled_aylari, ilk_ay: str, son_ay: str) -> list[str]:
+    """Yalnizca sembolun ilk ile son ayi arasinda kalan SETTLED aylari. Saf."""
     bas, bit = pd.Period(ilk_ay, freq="M"), pd.Period(son_ay, freq="M")
-    return sorted(
-        str(p) for p in {pd.Period(a, freq="M") for a in karantina_aylari} if bas <= p <= bit
-    )
+    return sorted(str(p) for p in {pd.Period(a, freq="M") for a in settled_aylari} if bas <= p <= bit)
 
 
 # --- Evren kurma -------------------------------------------------------------
 
 
-def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
-    """Bucket ve exchangeInfo'dan evren tablosunu kurar (ag kullanir).
+def sembol_satirlari(ortak: dict, zamanlar, hacim) -> list[dict]:
+    """Bir sembolun evren satirlari: her listeleme donemi icin bir satir. Saf.
 
-    Her satir bir (sembol, listeleme donemi) ciftidir. Sutunlar:
-      sembol, ilk_ay, son_ay, dosya_sayisi_4h, funding_dosya_sayisi,
-      sozlesme_tipi, dayanak_tipi, karantina_aylari, haric, haric_gerekce,
-      donem_id, donem_bas_ay, donem_son_ay, donem_baslangic, donem_bitis
+    `ortak`: sembol duzeyindeki sutunlar (sembol, ilk_ay, son_ay, ...). Donemi
+    olmayan sembol (tum barlari dolgu) `donem_id = -1` ile tek satirdir.
     """
+    donemler = donem_modulu.listeleme_donemleri(zamanlar, hacim, config.BAR_4H)
+    if not donemler:
+        return [{**ortak, "donem_id": -1, "donem_baslangic": pd.NaT, "donem_bitis": pd.NaT,
+                 "donem_bar_sayisi": 0, "donem_gercek_bar_sayisi": 0}]
+    return [{**ortak, **d} for d in donem_modulu.donem_sinirlari(donemler).to_dict("records")]
+
+
+def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
+    """Bucket, onbellekteki 4h mumlar ve exchangeInfo'dan evren tablosunu kurar (ag kullanir).
+
+    Her satir bir (sembol, listeleme donemi) ciftidir. Sutunlar `CSV_SUTUNLARI`;
+    donem sinirlari zaman damgasidir.
+    """
+    from data import klines  # klines, split uzerinden bu modulu dolayli import edebilir
+
     dizinler = bv.tum_sembol_dizinleri()
     adaylar = usdt_perpetual_adaylari(dizinler)
     siniflar = exchange_info_siniflari()
-    karantina = karantina_haritasi(dizinler)
+    settled = settled_aylari_haritasi(dizinler)
 
     satirlar = []
     for sembol in adaylar:
@@ -147,12 +163,8 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
         gerekce = haric_gerekce(sembol, sozlesme_tipi, dayanak_tipi)
         if not gerekce and haric_mi(sembol, haric_liste):
             gerekce = "kesin haric listesi (on-kayit rev.2)"
-        dis = bool(gerekce)
 
-        kar = karantina_kirp(karantina.get(sembol, []), aylar[0], aylar[-1])
-        donemler = donem_modulu.listeleme_donemleri(aylar, kar)
-        sinirlar = donem_modulu.donem_sinirlari(donemler)
-
+        mumlar = klines.ham_mumlari_yukle(sembol, config.BAR_4H)
         ortak = {
             "sembol": sembol,
             "ilk_ay": aylar[0],
@@ -161,24 +173,11 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
             "funding_dosya_sayisi": len(bv.funding_dosyalari(sembol)),
             "sozlesme_tipi": sozlesme_tipi,
             "dayanak_tipi": dayanak_tipi,
-            "karantina_aylari": ",".join(kar),
-            "haric": dis,
+            "settled_aylari": ",".join(settled_kirp(settled.get(sembol, []), aylar[0], aylar[-1])),
+            "haric": bool(gerekce),
             "haric_gerekce": gerekce,
         }
-        if sinirlar.empty:  # tum aylari karantinaya dusen sembol
-            satirlar.append(
-                {
-                    **ortak,
-                    "donem_id": -1,
-                    "donem_bas_ay": "",
-                    "donem_son_ay": "",
-                    "donem_baslangic": pd.NaT,
-                    "donem_bitis": pd.NaT,
-                }
-            )
-        else:
-            for _, d in sinirlar.iterrows():
-                satirlar.append({**ortak, **d.to_dict()})
+        satirlar.extend(sembol_satirlari(ortak, pd.DatetimeIndex(mumlar["open_time"]), mumlar["quote_volume"]))
 
     return pd.DataFrame(satirlar).sort_values(["sembol", "donem_id"], ignore_index=True)
 
@@ -201,9 +200,10 @@ def evren_turet(yenile: bool = False, haric_liste: frozenset[str] | None = None)
     return evren
 
 
-# --- Sabit evren tablosu (on-kayit §2 rev.4) ---------------------------------
+# --- Sabit evren tablosu (on-kayit §2 rev.4, rev.7) ---------------------------
 
-# CSV'ye zaman damgasi yazilmaz; donem sinirlari aylardan deterministik kurulur.
+# Rev.7: donem sinirlari bar duzeyindedir ve CSV'de ISO 8601 UTC zaman damgasi
+# ("2021-01-05T08:00:00Z") olarak yazilir; deterministiktir.
 CSV_SUTUNLARI = [
     "sembol",
     "ilk_ay",
@@ -212,12 +212,14 @@ CSV_SUTUNLARI = [
     "funding_dosya_sayisi",
     "sozlesme_tipi",
     "dayanak_tipi",
-    "karantina_aylari",
+    "settled_aylari",
     "haric",
     "haric_gerekce",
     "donem_id",
-    "donem_bas_ay",
-    "donem_son_ay",
+    "donem_baslangic",
+    "donem_bitis",
+    "donem_bar_sayisi",
+    "donem_gercek_bar_sayisi",
 ]
 _METIN_SUTUNLARI = (
     "sembol",
@@ -225,48 +227,40 @@ _METIN_SUTUNLARI = (
     "son_ay",
     "sozlesme_tipi",
     "dayanak_tipi",
-    "karantina_aylari",
+    "settled_aylari",
     "haric_gerekce",
-    "donem_bas_ay",
-    "donem_son_ay",
 )
+_ZAMAN_SUTUNLARI = ("donem_baslangic", "donem_bitis")
+_TAMSAYI_SUTUNLARI = ("dosya_sayisi_4h", "funding_dosya_sayisi", "donem_id", "donem_bar_sayisi", "donem_gercek_bar_sayisi")
+_ZAMAN_BICIMI = "%Y-%m-%dT%H:%M:%SZ"
 
 
 class EvrenUyusmazligi(ValueError):
     """Commit edilmis evren tablosu onbellekteki turetilmis evrenle uyusmuyor."""
 
 
-def _csv_bicimine(evren: pd.DataFrame) -> pd.DataFrame:
-    """Evreni CSV'nin tuttugu sutun ve tiplere indirger; deterministik sira."""
+def _normallestir(evren: pd.DataFrame) -> pd.DataFrame:
+    """Evreni CSV'nin tuttugu sutun ve tiplere indirger (zamanlar UTC); deterministik sira."""
     tablo = evren.loc[:, CSV_SUTUNLARI].copy()
     for sutun in _METIN_SUTUNLARI:
         tablo[sutun] = tablo[sutun].fillna("").astype(str)
     tablo["haric"] = tablo["haric"].astype(bool)
-    for sutun in ("dosya_sayisi_4h", "funding_dosya_sayisi", "donem_id"):
+    for sutun in _TAMSAYI_SUTUNLARI:
         tablo[sutun] = tablo[sutun].astype("int64")
+    for sutun in _ZAMAN_SUTUNLARI:
+        tablo[sutun] = pd.to_datetime(tablo[sutun].replace("", pd.NaT), utc=True)
     return tablo.sort_values(["sembol", "donem_id"], ignore_index=True)
 
 
-def _donem_zamanlarini_kur(tablo: pd.DataFrame) -> pd.DataFrame:
-    """donem_bas_ay / donem_son_ay'dan UTC donem sinirlarini kurar (donem_sinirlari ile ayni)."""
-    sonuc = tablo.copy()
-    baslangic, bitis = [], []
-    for bas_ay, son_ay, kimlik in zip(sonuc["donem_bas_ay"], sonuc["donem_son_ay"], sonuc["donem_id"]):
-        if kimlik < 0 or not bas_ay:
-            baslangic.append(pd.NaT)
-            bitis.append(pd.NaT)
-            continue
-        baslangic.append(pd.Period(bas_ay, freq="M").to_timestamp(how="start").tz_localize("UTC"))
-        bitis.append(pd.Period(son_ay, freq="M").to_timestamp(how="end").tz_localize("UTC"))
-    sonuc["donem_baslangic"] = pd.to_datetime(pd.Series(baslangic, index=sonuc.index), utc=True)
-    sonuc["donem_bitis"] = pd.to_datetime(pd.Series(bitis, index=sonuc.index), utc=True)
-    return sonuc
+def _csv_bicimine(evren: pd.DataFrame) -> pd.DataFrame:
+    tablo = _normallestir(evren)
+    for sutun in _ZAMAN_SUTUNLARI:
+        tablo[sutun] = tablo[sutun].dt.strftime(_ZAMAN_BICIMI).fillna("")
+    return tablo
 
 
 def evren_csv_yaz(evren: pd.DataFrame, yol=None):
     """`data/universe.csv` dosyasini yazar. Dosya varsa uzerine yazmaz (split.csv gibi)."""
-    from pathlib import Path
-
     hedef = config.UNIVERSE_CSV if yol is None else Path(yol)
     if hedef.exists():
         raise FileExistsError(
@@ -280,25 +274,26 @@ def evren_csv_yaz(evren: pd.DataFrame, yol=None):
 def evren_yukle(yol=None) -> pd.DataFrame:
     """Commit edilmis evren tablosunu okur (on-kayit §2 rev.4).
 
-    Ag ve onbellek kullanmaz; canli exchangeInfo'dan yeniden turetmez. Donen
-    cerceve `evren_kur` ile ayni sutunlara sahiptir (donem sinirlari dahil).
+    Ag ve onbellek kullanmaz; canli exchangeInfo'dan yeniden turetmez. Donem
+    sinirlari UTC zaman damgasi olarak doner.
     """
-    from pathlib import Path
-
     hedef = config.UNIVERSE_CSV if yol is None else Path(yol)
     if not hedef.exists():
         raise FileNotFoundError(f"{hedef} yok. Once evren tablosu uretilip commit edilmeli.")
     tablo = pd.read_csv(
         hedef,
-        dtype={sutun: str for sutun in _METIN_SUTUNLARI},
+        dtype={sutun: str for sutun in (*_METIN_SUTUNLARI, *_ZAMAN_SUTUNLARI)},
         keep_default_na=False,
         encoding="utf-8",
     )
+    eksik = [s for s in CSV_SUTUNLARI if s not in tablo.columns]
+    if eksik:
+        raise ValueError(f"{hedef}: rev.7 evren tablosu bicimi degil; eksik sutunlar: {eksik}")
     haric = tablo["haric"].astype(str).map({"True": True, "False": False})
     if haric.isna().any():
         raise ValueError(f"{hedef}: 'haric' sutununda True/False disi deger var.")
     tablo["haric"] = haric.astype(bool)
-    return _donem_zamanlarini_kur(_csv_bicimine(tablo))
+    return _normallestir(tablo)
 
 
 def evren_onbellekle_dogrula(yol=None, onbellek=None) -> None:
@@ -312,18 +307,16 @@ def evren_onbellekle_dogrula(yol=None, onbellek=None) -> None:
         onbellek = bv.onbellekten_oku(bv.onbellek_yolu(ONBELLEK_ADI))
         if onbellek is None:
             raise FileNotFoundError("Onbellekte evren yok; karsilastirma yapilamaz.")
-    beklenen = _donem_zamanlarini_kur(_csv_bicimine(onbellek))
+    try:
+        beklenen = _normallestir(onbellek)
+    except KeyError as hata:
+        raise EvrenUyusmazligi(f"Onbellekteki evren rev.7 bicimi degil: {hata}") from None
     try:
         pd.testing.assert_frame_equal(
             csv_evren.reset_index(drop=True), beklenen.reset_index(drop=True), check_dtype=False
         )
     except AssertionError as hata:
         raise EvrenUyusmazligi(f"Evren tablosu onbellekle uyusmuyor: {hata}") from None
-    # Donem sinirlari aylardan kuruldu; onbellekteki zaman damgalariyla da ayni olmali.
-    onb = onbellek.sort_values(["sembol", "donem_id"], ignore_index=True)
-    for sutun in ("donem_baslangic", "donem_bitis"):
-        if not csv_evren[sutun].equals(pd.to_datetime(onb[sutun], utc=True)):
-            raise EvrenUyusmazligi(f"'{sutun}' onbellekteki zaman damgalariyla uyusmuyor.")
 
 
 def dahil_semboller(evren: pd.DataFrame) -> list[str]:
@@ -331,19 +324,21 @@ def dahil_semboller(evren: pd.DataFrame) -> list[str]:
     return sorted(evren.loc[~evren["haric"], "sembol"].unique().tolist())
 
 
-def sembol_donemleri(evren: pd.DataFrame, sembol: str) -> list[tuple[pd.Period, pd.Period]]:
-    """Bir sembolun listeleme donemleri, `donem` modulunun bekledigi bicimde."""
-    satirlar = evren.loc[(evren["sembol"] == sembol) & (evren["donem_id"] >= 0)]
+def sembol_donemleri(evren: pd.DataFrame, sembol: str) -> list[donem_modulu.Donem]:
+    """Bir sembolun listeleme donemleri (bar duzeyinde, on-kayit §2 rev.7)."""
+    satirlar = evren.loc[(evren["sembol"] == sembol) & (evren["donem_id"] >= 0)].sort_values("donem_id")
     return [
-        (pd.Period(r["donem_bas_ay"], freq="M"), pd.Period(r["donem_son_ay"], freq="M"))
-        for _, r in satirlar.sort_values("donem_id").iterrows()
+        donem_modulu.Donem(
+            pd.Timestamp(r["donem_baslangic"]), pd.Timestamp(r["donem_bitis"]),
+            int(r["donem_bar_sayisi"]), int(r["donem_gercek_bar_sayisi"]),
+        )
+        for _, r in satirlar.iterrows()
     ]
 
 
-def karantina_listesi(evren: pd.DataFrame, sembol: str) -> list[str]:
-    """Bir sembolun karantina aylari."""
-    satirlar = evren.loc[evren["sembol"] == sembol, "karantina_aylari"]
+def settled_listesi(evren: pd.DataFrame, sembol: str) -> list[str]:
+    """Bir sembolun SETTLED aylari (yalnizca denetim; hicbir kurala girmez)."""
+    satirlar = evren.loc[evren["sembol"] == sembol, "settled_aylari"]
     if satirlar.empty:
         return []
-    metin = satirlar.iloc[0]
-    return [a for a in str(metin).split(",") if a]
+    return [a for a in str(satirlar.iloc[0]).split(",") if a]

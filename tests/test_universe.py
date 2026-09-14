@@ -67,7 +67,7 @@ def test_on_kayit_haric_listesi_config_ile_ayni():
     assert "DEFIUSDT" in config.HARIC_SEMBOLLER
 
 
-# --- Kapsam netlestirmesi ve karantina (on-kayit rev.2) ----------------------
+# --- Kapsam netlestirmesi ve SETTLED denetimi (on-kayit rev.2, rev.7) --------
 
 
 def test_tradifi_kapsam_disi():
@@ -99,12 +99,13 @@ def test_usdcusdt_haric():
     assert universe.haric_gerekce("USDCUSDT", config.PERPETUAL_TIPI, "COIN") != ""
 
 
-def test_karantina_kirpma_sembol_donemine_gore():
-    """Sembolun ilk/son ayi disindaki SETTLED kayitlari karantina degildir."""
+def test_settled_kirpma_sembol_donemine_gore():
+    """Sembolun ilk/son ayi disindaki SETTLED kayitlari denetim sutununa girmez.
+
+    Rev.7: SETTLED aylari yalnizca denetim bilgisidir, hicbir kurala girmez."""
     aylar = ["2024-05", "2025-04", "2026-07"]
-    kirpik = universe.karantina_kirp(aylar, "2024-09", "2026-06")
-    assert kirpik == ["2025-04"]
+    assert universe.settled_kirp(aylar, "2024-09", "2026-06") == ["2025-04"]
 
 
-def test_karantina_kirpma_bos_liste():
-    assert universe.karantina_kirp([], "2024-01", "2025-01") == []
+def test_settled_kirpma_bos_liste():
+    assert universe.settled_kirp([], "2024-01", "2025-01") == []

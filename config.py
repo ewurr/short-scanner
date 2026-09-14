@@ -17,7 +17,7 @@ VERI_DIZINI = KOK / "data"
 ONBELLEK_DIZINI = KOK / "cache"
 ANALIZ_DIZINI = KOK / "analysis"
 SPLIT_CSV = VERI_DIZINI / "split.csv"
-# Karantina aylari ve listeleme donemleri; split.csv gibi sabit (on-kayit §2 rev.4).
+# Listeleme donemleri; split.csv gibi sabit (on-kayit §2 rev.4, rev.7).
 UNIVERSE_CSV = VERI_DIZINI / "universe.csv"
 ONAY_KAYDI = KOK / "ONAY_KAYDI.md"
 
@@ -72,10 +72,17 @@ YENIDEN_ADLANDIRMA: dict[str, str] = {
 
 # --- Listeleme donemi (on-kayit §2, revizyon 2) ------------------------------
 
-# Aylik 4h dosyalari arasinda bundan UZUN bosluk donemi boler.
-AZAMI_BOSLUK_AY = 3
+# On-kayit §2 rev.7 "Listeleme donemi": bu kadar ya da daha fazla ardisik sifir
+# hacimli bar (bir gun) dolgu kosusudur ve donemi boler.
+DOLGU_KOSU_ESIGI_BAR = 6
 
-# Bucket'ta <SEMBOL>SETTLED dizini karantina ayini isaretler.
+# On-kayit §2 rev.7: bu sureden UZUN eksik bar boslugu donemi boler. Bosluk,
+# ardisik iki mevcut bar arasindaki EKSIK sure olarak olculur
+# (sonraki acilis - onceki acilis - bar adimi). Kisa bosluklar borsa kesintisidir.
+AZAMI_EKSIK_BAR_BOSLUGU = dt.timedelta(days=7)
+
+# Bucket'ta <SEMBOL>SETTLED dizini. On-kayit §2 rev.7: yalnizca denetim bilgisidir,
+# hicbir kurala girmez (karantina kurali kaldirildi).
 SETTLED_SONEKI = "SETTLED"
 
 # --- Veri butunlugu kontrolu (on-kayit §2, revizyon 2) -----------------------

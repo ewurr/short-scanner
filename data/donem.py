@@ -1,120 +1,172 @@
-"""Listeleme donemi mantigi (on-kayit §2, revizyon 2).
+"""Listeleme donemi mantigi (on-kayit §2 rev.7).
 
-Bir sembolun verisi bir veya daha fazla **listeleme donemine** ayrilir. Donemi
-bolen iki olay vardir:
+On-kayit §2 rev.7 "Listeleme donemi":
+  - Donem, sifir olmayan hacimli ilk barda baslar ve sifir olmayan hacimli son
+    barda biter. Sinir BAR duzeyindedir, ay duzeyinde degil.
+  - 6 veya daha fazla ardisik sifir hacimli bar (bir gun) donemi boler. Bu barlar
+    delist edilmis ya da henuz yeniden listelenmemis bir sozlesmenin dolgu
+    verisidir ve hicbir hesaba girmez.
+  - 7 gunden uzun eksik bar boslugu donemi boler. Bundan kisa bosluklar borsa
+    kesintisi sayilir ve rev.3'un veri boslugu kurallarina tabidir.
+  - Yeniden adlandirma zincirindeki her sembol ayri bir donemdir (sembol basina
+    ayri seri; burada birlestirme yapilmaz).
+  - Listeleme yasi her donem basinda sifirlanir; geriye bakis pencereleri donem
+    baslangicini asamaz; ufuk donem sonunu asarsa cikis donemin son barinin
+    kapanisidir (data/pencere.py, data/eligibility.py).
 
-  1. **Karantina ayi.** Bucket'ta `<SEMBOL>SETTLED` dizininde dosyasi bulunan ve
-     sembolun ilk ile son ayi arasinda kalan her ay. Sozlesme yerinde kapatilip
-     yeniden acilmis demektir; token yeniden fiyatlandirmasi fiyat serisinde
-     yapay bir sicrama birakir.
-  2. **3 aydan uzun dosya boslugu.**
+Karantina (SETTLED ayi) kurali rev.7 ile kaldirildi; bu modulde karantina yoktur.
 
-Donem kurallari (on-kayit §2, revizyon 2):
-  - Listeleme yasi her donem basinda sifirlanir.
-  - Tum geriye bakis pencereleri donem baslangicini asamaz; asiyorsa deger
-    hesaplanmaz (NaN) ve o barda olay olusmaz.
-  - Ufuk donem sonunu asarsa cikis, donemin son barinin kapanisidir.
-  - Karantina ayindaki barlar olay veya kontrol bari olamaz.
-  - Ayni kurallar K1 ve K2 kontrol barlarina da uygulanir.
+Sinir temsili: `baslangic` ilk gercek barin, `bitis` son gercek barin ACILIS
+zamanidir (CLAUDE.md §5: bar zamani acilis zamanidir). `pencere.cikis_bari`
+acilisi `donem_bitis`e esit ya da ondan once olan barlari donem icinde sayar.
 
 Bu modul tamamen saftir: ag veya disk kullanmaz.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 
 import config
+from data import pencere as pencere_modulu
 
 
-def ay_donemi(deger) -> pd.Period:
-    """Ay degerini ("2025-12", Period ya da zaman damgasi) aylik pd.Period'a cevirir.
+@dataclass(frozen=True)
+class Donem:
+    """Bir listeleme donemi (on-kayit §2 rev.7)."""
 
-    Acik (alt cizgisiz) bir fonksiyondur: data/pencere.py karantina kontrollerinde
-    kullanir.
-    """
-    return deger if isinstance(deger, pd.Period) else pd.Period(str(deger), freq="M")
+    baslangic: pd.Timestamp  # sifir olmayan hacimli ilk barin acilisi
+    bitis: pd.Timestamp  # sifir olmayan hacimli son barin acilisi
+    bar_sayisi: int  # baslangic..bitis arasindaki mevcut bar sayisi
+    gercek_bar_sayisi: int  # bunlardan sifir olmayan hacimli olanlar
 
 
-def listeleme_donemleri(
-    mevcut_aylar,
-    karantina_aylari=(),
-    azami_bosluk: int = config.AZAMI_BOSLUK_AY,
-) -> list[tuple[pd.Period, pd.Period]]:
-    """Ay listesinden listeleme donemlerini cikarir.
+@dataclass(frozen=True)
+class DolguKosusu:
+    """Donemi bolen (ya da serinin basinda/sonunda kalan) sifir hacimli bar kosusu."""
 
-    `mevcut_aylar`: sembolun 4h dosyasi bulunan aylar.
-    `karantina_aylari`: SETTLED isaretli aylar; bunlar donemi boler ve hicbir
-    donemin icinde yer almaz.
+    baslangic: pd.Timestamp
+    bitis: pd.Timestamp
+    bar_sayisi: int
+    konum: str  # "bas", "ic" ya da "son"
 
-    Doner: [(baslangic_ayi, bitis_ayi), ...] ay sirasinda.
-    """
-    aylar = sorted({ay_donemi(a) for a in mevcut_aylar})
-    karantina = {ay_donemi(a) for a in karantina_aylari}
 
-    donemler: list[tuple[pd.Period, pd.Period]] = []
-    su_anki: list[pd.Period] = []
-    onceki: pd.Period | None = None
+def gercek_bar_maskesi(hacim) -> np.ndarray:
+    """Sifir olmayan hacimli barlar. NaN hacim gercek islem sayilmaz (ihtiyatli)."""
+    degerler = pd.to_numeric(pd.Series(np.asarray(hacim)), errors="coerce").to_numpy(dtype=float)
+    return np.nan_to_num(degerler, nan=0.0) > 0
 
-    for ay in aylar:
-        if ay in karantina:
-            if su_anki:
-                donemler.append((su_anki[0], su_anki[-1]))
-                su_anki = []
-            onceki = ay
+
+def _kosular(sifir: np.ndarray) -> list[tuple[int, int]]:
+    """Ardisik True kosularinin [bas, son] indeksleri (son dahil)."""
+    degisim = np.flatnonzero(np.diff(np.r_[0, sifir.astype(np.int8), 0]))
+    return [(int(b), int(e) - 1) for b, e in zip(degisim[::2], degisim[1::2])]
+
+
+def _hazirla(zamanlar, hacim, bar: str):
+    indeks = pencere_modulu._zaman_dizisi_dogrula(zamanlar, "listeleme_donemleri")
+    if len(indeks) != len(np.asarray(hacim)):
+        raise ValueError("zamanlar ve hacim ayni uzunlukta olmali.")
+    adim = pencere_modulu.adim(bar)
+    return indeks, gercek_bar_maskesi(hacim), adim
+
+
+def dolgu_kosulari(zamanlar, hacim, bar: str) -> list[DolguKosusu]:
+    """Esigi (`config.DOLGU_KOSU_ESIGI_BAR`) gecen sifir hacim kosulari (denetim)."""
+    indeks, gercek, _ = _hazirla(zamanlar, hacim, bar)
+    sonuc = []
+    for b, e in _kosular(~gercek):
+        n = e - b + 1
+        if n < config.DOLGU_KOSU_ESIGI_BAR:
             continue
-        if onceki is not None and (ay - onceki).n - 1 > azami_bosluk:
-            if su_anki:
-                donemler.append((su_anki[0], su_anki[-1]))
-                su_anki = []
-        su_anki.append(ay)
-        onceki = ay
+        konum = "bas" if b == 0 else ("son" if e == len(indeks) - 1 else "ic")
+        sonuc.append(DolguKosusu(indeks[b], indeks[e], n, konum))
+    return sonuc
 
-    if su_anki:
-        donemler.append((su_anki[0], su_anki[-1]))
+
+def kisa_sifir_kosulari(zamanlar, hacim, bar: str) -> list[DolguKosusu]:
+    """Serinin ORTASINDA kalan, esikten kisa (1..esik-1 bar) sifir hacim kosulari.
+
+    F1 olcumu S2: evrende boyle bir kosu yoktu. Cikarsa bir likidite boslugunun
+    donemin parcasi sayildigini gosterir ve denetim testi uyarir.
+    """
+    indeks, gercek, _ = _hazirla(zamanlar, hacim, bar)
+    sonuc = []
+    for b, e in _kosular(~gercek):
+        n = e - b + 1
+        if n >= config.DOLGU_KOSU_ESIGI_BAR or b == 0 or e == len(indeks) - 1:
+            continue
+        sonuc.append(DolguKosusu(indeks[b], indeks[e], n, "ic"))
+    return sonuc
+
+
+def listeleme_donemleri(zamanlar, hacim, bar: str) -> list[Donem]:
+    """Bar serisinden listeleme donemleri (on-kayit §2 rev.7). Saf fonksiyon.
+
+    `zamanlar`: kesin artan, tekrarsiz, UTC bar acilis zamanlari.
+    `hacim`: ayni uzunlukta hacim dizisi (quote_volume).
+    """
+    indeks, gercek, adim = _hazirla(zamanlar, hacim, bar)
+    n = len(indeks)
+    if n == 0:
+        return []
+
+    dolgu = np.zeros(n, dtype=bool)
+    for b, e in _kosular(~gercek):
+        if e - b + 1 >= config.DOLGU_KOSU_ESIGI_BAR:
+            dolgu[b:e + 1] = True
+
+    # Ardisik iki mevcut bar arasindaki EKSIK sure: sonraki acilis - onceki acilis - adim.
+    eksik_sure = (indeks[1:] - indeks[:-1]) - adim
+    uzun_bosluk = np.r_[False, np.asarray(eksik_sure > pd.Timedelta(config.AZAMI_EKSIK_BAR_BOSLUGU), dtype=bool)]
+
+    parca = np.full(n, -1)
+    kimlik = -1
+    ayirici = True
+    for i in range(n):
+        if dolgu[i]:
+            ayirici = True
+            continue
+        if ayirici or uzun_bosluk[i]:
+            kimlik += 1
+            ayirici = False
+        parca[i] = kimlik
+
+    donemler = []
+    for k in range(kimlik + 1):
+        idx = np.flatnonzero(parca == k)
+        g = idx[gercek[idx]]
+        if len(g) == 0:
+            continue
+        ilk, son = int(g[0]), int(g[-1])
+        donemler.append(Donem(indeks[ilk], indeks[son], son - ilk + 1, int(gercek[ilk:son + 1].sum())))
     return donemler
 
 
-def donem_sinirlari(donemler) -> pd.DataFrame:
-    """Ay donemlerini UTC zaman damgasi sinirlarina cevirir.
-
-    Baslangic = ilk ayin ilk ani, bitis = son ayin son ani.
-    """
-    satirlar = []
-    for i, (bas, son) in enumerate(donemler):
-        satirlar.append(
+def donem_sinirlari(donemler: list[Donem]) -> pd.DataFrame:
+    """Donemleri tabloya cevirir: donem_id, donem_baslangic, donem_bitis (bar acilislari)."""
+    return pd.DataFrame(
+        [
             {
                 "donem_id": i,
-                "donem_bas_ay": str(bas),
-                "donem_son_ay": str(son),
-                "donem_baslangic": bas.to_timestamp(how="start").tz_localize("UTC"),
-                "donem_bitis": son.to_timestamp(how="end").tz_localize("UTC"),
+                "donem_baslangic": d.baslangic,
+                "donem_bitis": d.bitis,
+                "donem_bar_sayisi": d.bar_sayisi,
+                "donem_gercek_bar_sayisi": d.gercek_bar_sayisi,
             }
-        )
-    return pd.DataFrame(
-        satirlar,
-        columns=[
-            "donem_id",
-            "donem_bas_ay",
-            "donem_son_ay",
-            "donem_baslangic",
-            "donem_bitis",
+            for i, d in enumerate(donemler)
         ],
+        columns=["donem_id", "donem_baslangic", "donem_bitis", "donem_bar_sayisi", "donem_gercek_bar_sayisi"],
     )
 
 
-def donem_bul(t, donemler) -> int | None:
-    """t aninin dustugu donemin kimligi; hicbirine dusmuyorsa None."""
-    ay = pd.Period(pd.Timestamp(t), freq="M")
-    for i, (bas, son) in enumerate(donemler):
-        if bas <= ay <= son:
+def donem_bul(t, donemler: list[Donem]) -> int | None:
+    """t bar acilis aninin dustugu donemin sirasi; hicbirine dusmuyorsa None."""
+    zaman = pencere_modulu.utc_zamani(t, "t")
+    for i, d in enumerate(donemler):
+        if d.baslangic <= zaman <= d.bitis:
             return i
     return None
-
-
-# Cikis bari secimi yalnizca `data.pencere.cikis_bari` icindedir. Eskiden burada
-# duran `cikis_bar_indeksi` sarmalayicisi F1 kapanis denetiminde (bulgu 1)
-# kaldirildi: `kume_bitis` iletmiyordu, `fiyat_alani` bilgisini kaybediyordu
-# (ileri kaymali cikista acilis yerine kapanis okunurdu) ve `bar=4h` varsayilani
-# vardi.
