@@ -51,15 +51,14 @@ eksik (NaN) sayılır. Uygunluktaki günlük hacim bu seriden hesaplanır.
 - Ufuk dönem sonunu aşarsa çıkış fiyatı dönemin son barının kapanışıdır.
 - Aynı kurallar K1 ve K2 kontrol barlarına da uygulanır.
 
-**Karantina kuralının kaldırılması.** Rev.2'de getirilen SETTLED tabanlı karantina kuralı yürürlükten kalkmıştır. F1 ölçümü, SETTLED aylarının yeniden fiyatlandırma değil yeniden listeleme anlamına geldiğini; 34 karantina ayının 14'ünde ise ana seriyle birebir aynı, işlem gören temiz verinin gereksiz yere dışarıda bırakıldığını göstermiştir. Yukarıdaki dönem bölme kuralları aynı riski daha doğru kapsar. SETTLED bilgisi yalnızca denetim amacıyla tutulur.
+**Karantina kuralının kaldırılması.** Rev.2'de getirilen SETTLED tabanlı karantina kuralı yürürlükten kalkmıştır. F1 ölçümü, SETTLED aylarının yeniden fiyatlandırma değil yeniden listeleme anlamına geldiğini; 34 karantina ayının 14'ünde ise dolgu koşusu bulunmayan, işlem gören verinin gereksiz yere dışarıda bırakıldığını; incelenen iki örnek ayda SETTLED dosyalarının ana seriyle birebir aynı olduğunu göstermiştir. Yukarıdaki dönem bölme kuralları aynı riski daha doğru kapsar. SETTLED bilgisi yalnızca denetim amacıyla tutulur.
 
 **Funding'i bulunmayan dönemler.** Hiçbir funding kaydı bulunmayan listeleme dönemi, üç hipotezin hiçbirinde kullanılmaz; ne olay ne kontrol üretir. Gerekçe: net getiri funding içerir; funding'i olmayan dönem yalnızca H2'den çıkarılırsa brüt ve net olay kümeleri ayrışır ve K2 kontrol havuzu tutarsızlaşır. Funding sıfır varsayılmaz.
 
 **Gerçek işlem sonrası funding kayıtları.** Dönem sonundan sonra gelen funding kayıtları yok sayılır. F1 ölçümü, 38 sembolde uzlaşma sonrasında da funding kaydı yayınlandığını ve bu kayıtların bir ya da birkaç sabit orandan oluştuğunu göstermiştir.
 
 **Veri boşlukları.** Bar dizisinde eksik bar bulunabilir (F1 denetimi: 105 kayıt, 10 olay;
-en büyüğü 48 ve 49 sembolü aynı anda etkilemiştir). Aşağıdaki kurallar dönem kurallarına ek
-olarak uygulanır ve dönem bölmezler.
+en büyüğü 48 ve 49 sembolü aynı anda etkilemiştir). Aşağıdaki kurallar dönem kurallarına ek olarak uygulanır. 7 günden kısa boşluklar dönem bölmez; daha uzun boşluklar §2'deki listeleme dönemi kuralına göre dönemi böler.
 
 - **Pencereler zamanla tanımlanır.** "Son N bar" ifadesi son N × 4 saatlik zaman aralığı
   demektir (1 günlük seride N × 24 saat). Bar sayısıyla değil, zaman damgasıyla hesaplanır.
@@ -78,12 +77,10 @@ olarak uygulanır ve dönem bölmezler.
 KNCUSDT +%31,3, ikisi de 2022-03-01 00:00) 2022-02-26…28 arasındaki 18 barlık kesintinin
 ardından gelen ilk bardır. Fiyat kesinti sırasında hareket etmiştir. Kesinti üzerinden
 atlayan bir pencere sahte bir yükseliş, kesinti üzerinden geçen bir ufuk ise gerçekte
-alınamayacak bir çıkış fiyatı üretir. Bu iki kayıt karantinaya alınmaz; bu kural onları
-zaten dışarıda bırakır.
+alınamayacak bir çıkış fiyatı üretir. Bu kural o iki kaydı zaten dışarıda bırakır.
 
 **Veri bütünlüğü kontrolü.** F1 denetim raporu, `|open[t] / close[t-1] - 1| > 0.30` olan tüm
-barları sembol ve zamanla listeler. Karantina ile açıklanamayan kayıtlar, F2 başlamadan önce
-ayrı bir revizyonla karantinaya alınır ya da gerekçesiyle bırakılır.
+barları sembol ve zamanla listeler. Dönem bölme kurallarıyla açıklanamayan kayıtlar, F2 başlamadan önce ayrı bir revizyonla ele alınır.
 
 **Uygunluk (t anında, yalnızca t'ye kadarki veriyle):**
 - Listeleme yaşı ≥ 30 gün.
@@ -99,7 +96,7 @@ Delist edilen sözleşmelerin geçmişi elde edilemezse bu durum F1 denetim rapo
 sayısıyla yazılır ve sonuçlar "kötümser yanlılıklı" olarak etiketlenir.
 F1 ölçümünde evrende 128 sembolün `exchangeInfo` durumunun SETTLING olduğu, yani uzlaşmış sözleşmeler olduğu belirlenmiştir. `exchangeInfo`'da hiç bulunmayan 28 sembolle birlikte toplam yaklaşık 156 sembol delist edilmiştir. Bu sembollerin geçmişi eksiksiz mevcuttur ve dönem sonları gerçek işlem bitişine göre belirlenir; ancak "hayatta kalma yanlılığı yoktur" hükmü geri alınmıştır, çünkü ilk denetimde delist sayısı 28 olarak eksik saptanmıştı.
 
-**Evren tablosunun sabitlenmesi.** Karantina ayları ve listeleme dönemi sınırları
+**Evren tablosunun sabitlenmesi.** Listeleme dönemi sınırları
 `data/universe.csv` dosyasına yazılır ve commit edilir. Bu dosya `split.csv` gibi
 sabittir; analiz bu dosyadan okur, canlı exchangeInfo'dan yeniden türetmez.
 
@@ -137,7 +134,7 @@ olayın ufku C2 verisine uzanamaz.
 
 **Küme sınırı ve geriye bakış.** Geriye bakış pencereleri de kümenin tarih aralığına
 sığmalıdır. Penceresi küme başlangıcından önceki veriye uzanan barda olay ya da kontrol
-oluşmaz; pencere o veriyi ödünç almaz. Bu kural dönem ve karantina kurallarına ek olarak
+oluşmaz; pencere o veriyi ödünç almaz. Bu kural dönem kurallarına ek olarak
 uygulanır ve kod düzeyinde ayrıca doğrulanır — verinin küme sınırında kesilmiş olmasına
 dayanılmaz.
 
@@ -168,7 +165,7 @@ bar bu sınırdan uzaksa olay oluşmaz; kırpılmış getiri kullanılmaz.
 
 **Olayın kümede oluşma ölçütü.** Bir olayın kümede oluşup oluşmadığına tek bir karar noktası hükmeder ve ölçüt çıkış anına göre uygulanır: çıkış anı ile funding tolerans payı birlikte küme sonunu aşmamalıdır. Fiyat ve funding için ayrı ölçüt kullanılmaz.
 
-**Funding aralığı geçişleri.** Funding kayıtlarındaki aralık alanı bir sonraki ödemeye kalan süreyi gösterir. Tamlık kontrolü buna göre yapılır: iki ödeme arasındaki boşluk, iki kaydın aralıklarından büyüğünü ve tolerans payını aşarsa ödeme eksik sayılır. Bilinen sınır: aralık 1 saate düşüp yeniden 4 saate hizalanırken pencere kapanışına denk gelen kayıt hesaba giremez ve değer hesaplanmaz; bunu ayırt etmek geleceğe bakış gerektirir. F1 ölçümünde bu durum 888 geçişin 6'sında görülmüştür.
+**Funding aralığı geçişleri.** Funding kayıtlarındaki aralık alanı bir sonraki ödemeye kalan süreyi gösterir. Tamlık kontrolü buna göre yapılır: iki ödeme arasındaki boşluk, iki kaydın aralıklarından büyüğünü ve tolerans payını aşarsa ödeme eksik sayılır. Bilinen sınır: aralık 1 saate düşüp yeniden 4 saate hizalanırken pencere kapanışına denk gelen kayıt hesaba giremez ve değer hesaplanmaz; bunu ayırt etmek geleceğe bakış gerektirir. F1 ölçümünde bu durum, 4 saatten 1 saate geçişleri kapsayan 888 funding penceresinin 6'sında görülmüştür.
 
 | Hipotez | Birincil ufuk | İkincil ufuklar (yalnızca rapor) |
 |---|---|---|
