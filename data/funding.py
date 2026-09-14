@@ -118,6 +118,65 @@ def ham_funding_yukle(sembol: str, yenile: bool = False) -> pd.DataFrame:
 ODEME_TOLERANSI = pd.Timedelta(minutes=1)
 
 
+def _odemeler_tam_mi(funding: pd.DataFrame, zamanlar: pd.DatetimeIndex, maske, bas, son, taban) -> bool:
+    """Yari acik `[bas, son)` araligindaki beklenen odemelerin tamami var mi?
+    (on-kayit §2 rev.3 tamlik sarti; `funding_ortalamasi` ve `pozisyon_fundingi`
+    ortak kurali.)
+
+    `aralik_saat` (Binance `funding_interval_hours`) bir kayittan SONRAKI odemeye
+    kadar olan sureyi gosterir. F1 kapanis olcumu D1: 559 aralik gecisinin
+    556'sinda kayittan sonraki bosluk yeni araliga esit; onceki bosluk ise 365'inde
+    yeni, 96'sinda eski araliga esit, 98'inde hicbirine esit degil. Gecis kaydi
+    bazen eski, bazen yeni ritimde gelir. Bu yuzden iki ardisik odeme arasindaki
+    bosluk, iki kaydin araliklarindan BUYUGU + tolerans'i asarsa eksik odeme vardir.
+
+      - **Baslangic.** Araliktaki ilk odeme `bas`a 1 dakikadan yakinsa baslangic
+        tamdir. Degilse araliktan onceki son kayit bulunmali ve onunla ilk odeme
+        arasindaki bosluk kurala uymalidir; `taban`dan (kume ya da donem basi)
+        onceki kayitlar OKUNMAZ. Onceki kayit yoksa tamlik gosterilemez: False.
+      - **Ic.** Ardisik her iki odeme arasinda ayni kural.
+      - **Son.** Son odeme + kendi araligi `son`dan once olmamali. Sonraki kayit
+        okunmaz (sinyal anindan ya da kume sonundan sonraki veri olabilir).
+      - **Odemesiz aralik.** Onceki son kayit (taban sonrasi) + araligi `son`dan
+        once olmamali; onceki kayit yoksa False.
+      - Ilgili kayitlardan birinin araligi NaN ya da <= 0 ise False.
+
+    Bilinen sinir: tam bir aralik gecisine denk gelen ve boslugu iki araligin
+    buyugunu asmayan tek bir eksik odeme yakalanamaz.
+    """
+    aralik_tum = pd.to_numeric(funding["aralik_saat"], errors="coerce").to_numpy(dtype=float)
+    maske = np.asarray(maske, dtype=bool)
+    onceki_maske = np.asarray(zamanlar < bas, dtype=bool)
+    if taban is not None:
+        onceki_maske &= np.asarray(zamanlar >= taban, dtype=bool)
+    onceki = np.flatnonzero(onceki_maske)
+    ici = np.flatnonzero(maske)
+
+    if len(ici) == 0:
+        if len(onceki) == 0:
+            return False
+        k = int(onceki[-1])
+        a = aralik_tum[k]
+        return bool(a > 0) and not (zamanlar[k] + pd.Timedelta(hours=float(a)) < son)
+
+    if zamanlar[ici[0]] - bas < ODEME_TOLERANSI:
+        zincir = ici
+    elif len(onceki):
+        zincir = np.r_[onceki[-1], ici]
+    else:
+        return False
+    a = aralik_tum[zincir]
+    if np.isnan(a).any() or (a <= 0).any():
+        return False
+    z = zamanlar[zincir]
+    if len(zincir) > 1:
+        bosluk = z[1:] - z[:-1]
+        izin = pd.to_timedelta(np.maximum(a[1:], a[:-1]), unit="h") + ODEME_TOLERANSI
+        if (bosluk > izin).any():
+            return False
+    return not (z[-1] + pd.Timedelta(hours=float(a[-1])) < son)
+
+
 def funding_ortalamasi(
     funding: pd.DataFrame,
     t,
@@ -140,11 +199,10 @@ def funding_ortalamasi(
       - **Donem ve kume.** Pencere donem ya da kume baslangicini asarsa NaN
         (on-kayit §2 rev.2, §3 rev.5); kume oncesi odeme seride bulunsa bile.
       - **Karantina.** Pencerenin dokundugu aylardan biri karantinadaysa NaN.
-      - **Tamlik.** Penceredeki odemeler boslugsuz olmali; her kaydin
-        `aralik_saat` degeri bir onceki odemeye kadar olan sureyi verir:
-          * ilk odemeden onceki odeme (ilk - aralik) pencereden ONCE olmali,
-          * ardisik iki odeme arasinda aralik + tolerans'tan uzun bosluk olmamali,
-          * son odemeden sonraki odeme (son + aralik) kapanistan once olmamali.
+      - **Tamlik.** Penceredeki odemeler boslugsuz olmali (`_odemeler_tam_mi`:
+        `aralik_saat` SONRAKI odemeye kalan suredir; ardisik iki odeme arasindaki
+        bosluk iki kaydin araliklarindan buyugunu asamaz; pencere oncesindeki
+        kayit kume/donem basindan once olamaz; kapanistan sonraki kayit okunmaz).
         Eksik odeme, NaN oran ya da NaN aralik -> NaN. Bir dakikadan yakin iki
         kayit bozuk veridir -> ZamanDizisiHatasi.
 
@@ -195,14 +253,9 @@ def funding_ortalamasi(
     if oran.isna().any() or aralik.isna().any() or (aralik <= 0).any():
         return nan
 
-    odemeler = zamanlar[maske]
-    araliklar = pd.to_timedelta(aralik.to_numpy(), unit="h")
-    if not odemeler[0] - araliklar[0] < bas:
-        return nan  # pencerenin basindaki odeme eksik
-    if len(odemeler) > 1 and ((odemeler[1:] - araliklar[1:]) > odemeler[:-1] + ODEME_TOLERANSI).any():
-        return nan  # ic bosluk
-    if odemeler[-1] + araliklar[-1] < kapanis:
-        return nan  # pencerenin sonundaki odeme eksik
+    taban = max((s for s in (kume_bas, donem_bas) if s is not None), default=None)
+    if not _odemeler_tam_mi(funding, zamanlar, maske, bas, kapanis, taban):
+        return nan  # eksik odeme
     return float(oran.mean())
 
 
@@ -264,14 +317,12 @@ def pozisyon_fundingi(
       - **TypeError**: eksik ya da yanlis tipte parametre, saat dilimsiz zaman.
     Boylece olay dusme nedenleri raporunda "veri eksik" ile "kural" ve "hata"
     birbirine karismaz.
-      - **Tamlik.** Aralikta beklenen odemelerin tamami bulunmali; her kaydin
-        `aralik_saat` degeri bir onceki odemeye kadar olan sureyi verir:
-          * ilk odemeden onceki odeme (ilk - aralik) araliktan ONCE olmali,
-          * ardisik iki odeme arasinda aralik + tolerans'tan uzun bosluk olmamali,
-          * son odemeden sonraki odeme (son + aralik) araliktan SONRA olmali.
-        Aralikta hic odeme yoksa, araliktan onceki son odemenin bir sonrakinin
-        araliktan sonra oldugu gosterilmeli. Eksik odeme, NaN oran ya da NaN
-        aralik -> NaN. Bir dakikadan yakin iki kayit bozuk veridir ->
+      - **Tamlik.** Aralikta beklenen odemelerin tamami bulunmali
+        (`_odemeler_tam_mi`: `aralik_saat` SONRAKI odemeye kalan suredir; ardisik
+        iki odeme arasindaki bosluk iki kaydin araliklarindan buyugunu asamaz;
+        araliktan onceki kayit kume/donem basindan once olamaz). Aralikta hic
+        odeme yoksa onceki son kaydin sonraki odemesi araliktan sonra olmali.
+        Eksik odeme, NaN oran ya da NaN aralik -> NaN. Bir dakikadan yakin iki kayit bozuk veridir ->
         ZamanDizisiHatasi.
       - Tum sinirlar zorunlu anahtar sozcuktur; sinir yoksa acikca None.
         Saat dilimsiz zaman TypeError.
@@ -342,23 +393,11 @@ def pozisyon_fundingi(
             )
 
     maske = (zamanlar >= alt) & (zamanlar < ust)
+    taban = max((s for s in (kume_bas, donem_bas) if s is not None), default=None)
     if not maske.any():
-        # Aralikta odeme yok: bu ancak araliktan onceki son odemenin bir
-        # sonrakinin araliktan sonra oldugu gosterilebilirse gecerlidir. Sonraki
-        # odeme kume disinda olabilecegi icin okunmaz; onceki odemenin araliginin
-        # degismedigi varsayilir (`funding_ortalamasi`nin son odeme kontroluyle
-        # ayni varsayim). Kume ve donem oncesi kayitlar okunmaz.
-        taban = max((s for s in (kume_bas, donem_bas) if s is not None), default=None)
-        onceki = (zamanlar < alt) if taban is None else ((zamanlar < alt) & (zamanlar >= taban))
-        if not onceki.any():
-            return nan
-        konum = int(np.flatnonzero(onceki)[-1])
-        aralik = pd.to_numeric(pd.Series([funding["aralik_saat"].iloc[konum]]), errors="coerce").iloc[0]
-        if pd.isna(aralik) or aralik <= 0:
-            return nan
-        if zamanlar[konum] + pd.Timedelta(hours=float(aralik)) < ust:
-            return nan  # aralikta beklenen odeme eksik
-        return 0.0
+        # Aralikta odeme yok: onceki son kaydin (kume/donem basi sonrasi) sonraki
+        # odemesi araliktan sonra olmali (`_odemeler_tam_mi`).
+        return 0.0 if _odemeler_tam_mi(funding, zamanlar, maske, alt, ust, taban) else nan
 
     secili = funding.loc[maske]
     oran = pd.to_numeric(secili["oran"], errors="coerce")
@@ -366,14 +405,8 @@ def pozisyon_fundingi(
     if oran.isna().any() or aralik.isna().any() or (aralik <= 0).any():
         return nan
 
-    odemeler = zamanlar[maske]
-    araliklar = pd.to_timedelta(aralik.to_numpy(), unit="h")
-    if not odemeler[0] - araliklar[0] < alt:
-        return nan  # araligin basindaki odeme eksik
-    if len(odemeler) > 1 and ((odemeler[1:] - araliklar[1:]) > odemeler[:-1] + ODEME_TOLERANSI).any():
-        return nan  # ic bosluk
-    if odemeler[-1] + araliklar[-1] < ust:
-        return nan  # araligin sonundaki odeme eksik
+    if not _odemeler_tam_mi(funding, zamanlar, maske, alt, ust, taban):
+        return nan  # eksik odeme
     return float(oran.sum())
 
 
