@@ -70,12 +70,6 @@ def test_donem_sinirlari_utc_zaman_damgasi():
     assert satir["donem_id"] == 0
 
 
-def test_karantinada_mi():
-    assert donem.karantinada_mi(pd.Timestamp("2022-01-15", tz="UTC"), ["2022-01"]) is True
-    assert donem.karantinada_mi(pd.Timestamp("2022-02-01", tz="UTC"), ["2022-01"]) is False
-    assert donem.karantinada_mi(pd.Timestamp("2022-01-15", tz="UTC"), []) is False
-
-
 def test_donem_bul():
     donemler = [
         (pd.Period("2021-01"), pd.Period("2021-03")),
@@ -92,7 +86,7 @@ def test_donem_bul():
 def _cikis(zamanlar, giris_indeksi, ufuk, donem_bitis):
     return pencere.cikis_bari(
         zamanlar, zamanlar[giris_indeksi], ufuk, config.BAR_4H,
-        donem_bitis=donem_bitis, karantina_aylari=None, kume_bitis=None, birincil_ufuk=18,
+        donem_bitis=donem_bitis, kume_bitis=None, birincil_ufuk=18,
     )
 
 

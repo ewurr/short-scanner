@@ -185,7 +185,6 @@ def funding_ortalamasi(
     saat: int,
     kume_baslangic,
     donem_baslangic,
-    karantina_aylari,
 ) -> float:
     """t barinin kapanisina kadarki son `saat` saatteki 8 saate normallestirilmis
     funding oranlarinin ortalamasi (on-kayit §5 H2.1); kural ihlalinde NaN.
@@ -198,7 +197,6 @@ def funding_ortalamasi(
         sinyalden once bilindigi varsayilmaz (ihtiyatli secim).
       - **Donem ve kume.** Pencere donem ya da kume baslangicini asarsa NaN
         (on-kayit §2 rev.2, §3 rev.5); kume oncesi odeme seride bulunsa bile.
-      - **Karantina.** Pencerenin dokundugu aylardan biri karantinadaysa NaN.
       - **Tamlik.** Penceredeki odemeler boslugsuz olmali (`_odemeler_tam_mi`:
         `aralik_saat` SONRAKI odemeye kalan suredir; ardisik iki odeme arasindaki
         bosluk iki kaydin araliklarindan buyugunu asamaz; pencere oncesindeki
@@ -216,7 +214,6 @@ def funding_ortalamasi(
     zaman = pencere_modulu.utc_zamani(t, "t")
     kume_bas = pencere_modulu.sinir_zamani(kume_baslangic, "kume_baslangic")
     donem_bas = pencere_modulu.sinir_zamani(donem_baslangic, "donem_baslangic")
-    karantina = pencere_modulu.karantina_dogrula(karantina_aylari)
 
     kapanis = zaman + pencere_modulu.adim(bar)
     bas = kapanis - pd.Timedelta(hours=saat)
@@ -226,14 +223,6 @@ def funding_ortalamasi(
         return nan
     if kume_bas is not None and bas < kume_bas:
         return nan
-    if karantina:
-        from data import donem as donem_modulu
-
-        karantina_aylari_kumesi = {donem_modulu.ay_donemi(a) for a in karantina}
-        aylar = pd.period_range(bas.tz_localize(None), (kapanis - pd.Timedelta(1, "ns")).tz_localize(None), freq="M")
-        if any(ay in karantina_aylari_kumesi for ay in aylar):
-            return nan
-
     zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], "funding_ortalamasi")
     if len(zamanlar) > 1:
         farklar = zamanlar[1:] - zamanlar[:-1]
@@ -272,7 +261,6 @@ def pozisyon_fundingi(
     kume_bitis,
     donem_baslangic,
     donem_bitis,
-    karantina_aylari,
 ) -> float:
     """Short pozisyonun tuttugu sure boyunca aldigi (+) ya da odedigi (-) funding.
 
@@ -293,13 +281,10 @@ def pozisyon_fundingi(
         tarih araligi disina dusuyorsa olay o kumede olusmaz"; `cikis_bari` ile
         ayni istisna). Kontrol ZAMANLA yapilir, verinin kume sinirinda kesilmis
         olmasina dayanilmaz (rev.5).
-      - **Donem sonu ve karantina olayi dusurmez** (kullanici karari, Revizyon 7
-        olarak yazilacak). Karantina kurali yeniden fiyatlandirma sicramasinin
-        FIYATA bulasmasini onler; funding bir fiyat degildir. §4 karantina
-        oncesi son barin kapanisindaki cikisin olustugunu varsayar. Bu yuzden
-        kirpilmis cikis anindaki odeme (ör. karantina ayinin ilk anindaki 00:00
-        odemesi) normal toplanir. Kirpilmamis bir cikis (sinirdan onceki son
-        barin kapanisindan gec) ya da karantina ayindaki giris ValueError verir.
+      - **Donem sonu olayi dusurmez** (on-kayit §4 rev.7 "Donem sonu ve cikis"):
+        cikis `cikis_bari` tarafindan donem sonuna gore kirpilir ve kirpilmis
+        cikis anina kadarki odemeler normal toplanir. Kirpilmamis bir cikis
+        (cikis bari donem sonundan sonra) ValueError verir.
 
     NaN ile hata ayrimi (F1 kapanis denetimi bulgu 11):
       - **NaN yalnizca VERI EKSIKLIGIDIR** ve olay olusmaz: aralikta beklenen bir
@@ -309,9 +294,8 @@ def pozisyon_fundingi(
         kumede olusmaz (giris kume basindan once, cikis anindaki odeme araligi
         kume sonunu asiyor).
       - **ValueError**: cagiran tarafin onlemesi gereken PROGRAMLAMA HATASI --
-        giris donem baslangicindan once, giris karantina ayinda, cikis donem
-        sonuna ya da karantinaya gore kirpilmamis, tutarsiz CikisSonucu, cikis
-        giristen once.
+        giris donem baslangicindan once, cikis donem sonuna gore kirpilmamis,
+        tutarsiz CikisSonucu, cikis giristen once.
       - **ZamanDizisiHatasi** (ValueError alt sinifi): bozuk veri (sirasiz,
         tekrarli, saat dilimsiz ya da 1 dakikadan yakin kayit).
       - **TypeError**: eksik ya da yanlis tipte parametre, saat dilimsiz zaman.
@@ -337,7 +321,6 @@ def pozisyon_fundingi(
     kume_son = pencere_modulu.sinir_zamani(kume_bitis, "kume_bitis")
     donem_bas = pencere_modulu.sinir_zamani(donem_baslangic, "donem_baslangic")
     donem_son = pencere_modulu.sinir_zamani(donem_bitis, "donem_bitis")
-    karantina = pencere_modulu.karantina_dogrula(karantina_aylari)
     if not son_an > giris:
         raise ValueError(f"Cikis ani giristen sonra olmali: giris {giris}, cikis {son_an}")
 
@@ -360,8 +343,8 @@ def pozisyon_fundingi(
             f"Giris {giris} donem baslangicindan ({donem_bas}) once; uygunluk bunu engeller "
             "(on-kayit §2 rev.2). Veri eksikligi degil programlama hatasi."
         )
-    # Donem sonu ve karantina olayi DUSURMEZ: cikis `cikis_bari` tarafindan bu
-    # sinirlara gore kirpilmistir ve kirpilmis cikis anina kadarki odemeler
+    # Donem sonu olayi DUSURMEZ: cikis `cikis_bari` tarafindan donem sonuna
+    # gore kirpilmistir ve kirpilmis cikis anina kadarki odemeler
     # normal toplanir. Asagidaki kontroller yalnizca KIRPILMAMIS bir cikisin
     # verilmesini (programlama hatasi) reddeder. Olcu cikis ANI degil cikis
     # BARIDIR (bulgu 5): `cikis_bari` yalnizca acilisi sinirdan once ya da sinira
@@ -371,16 +354,8 @@ def pozisyon_fundingi(
             f"Cikis bari {cikis.zaman} donem sonundan ({donem_son}) sonra; cikis donem "
             "sonuna gore kirpilmamis (pencere.cikis_bari kullanilmali)."
         )
-    karantina_siniri = pencere_modulu._karantina_siniri(giris, karantina)  # giris karantinadaysa ValueError
-    if karantina_siniri is not None and cikis.zaman > karantina_siniri:
-        raise ValueError(
-            f"Cikis bari {cikis.zaman} karantina ayinin icinde; cikis karantinaya gore "
-            "kirpilmamis (pencere.cikis_bari kullanilmali)."
-        )
     if cikis.kirpma_nedeni == "donem_sonu" and donem_son is None:
         raise ValueError("Cikis donem sonuna gore kirpilmis ama donem_bitis verilmemis.")
-    if cikis.kirpma_nedeni == "karantina" and karantina_siniri is None:
-        raise ValueError("Cikis karantinaya gore kirpilmis ama giristen sonra karantina ayi verilmemis.")
 
     zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], "pozisyon_fundingi")
     if len(zamanlar) > 1:

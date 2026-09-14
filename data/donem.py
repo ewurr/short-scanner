@@ -104,13 +104,6 @@ def donem_sinirlari(donemler) -> pd.DataFrame:
     )
 
 
-def karantinada_mi(t, karantina_aylari) -> bool:
-    """t ani bir karantina ayina mi dusuyor?"""
-    if not len(karantina_aylari):
-        return False
-    return pd.Period(pd.Timestamp(t), freq="M") in {ay_donemi(a) for a in karantina_aylari}
-
-
 def donem_bul(t, donemler) -> int | None:
     """t aninin dustugu donemin kimligi; hicbirine dusmuyorsa None."""
     ay = pd.Period(pd.Timestamp(t), freq="M")

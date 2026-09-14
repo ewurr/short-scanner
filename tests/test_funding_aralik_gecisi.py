@@ -18,8 +18,8 @@ import config
 from data import funding, pencere, split
 
 DORT_SAAT = pd.Timedelta(hours=4)
-SINIRSIZ_ORT = dict(kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
-SINIRSIZ_POZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None, karantina_aylari=None)
+SINIRSIZ_ORT = dict(kume_baslangic=None, donem_baslangic=None)
+SINIRSIZ_POZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None)
 
 
 def _ts(metin: str) -> pd.Timestamp:

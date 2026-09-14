@@ -2,7 +2,7 @@
 
 Hedef cikis bari eksikse ileri kayma, olayin birincil ufku kadar sureyle
 sinirlidir (H1, H2: 18 bar; H3: 14 gun). Sonraki mevcut bar bu sinirdan uzaksa
-olay olusmaz; kirpilmis getiri kullanilmaz. Donem sonu, delist ve karantina
+olay olusmaz; kirpilmis getiri kullanilmaz. Donem sonu ve delist
 kurallari onceliklidir.
 """
 
@@ -15,7 +15,7 @@ import config
 from data import pencere
 
 DORT_SAAT = pd.Timedelta(hours=4)
-SINIRSIZ = dict(donem_bitis=None, karantina_aylari=None, kume_bitis=None)
+SINIRSIZ = dict(donem_bitis=None, kume_bitis=None)
 
 
 def _izgara(bas: str, adet: int, bar=config.BAR_4H) -> pd.DatetimeIndex:
@@ -94,7 +94,7 @@ def test_hedef_mevcutsa_sinir_devreye_girmez():
     assert sonuc.fiyat_alani == "close" and sonuc.kaydi is False
 
 
-# --- Oncelik: donem sonu, delist, karantina ----------------------------------
+# --- Oncelik: donem sonu, delist --------------------------------------------
 
 
 def test_donem_sonu_uzun_boslugun_icindeyse_kirpilir():
@@ -117,17 +117,6 @@ def test_delist_uzun_boslugun_yerine_gecerse_kirpilir():
 
     sonuc = _cikis(delist, giris, 18, 18)
     assert sonuc.kirpma_nedeni == "seri_sonu"
-
-
-def test_karantina_uzun_boslugun_icindeyse_kirpilir():
-    zamanlar = _izgara("2021-05-25", 200)
-    giris = pd.Timestamp("2021-05-28 00:00", tz="UTC")
-    hedef = pencere.cikis_hedefi(giris, 18, config.BAR_4H)  # 05-30 20:00
-    eksik = _bosluklu(zamanlar, hedef, 60)  # bosluk haziran icine uzanir
-
-    sonuc = _cikis(eksik, giris, 18, 18, karantina_aylari=["2021-06"])
-    assert sonuc.kirpma_nedeni == "karantina"
-    assert sonuc.zaman == hedef - DORT_SAAT
 
 
 def test_kume_siniri_hatasi_ayri_kalir():

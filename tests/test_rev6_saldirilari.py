@@ -11,7 +11,6 @@ dosyalarindaki saldirilari TEKRARLAMAZ; yeni acilar dener:
   - kume siniri ile ileri kayma sinirinin AYNI ANDA asilmasinda hangi hatanin
     once geldigi,
   - `birincil_ufuk` olarak numpy tamsayisi,
-  - sirasiz karantina ayi listesinde en yakin ayin dogru bulunmasi,
   - gunluk barda funding ve ileri kaymali cikisin birlikte dogru calismasi.
 
 Her testin docstring'i saldirinin ne oldugunu, beklenen dogru davranisi ve
@@ -34,7 +33,7 @@ from data import funding, pencere
 
 DORT_SAAT = pd.Timedelta(hours=4)
 BIR_DK = pd.Timedelta(minutes=1)
-SINIRSIZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None, karantina_aylari=None)
+SINIRSIZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None)
 
 
 def _ts(metin: str) -> pd.Timestamp:
@@ -266,7 +265,7 @@ def test_kume_ve_ileri_kayma_siniri_ayni_anda_asilinca_kume_hatasi_once_gelir():
     with pytest.raises(pencere.KumeSiniriHatasi):
         pencere.cikis_bari(
             eksik, giris, 18, config.BAR_4H,
-            birincil_ufuk=18, donem_bitis=None, karantina_aylari=None, kume_bitis=kume_son,
+            birincil_ufuk=18, donem_bitis=None, kume_bitis=kume_son,
         )
 
 
@@ -286,33 +285,13 @@ def test_birincil_ufuk_numpy_tamsayi_kabul_edilir():
     giris = zamanlar[5]
     sonuc_np = pencere.cikis_bari(
         zamanlar, giris, 18, config.BAR_4H,
-        birincil_ufuk=np.int64(18), donem_bitis=None, karantina_aylari=None, kume_bitis=None,
+        birincil_ufuk=np.int64(18), donem_bitis=None, kume_bitis=None,
     )
     sonuc_py = pencere.cikis_bari(
         zamanlar, giris, 18, config.BAR_4H,
-        birincil_ufuk=18, donem_bitis=None, karantina_aylari=None, kume_bitis=None,
+        birincil_ufuk=18, donem_bitis=None, kume_bitis=None,
     )
     assert sonuc_np == sonuc_py
-
-
-# --- 7) Sirasiz karantina ayi listesi -------------------------------------------
-
-
-def test_karantina_siniri_sirasiz_listede_en_yakin_ayi_bulur():
-    """Saldiri: karantina ay listesi kronolojik sirada VERILMEZ (ör. once
-    Agustos, sonra Haziran yazilir). Giris, her iki karantina ayindan da
-    oncedir.
-
-    Beklenen: kod listeyi kendi icinde siralayip GIRISTEN SONRAKI ILK
-    (kronolojik olarak en erken) karantina ayini bulmalidir -- yani Haziran,
-    listede once yazilan Agustos degil. Liste sirasina guvenen bir uygulama
-    yanlislikla Agustos'u secip cikisin cok daha uzun bir araligi
-    "kirpilmadan" kullanmasina izin verirdi.
-    """
-    giris = _ts("2021-05-01 00:00")
-    siniri = pencere._karantina_siniri(giris, ("2021-08", "2021-06"))
-    beklenen = _ts("2021-06-01 00:00") - pd.Timedelta(nanoseconds=1)
-    assert siniri == beklenen
 
 
 # --- 8) Gunluk barda funding ve ileri kaymali cikis birlikte -------------------
@@ -336,7 +315,7 @@ def test_gunluk_barda_ileri_kaymali_cikiste_funding_dogru_toplanir():
 
     cikis = pencere.cikis_bari(
         eksik, giris, 14, config.BAR_1D,
-        birincil_ufuk=14, donem_bitis=None, karantina_aylari=None, kume_bitis=None,
+        birincil_ufuk=14, donem_bitis=None, kume_bitis=None,
     )
     assert cikis.fiyat_alani == "open" and cikis.kaydi is True
     assert cikis.zaman == hedef + pd.Timedelta(days=1)  # 2021-05-20

@@ -15,7 +15,7 @@ import config
 from data import funding, pencere, split
 
 DORT_SAAT = pd.Timedelta(hours=4)
-SINIRSIZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None, karantina_aylari=None)
+SINIRSIZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None)
 
 
 def _ts(metin: str) -> pd.Timestamp:
@@ -236,7 +236,7 @@ def test_c2_basinda_giris_anindaki_odeme_kume_oncesi_kayit_okunmadan_haric():
     assert deger == pytest.approx(3e-4)  # 08:00, 16:00, 00:00
 
 
-# --- Donem ve karantina ------------------------------------------------------
+# --- Donem ------------------------------------------------------------------
 
 
 def test_donem_sonuna_kirpilmis_cikista_funding_hesaplanir():
@@ -268,43 +268,6 @@ def test_giris_donem_basindan_onceyse_hata():
     assert not pd.isna(_fon(fund, "2021-02-01 00:00", _cikis("2021-02-01 12:00"), donem_baslangic=donem_bas))
 
 
-def test_karantina_oncesi_son_kapanista_biten_cikista_funding_hesaplanir():
-    """Karantina olayi dusurmez (kullanici karari, Revizyon 7'de yazilacak).
-
-    cikis_bari ufku karantinaya uzanan pozisyonu 2021-05-31 20:00 barinin
-    kapanisinda kirpar; cikis ani 06-01 00:00 karantina ayinin ilk anidir ve o
-    andaki odeme dahil edilir. Olay olusur.
-    """
-    zamanlar = pd.date_range("2021-05-25", periods=100, freq="4h", tz="UTC")
-    giris = _ts("2021-05-30 08:00")
-    cikis = pencere.cikis_bari(
-        zamanlar, giris, 18, config.BAR_4H,
-        birincil_ufuk=18, donem_bitis=None, karantina_aylari=["2021-06"], kume_bitis=None,
-    )
-    assert cikis.kirpma_nedeni == "karantina" and cikis.zaman == _ts("2021-05-31 20:00")
-    assert pencere.cikis_ani(cikis, config.BAR_4H) == _ts("2021-06-01 00:00")
-
-    fund = _funding("2021-05-01", "2021-07-31")
-    _oran_ata(fund, "2021-06-01 00:00", 7e-4)
-    deger = funding.pozisyon_fundingi(
-        fund, giris, cikis, config.BAR_4H, **{**SINIRSIZ, "karantina_aylari": ["2021-06"]}
-    )
-    # 05-30 16:00, 05-31 00:00, 08:00, 16:00 ve 06-01 00:00
-    assert deger == pytest.approx(4e-4 + 7e-4)
-    # Karantinaya gore kirpilmis cikis, karantina listesi verilmeden kullanilamaz (bulgu 5).
-    with pytest.raises(ValueError):
-        _fon(fund, "2021-05-30 08:00", cikis)
-
-
-def test_karantina_ayina_kirpilmamis_cikis_ve_karantinada_giris_reddedilir():
-    fund = _funding("2021-05-01", "2021-07-31")
-    with pytest.raises(ValueError):
-        _fon(fund, "2021-05-30 08:00", _cikis("2021-06-01 00:00"), karantina_aylari=["2021-06"])
-    with pytest.raises(ValueError):
-        _fon(fund, "2021-06-02 00:00", _cikis("2021-06-02 20:00"), karantina_aylari=["2021-06"])
-    assert not pd.isna(_fon(fund, "2021-05-30 08:00", _cikis("2021-06-01 00:00"), karantina_aylari=["2021-04", "2021-07"]))
-
-
 def test_cikis_bari_ile_kume_sonunda_biten_cikis_hata_verir():
     """Kume siniri davranisi degismedi: cikis_bari kume icinde son bari verir,
     ama o barin kapanisindaki odeme C2'ye duser -> olay olusmaz."""
@@ -313,7 +276,7 @@ def test_cikis_bari_ile_kume_sonunda_biten_cikis_hata_verir():
     giris = son_bar - 17 * DORT_SAAT
     kume = dict(kume_baslangic=KESIF_BAS, kume_bitis=KESIF_SON)
     cikis = pencere.cikis_bari(
-        zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=None, karantina_aylari=None, kume_bitis=KESIF_SON
+        zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=None, kume_bitis=KESIF_SON
     )
     assert cikis.zaman == son_bar and not cikis.kirpildi
     fund = _funding("2025-08-20", "2025-08-31 23:00")
@@ -358,15 +321,6 @@ def _elle(zaman: str, fiyat_alani="close", kaydi=None, kirpildi=False, neden=Non
     return pencere.CikisSonucu(0, _ts(zaman), fiyat_alani, kaydi, kirpildi, neden)
 
 
-def test_karantina_ayindaki_barin_acilisindan_cikis_reddedilir():
-    """F1 kapanis denetimi bulgu 5: cikis ANI sinira esit olsa da cikis BARI
-    karantina ayinda; cikis_bari boyle bir cikis uretmez."""
-    fund = _funding("2021-05-01", "2021-07-31")
-    with pytest.raises(ValueError):
-        _fon(fund, "2021-05-30 08:00", _elle("2021-06-01 00:00", "open"), karantina_aylari=["2021-06"])
-    assert not pd.isna(_fon(fund, "2021-05-30 08:00", _elle("2021-05-31 20:00", "open"), karantina_aylari=["2021-06"]))
-
-
 def test_donem_disindaki_barin_acilisindan_cikis_reddedilir():
     fund = _funding("2021-05-01", "2021-06-30")
     donem_bitis = _ts("2021-05-31 23:59:59.999999999")
@@ -374,12 +328,15 @@ def test_donem_disindaki_barin_acilisindan_cikis_reddedilir():
         _fon(fund, "2021-05-30 00:00", _elle("2021-06-01 00:00", "open"), donem_bitis=donem_bitis)
 
 
-def test_gunluk_barda_karantina_ayindaki_gun_reddedilir():
+def test_gunluk_barda_donem_disindaki_gun_reddedilir():
+    """Bulgu 5'in gunluk bar karsiligi (eski karantina testinin yerine): cikis
+    bari donem sonundan sonraki gunse ValueError; donemin son gunu kabul."""
     fund = _funding("2021-05-01", "2021-07-31")
+    donem_bitis = _ts("2021-05-31 23:59:59.999999999")
     with pytest.raises(ValueError):
-        _fon(fund, "2021-05-20 00:00", _elle("2021-06-01 00:00"), bar=config.BAR_1D, karantina_aylari=["2021-06"])
-    son_gun = _elle("2021-05-31 00:00", kirpildi=True, neden="karantina")
-    assert not pd.isna(_fon(fund, "2021-05-20 00:00", son_gun, bar=config.BAR_1D, karantina_aylari=["2021-06"]))
+        _fon(fund, "2021-05-20 00:00", _elle("2021-06-01 00:00"), bar=config.BAR_1D, donem_bitis=donem_bitis)
+    son_gun = _elle("2021-05-31 00:00", kirpildi=True, neden="donem_sonu")
+    assert not pd.isna(_fon(fund, "2021-05-20 00:00", son_gun, bar=config.BAR_1D, donem_bitis=donem_bitis))
 
 
 @pytest.mark.parametrize(
@@ -387,7 +344,7 @@ def test_gunluk_barda_karantina_ayindaki_gun_reddedilir():
     [
         pytest.param(lambda: _elle("2021-01-05 20:00", "open", kaydi=False), id="acilis_ama_kaymadi"),
         pytest.param(lambda: _elle("2021-01-05 20:00", "close", kaydi=True), id="kapanis_ama_kaydi"),
-        pytest.param(lambda: _elle("2021-01-05 20:00", "open", kirpildi=True, neden="karantina"), id="kirpilmis_acilis"),
+        pytest.param(lambda: _elle("2021-01-05 20:00", "open", kirpildi=True, neden="donem_sonu"), id="kirpilmis_acilis"),
         pytest.param(lambda: _elle("2021-01-05 20:00", kirpildi=True, neden=None), id="kirpilmis_nedensiz"),
         pytest.param(lambda: _elle("2021-01-05 20:00", kirpildi=True, neden="kume_sonu"), id="bilinmeyen_neden"),
         pytest.param(lambda: _elle("2021-01-05 20:00", kirpildi=False, neden="donem_sonu"), id="kirpilmamis_nedenli"),
@@ -400,7 +357,7 @@ def test_tutarsiz_elle_kurulmus_cikis_reddedilir(cikis):
         _fon(fund, "2021-01-05 00:00", cikis())
 
 
-@pytest.mark.parametrize("neden", ["donem_sonu", "karantina"])
+@pytest.mark.parametrize("neden", ["donem_sonu"])
 def test_kirpma_nedeninin_siniri_verilmemisse_reddedilir(neden):
     fund = _funding("2021-01-01", "2021-01-10")
     with pytest.raises(ValueError):

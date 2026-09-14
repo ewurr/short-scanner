@@ -71,12 +71,12 @@ def test_donem_cikis_bar_indeksi_kume_sinirini_kontrol_etmiyor():
 
     with pytest.raises(pencere.KumeSiniriHatasi):
         pencere.cikis_bari(
-            seri.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18
+            seri.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18
         )
 
     assert not hasattr(donem_modulu, "cikis_bar_indeksi"), "kume korumasiz sarmalayici hala duruyor"
     with pytest.raises(TypeError):  # kume_bitis unutulamaz
-        pencere.cikis_bari(seri.index, giris, ufuk, config.BAR_4H, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
+        pencere.cikis_bari(seri.index, giris, ufuk, config.BAR_4H, donem_bitis=None, birincil_ufuk=18)
 
 
 # --- 2) onay parametresi bool dogrulanmiyor: "False" stringi kapiyi aciyor --
@@ -152,7 +152,7 @@ def test_kume_baslangic_none_verilince_kume_oncesi_veri_sizar(tmp_path):
     seri = _seri("2021-01-01", 40)
     kume_bas = seri.index[20]
     t = seri.index[25]  # pencere (10 bar, t dahil) index 16..25: kume oncesine tasar
-    ortak = dict(donem_baslangic=None, karantina_aylari=None)
+    ortak = dict(donem_baslangic=None)
     assert pd.isna(pencere.pencere_degeri(seri, t, 10, config.BAR_4H, t_dahil=True, kume_baslangic=kume_bas, **ortak))
 
     (tmp_path / "events").mkdir()
@@ -179,7 +179,7 @@ def test_pencere_degeri_saat_dilimsiz_t_sessizce_nan_dondurur_hata_vermez():
     seri = _seri("2021-01-01", 40)  # tz-aware (UTC) seri
     t_aware = seri.index[30]
     t_naive = pd.Timestamp(t_aware.tz_localize(None))
-    sinirlar = dict(kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
+    sinirlar = dict(kume_baslangic=None, donem_baslangic=None)
 
     dogru = pencere.pencere_degeri(seri, t_aware, 10, config.BAR_4H, t_dahil=True, **sinirlar)
     assert not pd.isna(dogru), "kurulum hatasi: tz-aware t ile bile deger NaN geldi"
@@ -305,7 +305,6 @@ def test_ham_funding_yukle_yakin_ms_farkli_kayitlari_saate_yuvarlamaz(tmp_path, 
             saat=24,
             kume_baslangic=None,
             donem_baslangic=None,
-            karantina_aylari=None,
         )
 
 
@@ -333,12 +332,12 @@ def test_kume_kirpilmis_seri_kume_bitis_verilmezse_delist_gibi_kirpilir():
     ufuk = 20  # hedef = index[29] (asil izgarada), kume_son'u (index24) asar
 
     with pytest.raises(pencere.KumeSiniriHatasi):
-        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
+        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
 
     with pytest.raises(TypeError):
-        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
+        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, donem_bitis=None, birincil_ufuk=18)
 
     # Hedef kume icinde (index 24) ama son iki bar eksik: seri index 22'de bitiyor.
     eksik_sonlu = kirpilmis.drop(kirpilmis.index[-2:])
     with pytest.raises(pencere.KumeSiniriHatasi):
-        pencere.cikis_bari(eksik_sonlu.index, giris, 15, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
+        pencere.cikis_bari(eksik_sonlu.index, giris, 15, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)

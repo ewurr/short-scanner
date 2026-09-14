@@ -172,7 +172,6 @@ def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
             veri_var += 1
 
             hacim = uyg.gunluk_hacim_serisi(gunluk)
-            karantina = universe_modulu.karantina_listesi(evren, d["sembol"])
             donemler = universe_modulu.sembol_donemleri(evren, d["sembol"])
             if not donemler:
                 continue
@@ -186,7 +185,7 @@ def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
                 d_son = donemler[kimlik][1].to_timestamp(how="end").tz_localize("UTC")
                 # F1 denetimi tum gecmisi olcer, bir kumeye ait degildir: kume
                 # baslangici bilincli olarak None (on-kayit §3 rev.5 kume hesaplari icindir).
-                sinirlar = dict(donem_baslangic=d_bas, donem_bitis=d_son, karantina_aylari=karantina, kume_baslangic=None)
+                sinirlar = dict(donem_baslangic=d_bas, donem_bitis=d_son, kume_baslangic=None)
                 if not on_m and uyg.uygun_mu(hacim, t, config.BAR_4H, **sinirlar):
                     on_m = True
                 if not iki_m and uyg.uygun_mu(hacim, t, config.BAR_1D, **sinirlar):
@@ -356,7 +355,10 @@ def sicramalari_grupla(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFram
             continue
         karantina = universe_modulu.karantina_listesi(evren, d["sembol"])
         s.insert(0, "sembol", d["sembol"])
-        s["karantina_ayinda"] = [donem_modulu.karantinada_mi(t, karantina) for t in s["open_time"]]
+        # Karantina kurali rev.7 ile kaldirildi; SETTLED ayi yalnizca denetim bilgisi.
+        s["karantina_ayinda"] = [
+            str(pd.Period(pd.Timestamp(t).tz_localize(None), freq="M")) in set(karantina) for t in s["open_time"]
+        ]
         s["o_ay_settled_kaydi"] = [
             str(pd.Period(pd.Timestamp(t), freq="M")) in set(karantina) for t in s["open_time"]
         ]

@@ -13,7 +13,7 @@ import pytest
 import config
 from data import eligibility, pencere
 
-SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
+SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=None)
 
 
 def _seri(tz="UTC") -> pd.Series:
@@ -56,7 +56,7 @@ def test_giris_bari_saat_dilimsiz():
 def test_cikis_bari_saat_dilimsiz(alan):
     seri = _seri()
     giris = seri.index[5]
-    parametreler = dict(donem_bitis=None, karantina_aylari=None, kume_bitis=None)
+    parametreler = dict(donem_bitis=None, kume_bitis=None)
     if alan == "giris":
         giris = _naive(giris)
     else:
@@ -67,7 +67,7 @@ def test_cikis_bari_saat_dilimsiz(alan):
 
 def test_uygun_mu_saat_dilimsiz_t():
     hacim = pd.Series(5e7, index=pd.date_range("2021-01-01", periods=100, freq="D", tz="UTC"))
-    ortak = dict(donem_baslangic=pd.Timestamp("2021-01-01", tz="UTC"), donem_bitis=None, karantina_aylari=None, kume_baslangic=None)
+    ortak = dict(donem_baslangic=pd.Timestamp("2021-01-01", tz="UTC"), donem_bitis=None, kume_baslangic=None)
     assert eligibility.uygun_mu(hacim, pd.Timestamp("2021-03-01", tz="UTC"), config.BAR_4H, **ortak) is True
     with pytest.raises(TypeError):
         eligibility.uygun_mu(hacim, pd.Timestamp("2021-03-01"), config.BAR_4H, **ortak)

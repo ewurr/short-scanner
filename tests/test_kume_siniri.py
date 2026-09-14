@@ -126,11 +126,11 @@ def test_kume_disina_tasan_ufuk_kirpilmaz_hata_verir():
     giris = t + DORT_SAAT
 
     # Kume bilgisi olmadan kod bunu delist sanip sessizce kirpardi (B1).
-    korumasiz = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, donem_bitis=None, karantina_aylari=None, kume_bitis=None, birincil_ufuk=18)
+    korumasiz = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
     assert korumasiz.kirpildi and korumasiz.kirpma_nedeni == "seri_sonu"
 
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
+        pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
 
 
 def test_kume_disina_tasan_ufuk_sonraki_kumenin_verisini_okumaz():
@@ -140,7 +140,7 @@ def test_kume_disina_tasan_ufuk_sonraki_kumenin_verisini_okumaz():
     giris = pd.Timestamp("2025-08-29 16:00", tz="UTC")
 
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(tam, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
+        pencere.cikis_bari(tam, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
 
 
 def test_ileri_kayma_kume_sinirini_asamaz():
@@ -152,7 +152,7 @@ def test_ileri_kayma_kume_sinirini_asamaz():
     giris = son_bar - 17 * DORT_SAAT  # t+18 = son_bar
 
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(eksik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
+        pencere.cikis_bari(eksik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
 
 
 @pytest.mark.parametrize(
@@ -175,7 +175,7 @@ def test_kesik_seride_kume_sonuna_yakin_eksik_bar_kirpilmaz_hata_verir(donem_bit
     assert kesik[-1] == son_bar - DORT_SAAT
 
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=donem_bitis, karantina_aylari=None, birincil_ufuk=18)
+        pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=donem_bitis, birincil_ufuk=18)
 
 
 def test_kesik_seride_kume_icinde_biten_donem_delist_olarak_kirpilir():
@@ -185,7 +185,7 @@ def test_kesik_seride_kume_icinde_biten_donem_delist_olarak_kirpilir():
     kesik = _izgara("2025-08-20", "2025-08-31 20:00").drop(son_bar)
     giris = son_bar - 17 * DORT_SAAT
 
-    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=kume_son, karantina_aylari=None, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=kume_son, birincil_ufuk=18)
 
     assert sonuc.kirpildi and sonuc.kirpma_nedeni == "seri_sonu"
     assert sonuc.zaman == son_bar - DORT_SAAT
@@ -197,7 +197,7 @@ def test_kumeye_sigan_ufuk_normal_cikar():
     kesik = _izgara("2025-08-20", "2025-08-31 20:00")
     giris = son_bar - 17 * DORT_SAAT
 
-    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, karantina_aylari=None, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
 
     assert sonuc.zaman == son_bar
     assert sonuc.fiyat_alani == "close"
@@ -214,7 +214,7 @@ def test_kume_icinde_gercek_delist_kirpmasi_korunur():
     giris = pd.Timestamp("2023-05-09 00:00", tz="UTC")
     donem_bitis = pd.Timestamp("2023-05-31 23:59:59.999999999", tz="UTC")
 
-    sonuc = pencere.cikis_bari(delist, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=donem_bitis, karantina_aylari=None, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(delist, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=donem_bitis, birincil_ufuk=18)
 
     assert sonuc.kirpildi and sonuc.kirpma_nedeni == "seri_sonu"
     assert sonuc.zaman == delist[-1]

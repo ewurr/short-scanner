@@ -40,7 +40,7 @@ FUNDING_KAPI_DISI_DESENI = (
 )
 
 # Bar sayisiyla calisan ve pencere kapisini (data.pencere) atlayan turetilmis seri
-# islemleri. Bunlar seride bosluk, donem, kume ya da karantina sinirini bilmez.
+# islemleri. Bunlar seride bosluk, donem ya da kume sinirini bilmez.
 TURETILMIS_SERI_DESENI = (
     r"\.(rolling|expanding|ewm|shift|diff|pct_change|cumsum|cumprod|cummax|cummin|resample)\s*\("
 )

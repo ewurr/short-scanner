@@ -14,9 +14,8 @@ ayni kaynagi kullanir.
 Listeleme donemi (on-kayit rev.2):
   - Geriye bakis penceresi donem baslangicini ASAMAZ; asiyorsa deger hesaplanmaz
     (NaN) ve o barda olay olusmaz.
-  - Karantina ayindaki barlar uygun sayilmaz.
 
-Sinir parametreleri (F1 kapanis bulgulari 2 ve 15): donem, karantina ve kume
+Sinir parametreleri (F1 kapanis bulgulari 2 ve 15): donem ve kume
 sinirlari anahtar sozcukle ve VARSAYILANSIZ verilir; unutulan sinir TypeError
 verir, sessizce atlanmaz. Tum fonksiyonlarda konumsal sira aynidir: once seri,
 sonra t (ya da zamanlar), sonra bar.
@@ -29,7 +28,6 @@ from __future__ import annotations
 import pandas as pd
 
 import config
-from data import donem as donem_modulu
 from data import pencere as pencere_modulu
 
 
@@ -47,7 +45,6 @@ def medyan_hacim(
     t,
     *,
     donem_baslangic,
-    karantina_aylari,
     kume_baslangic,
     pencere_gun: int,
 ) -> float:
@@ -63,7 +60,7 @@ def medyan_hacim(
       - Pencere kume baslangicini asamaz (on-kayit §3 rev.5).
       - Penceredeki gunlerden biri bile eksikse NaN doner (rev.3 tamlik sarti).
         Eksik gun, 6 adet 4h barin tamami olmayan gundur.
-    `donem_baslangic`, `karantina_aylari` ve `kume_baslangic` zorunludur; sinir
+    `donem_baslangic` ve `kume_baslangic` zorunludur; sinir
     yoksa acikca None verilir.
     """
     zaman = pencere_modulu.utc_zamani(t, "t")
@@ -80,7 +77,6 @@ def medyan_hacim(
         kume_baslangic=kume_baslangic,
         islev="median",
         donem_baslangic=donem_baslangic,
-        karantina_aylari=karantina_aylari,
     )
 
 
@@ -109,13 +105,11 @@ def uygun_mu(
     *,
     donem_baslangic,
     donem_bitis,
-    karantina_aylari,
     kume_baslangic,
 ) -> bool:
     """t aninda sembol uygun mu? Yalnizca t'ye kadarki veriyi kullanir.
 
     On-kayit rev.2 gereklilikleri:
-      - t bir karantina ayina dusuyorsa uygun DEGILDIR,
       - t donem sinirlarinin disindaysa uygun degildir,
       - listeleme yasi donem baslangicina gore olculur,
       - hacim penceresi donem baslangicini asamaz.
@@ -129,10 +123,7 @@ def uygun_mu(
     if donem_bas is None:
         raise TypeError("uygun_mu: donem_baslangic None olamaz; listeleme yasi donem basina gore olculur.")
     donem_son = pencere_modulu.sinir_zamani(donem_bitis, "donem_bitis")
-    karantina = pencere_modulu.karantina_dogrula(karantina_aylari)
 
-    if donem_modulu.karantinada_mi(zaman, karantina):
-        return False
     if zaman < donem_bas:
         return False
     if donem_son is not None and zaman > donem_son:
@@ -145,7 +136,6 @@ def uygun_mu(
         gunluk_hacim,
         zaman,
         donem_baslangic=donem_bas,
-        karantina_aylari=karantina,
         kume_baslangic=kume_baslangic,
         pencere_gun=config.HACIM_PENCERESI_GUN,
     )
@@ -161,7 +151,6 @@ def uygunluk_serisi(
     *,
     donem_baslangic,
     donem_bitis,
-    karantina_aylari,
     kume_baslangic,
 ) -> pd.Series:
     """Verilen zamanlarin her biri icin uygunluk bayragi.
@@ -178,7 +167,6 @@ def uygunluk_serisi(
                 bar,
                 donem_baslangic=donem_baslangic,
                 donem_bitis=donem_bitis,
-                karantina_aylari=karantina_aylari,
                 kume_baslangic=kume_baslangic,
             )
             for t in indeks

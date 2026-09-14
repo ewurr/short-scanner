@@ -8,7 +8,7 @@ En dogal pandas yolu `seri.rolling(6).sum()` sonucunu `pencere_degeri`ne vermekt
 kapi o zaman yalnizca DIS pencerenin damgalarini denetler: ilk toplam kume/donem
 basindan onceki barlari icerir, rolling bar sayisiyla calistigi icin bosluk
 uzerinden toplar. Bu testler yeni kapinin turetilmis serinin KENDISINI de tamlik,
-kume, donem ve karantina kontrolunden gecirdigini dogrular.
+kume ve donem kontrolunden gecirdigini dogrular.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from tarama_yardimcisi import TURETILMIS_SERI_DESENI, ihlaller
 DORT_SAAT = pd.Timedelta(hours=4)
 GUN = pd.Timedelta(days=1)
 C2_BAS = split.kume_araligi("C2")[0]
-SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
+SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=None)
 H1 = dict(dis_bar_sayisi=180, dis_t_dahil=True, dis_islev="median", ic_bar_sayisi=6, ic_t_dahil=True, ic_islev="sum")
 
 
@@ -76,7 +76,7 @@ def test_ic_pencere_kume_basini_asarsa_nan_turetilmis_yol_ise_sizdirir():
 
     # Turetilmis seri yolu: kapi yalnizca dis damgalari gorur ve bir deger uretir.
     toplamlar = seri.rolling(6).sum()
-    sizan = pencere.pencere_degeri(toplamlar, t, 180, config.BAR_4H, t_dahil=True, islev="median", kume_baslangic=C2_BAS, donem_baslangic=None, karantina_aylari=None)
+    sizan = pencere.pencere_degeri(toplamlar, t, 180, config.BAR_4H, t_dahil=True, islev="median", kume_baslangic=C2_BAS, donem_baslangic=None)
     assert not pd.isna(sizan), "kurulum: turetilmis yol sizintiyi gostermeli"
 
     assert pd.isna(_ic_ice(seri, t, kume_baslangic=C2_BAS))
@@ -103,14 +103,6 @@ def test_ic_pencere_donem_basini_asarsa_nan():
     donem_bas = t - 179 * DORT_SAAT - 2 * DORT_SAAT
     assert pd.isna(_ic_ice(seri, t, donem_baslangic=donem_bas))
     assert not pd.isna(_ic_ice(seri, t, donem_baslangic=donem_bas - 3 * DORT_SAAT))
-
-
-def test_ic_pencere_karantina_ay_sinirinda():
-    """Dis pencere tam 2021-02-01 00:00'da baslar; ilk ic pencere Ocak'a uzanir."""
-    seri = _seri("2021-01-01", "2021-04-30 20:00")
-    t = pd.Timestamp("2021-02-01 00:00", tz="UTC") + 179 * DORT_SAAT
-    assert pd.isna(_ic_ice(seri, t, karantina_aylari=["2021-01"]))
-    assert not pd.isna(_ic_ice(seri, t + 5 * DORT_SAAT, karantina_aylari=["2021-01"]))
 
 
 def test_nan_degerli_bar_nan():
@@ -184,7 +176,7 @@ def test_ofset_sifir_t_dahil_bir_t_haric():
 @pytest.mark.parametrize(
     "eksik",
     ["dis_bar_sayisi", "dis_t_dahil", "dis_islev", "ic_bar_sayisi", "ic_t_dahil", "ic_islev",
-     "kume_baslangic", "donem_baslangic", "karantina_aylari"],
+     "kume_baslangic", "donem_baslangic"],
 )
 def test_ic_ice_parametre_unutulursa_hata(eksik):
     seri = _seri("2021-01-01", "2021-03-31 20:00")
@@ -194,7 +186,7 @@ def test_ic_ice_parametre_unutulursa_hata(eksik):
         pencere.ic_ice_pencere_degeri(seri, seri.index[-1], config.BAR_4H, **parametreler)
 
 
-@pytest.mark.parametrize("eksik", ["bitis_ofseti", "islev", "kume_baslangic", "donem_baslangic", "karantina_aylari"])
+@pytest.mark.parametrize("eksik", ["bitis_ofseti", "islev", "kume_baslangic", "donem_baslangic"])
 def test_ofsetli_parametre_unutulursa_hata(eksik):
     seri = _seri("2021-01-01", "2021-12-31", bar=config.BAR_1D)
     parametreler = {"bitis_ofseti": 31, "islev": "median", **SINIRSIZ}

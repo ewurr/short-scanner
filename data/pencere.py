@@ -15,9 +15,10 @@ Kurallar (on-kayit §2 rev.3):
   - **Giris.** t+1 bari eksikse olay olusmaz.
   - Ayni kurallar K1 ve K2 kontrol barlarina da uygulanir.
 
-Donem ve karantina kisitlari da buradan gecer (on-kayit §2 rev.2).
+Donem kisitlari da buradan gecer. On-kayit §2 rev.7: donem sinirlari bar
+duzeyindedir ve karantina kurali kaldirilmistir; bu modulde karantina kavrami yoktur.
 
-Sinir parametreleri (F1 kapanis bulgulari 1 ve 2): donem, karantina ve kume
+Sinir parametreleri (F1 kapanis bulgulari 1 ve 2): donem ve kume
 sinirlari pencere ve cikis fonksiyonlarinda ANAHTAR SOZCUKLE ve VARSAYILANSIZ
 verilir. Unutulan sinir TypeError verir; sinir gercekten yoksa cagiran taraf
 bunu acikca `None` ile soyler. Boylece bir kuralin sessizce atlanmasi mumkun
@@ -34,7 +35,6 @@ import numpy as np
 import pandas as pd
 
 import config
-from data import donem as donem_modulu
 
 # Bar tipine gore izgara adimi.
 ADIMLAR = {
@@ -60,8 +60,8 @@ class CikisSonucu:
     zaman: pd.Timestamp
     fiyat_alani: str  # "close" (normal) veya "open" (ileri kaymali cikis)
     kaydi: bool  # hedef bar eksikti, sonraki mevcut bara kayildi mi?
-    kirpildi: bool  # donem sonu / seri sonu / karantina nedeniyle kirpildi mi?
-    # Kirpildiysa neden: "karantina", "donem_sonu" ya da "seri_sonu" (delist
+    kirpildi: bool  # donem sonu / seri sonu nedeniyle kirpildi mi?
+    # Kirpildiysa neden: "donem_sonu" ya da "seri_sonu" (delist
     # veya verinin bittigi yer). Kirpilmadiysa None.
     kirpma_nedeni: str | None = None
 
@@ -156,21 +156,6 @@ def sinir_zamani(deger, ad: str) -> pd.Timestamp | None:
     return utc_zamani(deger, ad)
 
 
-def karantina_dogrula(karantina_aylari) -> tuple:
-    """Karantina aylari: ay listesi ya da bilincli `None` (karantina yok).
-
-    Tek bir ay metni (`"2025-12"`) reddedilir: karakter karakter dolasilip sessizce
-    yanlis bir kume olusturulurdu.
-    """
-    if karantina_aylari is None:
-        return ()
-    if isinstance(karantina_aylari, (str, bytes)):
-        raise TypeError(
-            f"karantina_aylari bir ay LISTESI olmali, tek metin degil. Verilen: {karantina_aylari!r}"
-        )
-    return tuple(karantina_aylari)
-
-
 def _t_dahil_dogrula(t_dahil) -> bool:
     """On-kayit §5 rev.4: pencerenin t barini icerip icermedigi acikca verilir.
 
@@ -214,14 +199,14 @@ def _pencere_tam_mi(beklenen: pd.DatetimeIndex, mevcut: pd.DatetimeIndex) -> boo
     Tek bir bar eksikse False doner.
 
     Neden modul ici (on-kayit §3 rev.5): bu kontrol YALNIZCA tamligi olcer;
-    donem, kume ve karantina sinirlarini bilmez. Eskiden herkese acik
+    donem ve kume sinirlarini bilmez. Eskiden herkese acik
     `pencere_tam_mi` olarak duruyordu ve F2'de tek basina kapi olarak
     kullanilsaydi, kume oncesi veriyi iceren tam bir pencereye "gecerli"
     derdi -- yani kume kuralini sessizce atlardi. Sinirlari zorunlu parametre
     olarak eklemek `pencere_dilimi`nin ikinci bir kopyasini yaratirdi ve iki
     kopya zamanla birbirinden ayrisabilirdi (B4'teki `donem.pencere_gecerli_mi`
     ornegi). Bu yuzden tek kapi `pencere_dilimi` / `pencere_degeri`dir; bu
-    fonksiyon yalnizca onun, donem/kume/karantina kontrolleri GECILDIKTEN
+    fonksiyon yalnizca onun, donem/kume kontrolleri GECILDIKTEN
     SONRA cagirdigi ic adimdir. Modul disindan cagrilmaz.
     """
     return bool(beklenen.isin(mevcut).all())
@@ -236,23 +221,20 @@ def pencere_dilimi(
     t_dahil: bool,
     kume_baslangic,
     donem_baslangic,
-    karantina_aylari,
 ) -> pd.Series | None:
     """Zamanla tanimli pencereyi doner; kurallardan biri saglanmazsa None.
 
     Sirasiyla su kosullar aranir:
-      1. Pencere donem baslangicini asmamali (on-kayit §2 rev.2),
+      1. Pencere donem baslangicini asmamali (on-kayit §2 rev.7),
       2. Pencere kume baslangicini asmamali (on-kayit §3 rev.5),
-      3. Pencerenin hicbir bari karantina ayina dusmemeli,
-      4. Penceredeki beklenen barlarin tamami mevcut olmali (rev.3 tamlik sarti).
+      3. Penceredeki beklenen barlarin tamami mevcut olmali (rev.3 tamlik sarti).
 
     Kume siniri, seride kume oncesi veri BULUNSA BILE uygulanir: kural verinin
-    kume sinirinda kesilmis olmasina dayanmaz. `kume_baslangic`,
-    `donem_baslangic` ve `karantina_aylari` zorunludur; sinir yoksa acikca None.
+    kume sinirinda kesilmis olmasina dayanmaz. `kume_baslangic` ve
+    `donem_baslangic` zorunludur; sinir yoksa acikca None.
     """
     kume_bas = sinir_zamani(kume_baslangic, "kume_baslangic")
     donem_bas = sinir_zamani(donem_baslangic, "donem_baslangic")
-    karantina_listesi = karantina_dogrula(karantina_aylari)
     beklenen = beklenen_zamanlar(t, bar_sayisi, bar, t_dahil=t_dahil)
 
     if donem_bas is not None and beklenen[0] < donem_bas:
@@ -260,11 +242,6 @@ def pencere_dilimi(
 
     if kume_bas is not None and beklenen[0] < kume_bas:
         return None  # pencere kume oncesi veriyi odunc alamaz (rev.5)
-
-    if karantina_listesi:
-        karantina = {donem_modulu.ay_donemi(a) for a in karantina_listesi}
-        if any(pd.Period(z, freq="M") in karantina for z in beklenen):
-            return None
 
     indeks = _zaman_dizisi_dogrula(seri.index, "pencere_dilimi")
     if not _pencere_tam_mi(beklenen, indeks):
@@ -282,14 +259,13 @@ def pencere_degeri(
     t_dahil: bool,
     kume_baslangic,
     donem_baslangic,
-    karantina_aylari,
     islev="median",
 ) -> float:
     """Zamanla tanimli pencereye bir toplayici uygular; kural ihlalinde NaN.
 
     `islev` bir Series metodu adi ("median", "mean", "min", "max", "sum") ya da
     Series alan bir cagrilabilirdir. `t_dahil` (on-kayit §5 rev.4) ile
-    `kume_baslangic`, `donem_baslangic`, `karantina_aylari` zorunludur.
+    `kume_baslangic` ve `donem_baslangic` zorunludur.
     """
     dilim = pencere_dilimi(
         seri,
@@ -299,7 +275,6 @@ def pencere_degeri(
         t_dahil=t_dahil,
         kume_baslangic=kume_baslangic,
         donem_baslangic=donem_baslangic,
-        karantina_aylari=karantina_aylari,
     )
     if dilim is None or dilim.isna().any():
         return float("nan")
@@ -338,7 +313,6 @@ def ic_ice_pencere_degeri(
     ic_islev,
     kume_baslangic,
     donem_baslangic,
-    karantina_aylari,
 ) -> float:
     """Ic pencere degerlerinin dis penceredeki toplayicisi; kural ihlalinde NaN.
 
@@ -350,8 +324,8 @@ def ic_ice_pencere_degeri(
     Ornek, H1'in hacim kosulu: dis 180 bar (t dahil) x ic 6 barlik toplam, medyan.
 
     Tum ic pencerelerin birlesimi tek bir kesintisiz araliktir; o aralik
-    `pencere_dilimi`nden gecer. Boylece HER ic pencere tamlik, donem, kume ve
-    karantina kontrolunden gecmis olur; biri bile gecemezse sonuc NaN.
+    `pencere_dilimi`nden gecer. Boylece HER ic pencere tamlik, donem ve kume
+    kontrolunden gecmis olur; biri bile gecemezse sonuc NaN.
     Bu aralik tam oldugu icin icerdeki bar sayisiyla hesap zamanla hesapla aynidir.
     Tum parametreler zorunludur; varsayilan yoktur.
     """
@@ -372,7 +346,6 @@ def ic_ice_pencere_degeri(
         t_dahil=True,
         kume_baslangic=kume_baslangic,
         donem_baslangic=donem_baslangic,
-        karantina_aylari=karantina_aylari,
     )
     if dilim is None or dilim.isna().any():
         return float("nan")
@@ -393,7 +366,6 @@ def ofsetli_pencere_degeri(
     islev,
     kume_baslangic,
     donem_baslangic,
-    karantina_aylari,
 ) -> float:
     """t'den `bitis_ofseti` bar once biten `bar_sayisi` barlik pencere; ihlalde NaN.
 
@@ -417,7 +389,6 @@ def ofsetli_pencere_degeri(
         islev=islev,
         kume_baslangic=kume_baslangic,
         donem_baslangic=donem_baslangic,
-        karantina_aylari=karantina_aylari,
     )
 
 
@@ -475,26 +446,6 @@ def ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk: int, bar: str, *, kume_baslangic, 
     return not _kume_sonunu_asar(hedef, kume_son)
 
 
-def _karantina_siniri(giris: pd.Timestamp, karantina_aylari: tuple) -> pd.Timestamp | None:
-    """Giristen sonraki ilk karantina ayinin baslangicindan hemen onceki an.
-
-    Hicbir cikis (ileri kaymali olan dahil) bu anin otesine gecemez. Giris bir
-    karantina ayinin icindeyse ValueError: karantina ayinda olay olamaz
-    (on-kayit §2 rev.2).
-    """
-    if not karantina_aylari:
-        return None
-    for ay in sorted({donem_modulu.ay_donemi(a) for a in karantina_aylari}):
-        bas, son = ay.start_time, ay.end_time
-        if giris.tzinfo is not None:
-            bas, son = bas.tz_localize("UTC"), son.tz_localize("UTC")
-        if bas <= giris <= son:
-            raise ValueError(f"Giris bari karantina ayinda: {giris} ({ay})")
-        if giris < bas:
-            return bas - pd.Timedelta(1, "ns")
-    return None
-
-
 def cikis_ani(cikis: CikisSonucu, bar: str) -> pd.Timestamp:
     """Pozisyonun kapandigi AN (on-kayit §4 rev.6 funding siniri icin).
 
@@ -508,7 +459,7 @@ def cikis_ani(cikis: CikisSonucu, bar: str) -> pd.Timestamp:
     return cikis.zaman
 
 
-KIRPMA_NEDENLERI = ("karantina", "donem_sonu", "seri_sonu")
+KIRPMA_NEDENLERI = ("donem_sonu", "seri_sonu")
 
 
 def cikis_tutarliligi_dogrula(cikis: CikisSonucu) -> None:
@@ -520,8 +471,8 @@ def cikis_tutarliligi_dogrula(cikis: CikisSonucu) -> None:
       - ileri kaymali    : fiyat_alani="open",  kaydi=True,  kirpildi=False, neden None
       - kirpilmis cikis  : fiyat_alani="close", kaydi=False, kirpildi=True,
                            neden KIRPMA_NEDENLERI'nden biri
-    Sinira gore dogrulama (cikis bari donem sonu ya da karantina sinirini asiyor
-    mu) sinirlari bilen cagiran tarafta yapilir (`funding.pozisyon_fundingi`).
+    Sinira gore dogrulama (cikis bari donem sonunu asiyor mu) sinirlari bilen
+    cagiran tarafta yapilir (`funding.pozisyon_fundingi`).
     """
     if not isinstance(cikis, CikisSonucu):
         raise TypeError(f"cikis bir CikisSonucu olmali (cikis_bari ciktisi). Verilen: {cikis!r}")
@@ -551,7 +502,6 @@ def cikis_bari(
     *,
     birincil_ufuk: int,
     donem_bitis,
-    karantina_aylari,
     kume_bitis,
 ) -> CikisSonucu:
     """Ufuk sonundaki cikis barini secer (on-kayit §2 rev.3, §4 rev.4).
@@ -561,9 +511,8 @@ def cikis_bari(
       hedef cikis bari `giris + (h-1) x adim` = t+h'dir. Ufuk zamanla olculur.
     - Hedef bar mevcutsa cikis o barin KAPANISIDIR.
     - Hedef bar eksikse cikis, sonraki ilk mevcut barin ACILISIDIR (ileri kayma).
-    - Ileri kaymadan ONCELIKLI uc sinir vardir; en erken olan uygulanir ve cikis
-      sinirdan onceki son barin KAPANISIDIR:
-        * karantina : giristen sonraki ilk karantina ayinin baslangici (rev.4),
+    - Ileri kaymadan ONCELIKLI iki sinir vardir; en erken olan uygulanir ve cikis
+      sinirdan onceki son barin KAPANISIDIR (on-kayit §4 rev.7 "Donem sonu ve cikis"):
         * donem_sonu: listeleme doneminin bitisi,
         * seri_sonu : serinin son bari (delist ya da verinin bittigi yer).
       Esitlikte oncelik bu siradadir.
@@ -575,11 +524,10 @@ def cikis_bari(
       BIRINCIL ufku kadar suredir (bar sayisi; H1, H2: 18, H3: 14). Ikincil
       ufuklar da ayni siniri kullanir. Kayma, hedef bardan sonraki mevcut bara
       olan mesafedir (`sonraki - hedef`); `birincil_ufuk x adim`dan uzunsa
-      `IleriKaymaSiniriHatasi` (olay olusmaz). Donem sonu, delist ve karantina
-      bu kuraldan onceliklidir: sinir bu kayma araliginin icindeyse kirpilir.
+      `IleriKaymaSiniriHatasi` (olay olusmaz). Donem sonu ve delist bu kuraldan
+      onceliklidir: sinir bu kayma araliginin icindeyse kirpilir.
 
-    `birincil_ufuk`, `donem_bitis`, `karantina_aylari` ve `kume_bitis`
-    zorunludur; sinir yoksa acikca None (`birincil_ufuk` icin None yoktur).
+    `birincil_ufuk`, `donem_bitis` ve `kume_bitis` zorunludur; sinir yoksa acikca None (`birincil_ufuk` icin None yoktur).
     Getiri HESAPLAMAZ; yalnizca cikis barini ve hangi fiyat alanindan
     okunacagini soyler.
     """
@@ -595,7 +543,6 @@ def cikis_bari(
         raise KeyError(f"Giris bari seride yok: {giris}")
     donem_son = sinir_zamani(donem_bitis, "donem_bitis")
     kume_son = sinir_zamani(kume_bitis, "kume_bitis")
-    karantina_listesi = karantina_dogrula(karantina_aylari)
 
     hedef = cikis_hedefi(giris, ufuk, bar)
     if _kume_sonunu_asar(hedef, kume_son):
@@ -605,9 +552,6 @@ def cikis_bari(
         )
 
     adaylar: list[tuple[pd.Timestamp, str]] = []
-    karantina_siniri = _karantina_siniri(giris, karantina_listesi)
-    if karantina_siniri is not None:
-        adaylar.append((karantina_siniri, "karantina"))
     if donem_son is not None:
         adaylar.append((donem_son, "donem_sonu"))
     adaylar.append((indeks[-1], "seri_sonu"))

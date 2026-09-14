@@ -2,7 +2,7 @@
 
 H2'nin "t anina kadarki son 24 saatteki funding ortalamasi" kosulu, mum
 pencereleriyle ayni korumalardan gecer: gelecege bakis yok, donem ve kume
-baslangici asilmaz, karantina ayina girilmez, eksik odeme varsa deger yok.
+baslangici asilmaz, eksik odeme varsa deger yok.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import config
 from data import funding, pencere, split
 
 C2_BAS = split.kume_araligi("C2")[0]
-SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=None, karantina_aylari=None)
+SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=None)
 
 
 def _funding(bas: str, bitis: str, aralik_saat: int = 8, oran: float = 1e-4) -> pd.DataFrame:
@@ -117,7 +117,7 @@ def test_bir_dakikadan_yakin_iki_kayit_bozuk_veridir():
         _ortalama(bozuk, pd.Timestamp("2021-01-05 04:00", tz="UTC"))
 
 
-# --- Donem, kume, karantina --------------------------------------------------
+# --- Donem ve kume ---------------------------------------------------------
 
 
 def test_kume_oncesi_odeme_mevcutken_kume_basini_asan_pencere_nan():
@@ -148,19 +148,10 @@ def test_donem_basini_asan_pencere_nan():
     assert not pd.isna(_ortalama(fund, pd.Timestamp("2021-02-02 20:00", tz="UTC"), donem_baslangic=donem_bas))
 
 
-def test_karantina_ayina_dokunan_pencere_nan():
-    fund = _funding("2021-05-01", "2021-07-31")
-    t = pd.Timestamp("2021-07-01 04:00", tz="UTC")  # pencere 06-30 08:00 -> 07-01 08:00
-    assert not pd.isna(_ortalama(fund, t))
-    assert pd.isna(_ortalama(fund, t, karantina_aylari=["2021-06"]))
-    assert pd.isna(_ortalama(fund, t, karantina_aylari=["2021-07"]))
-    assert not pd.isna(_ortalama(fund, t, karantina_aylari=["2021-05"]))
-
-
 # --- Zorunluluk --------------------------------------------------------------
 
 
-@pytest.mark.parametrize("eksik", ["kume_baslangic", "donem_baslangic", "karantina_aylari", "saat"])
+@pytest.mark.parametrize("eksik", ["kume_baslangic", "donem_baslangic", "saat"])
 def test_sinir_ya_da_saat_unutulursa_hata(eksik):
     fund = _funding("2021-01-01", "2021-01-10")
     parametreler = {**SINIRSIZ, "saat": 24}
