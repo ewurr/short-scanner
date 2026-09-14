@@ -47,10 +47,13 @@ def _fund():
                                                 donem_bitis=None, kume_bitis=None, **KAR), id="cikis_bari"),
         pytest.param(lambda: funding.funding_ortalamasi(_fund(), pd.Timestamp("2021-06-10", tz="UTC"), config.BAR_4H, saat=24,
                                                         kume_baslangic=None, donem_baslangic=None, **KAR), id="funding_ortalamasi"),
+        pytest.param(lambda: pencere.pozisyon_plani(_seri().index, _seri().index[100], 18, config.BAR_4H, birincil_ufuk=18,
+                                                    kume_baslangic=None, kume_bitis=None, donem_baslangic=None,
+                                                    donem_bitis=None, **KAR), id="pozisyon_plani"),
         pytest.param(lambda: funding.pozisyon_fundingi(
-            _fund(), pd.Timestamp("2021-06-10", tz="UTC"),
-            pencere.CikisSonucu(0, pd.Timestamp("2021-06-12", tz="UTC"), "close", False, False), config.BAR_4H,
-            kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None, **KAR), id="pozisyon_fundingi"),
+            _fund(), pencere.pozisyon_plani(_seri().index, _seri().index[100], 18, config.BAR_4H, birincil_ufuk=18,
+                                            kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None),
+            **KAR), id="pozisyon_fundingi"),
         pytest.param(lambda: eligibility.uygun_mu(
             pd.Series(5e7, index=pd.date_range("2021-01-01", periods=200, freq="D", tz="UTC")),
             pd.Timestamp("2021-06-10", tz="UTC"), config.BAR_4H,

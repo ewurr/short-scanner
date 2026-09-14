@@ -39,7 +39,7 @@ def test_kume_araligi_kume_tanimindan_turetilir(monkeypatch):
     monkeypatch.setattr(split, "kume_tanimi", lambda kume: (("A",), sahte_bas, sahte_son))
 
     assert split.kume_araligi("KESIF") == (sahte_bas, sahte_son)
-    t = pd.Timestamp("2021-06-30 20:00", tz="UTC") - 18 * DORT_SAAT
+    t = pd.Timestamp("2021-06-30 16:00", tz="UTC") - 18 * DORT_SAAT  # cikis kapanisi 20:00
     assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "KESIF") is True
     assert split.ufuk_kumeye_sigar_mi(t + DORT_SAAT, 18, config.BAR_4H, "KESIF") is False
 
@@ -63,11 +63,16 @@ def test_hata_sinifi_tek():
 # --- Sigma kosulu ------------------------------------------------------------
 
 
-def test_kesif_son_barina_tam_oturan_ufuk_sigar():
+def test_kesif_son_barinda_biten_ufuk_sigmaz_bir_once_sigar():
+    """On-kayit §4 rev.7 "Olayin kumede olusma olcutu": cikis ANI ile funding
+    tolerans payi kume sonunu asmamali. Kumenin son 4h barinin (2025-08-31 20:00)
+    kapanisi 09-01 00:00'dir ve C2'ye duser; bu barda biten ufuk sigmaz. Bir bar
+    once biten ufuk sigar. (Rev.4 doneminde son bar kabul ediliyordu.)"""
     _, son = split.kume_araligi("KESIF")
     son_bar = son.floor("4h")  # 2025-08-31 20:00, kumenin son 4h bari
     t = son_bar - 18 * DORT_SAAT
-    assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "KESIF") is True
+    assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "KESIF") is False
+    assert split.ufuk_kumeye_sigar_mi(t - DORT_SAAT, 18, config.BAR_4H, "KESIF") is True
 
 
 def test_kesif_sinirini_bir_bar_asan_ufuk_sigmaz():
@@ -95,8 +100,9 @@ def test_gunluk_seride_h3_ufku():
     """H3: 14 gunluk birincil ufuk."""
     _, son = split.kume_araligi("KESIF")
     son_gun = son.floor("D")  # 2025-08-31
-    assert split.ufuk_kumeye_sigar_mi(son_gun - pd.Timedelta(days=14), 14, config.BAR_1D, "KESIF") is True
-    assert split.ufuk_kumeye_sigar_mi(son_gun - pd.Timedelta(days=13), 14, config.BAR_1D, "KESIF") is False
+    # Son gunun (08-31) kapanisi 09-01 00:00: o gunde biten ufuk sigmaz (rev.7).
+    assert split.ufuk_kumeye_sigar_mi(son_gun - pd.Timedelta(days=15), 14, config.BAR_1D, "KESIF") is True
+    assert split.ufuk_kumeye_sigar_mi(son_gun - pd.Timedelta(days=14), 14, config.BAR_1D, "KESIF") is False
 
 
 def test_olayin_kumesi_sinyal_barinin_kumesidir():
@@ -109,7 +115,7 @@ def test_olayin_kumesi_sinyal_barinin_kumesidir():
 
 def test_c2_sonunu_asan_ufuk_sigmaz():
     _, son = split.kume_araligi("C2")
-    t = son.floor("4h") - 18 * DORT_SAAT
+    t = son.floor("4h") - 19 * DORT_SAAT  # cikis bari son bardan bir once
     assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "C2") is True
     assert split.ufuk_kumeye_sigar_mi(t + DORT_SAAT, 18, config.BAR_4H, "C2") is False
 

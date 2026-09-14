@@ -43,8 +43,12 @@ def _ortalama(fr, t, **sinirlar):
 
 
 def _poz(fr, giris, **sinirlar):
-    cikis = pencere.CikisSonucu(0, giris + 17 * DORT_SAAT, "close", False, False)
-    return funding.pozisyon_fundingi(fr, giris, cikis, config.BAR_4H, **{**SINIRSIZ_POZ, **sinirlar})
+    """18 barlik pozisyon; plan tek kapidan (pencere.pozisyon_plani) gecer."""
+    zamanlar = pd.date_range(giris - 5 * DORT_SAAT, giris + 40 * DORT_SAAT, freq="4h")
+    plan = pencere.pozisyon_plani(
+        zamanlar, giris - DORT_SAAT, 18, config.BAR_4H, birincil_ufuk=18, **{**SINIRSIZ_POZ, **sinirlar}
+    )
+    return funding.pozisyon_fundingi(fr, plan)
 
 
 def _gecisi_kapsayan_ortalama_zamanlari(gecis: pd.Timestamp):
@@ -129,9 +133,9 @@ def test_onceki_kayit_kume_basindan_onceyse_okunmaz():
     t = c2 + pd.Timedelta(hours=20)  # kapanis 09-02 00:00, pencere [09-01 00:00, 09-02 00:00)
     assert not pd.isna(_ortalama(fr, t))
     assert pd.isna(_ortalama(fr, t, kume_baslangic=c2))
-    giris = c2
-    assert not pd.isna(_poz(fr, giris))
-    assert pd.isna(_poz(fr, giris, kume_baslangic=c2))
+    # Pozisyon funding'inde kume basinda giris artik olusmaz: sinyal kume icinde
+    # olmalidir (pencere.pozisyon_plani); kume oncesi kaydin okunmamasi
+    # test_pozisyon_fundingi.py'de plan uzerinden ayrica dogrulanir.
 
 
 def test_kapanistan_sonraki_kayit_okunmaz():

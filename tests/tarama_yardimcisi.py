@@ -41,6 +41,14 @@ FUNDING_KAPI_DISI_DESENI = (
 
 # Bar sayisiyla calisan ve pencere kapisini (data.pencere) atlayan turetilmis seri
 # islemleri. Bunlar seride bosluk, donem ya da kume sinirini bilmez.
+CIKIS_KAPI_DISI_DESENI = (
+    r"\b(cikis_bari|ufuk_kumeye_sigar_mi|cikis_ani)\s*\(|\bCikisSonucu\s*\(|\bPozisyonPlani\s*\(|_PLAN_GIZLI"
+    r"|_plan_imzasi"
+)
+"""Olayin kumede, donemde ve ufukta olusup olusmadigina yalnizca
+`pencere.pozisyon_plani` karar verir (on-kayit §4 rev.7, D3). Analiz kodu cikis ve
+kume on elemesini dogrudan cagirmaz, plan ya da cikis nesnesini elle kurmaz."""
+
 TURETILMIS_SERI_DESENI = (
     r"\.(rolling|expanding|ewm|shift|diff|pct_change|cumsum|cumprod|cummax|cummin|resample)\s*\("
 )

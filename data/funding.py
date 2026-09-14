@@ -18,6 +18,7 @@ import pandas as pd
 
 import config
 from data import binance_vision as bv
+from data.pencere import ODEME_TOLERANSI  # tek tanim: data/pencere.py
 
 
 def _ay_cercevesi(govde: bytes) -> pd.DataFrame:
@@ -113,9 +114,8 @@ def ham_funding_yukle(sembol: str, yenile: bool = False) -> pd.DataFrame:
 
 # --- Funding penceresi (H2.1) ------------------------------------------------
 
-# Ayni odeme anina ait kayitlarin kayabilecegi en buyuk fark. Iki odeme arasindaki
+# `ODEME_TOLERANSI` (1 dakika) data/pencere.py'de tanimlidir. Iki odeme arasindaki
 # en kisa gercek aralik 1 saattir; 1 dakikadan yakin iki kayit bozuk veridir.
-ODEME_TOLERANSI = pd.Timedelta(minutes=1)
 
 
 def _odemeler_tam_mi(funding: pd.DataFrame, zamanlar: pd.DatetimeIndex, maske, bas, son, taban) -> bool:
@@ -251,111 +251,42 @@ def funding_ortalamasi(
 # --- Pozisyon funding'i (on-kayit §4 rev.6) ----------------------------------
 
 
-def pozisyon_fundingi(
-    funding: pd.DataFrame,
-    giris_zamani,
-    cikis,
-    bar: str,
-    *,
-    kume_baslangic,
-    kume_bitis,
-    donem_baslangic,
-    donem_bitis,
-) -> float:
+def pozisyon_fundingi(funding: pd.DataFrame, plan) -> float:
     """Short pozisyonun tuttugu sure boyunca aldigi (+) ya da odedigi (-) funding.
 
     On-kayit §4: her funding aninda `+oran` (GERCEK odeme orani, `oran`;
     8 saate normallestirilmis `oran_8h` kullanilmaz). Toplam doner.
 
+    Yalnizca `pencere.pozisyon_plani`nin urettigi PLANI alir (on-kayit §4 rev.7
+    "Olayin kumede olusma olcutu", tek kapi). Olayin kumede, donemde ve ufukta
+    olusup olusmadigina plan karar vermistir; bu fonksiyon kume ya da donem
+    karari VERMEZ, yalnizca veri tamligina bakar. Elle kurulmus ya da sonradan
+    degistirilmis plan reddedilir.
+
     Sinirlar (on-kayit §4 rev.6):
       - Giris anindaki odeme HARIC, cikis anindaki DAHIL.
       - 1 dakikadan kucuk kayma ayni an sayilir. Odeme p dahildir ancak ve ancak
         `giris + 1 dk <= p < cikis_ani + 1 dk`.
-      - Giris ani t+1 barinin acilisi (`giris_zamani`); cikis ani
-        `pencere.cikis_ani(cikis, bar)`: kapanistan cikista barin kapanisi,
-        ileri kaymali cikista barin acilisi.
-
-    Korumalar (`funding_ortalamasi` ve `pencere.cikis_bari` ile ayni):
-      - **Kume.** Odeme araligi kume baslangicindan once basliyor ya da kume
-        sonunu asiyorsa `KumeSiniriHatasi` (rev.6: "cikis anindaki odeme kumenin
-        tarih araligi disina dusuyorsa olay o kumede olusmaz"; `cikis_bari` ile
-        ayni istisna). Kontrol ZAMANLA yapilir, verinin kume sinirinda kesilmis
-        olmasina dayanilmaz (rev.5).
-      - **Donem sonu olayi dusurmez** (on-kayit §4 rev.7 "Donem sonu ve cikis"):
-        cikis `cikis_bari` tarafindan donem sonuna gore kirpilir ve kirpilmis
-        cikis anina kadarki odemeler normal toplanir. Kirpilmamis bir cikis
-        (cikis bari donem sonundan sonra) ValueError verir.
+      - Tamlik `_odemeler_tam_mi` ile; kume ya da donem basindan onceki kayit okunmaz.
 
     NaN ile hata ayrimi (F1 kapanis denetimi bulgu 11):
-      - **NaN yalnizca VERI EKSIKLIGIDIR** ve olay olusmaz: aralikta beklenen bir
-        odeme eksik, oran ya da aralik NaN, aralik <= 0, odemesiz aralikta
-        onceki kayit yok.
-      - **KumeSiniriHatasi** (ValueError alt sinifi): kume kurali geregi olay bu
-        kumede olusmaz (giris kume basindan once, cikis anindaki odeme araligi
-        kume sonunu asiyor).
-      - **ValueError**: cagiran tarafin onlemesi gereken PROGRAMLAMA HATASI --
-        giris donem baslangicindan once, cikis donem sonuna gore kirpilmamis,
-        tutarsiz CikisSonucu, cikis giristen once.
+      - **NaN yalnizca VERI EKSIKLIGIDIR**: aralikta beklenen bir odeme eksik,
+        oran ya da aralik NaN, aralik <= 0, odemesiz aralikta onceki kayit yok.
+      - **TypeError**: `plan` bir `PozisyonPlani` degil.
+      - **ValueError**: plan elle kurulmus ya da degistirilmis (programlama hatasi).
       - **ZamanDizisiHatasi** (ValueError alt sinifi): bozuk veri (sirasiz,
         tekrarli, saat dilimsiz ya da 1 dakikadan yakin kayit).
-      - **TypeError**: eksik ya da yanlis tipte parametre, saat dilimsiz zaman.
-    Boylece olay dusme nedenleri raporunda "veri eksik" ile "kural" ve "hata"
-    birbirine karismaz.
-      - **Tamlik.** Aralikta beklenen odemelerin tamami bulunmali
-        (`_odemeler_tam_mi`: `aralik_saat` SONRAKI odemeye kalan suredir; ardisik
-        iki odeme arasindaki bosluk iki kaydin araliklarindan buyugunu asamaz;
-        araliktan onceki kayit kume/donem basindan once olamaz). Aralikta hic
-        odeme yoksa onceki son kaydin sonraki odemesi araliktan sonra olmali.
-        Eksik odeme, NaN oran ya da NaN aralik -> NaN. Bir dakikadan yakin iki kayit bozuk veridir ->
-        ZamanDizisiHatasi.
-      - Tum sinirlar zorunlu anahtar sozcuktur; sinir yoksa acikca None.
-        Saat dilimsiz zaman TypeError.
+    Kume, donem, giris ve ileri kayma kurallari `pencere.OlayOlusmaz` alt
+    siniflariyla PLAN asamasinda yuzeye cikar.
 
     Saf fonksiyon.
     """
     from data import pencere as pencere_modulu
 
-    giris = pencere_modulu.utc_zamani(giris_zamani, "giris_zamani")
-    son_an = pencere_modulu.cikis_ani(cikis, bar)
-    kume_bas = pencere_modulu.sinir_zamani(kume_baslangic, "kume_baslangic")
-    kume_son = pencere_modulu.sinir_zamani(kume_bitis, "kume_bitis")
-    donem_bas = pencere_modulu.sinir_zamani(donem_baslangic, "donem_baslangic")
-    donem_son = pencere_modulu.sinir_zamani(donem_bitis, "donem_bitis")
-    if not son_an > giris:
-        raise ValueError(f"Cikis ani giristen sonra olmali: giris {giris}, cikis {son_an}")
-
-    alt = giris + ODEME_TOLERANSI  # dahil
-    ust = son_an + ODEME_TOLERANSI  # haric
-    son_dahil = ust - pd.Timedelta(1, "ns")
+    pencere_modulu.plan_dogrula(plan)
+    alt = plan.giris + ODEME_TOLERANSI  # dahil
+    ust = plan.cikis_ani + ODEME_TOLERANSI  # haric
     nan = float("nan")
-
-    if kume_bas is not None and giris < kume_bas:
-        raise pencere_modulu.KumeSiniriHatasi(
-            f"Giris {giris} kume baslangicindan ({kume_bas}) once (on-kayit §3 rev.4)."
-        )
-    if kume_son is not None and son_dahil > kume_son:
-        raise pencere_modulu.KumeSiniriHatasi(
-            f"Cikis anindaki funding odemesi ({son_an}) kume sonunu ({kume_son}) asiyor "
-            "(on-kayit §4 rev.6: olay bu kumede olusmaz)."
-        )
-    if donem_bas is not None and giris < donem_bas:
-        raise ValueError(
-            f"Giris {giris} donem baslangicindan ({donem_bas}) once; uygunluk bunu engeller "
-            "(on-kayit §2 rev.2). Veri eksikligi degil programlama hatasi."
-        )
-    # Donem sonu olayi DUSURMEZ: cikis `cikis_bari` tarafindan donem sonuna
-    # gore kirpilmistir ve kirpilmis cikis anina kadarki odemeler
-    # normal toplanir. Asagidaki kontroller yalnizca KIRPILMAMIS bir cikisin
-    # verilmesini (programlama hatasi) reddeder. Olcu cikis ANI degil cikis
-    # BARIDIR (bulgu 5): `cikis_bari` yalnizca acilisi sinirdan once ya da sinira
-    # esit barlari secer; kapanistan da acilistan da cikista ayni kural.
-    if donem_son is not None and cikis.zaman > donem_son:
-        raise ValueError(
-            f"Cikis bari {cikis.zaman} donem sonundan ({donem_son}) sonra; cikis donem "
-            "sonuna gore kirpilmamis (pencere.cikis_bari kullanilmali)."
-        )
-    if cikis.kirpma_nedeni == "donem_sonu" and donem_son is None:
-        raise ValueError("Cikis donem sonuna gore kirpilmis ama donem_bitis verilmemis.")
 
     zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], "pozisyon_fundingi")
     if len(zamanlar) > 1:
@@ -368,7 +299,7 @@ def pozisyon_fundingi(
             )
 
     maske = (zamanlar >= alt) & (zamanlar < ust)
-    taban = max((s for s in (kume_bas, donem_bas) if s is not None), default=None)
+    taban = max((s for s in (plan.kume_baslangic, plan.donem_baslangic) if s is not None), default=None)
     if not maske.any():
         # Aralikta odeme yok: onceki son kaydin (kume/donem basi sonrasi) sonraki
         # odemesi araliktan sonra olmali (`_odemeler_tam_mi`).

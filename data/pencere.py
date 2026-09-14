@@ -29,7 +29,7 @@ Bu modul tamamen saftir: ag veya disk kullanmaz.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import pandas as pd
@@ -41,6 +41,11 @@ ADIMLAR = {
     config.BAR_4H: pd.Timedelta(hours=4),
     config.BAR_1D: pd.Timedelta(days=1),
 }
+
+# Ayni odeme anina ait kayitlarin kayabilecegi en buyuk fark (on-kayit §4 rev.6:
+# "1 dakikadan kucuk zaman kaymasi ayni an sayilir"). Tek tanim; funding tamligi ve
+# olayin kumede olusma olcutu (§4 rev.7) ayni sabiti kullanir.
+ODEME_TOLERANSI = pd.Timedelta(minutes=1)
 
 
 def adim(bar: str) -> pd.Timedelta:
@@ -66,15 +71,21 @@ class CikisSonucu:
     kirpma_nedeni: str | None = None
 
 
-class KumeSiniriHatasi(ValueError):
-    """Olayin ufku ait oldugu kumenin tarih araligina sigmiyor (on-kayit §3 rev.4).
+class OlayOlusmaz(ValueError):
+    """Kural geregi olay (ya da kontrol) OLUSMAZ; programlama hatasi ya da veri
+    bozuklugu degildir. Tek kapi `pozisyon_plani` bu sinifin alt siniflarini
+    firlatir; olay dusme nedenleri raporu nedeni sinif adindan okur."""
+
+
+class KumeSiniriHatasi(OlayOlusmaz):
+    """Olayin ufku ait oldugu kumenin tarih araligina sigmiyor (on-kayit §3 rev.4, §4 rev.7).
 
     Kume sinirinda kirpilmis cikis kullanilmaz ve komsu kumeden veri okunmaz;
     olay o kumede hic olusmaz. Kume sinirlari `split.kume_araligi` uzerinden gelir.
     """
 
 
-class IleriKaymaSiniriHatasi(ValueError):
+class IleriKaymaSiniriHatasi(OlayOlusmaz):
     """Hedef cikis bari eksik ve sonraki mevcut bar ileri kayma sinirindan uzak
     (on-kayit §4 rev.6).
 
@@ -82,6 +93,10 @@ class IleriKaymaSiniriHatasi(ValueError):
     H3: 14 gun). Daha uzaktaki bardan cikilmaz ve kirpilmis getiri kullanilmaz;
     olay olusmaz.
     """
+
+
+class GirisBariYok(OlayOlusmaz):
+    """Giris bari (t+1) eksik ya da donem disinda (on-kayit §2 rev.3: olay olusmaz)."""
 
 
 class ZamanDizisiHatasi(ValueError):
@@ -426,16 +441,29 @@ def _kume_sonunu_asar(zaman: pd.Timestamp, kume_son: pd.Timestamp | None) -> boo
     return kume_son is not None and zaman > kume_son
 
 
-def ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk: int, bar: str, *, kume_baslangic, kume_bitis) -> bool:
-    """Olayin ufku ait oldugu kumenin tarih araligina tam olarak sigiyor mu?
+def _cikis_odemesi_kume_disinda(an: pd.Timestamp, kume_son: pd.Timestamp | None) -> bool:
+    """On-kayit §4 rev.7 "Olayin kumede olusma olcutu"nun TEK uygulamasi.
 
-    On-kayit §3 rev.4: sigmayan olay o kumede hic olusmaz; kirpilmis getiri
-    kullanilmaz ve komsu kumeden veri odunc alinmaz. Ikincil ufuklar ayni
-    kurala kendi uzunluklariyla tabidir.
+    Cikis ani ile funding tolerans payi birlikte kume sonunu asiyor mu? Cikis
+    anindaki odeme `[an, an + 1 dk)` araligindadir; bu araligin kume sonundan
+    sonraki kismi kume disidir. Karar ZAMANLA verilir, o anda veride odeme bulunup
+    bulunmamasina bakilmaz (rev.5). Fiyat ve funding icin ayri olcut yoktur.
+    """
+    return kume_son is not None and an + ODEME_TOLERANSI - pd.Timedelta(1, "ns") > kume_son
+
+
+def ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk: int, bar: str, *, kume_baslangic, kume_bitis) -> bool:
+    """Ince on eleme: olayin ufku kumeye sigiyor mu? (on-kayit §3 rev.4, §4 rev.7)
+
+    Karari veren tek kapi `pozisyon_plani`dir; bu fonksiyon onun ilk adimidir ve
+    ayni olcutu (`_cikis_odemesi_kume_disinda`) kullanir: hedef cikis bari t+h'nin
+    KAPANIS ani funding tolerans payiyla birlikte kume sonunu asmamali. Seri
+    gormez. Ileri kayma cikisi yalnizca geciktirir, donem ve seri sonu yalnizca
+    one ceker; plan once bu on elemeyi uygular. Bu yuzden False -> plan kesin
+    reddeder; True -> plan yine de reddedebilir. Ikincil ufuklar ayni kurala
+    kendi uzunluklariyla tabidir.
 
     - Olayin kumesi, sinyal barinin (t) dustugu kumedir: `bas <= t`.
-    - Cikis bari t+h, `cikis_bari` ile ayni hedef ve ayni sinir fonksiyonuyla
-      denetlenir (`cikis_hedefi`, `_kume_sonunu_asar`).
     """
     t = utc_zamani(sinyal_zamani, "sinyal_zamani")
     kume_bas = sinir_zamani(kume_baslangic, "kume_baslangic")
@@ -443,7 +471,7 @@ def ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk: int, bar: str, *, kume_baslangic, 
     hedef = cikis_hedefi(t + adim(bar), ufuk, bar)
     if kume_bas is not None and t < kume_bas:
         return False
-    return not _kume_sonunu_asar(hedef, kume_son)
+    return not _cikis_odemesi_kume_disinda(hedef + adim(bar), kume_son)
 
 
 def cikis_ani(cikis: CikisSonucu, bar: str) -> pd.Timestamp:
@@ -620,3 +648,115 @@ def cikis_bari(
         kaydi=True,
         kirpildi=False,
     )
+
+# --- Tek kapi: pozisyon plani (on-kayit §4 rev.7, D3) -------------------------
+#
+# Bir olayin kumede, donemde ve ufukta olusup olusmadigina YALNIZCA
+# `pozisyon_plani` karar verir. Brut getiri, MAE, funding ve K1/K2 kontrol
+# barlari ayni plani kullanir; boylece brut ve net olay kumeleri ozdestir.
+# `cikis_bari` ve `ufuk_kumeye_sigar_mi` bu kapinin ic adimlaridir; analiz kodu
+# (events/, study/) onlari dogrudan cagirmaz (kaynak taramasi:
+# tests/tarama_yardimcisi.CIKIS_KAPI_DISI_DESENI).
+
+_PLAN_GIZLI = object()
+
+
+@dataclass(frozen=True)
+class PozisyonPlani:
+    """Kurallardan gecmis bir pozisyon. Yalnizca `pozisyon_plani` uretir.
+
+    `_imza` alanlarin icerigine ve modul ici gizli bir nesneye baglidir: elle
+    kurulan ya da `dataclasses.replace` ile degistirilen plan `plan_dogrula`dan
+    gecemez.
+    """
+
+    sinyal_zamani: pd.Timestamp
+    giris: pd.Timestamp
+    cikis: CikisSonucu
+    cikis_ani: pd.Timestamp
+    bar: str
+    ufuk: int
+    birincil_ufuk: int
+    kume_baslangic: pd.Timestamp | None
+    kume_bitis: pd.Timestamp | None
+    donem_baslangic: pd.Timestamp | None
+    donem_bitis: pd.Timestamp | None
+    _imza: int = field(default=0, repr=False, compare=False)
+
+
+def _plan_imzasi(plan: PozisyonPlani) -> int:
+    return hash((
+        _PLAN_GIZLI, plan.sinyal_zamani, plan.giris, plan.cikis, plan.cikis_ani, plan.bar, plan.ufuk,
+        plan.birincil_ufuk, plan.kume_baslangic, plan.kume_bitis, plan.donem_baslangic, plan.donem_bitis,
+    ))
+
+
+def plan_dogrula(plan) -> None:
+    """Plan `pozisyon_plani`nin urettigi ve degistirilmemis bir plan mi?"""
+    if not isinstance(plan, PozisyonPlani):
+        raise TypeError(f"plan bir PozisyonPlani olmali (pencere.pozisyon_plani ciktisi). Verilen: {type(plan).__name__}")
+    if plan._imza != _plan_imzasi(plan):
+        raise ValueError(
+            "PozisyonPlani elle kurulmus ya da degistirilmis; yalnizca pencere.pozisyon_plani "
+            "plan uretir (on-kayit §4 rev.7 tek kapi)."
+        )
+
+
+def pozisyon_plani(
+    zamanlar,
+    sinyal_zamani,
+    ufuk: int,
+    bar: str,
+    *,
+    birincil_ufuk: int,
+    kume_baslangic,
+    kume_bitis,
+    donem_baslangic,
+    donem_bitis,
+) -> PozisyonPlani:
+    """TEK KAPI: t barinda tespit edilen olayin pozisyonu olusur mu?
+
+    Sirasiyla (on-kayit §2 rev.3, §3 rev.4, §4 rev.6-7):
+      1. `ufuk_kumeye_sigar_mi` (zamanla on eleme; sinyal kume icinde, hedef
+         cikisin kapanisi + tolerans kume sonunu asmiyor) -> `KumeSiniriHatasi`.
+      2. Sinyal donem baslangicindan once olamaz -> ValueError (programlama
+         hatasi: uygunluk bunu engeller).
+      3. Giris t+1 bari mevcut ve donem icinde olmali -> `GirisBariYok`.
+      4. `cikis_bari`: donem sonu ve seri sonu kirpmasi, ileri kayma ve siniri
+         -> `IleriKaymaSiniriHatasi`, `KumeSiniriHatasi`.
+      5. Gercek cikis ani + tolerans kume sonunu asmamali (`_cikis_odemesi_kume_disinda`)
+         -> `KumeSiniriHatasi`.
+
+    Kural geregi olay olusmazsa `OlayOlusmaz` alt sinifi firlatir. Tum sinirlar
+    zorunlu anahtar sozcuktur; sinir yoksa acikca None. Saf fonksiyon; getiri
+    hesaplamaz.
+    """
+    t = utc_zamani(sinyal_zamani, "sinyal_zamani")
+    kume_bas = sinir_zamani(kume_baslangic, "kume_baslangic")
+    kume_son = sinir_zamani(kume_bitis, "kume_bitis")
+    donem_bas = sinir_zamani(donem_baslangic, "donem_baslangic")
+    donem_son = sinir_zamani(donem_bitis, "donem_bitis")
+
+    if not ufuk_kumeye_sigar_mi(t, ufuk, bar, kume_baslangic=kume_bas, kume_bitis=kume_son):
+        raise KumeSiniriHatasi(
+            f"Olay kumeye sigmiyor: sinyal {t}, ufuk {ufuk} bar, kume [{kume_bas}, {kume_son}] "
+            "(on-kayit §3 rev.4, §4 rev.7: olay bu kumede olusmaz)."
+        )
+    if donem_bas is not None and t < donem_bas:
+        raise ValueError(f"Sinyal {t} donem baslangicindan ({donem_bas}) once; uygunluk bunu engeller.")
+    indeks = _zaman_dizisi_dogrula(zamanlar, "pozisyon_plani")
+    giris = giris_bari(indeks, t, bar)
+    if giris is None:
+        raise GirisBariYok(f"Giris bari (t+1 = {t + adim(bar)}) eksik (on-kayit §2 rev.3: olay olusmaz).")
+    if donem_son is not None and giris > donem_son:
+        raise GirisBariYok(f"Giris bari {giris} donem sonundan ({donem_son}) sonra; olay olusmaz.")
+
+    cikis = cikis_bari(indeks, giris, ufuk, bar, birincil_ufuk=birincil_ufuk, donem_bitis=donem_son, kume_bitis=kume_son)
+    an = cikis_ani(cikis, bar)
+    if _cikis_odemesi_kume_disinda(an, kume_son):
+        raise KumeSiniriHatasi(
+            f"Cikis ani {an} ve cikis anindaki funding odemesi kume sonunu ({kume_son}) asiyor "
+            "(on-kayit §4 rev.7: olay bu kumede olusmaz)."
+        )
+    plan = PozisyonPlani(t, giris, cikis, an, bar, int(ufuk), int(birincil_ufuk), kume_bas, kume_son, donem_bas, donem_son)
+    return replace(plan, _imza=_plan_imzasi(plan))
