@@ -1,6 +1,6 @@
 # PREREGISTRATION.md — Short Öngörü Hipotezleri
 
-**Durum:** Sürüm 6 (2026-09-13). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
+**Durum:** Sürüm 7 (2026-09-13). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
 **Kapsam:** F2 (keşif) ve F3 (onay). Taktik (F4) ve ileri-zaman testi (F5) ayrı revizyonla eklenir.
 
 Bu belge commit edildikten sonra aşağıdaki hiçbir tanım, eşik veya tarih sınırı
@@ -42,19 +42,20 @@ low en düşük, close son değer; volume ve quote_volume toplam. 6 adet 4h bar�
 eksik (NaN) sayılır. Uygunluktaki günlük hacim bu seriden hesaplanır.
 
 **Listeleme dönemi.** Her sembolün verisi bir veya daha fazla listeleme dönemine ayrılır.
-- Bucket'ta `<SEMBOL>SETTLED` dizininde dosyası bulunan ve sembolün ilk ile son ayı arasında
-  kalan her ay, o sembol için **karantina ayıdır**.
-- Karantina ayındaki barlar olay veya kontrol barı olamaz; hiçbir geriye bakış penceresi ya da
-  ufuk karantina ayına giremez.
-- Karantina ayları dönemi böler. Önceki dönem, karantinadan önceki son barla biter. Yeni dönem,
-  karantinadan sonraki ilk barla başlar.
-- Aylık 4h dosyaları arasında 3 aydan uzun boşluk da dönemi böler.
+- Dönem, sıfır olmayan hacimli ilk barda başlar ve sıfır olmayan hacimli son barda biter. Sınır bar düzeyindedir, ay düzeyinde değil.
+- 6 veya daha fazla ardışık sıfır hacimli bar (bir gün) dönemi böler. Bu barlar delist edilmiş ya da henüz yeniden listelenmemiş bir sözleşmenin dolgu verisidir ve hiçbir hesaba girmez.
+- 7 günden uzun eksik bar boşluğu dönemi böler. Bundan kısa boşluklar borsa kesintisi sayılır ve rev.3'ün veri boşluğu kurallarına tabidir.
 - Yeniden adlandırma zincirindeki her sembol ayrı bir dönemdir; fiyat serileri birleştirilmez.
 - Listeleme yaşı her dönem başında sıfırlanır.
-- Tüm geriye bakış pencereleri (uygunluk hacmi, H1 hacim medyanı, H2 30 bar, H3 hacim pencereleri
-  ve SMA50) dönem başlangıcını aşamaz. Aşıyorsa değer hesaplanmaz ve o barda olay oluşmaz.
+- Tüm geriye bakış pencereleri dönem başlangıcını aşamaz; aşıyorsa değer hesaplanmaz ve o barda olay oluşmaz.
 - Ufuk dönem sonunu aşarsa çıkış fiyatı dönemin son barının kapanışıdır.
 - Aynı kurallar K1 ve K2 kontrol barlarına da uygulanır.
+
+**Karantina kuralının kaldırılması.** Rev.2'de getirilen SETTLED tabanlı karantina kuralı yürürlükten kalkmıştır. F1 ölçümü, SETTLED aylarının yeniden fiyatlandırma değil yeniden listeleme anlamına geldiğini; 34 karantina ayının 14'ünde ise ana seriyle birebir aynı, işlem gören temiz verinin gereksiz yere dışarıda bırakıldığını göstermiştir. Yukarıdaki dönem bölme kuralları aynı riski daha doğru kapsar. SETTLED bilgisi yalnızca denetim amacıyla tutulur.
+
+**Funding'i bulunmayan dönemler.** Hiçbir funding kaydı bulunmayan listeleme dönemi, üç hipotezin hiçbirinde kullanılmaz; ne olay ne kontrol üretir. Gerekçe: net getiri funding içerir; funding'i olmayan dönem yalnızca H2'den çıkarılırsa brüt ve net olay kümeleri ayrışır ve K2 kontrol havuzu tutarsızlaşır. Funding sıfır varsayılmaz.
+
+**Gerçek işlem sonrası funding kayıtları.** Dönem sonundan sonra gelen funding kayıtları yok sayılır. F1 ölçümü, 38 sembolde uzlaşma sonrasında da funding kaydı yayınlandığını ve bu kayıtların bir ya da birkaç sabit orandan oluştuğunu göstermiştir.
 
 **Veri boşlukları.** Bar dizisinde eksik bar bulunabilir (F1 denetimi: 105 kayıt, 10 olay;
 en büyüğü 48 ve 49 sembolü aynı anda etkilemiştir). Aşağıdaki kurallar dönem kurallarına ek
@@ -92,10 +93,11 @@ ayrı bir revizyonla karantinaya alınır ya da gerekçesiyle bırakılır.
 **Uygunluk penceresi ve t günü.** Uygunluk hacmi, t barının ait olduğu UTC günü hariç,
 ondan önceki 30 tam günün medyanıdır. Kural 4 saatlik ve 1 günlük barlarda aynıdır.
 
+**İleri kaymanın ölçüsü.** İleri kayma, hedef bar ile sonraki mevcut barın açılış zamanları arasındaki fark olarak ölçülür ve sınır dahildir.
+
 Delist edilen sözleşmelerin geçmişi elde edilemezse bu durum F1 denetim raporunda
 sayısıyla yazılır ve sonuçlar "kötümser yanlılıklı" olarak etiketlenir.
-F1 denetiminde 28 delist sembolün tümünün geçmişi eksiksiz indirilmiştir; bu veri
-kümesinde hayatta kalma yanlılığı yoktur.
+F1 ölçümünde evrende 128 sembolün `exchangeInfo` durumunun SETTLING olduğu, yani uzlaşmış sözleşmeler olduğu belirlenmiştir. `exchangeInfo`'da hiç bulunmayan 28 sembolle birlikte toplam yaklaşık 156 sembol delist edilmiştir. Bu sembollerin geçmişi eksiksiz mevcuttur ve dönem sonları gerçek işlem bitişine göre belirlenir; ancak "hayatta kalma yanlılığı yoktur" hükmü geri alınmıştır, çünkü ilk denetimde delist sayısı 28 olarak eksik saptanmıştı.
 
 **Evren tablosunun sabitlenmesi.** Karantina ayları ve listeleme dönemi sınırları
 `data/universe.csv` dosyasına yazılır ve commit edilir. Bu dosya `split.csv` gibi
@@ -158,13 +160,15 @@ Ufuk h bar sonra çıkış fiyatı `P1 = close[t+h]`.
 
 Ufuk içinde sözleşme delist olursa çıkış, son mevcut barın kapanışıdır.
 
-**Karantina ve çıkış.** Ufuk bir karantina ayına uzanırsa çıkış, karantinadan
-önceki son barın kapanışıdır. Dönem sonu, delist ve karantina kuralları ileri
-kayma kuralından önceliklidir.
+**Dönem sonu ve çıkış.** Ufuk dönem sonunu aşarsa çıkış, dönemin son barının kapanışıdır. Dönem sonu ve delist kuralları ileri kayma kuralından önceliklidir.
 
 **İleri kaymanın üst sınırı.** Hedef çıkış barı eksikse ileri kayma, olayın birincil
 ufku kadar süre ile sınırlıdır (H1 ve H2 için 18 bar, H3 için 14 gün). Sonraki mevcut
 bar bu sınırdan uzaksa olay oluşmaz; kırpılmış getiri kullanılmaz.
+
+**Olayın kümede oluşma ölçütü.** Bir olayın kümede oluşup oluşmadığına tek bir karar noktası hükmeder ve ölçüt çıkış anına göre uygulanır: çıkış anı ile funding tolerans payı birlikte küme sonunu aşmamalıdır. Fiyat ve funding için ayrı ölçüt kullanılmaz.
+
+**Funding aralığı geçişleri.** Funding kayıtlarındaki aralık alanı bir sonraki ödemeye kalan süreyi gösterir. Tamlık kontrolü buna göre yapılır: iki ödeme arasındaki boşluk, iki kaydın aralıklarından büyüğünü ve tolerans payını aşarsa ödeme eksik sayılır. Bilinen sınır: aralık 1 saate düşüp yeniden 4 saate hizalanırken pencere kapanışına denk gelen kayıt hesaba giremez ve değer hesaplanmaz; bunu ayırt etmek geleceğe bakış gerektirir. F1 ölçümünde bu durum 888 geçişin 6'sında görülmüştür.
 
 | Hipotez | Birincil ufuk | İkincil ufuklar (yalnızca rapor) |
 |---|---|---|
@@ -195,6 +199,8 @@ başarısızlığı teyit edilince satış zincirleme hızlanır.
    H1'in 6'lı toplam hacim medyanı kayan pencereyle hesaplanır: her bar için son 6 barın
    toplamı alınır ve bu toplamların 180 barlık medyanı kullanılır. Ardışık, çakışmayan
    bloklara bölünmez.
+
+   H1'in 180 barlık hacim medyanı t barını içerir; 6 barlık toplam pencereleri t barını içerir. H1'in 6 barlık dip penceresi (`low[t-6..t-1]`) t barını içermez.
 
 2. **Tepe:** pump barından itibaren görülen en yüksek `high`, en fazla 12 bar izlenir.
 3. **Olay (başarısızlık teyidi):** pump barından sonraki 12 bar içinde ilk kez
@@ -298,3 +304,4 @@ Başarısız bir hipotez için onay yeniden koşulamaz.
 | 4 | 2026-09-13 | Küme sınırı ve ufuk kuralı; karantinanın çıkışa uygulanması; pencere sınırlarının açık belirtilmesi; evren tablosunun commit edilmesi | F2 öncesi metodoloji denetimi (B1, B2, B3, B10): ön-kayıtta tanımsız kalan ve ilk getiri hesabında devreye girecek noktalar. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
 | 5 | 2026-09-13 | Geriye bakış pencerelerinin küme sınırını aşamayacağı açıkça yazıldı | F2 öncesi sızıntı testleri: kural yalnızca verinin kesilmiş olmasıyla sağlanıyordu, kod düzeyinde garanti edilmiyordu. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
 | 6 | 2026-09-13 | Funding ödemesinin giriş/çıkış sınırları; ileri kaymanın üst sınırı; uygunluk penceresinin t gününü dışlaması; H1 hacim medyanının kayan pencere okuması; revizyon 4-5 tarih düzeltmesi | F1 kapanış denetimi: ön-kayıtta tanımsız kalan ve F2'de ilk getiri hesabında devreye girecek dört nokta. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
+| 7 | 2026-09-13 | Karantina kuralı kaldırıldı, yerine dolgu koşusu ve uzun boşluk temelli dönem bölme geldi; dönem sınırları bar düzeyine indi; funding'siz dönemler tüm hipotezlerden çıkarıldı; uzlaşma sonrası funding kayıtları yok sayıldı; delist sayısı ve hayatta kalma yanlılığı hükmü düzeltildi; olayın kümede oluşma ölçütü tek kapıya bağlandı; funding aralığı geçişlerinde tamlık tanımı; ileri kaymanın ölçüsü; H1 pencere sınırları | F1 kapanış ölçümleri (D1, D2, D3, V1, V2, S1–S3): 131 sembolde uzlaşma sonrası dolgu barların dönem sonunu yıllarca uzattığı, SETTLED aylarının yeniden fiyatlandırma değil yeniden listeleme olduğu ve delist sayısının eksik saptandığı belirlendi. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |

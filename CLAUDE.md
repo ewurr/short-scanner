@@ -31,7 +31,10 @@ saklanmaz, koda yazılmaz.
    Bir hipotezin değeri, **aynı anda diğer coinleri short'lamaktan** daha iyi
    olmasıyla ölçülür (K2 kontrolü, bkz. PREREGISTRATION.md).
 4. **Hayatta kalma yanlılığı ters çalışır.** Delist olmuş coinler en iyi short
-   adaylarıdır. Veride yoksa sonuçlar kötümser çıkar; varsa dahil edilmelidir.
+   adaylarıdır. Delist edilmiş semboller veride mevcuttur, ancak uzlaşmış
+   sözleşmeler sıfır hacimli dolgu barlarla devam ettiği için dönem sonu gerçek
+   işlem bitişine (sıfır olmayan hacimli son bar) göre belirlenir. Dolgu barlar
+   dönemin parçası sayılırsa delist coinler sessizce hesaptan düşer.
 5. **Stop zorunludur.** Taktik aşamasında her short pozisyonun önceden tanımlı
    bir geçersizlik (stop) seviyesi olmalıdır. Stopsuz short tasarımı yapılmaz.
 6. **Kâr al serbesttir.** Short'ta kazanç zaten sınırlı olduğu için önceden
