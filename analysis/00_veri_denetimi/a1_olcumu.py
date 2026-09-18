@@ -2,22 +2,28 @@
 
 `data.funding._donem_icinde` ust siniri son gercek barin KAPANISIDIR
 (`donem_bitis + 4h + 1 dk`). Uzlasmis sozlesmelerde deliveryDate cogunlukla son
-barin icine duser (RESULTS §2). Bu betik, deliveryDate'ten SONRA gelip yine de
-donem icinde sayilan funding kayitlarini sayar ve bunlardan hangilerinin donem
-sonu cikis anina (`donem_bitis + 4h`, 1 dk tolerans) denk geldigini isaretler.
+barin icine duser (RESULTS §2). Bu betik yalnizca KAYIT SAYAR ve ZAMAN KONUMU yazar:
 
-Tamamlayici olcum (ikinci tur):
-- Uzlasma sonrasi her kaydin orani, ayni sembolun uzlasma oncesi son 30 kaydinin
-  medyan |oran|'i ile yan yana; sifir, sembol icinde tekrar, uzlasma oncesi son
-  kayitla ayni deger ve isaret. Amac kayitlarin gercek piyasa orani mi yoksa
-  uzlasma sonrasi yapay deger mi oldugunu anlamak (veri butunlugu).
-- Her kaydin konumu: deliveryDate, son bar acilisi ve kapanisina gore.
-- deliveryDate'i olmayan (exchangeInfo disi) sembollerde son barin acilisi ile
-  kapanisi arasina dusen kayitlar, ayni konum ve oran sutunlariyla.
+1. deliveryDate'ten SONRA gelip donem icinde sayilan kayitlar ve bunlardan
+   hangilerinin donem sonu cikis anina (`donem_bitis + 4h`, 1 dk tolerans) denk
+   geldigi (`a1_uzlasma_sonrasi_funding_tam.csv`).
+2. Her kaydin konumu (deliveryDate, son bar acilisi ve kapanisina gore) ve
+   deliveryDate'i olmayan (exchangeInfo disi) sembollerde son barin acilisi ile
+   kapanisi arasina dusen kayitlar (`a1_konumlar_tam.csv`).
+3. Ust siniri son bar acilisina cekmenin etkisi, tum donemlerde kayit sayisi
+   (`a1_oneri_etkisi_tam.csv`; 1093e69'daki 43 kayit dokumu).
 
-Getiri, pozisyon funding'i ya da olay hesaplamaz; oranlar yalnizca uzlasma
-anindaki tekil kayitlar ve sembolun kendi referans medyaniyla karsilastirilir.
-Kod degistirmez.
+DEGER RAPORLAMAZ (denetci bulgusu D-B1, CLAUDE.md §3.1). Uzlasma sonrasi
+kayitlar donem sonunu asan pozisyonlarin net getirisine girebilecek turdendir.
+1093e69'da oran degerleri ve isaretleri raporlandi; bu, veri denetimi sinirini
+asti ve rapordan cikarildi. O kosunun ham ciktilari
+(`a1_uzlasma_sonrasi_oranlar_tam.csv`, `a1_teslimsiz_son_bar_funding_tam.csv`)
+iz icin depoda durur. Varsayilan kosu bu dosyalari URETMEZ ve oran degeri
+yazdirmaz; yalnizca `--oran-degerleri` bayragiyla, o kosunun yeniden uretimi
+icin yazilir. Bu bayrak yeni bir analiz icin kullanilmaz.
+
+Getiri, pozisyon funding'i ya da olay hesaplamaz. Veri katmani kodunu
+degistirmez.
 
 Kullanim:
     python analysis/00_veri_denetimi/a1_olcumu.py
@@ -25,23 +31,40 @@ Kullanim:
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
 import pandas as pd
 
 KOK = Path(__file__).resolve().parents[2]
+BU_DIZIN = Path(__file__).resolve().parent
 sys.path.insert(0, str(KOK))
+sys.path.insert(0, str(BU_DIZIN))
 
 import config  # noqa: E402
+from calistir import git_durumu, ortam_kaydi  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import universe as universe_modulu  # noqa: E402
 
-CIKTI = Path(__file__).resolve().parent / "a1_uzlasma_sonrasi_funding_tam.csv"
-CIKTI_ORAN = Path(__file__).resolve().parent / "a1_uzlasma_sonrasi_oranlar_tam.csv"
-CIKTI_TESLIMSIZ = Path(__file__).resolve().parent / "a1_teslimsiz_son_bar_funding_tam.csv"
+CIKTI = BU_DIZIN / "a1_uzlasma_sonrasi_funding_tam.csv"
+CIKTI_KONUM = BU_DIZIN / "a1_konumlar_tam.csv"
+CIKTI_ONERI = BU_DIZIN / "a1_oneri_etkisi_tam.csv"
+CIKTI_ORTAM = BU_DIZIN / "a1_ortam_tam.csv"
+# Yalnizca --oran-degerleri ile (1093e69 kosusunun yeniden uretimi).
+CIKTI_ORAN = BU_DIZIN / "a1_uzlasma_sonrasi_oranlar_tam.csv"
+CIKTI_TESLIMSIZ = BU_DIZIN / "a1_teslimsiz_son_bar_funding_tam.csv"
 REFERANS_KAYIT = 30
+
+ADIM = pencere_modulu.adim(config.BAR_4H)
+TOL = funding_modulu.ODEME_TOLERANSI
+
+
+def funding_yukle(sembol: str) -> pd.DataFrame:
+    """Sembolun ham funding kayitlari, toplam donem sonuna kesilmis."""
+    fund = funding_modulu.ham_funding_yukle(sembol)
+    return fund.loc[fund["odeme_zamani"] <= config.DONEM_SONU].reset_index(drop=True)
 
 
 def sembol_olc(sembol: str, teslim: pd.Timestamp, donem, fund: pd.DataFrame) -> list[dict]:
@@ -85,6 +108,9 @@ def konum(z: pd.Timestamp, acilis: pd.Timestamp, kapanis: pd.Timestamp,
 def oran_karsilastir(kayitlar: pd.DataFrame, referans: pd.DataFrame) -> pd.DataFrame:
     """Incelenen kayitlarin oranini referans kayitlarla yan yana koyar. Saf.
 
+    Yalnizca `--oran-degerleri` ile, 1093e69 kosusunun yeniden uretimi icin
+    cagrilir (bkz. modul belgesi).
+
     `referans`: ayni sembolun incelenen kayitlardan onceki kayitlari (zaman
     sirali); yalnizca son `REFERANS_KAYIT` tanesi kullanilir.
     """
@@ -107,32 +133,48 @@ def oran_karsilastir(kayitlar: pd.DataFrame, referans: pd.DataFrame) -> pd.DataF
     return out
 
 
-def main() -> None:
+# --- Ana akis ----------------------------------------------------------------
+
+
+def main(argv: list[str] | None = None) -> None:
+    ayristirici = argparse.ArgumentParser()
+    ayristirici.add_argument(
+        "--oran-degerleri", action="store_true",
+        help="1093e69 kosusunun oran degeri CSV'lerini yeniden uretir. Yeni analiz icin KULLANILMAZ "
+             "(denetci bulgusu D-B1).",
+    )
+    argumanlar = ayristirici.parse_args(argv)
+
+    baslangic = pd.Timestamp.now(tz="UTC")
+    git = git_durumu()
+
     evren = universe_modulu.evren_yukle()
     sinif = universe_modulu.delist_sinifi(evren, universe_modulu.exchange_info_anlik_yukle())
+    sinif_haritasi = sinif.set_index("sembol")["sinif"].to_dict()
     settling = sinif.loc[sinif["sinif"] == universe_modulu.SETTLING_DURUMU].sort_values("sembol")
 
-    adim = pencere_modulu.adim(config.BAR_4H)
-    tol = funding_modulu.ODEME_TOLERANSI
-    satirlar, sayim, oran_parcalari = [], [], []
+    satirlar, sayim, konumlar, oran_parcalari = [], [], [], []
     for r in settling.itertuples():
         donem = universe_modulu.sembol_donemleri(evren, r.sembol)[-1]
-        fund = funding_modulu.ham_funding_yukle(r.sembol)
-        fund = fund.loc[fund["odeme_zamani"] <= config.DONEM_SONU].reset_index(drop=True)
+        fund = funding_yukle(r.sembol)
         s = sembol_olc(r.sembol, r.deliveryDate, donem, fund)
         satirlar += s
         sayim.append((r.sembol, len(s)))
-        if s:
+        for x in s:
+            konumlar.append({"sembol": r.sembol, "sinif": r.sinif, "deliveryDate": r.deliveryDate,
+                             "son_bar_acilisi": donem.bitis, "son_bar_kapanisi": donem.bitis + ADIM,
+                             "odeme_zamani": x["odeme_zamani"], "aralik_saat": x["aralik_saat"],
+                             "konum": konum(x["odeme_zamani"], donem.bitis, donem.bitis + ADIM, r.deliveryDate)})
+        if s and argumanlar.oran_degerleri:
             secilen = fund.loc[fund["odeme_zamani"].isin([x["odeme_zamani"] for x in s])]
-            referans = fund.loc[fund["odeme_zamani"] <= r.deliveryDate + tol]
+            referans = fund.loc[fund["odeme_zamani"] <= r.deliveryDate + TOL]
             k = oran_karsilastir(secilen, referans)
             k.insert(0, "sembol", r.sembol)
             k.insert(1, "deliveryDate", r.deliveryDate)
             k.insert(2, "son_bar_acilisi", donem.bitis)
-            k.insert(3, "son_bar_kapanisi", donem.bitis + adim)
-            k["konum"] = [konum(z, donem.bitis, donem.bitis + adim, r.deliveryDate)
-                          for z in k["odeme_zamani"]]
-            k["cikis_anina_denk"] = [abs(z - (donem.bitis + adim)) <= tol for z in k["odeme_zamani"]]
+            k.insert(3, "son_bar_kapanisi", donem.bitis + ADIM)
+            k["konum"] = [konum(z, donem.bitis, donem.bitis + ADIM, r.deliveryDate) for z in k["odeme_zamani"]]
+            k["cikis_anina_denk"] = [abs(z - (donem.bitis + ADIM)) <= TOL for z in k["odeme_zamani"]]
             oran_parcalari.append(k)
 
     # deliveryDate'i olmayan semboller: son barin acilisi ile kapanisi arasi (uclar dahil).
@@ -140,22 +182,25 @@ def main() -> None:
     teslimsiz_parcalari, teslimsiz_sayim = [], []
     for r in disi.itertuples():
         donem = universe_modulu.sembol_donemleri(evren, r.sembol)[-1]
-        acilis, kapanis = donem.bitis, donem.bitis + adim
-        fund = funding_modulu.ham_funding_yukle(r.sembol)
-        fund = fund.loc[fund["odeme_zamani"] <= config.DONEM_SONU].reset_index(drop=True)
+        acilis, kapanis = donem.bitis, donem.bitis + ADIM
+        fund = funding_yukle(r.sembol)
         z = fund["odeme_zamani"]
-        secim = (z >= acilis - tol) & (z <= kapanis + tol)
+        secim = (z >= acilis - TOL) & (z <= kapanis + TOL)
         teslimsiz_sayim.append((r.sembol, int(secim.sum()), len(fund) > 0))
-        if not secim.any():
-            continue
-        k = oran_karsilastir(fund.loc[secim], fund.loc[z < acilis - tol])
-        k.insert(0, "sembol", r.sembol)
-        k.insert(1, "son_bar_acilisi", acilis)
-        k.insert(2, "son_bar_kapanisi", kapanis)
-        k["konum"] = [konum(t, acilis, kapanis, None) for t in k["odeme_zamani"]]
-        k["donem_icinde"] = funding_modulu._donem_icinde(pd.DatetimeIndex(k["odeme_zamani"]), donem,
-                                                        config.BAR_4H)
-        teslimsiz_parcalari.append(k)
+        for _, x in fund.loc[secim].iterrows():
+            konumlar.append({"sembol": r.sembol, "sinif": r.sinif, "deliveryDate": pd.NaT,
+                             "son_bar_acilisi": acilis, "son_bar_kapanisi": kapanis,
+                             "odeme_zamani": x["odeme_zamani"], "aralik_saat": x["aralik_saat"],
+                             "konum": konum(x["odeme_zamani"], acilis, kapanis, None)})
+        if secim.any() and argumanlar.oran_degerleri:
+            k = oran_karsilastir(fund.loc[secim], fund.loc[z < acilis - TOL])
+            k.insert(0, "sembol", r.sembol)
+            k.insert(1, "son_bar_acilisi", acilis)
+            k.insert(2, "son_bar_kapanisi", kapanis)
+            k["konum"] = [konum(t, acilis, kapanis, None) for t in k["odeme_zamani"]]
+            k["donem_icinde"] = funding_modulu._donem_icinde(pd.DatetimeIndex(k["odeme_zamani"]), donem,
+                                                            config.BAR_4H)
+            teslimsiz_parcalari.append(k)
 
     tablo = pd.DataFrame(satirlar, columns=["sembol", "deliveryDate", "donem_bitis", "odeme_zamani",
                                             "teslimden_sonra_saat", "aralik_saat", "cikis_anina_denk"])
@@ -167,64 +212,48 @@ def main() -> None:
           f"({tablo.loc[tablo['cikis_anina_denk'], 'sembol'].nunique()} sembol)")
     if len(tablo):
         print(tablo.groupby("aralik_saat").size().rename("kayit").to_string())
-    print(f"CSV: {CIKTI}")
 
-    oranlar = pd.concat(oran_parcalari, ignore_index=True) if oran_parcalari else pd.DataFrame()
-    oranlar.to_csv(CIKTI_ORAN, index=False, lineterminator="\n")
-    print("\n--- Uzlasma sonrasi kayitlarin oranlari ---")
-    if len(oranlar):
-        with pd.option_context("display.width", 250, "display.max_columns", 30):
-            print(oranlar[["sembol", "odeme_zamani", "aralik_saat", "oran", "oran_8h",
-                           "referans_medyan_abs_oran_8h", "abs_oran_8h_medyana_orani",
-                           "referans_son_oran", "referans_son_oranla_ayni",
-                           "incelenenler_icinde_tekrar", "konum"]].to_string(index=False))
-        print("isaret:", oranlar["isaret"].value_counts().to_dict())
-        print("sifir oran:", int((oranlar["oran"] == 0).sum()))
-        print("referansin son oraniyla ayni:", int(oranlar["referans_son_oranla_ayni"].sum()))
-        print("referans 30 kaydi sabit olan sembol:",
-              oranlar.loc[oranlar["referans_30_kayit_sabit"], "sembol"].unique().tolist())
-        print("konum:", oranlar["konum"].value_counts().to_dict())
-        print("birden fazla gecen oran degeri:",
-              {k: v for k, v in oranlar["oran"].value_counts().items() if v > 1})
-    print(f"CSV: {CIKTI_ORAN}")
+    konum_tablosu = pd.DataFrame(konumlar, columns=["sembol", "sinif", "deliveryDate", "son_bar_acilisi",
+                                                    "son_bar_kapanisi", "odeme_zamani", "aralik_saat", "konum"])
+    konum_tablosu.to_csv(CIKTI_KONUM, index=False, lineterminator="\n")
+    print("\n--- Konumlar (yalnizca zaman; deger yok) ---")
+    for s_, g in konum_tablosu.groupby("sinif"):
+        print(f"{s_}: {len(g)} kayit, {g['sembol'].nunique()} sembol, {g['konum'].value_counts().to_dict()}")
+    print(f"exchangeInfo disi: sembol {len(teslimsiz_sayim)}, funding kaydi olmayan "
+          f"{sum(1 for _, _, v in teslimsiz_sayim if not v)}, son barda kaydi olmayan "
+          f"{[s_ for s_, n, _ in teslimsiz_sayim if n == 0]}")
 
-    teslimsiz = pd.concat(teslimsiz_parcalari, ignore_index=True) if teslimsiz_parcalari else pd.DataFrame()
-    teslimsiz.to_csv(CIKTI_TESLIMSIZ, index=False, lineterminator="\n")
-    print("\n--- deliveryDate'i olmayan semboller: son bar icindeki kayitlar ---")
-    print(f"sembol: {len(teslimsiz_sayim)}, funding kaydi olmayan: "
-          f"{sum(1 for _, _, v in teslimsiz_sayim if not v)}, son barda kaydi olan: "
-          f"{sum(1 for _, n, _ in teslimsiz_sayim if n)}, kayit: {len(teslimsiz)}")
-    if len(teslimsiz):
-        with pd.option_context("display.width", 250, "display.max_columns", 30):
-            print(teslimsiz[["sembol", "son_bar_acilisi", "odeme_zamani", "aralik_saat", "oran",
-                             "oran_8h", "referans_medyan_abs_oran_8h", "abs_oran_8h_medyana_orani",
-                             "referans_son_oranla_ayni", "konum", "donem_icinde"]].to_string(index=False))
-        print("konum:", teslimsiz["konum"].value_counts().to_dict())
-        print("isaret:", teslimsiz["isaret"].value_counts().to_dict())
-    print("son barda kaydi olmayan:", [s for s, n, _ in teslimsiz_sayim if n == 0])
-    print(f"CSV: {CIKTI_TESLIMSIZ}")
+    if argumanlar.oran_degerleri:
+        # 1093e69 kosusunun yeniden uretimi; degerler ekrana yazdirilmaz.
+        pd.concat(oran_parcalari, ignore_index=True).to_csv(CIKTI_ORAN, index=False, lineterminator="\n")
+        pd.concat(teslimsiz_parcalari, ignore_index=True).to_csv(CIKTI_TESLIMSIZ, index=False, lineterminator="\n")
+        print(f"\n--oran-degerleri: {CIKTI_ORAN.name}, {CIKTI_TESLIMSIZ.name} yeniden yazildi (ekrana basilmadi)")
 
-    # Oneri etkisi: ust sinir son barin kapanisi yerine acilisi olsaydi, tum dahil
-    # sembollerin tum donemlerinde kac kayit donem disina cikardi. Yalnizca sayim.
-    print("\n--- Oneri etkisi: (son bar acilisi + 1 dk, son bar kapanisi + 1 dk) araligindaki kayitlar ---")
+    # Oneri etkisi (1093e69'daki 43 kayit dokumu, ayni sinirlarla): ust sinir son
+    # barin kapanisi yerine acilisi olsaydi kac kayit donem disina cikardi.
+    # Alt uc `>` (1093e69 ile karsilastirilabilir).
+    veri_sonu_bari = max(x.bitis for s_ in universe_modulu.dahil_semboller(evren)
+                         for x in universe_modulu.sembol_donemleri(evren, s_))
     etki = []
-    for sembol in sorted(evren.loc[~evren["haric"], "sembol"].unique()):
-        fund = funding_modulu.ham_funding_yukle(sembol)
-        fund = fund.loc[fund["odeme_zamani"] <= config.DONEM_SONU]
+    for sembol in universe_modulu.dahil_semboller(evren):
+        fund = funding_yukle(sembol)
         zamanlar = pd.DatetimeIndex(fund["odeme_zamani"])
         donemler = universe_modulu.sembol_donemleri(evren, sembol)
         for i, d in enumerate(donemler):
-            n = int(((zamanlar > d.bitis + tol) & (zamanlar < d.bitis + adim + tol)).sum())
+            n = int(((zamanlar > d.bitis + TOL) & (zamanlar < d.bitis + ADIM + TOL)).sum())
             if n:
                 etki.append((sembol, i, i == len(donemler) - 1, d.bitis, n))
+
     etki = pd.DataFrame(etki, columns=["sembol", "donem_sira", "son_donem", "donem_bitis", "kayit"])
+    etki.to_csv(CIKTI_ONERI, index=False, lineterminator="\n")
+    print("\n--- Oneri etkisi (1093e69 dokumu): (son bar acilisi + 1 dk, son bar kapanisi + 1 dk) ---")
     print(f"kayit: {int(etki['kayit'].sum())}, sembol: {etki['sembol'].nunique()}, "
           f"son donemde: {int(etki.loc[etki['son_donem'], 'kayit'].sum())}, "
           f"ara donemde: {int(etki.loc[~etki['son_donem'], 'kayit'].sum())}, "
-          f"veri sonu donemi (bitis {config.DONEM_SONU}): "
-          f"{int(etki.loc[etki['donem_bitis'] >= config.DONEM_SONU - adim, 'kayit'].sum())}")
-    if (~etki["son_donem"]).any():
-        print(etki.loc[~etki["son_donem"]].to_string(index=False))
+          f"veri sonu donemi: {int(etki.loc[etki['donem_bitis'] == veri_sonu_bari, 'kayit'].sum())}")
+
+    ortam_kaydi(git, baslangic, pd.Timestamp.now(tz="UTC")).to_csv(CIKTI_ORTAM, index=False, lineterminator="\n")
+    print(f"\nCSV: {CIKTI.name}, {CIKTI_KONUM.name}, {CIKTI_ONERI.name}, {CIKTI_ORTAM.name}")
 
 
 if __name__ == "__main__":

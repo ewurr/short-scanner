@@ -15,16 +15,33 @@ UTC aralığına kesildi (bucket'a sonradan eklenen aylar denetimi değiştirmes
 
 **Kapsam:** Yalnızca kapsama ve bütünlük. Getiri, fiyat değişimi, volatilite,
 funding ortalaması veya olay benzeri hiçbir istatistik hesaplanmamış ve
-yazılmamıştır (CLAUDE.md §3.1). Tek istisna, ön-kayıt §2'nin istediği
+yazılmamıştır (CLAUDE.md §3.1). Bilinçli istisna, ön-kayıt §2'nin istediği
 `|open/close[t-1] − 1| > 0.30` bütünlük listesidir.
 
-Ham çıktılar (`*_tam.csv`): `sembol_ozeti`, `delist_siniflandirmasi`, `dolgu_kosulari`,
-`kisa_sifir_kosulari`, `funding_siz_donemler`, `donem_sonu_degisimleri`, `settled_aylari`,
-`yillik_kapsama`, `butunluk_sicramalari`, `bosluklar`, `bosluk_olaylari`,
+**Sınır aşımı (§14.5).** A1 ölçümünün ilk hâli (1093e69) uzlaşma sonrası funding
+kayıtlarının oran değerlerini ve işaretlerini raporladı. Bu, yukarıdaki kapsamın
+dışındaydı ve bir sınır aşımıdır. Değer düzeyindeki içerik rapordan çıkarıldı. Rapordaki
+tek kalıntı, §14.5'teki işaret sayımıdır (18 pozitif / 5 negatif). O koşunun iki ham
+CSV'si iz için depoda duruyor. `a1_olcumu.py`'nin varsayılan koşusu artık oran değeri
+üretmiyor ve yazdırmıyor.
+
+Ham çıktılar (`*_tam.csv`), `calistir.py`: `sembol_ozeti`, `delist_siniflandirmasi`,
+`dolgu_kosulari`, `kisa_sifir_kosulari`, `funding_siz_donemler`, `donem_sonu_degisimleri`,
+`settled_aylari`, `yillik_kapsama`, `butunluk_sicramalari`, `bosluklar`, `bosluk_olaylari`,
 `funding_araliklari`, `cross_dogrulama`, `cross_yogun_tarihler`,
-`fiyat_farki_listeleme_yasi`, `kisa_donemler`, `settled_icerik`, `ortam`;
-ayrıca `a1_uzlasma_sonrasi_funding_tam.csv` (`a1_olcumu.py`).
+`fiyat_farki_listeleme_yasi`, `kisa_donemler`, `settled_icerik`, `ortam`.
 Rev.7 ile anlamını yitiren `karantina_kaybi_tam.csv` kaldırıldı.
+
+A1 ölçümü (`a1_olcumu.py`):
+- Varsayılan koşunun çıktıları (değer içermez): `a1_uzlasma_sonrasi_funding_tam.csv`,
+  `a1_konumlar_tam.csv`, `a1_oneri_etkisi_tam.csv`, `a1_ortam_tam.csv` (koşunun
+  commit'i, çalışma ağacı durumu ve UTC zamanı).
+- **1093e69 koşusunun iz dosyaları (oran değeri içerir, bu rapor kullanmaz):**
+  `a1_uzlasma_sonrasi_oranlar_tam.csv`, `a1_teslimsiz_son_bar_funding_tam.csv`.
+  Koşu 2026-09-18 13:35:41 UTC'de yapıldı (dosya zamanı; o koşunun ortam kaydı yok).
+  Kod, 1093e69'da commit edilen `a1_olcumu.py` hâliydi; çalışma ağacı f942537 üzerine
+  commit edilmemiş değişikliklerle kirliydi. Bu iki dosya yeniden üretilmez; betik
+  onları yalnızca `--oran-degerleri` bayrağıyla yazar.
 
 ---
 
@@ -359,54 +376,55 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
    değiştirilmedi; karar sizin.
    deliveryDate testi artık toplam dönemden sonra teslim edilen SETTLING sembolleri
    sessizce atlamıyor, `AtlananTeslimUyarisi` ile listeliyor. Bugün atlanan sembol: 0.
-5. **Uzlaşma sonrası funding kaydı dönem içinde kalıyor (denetçi bulgusu A1, ölçüldü).**
+5. **Uzlaşma sonrası funding kaydı dönem içinde kalıyor (denetçi bulgusu D-A1, ölçüldü).**
    `data/funding.py` `_donem_icinde` üst sınırı son barın kapanışı; deliveryDate çoğunlukla
    o barın içinde. 128 SETTLING sembolün **19'unda 23 kayıt** deliveryDate'ten sonra gelip
-   dönem içinde sayılıyor; bunların **19'u** dönem sonu çıkış anına (son bar kapanışı)
-   denk geliyor ve ufku dönem sonunu aşan bir pozisyonun çıkış ödemesi olur. Aralık
-   dağılımı: 4 saat 14, 2 saat 4, 1 saat 3, 8 saat 2 (FTTUSDT, RAYUSDT).
-   Betik `a1_olcumu.py`, çıktılar `a1_uzlasma_sonrasi_funding_tam.csv`,
-   `a1_uzlasma_sonrasi_oranlar_tam.csv`, `a1_teslimsiz_son_bar_funding_tam.csv`.
-   Kod düzeltilmedi.
+   dönem içinde sayılıyor. Aralık dağılımı: 4 saat 14, 2 saat 4, 1 saat 3, 8 saat 2
+   (FTTUSDT, RAYUSDT). Kod düzeltilmedi. Betik `a1_olcumu.py`; çıktılar başlıktaki A1
+   listesinde.
 
-   **Konum.** 23 kaydın tamamı son barın içinde ve deliveryDate'ten sonra. 19'u son bar
-   kapanışında (çıkış anı). Kalan 4'ü son barın içinde, deliveryDate'ten sonra ama
-   kapanıştan önce: ALPACAUSDT 10:00 ve 11:00 (1 saat aralık), TROYUSDT 10:00 ve
-   VIDTUSDT 10:00 (2 saat aralık); üçünde de son bar 08:00–12:00, deliveryDate 09:00.
-   Bunlar bir pozisyonun tutulduğu sürede ödenir, çıkış anı değildir.
+   **Konum.** 23 kaydın hepsi deliveryDate'ten sonra:
+   - 19'u son barın kapanışında, yani dönem sonu çıkış anında. Ufku dönem sonunu aşan
+     bir pozisyonun çıkış ödemesi olurlar.
+   - 4'ü son barın içinde, deliveryDate'ten sonra ama kapanıştan önce: ALPACAUSDT
+     10:00 ve 11:00 (1 saat aralık), TROYUSDT 10:00 ve VIDTUSDT 10:00 (2 saat aralık).
+     Üçünde de son bar 08:00–12:00, deliveryDate 09:00. Bunlar pozisyonun tutulduğu
+     sürede ödenir.
 
-   **Oranlar** (her kayıt, sembolün deliveryDate'e kadarki son 30 kaydının medyan
-   |oran_8h|'ı ile yan yana, CSV'de). Sıfır oran yok; işaret 18 pozitif, 5 negatif.
-   Referans 30 kaydı sabit olan sembol yok. 23 kayıt üç gruba ayrılıyor:
-   - *Taban değer (9 kayıt):* 8 saat eşdeğeri tam 0,0001 (4h'de 5e-05, 2h'de 2,5e-05,
-     1h'de 1,25e-05): BLZ, ORBS, SNT, STMX, STPT, ALPACA 11:00 ve 12:00, TROY 12:00,
-     VIDT 12:00. Uzlaşma sonrası sabit taban oran görünümünde; 3'ü (ORBS, STMX, STPT)
-     uzlaşma öncesi son kayıtla aynı. ALPACA'da 11:00 ve 12:00 aynı değer.
-   - *Uç değer (8 kayıt):* |oran| ≥ 0,0176, referans medyanın 2–750 katı. Altısı yuvarlak:
-     ALPACA 10:00 +0,04 (1 saatte), AMB +0,03, BNX +0,03, BOND +0,02, FTT −0,025,
-     VIDT 10:00 −0,02. İkisi yuvarlak değil: REEF +0,0176, TROY 10:00 −0,0188.
-   - *Olağan büyüklük (6 kayıt):* BADGER, LOOM, NULS, RAY, STRAX, UNFI; referans
-     medyanın 0,7–35 katı.
+   **İşaret** (1093e69 koşusu, `a1_uzlasma_sonrasi_oranlar_tam.csv`): 23 kaydın 18'i
+   pozitif, 5'i negatif.
 
-   Dikkat: ALPACAUSDT'de deliveryDate anındaki (09:00) kayıt da +0,0372 (1 saatte);
-   bu kayıt tolerans içinde "teslim anında" sayıldığı için 23'e girmiyor.
-
-   **deliveryDate'i olmayan 28 sembol.** Hepsinde funding var; 27'sinin son barında
+   **deliveryDate'i olmayan 28 sembol.** Hepsinde funding kaydı var. 27'sinin son barında
    (açılış ve kapanış dahil) toplam 28 kayıt var, ANCUSDT'de yok. 23 kayıt son barın
-   açılışında, 5 kayıt kapanışında: AKRO −0,0046, LEND 0,0001, LUNA −0,0100, MBL 5e-05
-   (4h), SRM −0,025. SRMUSDT'nin −0,025'i FTTUSDT'nin uzlaşma sonrası değeriyle aynı
-   ve aynı gün (FTX dönemi). Açılış anındaki kayıtlarda da referans medyanın 100 katını
-   aşanlar var (GALUSDT −0,0109, SXPUSDT −0,0108); deliveryDate olmadığı için bunların
-   uzlaşmadan önce mi sonra mı olduğu bilinemiyor.
+   açılışında, 5 kayıt kapanışında (AKROUSDT, LENDUSDT, LUNAUSDT, MBLUSDT, SRMUSDT).
+   deliveryDate olmadığı için bu kayıtların uzlaşmadan önce mi sonra mı geldiği
+   bilinemiyor.
 
    **Öneri sınırının etkisi** (üst sınır son barın kapanışı yerine açılışı olsaydı, tüm
-   dahil sembollerin tüm dönemleri): 43 kayıt, 31 sembol. Son dönemlerde 38: 24 SETTLING
-   (23 yukarıdaki + ALPACA 09:00), 5 exchangeInfo dışı, 9 veri sonu dönemi (ONG, SKR,
-   ZKC: 2026-08-31 21:00–23:00, 1 saat aralık, gerçek işlem sürerken). Ara dönem
-   sonlarında 5 (AERGO, BNX, MAVIA, PUMP, SLP, her biri 1 kayıt); bunlar incelenmedi.
+   dahil sembollerin tüm dönemleri; `a1_oneri_etkisi_tam.csv`): 43 kayıt, 31 sembol.
+   - Son dönemlerde 38 kayıt: 24 SETTLING (yukarıdaki 23 artı ALPACAUSDT'nin teslim
+     anındaki 09:00 kaydı), 5 exchangeInfo dışı, 9 veri sonu dönemi (ONGUSDT, SKRUSDT,
+     ZKCUSDT: 2026-08-31 21:00–23:00, 1 saat aralık, gerçek işlem sürerken).
+   - Ara dönem sonlarında 5 kayıt: AERGOUSDT, BNXUSDT, MAVIAUSDT, PUMPUSDT, SLPUSDT,
+     her birinde 1 kayıt.
+
+   > **Denetim sınırı aşımı.** A1 ölçümünde (1093e69) uzlaşma sonrası funding kayıtlarının oran değerleri ve işaretleri raporlandı. Bu kayıtlar dönem sonunu aşan pozisyonların net getirisine girebilecek türdendi ve bir kısmı C1 grubuna ve C2 dönemine ait. Bu, §3.1'deki veri denetimi sınırını aştı; talep araştırma tarafının isteğinden geldi. Değer düzeyindeki analiz bu bölümden çıkarıldı, ham CSV'ler iz için depoda duruyor. Bu bilginin funding üst sınırı kuralıyla ilişkisi ön-kayıt Rev.8'de yazılıdır.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
 %0,535) ay düzeyindeki eski dönemlerle yapılmıştı ve bu koşuda **yeniden
 üretilmedi**. Rev.7 dönemleriyle sayılar farklı olabilir.
+
+## Değişiklik kaydı
+
+- 2026-09-19: §14.5 daraltıldı (denetçi bulguları D-B1…D-B5). Çıkarılan içerik:
+  - uzlaşma sonrası 23 kaydın ve deliveryDate'i olmayan sembollerdeki 5 kaydın oran
+    değerleri;
+  - taban / uç / olağan gruplaması ve "referans medyanın N katı" karşılaştırmaları;
+  - sıfır / sabit / tekrar tespitleri;
+  - ALPACAUSDT teslim anı değeri;
+  - SRMUSDT/FTTUSDT cümlesi. Bu cümledeki tarih hatası da düzeltilmiş oldu: kayıtlar
+    aynı gün değildi (FTTUSDT 2022-11-14, SRMUSDT 2022-11-15).
+
+  İşaret sayımı (18/5) kaldı.
