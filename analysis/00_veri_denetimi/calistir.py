@@ -558,15 +558,40 @@ def fiyat_farki_listeleme_yasi(detaylar: list[dict]) -> pd.DataFrame:
     ).sort_values(["donem_basindan_gun", "sembol"], ignore_index=True)
 
 
-def ortam_kaydi() -> pd.DataFrame:
-    """Kosuyu ureten ortam: Python, paket surumleri ve git commit'i."""
+def git_durumu() -> dict:
+    """Commit ve calisma agaci durumu. Kosunun BASINDA, hicbir cikti yazilmadan
+    cagrilir; boylece kosunun kendi ciktilari kirlilik sayilmaz (denetci bulgusu
+    D-B2). git yoksa "bilinmiyor"."""
+    try:
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=KOK, capture_output=True,
+                                text=True, check=True).stdout.strip()
+        durum = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=KOK,
+                               capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return {"commit": "bilinmiyor", "degisiklikler": [], "bilinmiyor": True}
+    return {"commit": commit, "degisiklikler": sorted(s for s in durum.splitlines() if s.strip()),
+            "bilinmiyor": False}
+
+
+def ortam_kaydi(git: dict, baslangic: pd.Timestamp, bitis: pd.Timestamp) -> pd.DataFrame:
+    """Kosuyu ureten ortam: Python, paket surumleri, git commit'i ve kosu zamani (UTC).
+
+    `git`: kosu basinda alinan `git_durumu()`. Calisma agaci kirliyse degisen
+    dosyalar da yazilir; ciktilar hangi koddan uretildigi izlenebilsin.
+    """
     import importlib.metadata as md
     import platform
 
-    commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=KOK, capture_output=True, text=True).stdout.strip()
-    kirli = subprocess.run(["git", "status", "--porcelain"], cwd=KOK, capture_output=True, text=True).stdout.strip()
+    if git["bilinmiyor"]:
+        agac = "bilinmiyor (git yok)"
+    else:
+        agac = "temiz" if not git["degisiklikler"] else "kirli"
     satirlar = [
-        {"bilesen": "git_commit", "surum": commit + (" (calisma agaci kirli)" if kirli else "")},
+        {"bilesen": "git_commit", "surum": git["commit"]},
+        {"bilesen": "calisma_agaci", "surum": agac},
+        {"bilesen": "calisma_agaci_degisiklikleri", "surum": " | ".join(git["degisiklikler"])},
+        {"bilesen": "kosu_baslangic_utc", "surum": baslangic.strftime("%Y-%m-%d %H:%M:%S")},
+        {"bilesen": "kosu_bitis_utc", "surum": bitis.strftime("%Y-%m-%d %H:%M:%S")},
         {"bilesen": "python", "surum": platform.python_version()},
         {"bilesen": "python_derleme", "surum": platform.python_build()[1]},
         {"bilesen": "python_yolu", "surum": sys.executable},
@@ -861,8 +886,14 @@ def main() -> None:
     )
     argumanlar = ayristirici.parse_args()
 
+    # Calisma agaci durumu ve baslangic zamani HER SEYDEN ONCE (D-B2).
+    baslangic = pd.Timestamp.now(tz="UTC")
+    git = git_durumu()
+
     etiket = "ornek" if argumanlar.ornek else "tam"
     log_yolu = _kaydedici_kur(etiket)
+    _gunluk.info(f"git: {git['commit']}, calisma agaci "
+                 f"{'temiz' if not git['degisiklikler'] else 'kirli: ' + ' | '.join(git['degisiklikler'])}")
 
     # Istege bagli eski tablo karsilastirmasi (denetci bulgusu D-B1): git gecmisi
     # gerektirdigi icin varsayilan kosunun parcasi degil. Istenirse YUKLEMEDEN ONCE
@@ -963,7 +994,7 @@ def main() -> None:
         "cross_dogrulama": capraz, "kisa_donemler": kisa, "donem_aralari": aralar,
     }
     yaz(rapor_sayilari(tablolar, evren, split_modulu.split_oku()), "rapor_sayilari")
-    yaz(ortam_kaydi(), "ortam")
+    yaz(ortam_kaydi(git, baslangic, pd.Timestamp.now(tz="UTC")), "ortam")
 
     if hatalar:
         yaz(pd.DataFrame(hatalar, columns=["sembol", "hata"]), "hatalar")
