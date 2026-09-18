@@ -69,15 +69,25 @@ def funding_yukle(
     kumenin grubunda degilse bos cerceve doner; kayitlar odeme zamanina gore
     kume tarih araligina kesilir. On-kayit §4 funding'i net getirinin parcasi
     yaptigi icin getiri kodu funding'e yalnizca bu yoldan erisir.
+
+    On-kayit §2 rev.7: donem sonundan sonra gelen (uzlasma sonrasi) kayitlar
+    commit edilmis evren tablosunun donemlerine gore atilir
+    (`donem_sonrasi_kayitlari_at`). Sembol evren tablosunda yoksa KeyError.
     """
     from data import split as split_modulu  # split, klines uzerinden bu katmani import eder
+
+    from data import universe  # universe, klines uzerinden bu katmani dolayli import edebilir
 
     izinli, bas, son = split_modulu.kume_erisimi(sembol, kume, onay=onay)
     if not izinli:
         return pd.DataFrame(columns=FUNDING_CIKTI_SUTUNLARI)
+    evren = universe.evren_yukle()
+    if not (evren["sembol"] == sembol).any():
+        raise KeyError(f"{sembol} universe.csv icinde yok.")
     tum = ham_funding_yukle(sembol, yenile=yenile)
     if tum.empty:
         return tum
+    tum = donem_sonrasi_kayitlari_at(tum, universe.sembol_donemleri(evren, sembol), config.BAR_4H)
     maske = (tum["odeme_zamani"] >= bas) & (tum["odeme_zamani"] <= son)
     return tum.loc[maske].reset_index(drop=True)
 
@@ -110,6 +120,54 @@ def ham_funding_yukle(sembol: str, yenile: bool = False) -> pd.DataFrame:
     tum = tum.sort_values("odeme_zamani", ignore_index=True)
     tum["oran_8h"] = sekiz_saate_normallestir(tum["oran"], tum["aralik_saat"])
     return tum
+
+
+# --- Donem ve funding (on-kayit §2 rev.7) -------------------------------------
+
+
+def _donem_icinde(zamanlar: pd.DatetimeIndex, donem, bar: str) -> np.ndarray:
+    """Odeme donem icinde mi: `baslangic - 1 dk <= p < bitis + adim + 1 dk`.
+
+    Ust sinir donemin son gercek barinin KAPANISIDIR ve o andaki odeme dahildir;
+    ufuk donem sonunu asan pozisyon o anda kapanir ve `pozisyon_fundingi` cikis
+    anindaki odemeyi sayar. 1 dakikalik tolerans `ODEME_TOLERANSI`dir.
+    """
+    from data import pencere as pencere_modulu
+
+    alt = donem.baslangic - ODEME_TOLERANSI
+    ust = donem.bitis + pencere_modulu.adim(bar) + ODEME_TOLERANSI
+    return np.asarray((zamanlar >= alt) & (zamanlar < ust), dtype=bool)
+
+
+def donem_sonrasi_kayitlari_at(funding: pd.DataFrame, donemler, bar: str) -> pd.DataFrame:
+    """Donem sonundan sonra gelen funding kayitlarini atar (on-kayit §2 rev.7). Saf.
+
+    Bir kayit, bir donemin sonundan sonra gelip sonraki bir donemin icine
+    dusmuyorsa atilir: son donemden sonrakiler (uzlasma sonrasi sabit oranlar)
+    ve iki donem arasindaki dolgu suresine dusenler. Ilk donem baslangicindan
+    onceki kayitlar kurala girmez ve korunur (tamlik kurali donem basindan
+    onceki kaydi zaten okumaz). Donem yoksa hicbir kayit kalmaz.
+    """
+    if funding.empty:
+        return funding.reset_index(drop=True)
+    if not donemler:
+        return funding.iloc[0:0].reset_index(drop=True)
+    zamanlar = pd.DatetimeIndex(funding["odeme_zamani"])
+    tut = np.asarray(zamanlar < donemler[0].baslangic - ODEME_TOLERANSI, dtype=bool)
+    for donem in donemler:
+        tut |= _donem_icinde(zamanlar, donem, bar)
+    return funding.loc[tut].reset_index(drop=True)
+
+
+def donemde_funding_var(funding: pd.DataFrame, donem, bar: str) -> bool:
+    """Donemin icinde (uzlasma sonrasi kayitlar haric) en az bir funding kaydi var mi? Saf.
+
+    On-kayit §2 rev.7: hic funding kaydi bulunmayan donem uc hipotezde de
+    kullanilmaz. Evren tablosundaki `donem_funding_yok` sutunu bununla uretilir.
+    """
+    if funding.empty:
+        return False
+    return bool(_donem_icinde(pd.DatetimeIndex(funding["odeme_zamani"]), donem, bar).any())
 
 
 # --- Funding penceresi (H2.1) ------------------------------------------------

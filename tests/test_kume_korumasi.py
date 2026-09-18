@@ -16,7 +16,7 @@ import pandas as pd
 import pytest
 
 import config
-from data import funding, klines, split
+from data import funding, klines, split, universe
 from tarama_yardimcisi import ihlaller
 
 
@@ -28,6 +28,19 @@ def tablo(tmp_path, monkeypatch):
     yol = tmp_path / "split.csv"
     split.split_yaz(cerceve, yol)
     monkeypatch.setattr(config, "SPLIT_CSV", yol)
+    # funding_yukle donem sonrasi kayitlari commit edilmis evrene gore atar
+    # (on-kayit §2 rev.7); sahte ham verinin tamamini kapsayan tek donemli evren.
+    zaman = pd.date_range("2025-08-25", "2025-09-10", freq="4h", tz="UTC")
+    satirlar = []
+    for sembol in ("AAUSDT", "BBUSDT"):
+        ortak = {
+            "sembol": sembol, "ilk_ay": "2025-08", "son_ay": "2025-09", "dosya_sayisi_4h": 2,
+            "funding_dosya_sayisi": 2, "sozlesme_tipi": "PERPETUAL", "dayanak_tipi": "COIN",
+            "settled_aylari": "", "haric": False, "haric_gerekce": "",
+        }
+        satirlar += universe.sembol_satirlari(ortak, zaman, [1.0] * len(zaman), pd.DataFrame({"odeme_zamani": zaman}))
+    evren_yolu = universe.evren_csv_yaz(pd.DataFrame(satirlar), tmp_path / "universe.csv")
+    monkeypatch.setattr(config, "UNIVERSE_CSV", evren_yolu)
     return cerceve
 
 

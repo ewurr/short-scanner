@@ -31,19 +31,26 @@ def _ortak(sembol, **alanlar):
     }
 
 
+def _funding(bas, bit):
+    return pd.DataFrame({"odeme_zamani": pd.date_range(bas, bit, freq="8h", tz="UTC")})
+
+
 def _sahte_evren() -> pd.DataFrame:
     z = pd.date_range("2021-01-05 08:00", periods=120, freq="4h", tz="UTC")
     h = np.full(len(z), 1e6)
     h[40:60] = 0  # ic dolgu -> iki donem
     h[-10:] = 0  # sondaki dolgu
-    satirlar = universe.sembol_satirlari(_ortak("AAUSDT", settled_aylari="2021-02"), z, h)
+    # AAUSDT: funding yalnizca ilk donemde; ikinci donem funding'siz sayilmali.
+    satirlar = universe.sembol_satirlari(
+        _ortak("AAUSDT", settled_aylari="2021-02"), z, h, _funding(z[0], z[39]),
+    )
     z2 = pd.date_range("2022-05-01", periods=30, freq="4h", tz="UTC")
     satirlar += universe.sembol_satirlari(
         _ortak("牛来USDT", ilk_ay="2022-05", son_ay="2022-05", sozlesme_tipi="PERPETUAL", dayanak_tipi="COIN",
                haric=True, haric_gerekce="test gerekcesi"),
-        z2, np.full(len(z2), 1e6),
+        z2, np.full(len(z2), 1e6), _funding(z2[0], z2[-1]),
     )
-    satirlar += universe.sembol_satirlari(_ortak("DOLGUUSDT"), z2, np.zeros(len(z2)))
+    satirlar += universe.sembol_satirlari(_ortak("DOLGUUSDT"), z2, np.zeros(len(z2)), _funding(z2[0], z2[-1]))
     return pd.DataFrame(satirlar)
 
 
@@ -59,6 +66,28 @@ def test_sembol_satirlari_bar_duzeyinde_donemler():
     assert list(aa["donem_bitis"]) == [z[39], z[109]]
     dolgu = evren[evren["sembol"] == "DOLGUUSDT"]
     assert list(dolgu["donem_id"]) == [-1] and pd.isna(dolgu["donem_baslangic"].iloc[0])
+
+
+def test_funding_siz_donem_isaretlenir():
+    """On-kayit §2 rev.7: hic funding kaydi olmayan donem `donem_funding_yok` ile isaretlenir."""
+    evren = _sahte_evren()
+    aa = evren[evren["sembol"] == "AAUSDT"]
+    assert list(aa["donem_funding_yok"]) == [False, True]
+    assert not evren.loc[evren["sembol"] == "牛来USDT", "donem_funding_yok"].iloc[0]
+    assert evren.loc[evren["sembol"] == "DOLGUUSDT", "donem_funding_yok"].iloc[0]
+
+
+def test_uzlasma_sonrasi_funding_donemi_funding_li_yapmaz():
+    """Donem sonundan sonraki kayitlar sayilmaz: yalnizca uzlasma sonrasi kaydi olan
+    donem funding'siz isaretlenir. Son barin kapanisindaki odeme donem icindedir."""
+    z = pd.date_range("2021-01-01", periods=60, freq="4h", tz="UTC")
+    h = np.full(len(z), 1e6)
+    h[30:] = 0  # 30 bar dolgu: donem z[29]'da biter
+    kapanis = z[29] + pd.Timedelta(hours=4)
+    sonrasi = pd.DataFrame({"odeme_zamani": pd.date_range(kapanis + pd.Timedelta(hours=8), periods=5, freq="8h")})
+    assert universe.sembol_satirlari(_ortak("XXUSDT"), z, h, sonrasi)[0]["donem_funding_yok"]
+    tam_kapanista = pd.DataFrame({"odeme_zamani": pd.DatetimeIndex([kapanis])})
+    assert not universe.sembol_satirlari(_ortak("XXUSDT"), z, h, tam_kapanista)[0]["donem_funding_yok"]
 
 
 # --- Yazma ve okuma ----------------------------------------------------------

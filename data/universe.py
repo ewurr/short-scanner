@@ -12,6 +12,8 @@ Kapsam (revizyon 2):
 Listeleme donemleri (revizyon 7): bar duzeyinde, mum hacminden turetilir
 (`data.donem.listeleme_donemleri`). Karantina kurali kaldirildi; bucket'taki
 `<SEMBOL>SETTLED` aylari yalnizca denetim sutunu olarak tutulur (`settled_aylari`).
+Donem icinde hic funding kaydi olmayan (uzlasma sonrasi kayitlar sayilmaz) donem
+`donem_funding_yok = True` ile isaretlenir; bu donem uc hipotezde de kullanilmaz.
 
 Bu modul bucket'taki dizin ve dosya ADLARINI, onbellekteki 4h mumlari ve herkese
 acik exchangeInfo uc noktasini kullanir. API anahtari kullanilmaz.
@@ -126,17 +128,26 @@ def settled_kirp(settled_aylari, ilk_ay: str, son_ay: str) -> list[str]:
 # --- Evren kurma -------------------------------------------------------------
 
 
-def sembol_satirlari(ortak: dict, zamanlar, hacim) -> list[dict]:
+def sembol_satirlari(ortak: dict, zamanlar, hacim, funding: pd.DataFrame) -> list[dict]:
     """Bir sembolun evren satirlari: her listeleme donemi icin bir satir. Saf.
 
     `ortak`: sembol duzeyindeki sutunlar (sembol, ilk_ay, son_ay, ...). Donemi
     olmayan sembol (tum barlari dolgu) `donem_id = -1` ile tek satirdir.
+    `funding`: sembolun ham funding kayitlari (`odeme_zamani` sutunu yeterli).
+    `donem_funding_yok`: donem icinde, uzlasma sonrasi kayitlar sayilmadan, hic
+    funding kaydi yok (on-kayit §2 rev.7; `funding.donemde_funding_var`).
     """
+    from data import funding as funding_modulu
+
     donemler = donem_modulu.listeleme_donemleri(zamanlar, hacim, config.BAR_4H)
     if not donemler:
         return [{**ortak, "donem_id": -1, "donem_baslangic": pd.NaT, "donem_bitis": pd.NaT,
-                 "donem_bar_sayisi": 0, "donem_gercek_bar_sayisi": 0}]
-    return [{**ortak, **d} for d in donem_modulu.donem_sinirlari(donemler).to_dict("records")]
+                 "donem_bar_sayisi": 0, "donem_gercek_bar_sayisi": 0, "donem_funding_yok": True}]
+    satirlar = donem_modulu.donem_sinirlari(donemler).to_dict("records")
+    return [
+        {**ortak, **d, "donem_funding_yok": not funding_modulu.donemde_funding_var(funding, donem, config.BAR_4H)}
+        for d, donem in zip(satirlar, donemler)
+    ]
 
 
 def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
@@ -145,7 +156,7 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
     Her satir bir (sembol, listeleme donemi) ciftidir. Sutunlar `CSV_SUTUNLARI`;
     donem sinirlari zaman damgasidir.
     """
-    from data import klines  # klines, split uzerinden bu modulu dolayli import edebilir
+    from data import funding, klines  # klines, split uzerinden bu modulu dolayli import edebilir
 
     dizinler = bv.tum_sembol_dizinleri()
     adaylar = usdt_perpetual_adaylari(dizinler)
@@ -177,7 +188,9 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
             "haric": bool(gerekce),
             "haric_gerekce": gerekce,
         }
-        satirlar.extend(sembol_satirlari(ortak, pd.DatetimeIndex(mumlar["open_time"]), mumlar["quote_volume"]))
+        satirlar.extend(sembol_satirlari(
+            ortak, pd.DatetimeIndex(mumlar["open_time"]), mumlar["quote_volume"], funding.ham_funding_yukle(sembol),
+        ))
 
     return pd.DataFrame(satirlar).sort_values(["sembol", "donem_id"], ignore_index=True)
 
@@ -220,6 +233,7 @@ CSV_SUTUNLARI = [
     "donem_bitis",
     "donem_bar_sayisi",
     "donem_gercek_bar_sayisi",
+    "donem_funding_yok",
 ]
 _METIN_SUTUNLARI = (
     "sembol",
@@ -232,6 +246,7 @@ _METIN_SUTUNLARI = (
 )
 _ZAMAN_SUTUNLARI = ("donem_baslangic", "donem_bitis")
 _TAMSAYI_SUTUNLARI = ("dosya_sayisi_4h", "funding_dosya_sayisi", "donem_id", "donem_bar_sayisi", "donem_gercek_bar_sayisi")
+_BOOL_SUTUNLARI = ("haric", "donem_funding_yok")
 _ZAMAN_BICIMI = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -244,7 +259,8 @@ def _normallestir(evren: pd.DataFrame) -> pd.DataFrame:
     tablo = evren.loc[:, CSV_SUTUNLARI].copy()
     for sutun in _METIN_SUTUNLARI:
         tablo[sutun] = tablo[sutun].fillna("").astype(str)
-    tablo["haric"] = tablo["haric"].astype(bool)
+    for sutun in _BOOL_SUTUNLARI:
+        tablo[sutun] = tablo[sutun].astype(bool)
     for sutun in _TAMSAYI_SUTUNLARI:
         tablo[sutun] = tablo[sutun].astype("int64")
     for sutun in _ZAMAN_SUTUNLARI:
@@ -289,10 +305,11 @@ def evren_yukle(yol=None) -> pd.DataFrame:
     eksik = [s for s in CSV_SUTUNLARI if s not in tablo.columns]
     if eksik:
         raise ValueError(f"{hedef}: rev.7 evren tablosu bicimi degil; eksik sutunlar: {eksik}")
-    haric = tablo["haric"].astype(str).map({"True": True, "False": False})
-    if haric.isna().any():
-        raise ValueError(f"{hedef}: 'haric' sutununda True/False disi deger var.")
-    tablo["haric"] = haric.astype(bool)
+    for sutun in _BOOL_SUTUNLARI:
+        deger = tablo[sutun].astype(str).map({"True": True, "False": False})
+        if deger.isna().any():
+            raise ValueError(f"{hedef}: {sutun!r} sutununda True/False disi deger var.")
+        tablo[sutun] = deger.astype(bool)
     return _normallestir(tablo)
 
 
