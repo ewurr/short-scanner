@@ -95,6 +95,102 @@ def exchange_info_siniflari() -> dict[str, tuple[str, str]]:
     }
 
 
+# --- exchangeInfo anlik goruntusu (yalnizca denetim) --------------------------
+#
+# Canli exchangeInfo zamanla degisir; delist siniflandirmasi (SETTLING /
+# exchangeInfo disi) ve deliveryDate denetimi depoya alinmis tek bir goruntuden
+# okunur. Goruntu hicbir olay, uygunluk ya da getiri hesabina girmez; evren
+# tablosu (`universe.csv`) sabittir ve bu dosyadan yeniden turetilmez.
+
+# Goruntude tutulan sembol alanlari. Filtreler ve emir tipleri denetimle ilgisiz
+# oldugu icin atilir; ham yanitin SHA256 ozeti kanit olarak saklanir.
+ANLIK_ALANLAR = (
+    "symbol", "pair", "contractType", "status", "deliveryDate", "onboardDate",
+    "underlyingType", "underlyingSubType", "baseAsset", "quoteAsset", "marginAsset",
+)
+SETTLING_DURUMU = "SETTLING"
+
+
+def exchange_info_anlik_goruntu(ham_yanit: str, alinma_zamani) -> dict:
+    """Ham exchangeInfo yanitini depoya alinacak kirpilmis goruntuye cevirir. Saf."""
+    import hashlib
+    import json
+
+    govde = json.loads(ham_yanit)
+    semboller = [
+        {alan: s.get(alan) for alan in ANLIK_ALANLAR}
+        for s in sorted(govde["symbols"], key=lambda s: s["symbol"])
+    ]
+    return {
+        "kaynak": EXCHANGE_INFO,
+        "alinma_zamani_utc": pd.Timestamp(alinma_zamani).tz_convert("UTC").strftime(_ZAMAN_BICIMI),
+        "server_time_ms": govde.get("serverTime"),
+        "ham_yanit_sha256": hashlib.sha256(ham_yanit.encode("utf-8")).hexdigest(),
+        "sembol_sayisi": len(semboller),
+        "symbols": semboller,
+    }
+
+
+def exchange_info_anlik_kaydet(yol=None) -> Path:
+    """Canli exchangeInfo'yu indirip goruntu dosyasina yazar (ag kullanir).
+
+    Dosya varsa uzerine yazmaz: goruntu bir kez alinir ve commit edilir.
+    """
+    import json
+
+    hedef = config.EXCHANGE_INFO_ANLIK if yol is None else Path(yol)
+    if hedef.exists():
+        raise FileExistsError(f"{hedef} zaten var. exchangeInfo goruntusu bir kez alinir.")
+    cevap = requests.get(EXCHANGE_INFO, timeout=60)
+    cevap.raise_for_status()
+    goruntu = exchange_info_anlik_goruntu(cevap.text, pd.Timestamp.now(tz="UTC"))
+    hedef.write_text(json.dumps(goruntu, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return hedef
+
+
+def exchange_info_anlik_yukle(yol=None) -> pd.DataFrame:
+    """Depodaki exchangeInfo goruntusu; sembol basina bir satir. Ag kullanmaz.
+
+    `deliveryDate` ve `onboardDate` UTC zaman damgasidir. Goruntu zamani
+    `attrs["alinma_zamani_utc"]` icindedir.
+    """
+    import json
+
+    hedef = config.EXCHANGE_INFO_ANLIK if yol is None else Path(yol)
+    if not hedef.exists():
+        raise FileNotFoundError(f"{hedef} yok. Once exchange_info_anlik_kaydet ile alinip commit edilmeli.")
+    goruntu = json.loads(hedef.read_text(encoding="utf-8"))
+    tablo = pd.DataFrame(goruntu["symbols"], columns=list(ANLIK_ALANLAR))
+    for alan in ("deliveryDate", "onboardDate"):
+        tablo[alan] = pd.to_datetime(tablo[alan], unit="ms", utc=True)
+    tablo.attrs["alinma_zamani_utc"] = goruntu["alinma_zamani_utc"]
+    tablo.attrs["ham_yanit_sha256"] = goruntu["ham_yanit_sha256"]
+    return tablo
+
+
+def delist_sinifi(evren: pd.DataFrame, anlik: pd.DataFrame) -> pd.DataFrame:
+    """Dahil sembollerin goruntudeki durumu. Saf.
+
+    Sutunlar: sembol, sinif, durum, deliveryDate, son_donem_bitis.
+    `sinif`: "SETTLING" (uzlasmis), "exchangeInfo_disi" (goruntude yok) ya da
+    goruntudeki `status` (ornegin TRADING). Delist = ilk ikisi.
+    """
+    dahil = evren.loc[~evren["haric"]]
+    son_bitis = dahil.loc[dahil["donem_id"] >= 0].groupby("sembol")["donem_bitis"].max()
+    durumlar = anlik.set_index("symbol")
+    satirlar = []
+    for sembol in sorted(dahil["sembol"].unique()):
+        if sembol in durumlar.index:
+            durum = durumlar.at[sembol, "status"]
+            teslim = durumlar.at[sembol, "deliveryDate"]
+            sinif = durum
+        else:
+            durum, teslim, sinif = None, pd.NaT, "exchangeInfo_disi"
+        satirlar.append({"sembol": sembol, "sinif": sinif, "durum": durum,
+                         "deliveryDate": teslim, "son_donem_bitis": son_bitis.get(sembol, pd.NaT)})
+    return pd.DataFrame(satirlar, columns=["sembol", "sinif", "durum", "deliveryDate", "son_donem_bitis"])
+
+
 # --- SETTLED aylari (yalnizca denetim, on-kayit §2 rev.7) ---------------------
 
 

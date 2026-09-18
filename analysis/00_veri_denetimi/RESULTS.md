@@ -1,313 +1,324 @@
-# F1 Veri Denetimi — TAM EVREN (678 sembol)
+# F1 Veri Denetimi — TAM EVREN (678 sembol), ön-kayıt rev.7
 
-**Durum:** Tam koşu. 678/678 sembol indirildi, **hata yok**.
-**Koşu:** 2026-09-11 14:58 → 16:37 UTC+3, 12 iş parçacığı, checksum doğrulamalı.
-**Veri katmanı kodu:** commit `e45eff6` ("Tam indirme icin eszamanlilik duzeltmesi
-ve 2h funding testleri"). Bu rapordaki tablolar aynı commit'in veri katmanıyla
-indirilmiş veriden üretilmiştir; rapor sonrası betik değişiklikleri yalnızca
-özetleme/teşhis katmanına dokunur, indirme ve ayrıştırmaya dokunmaz.
+**Durum:** Tam koşu, 678/678 sembol, **hata yok**.
+**Koşu:** 2026-09-18 14:42 → 15:01 UTC+3, 8 iş parçacığı, önbellekten.
+**Kod:** `db5ba82` üzerine commit edilmemiş değişikliklerle koşuldu (`ortam_tam.csv`:
+"çalışma ağacı kirli"). Değişiklikler: `calistir.py` rev.7 evren API'sine göre yeniden
+yazıldı, `data/universe.py`'ye exchangeInfo görüntüsü eklendi. İndirme ve ayrıştırma
+katmanına dokunulmadı.
+**Evren:** commit edilmiş `data/universe.csv` (rev.7, bar düzeyinde dönemler).
+**exchangeInfo:** depodaki görüntü `data/exchange_info_anlik.json`
+(alınma 2026-09-18 11:31:55 UTC, ham yanıt SHA256 `41244d4d…58c6a`), canlı uç nokta değil.
+**Toplam dönem kesimi:** tüm mum ve funding kayıtları 2020-01-01 → 2026-08-31 23:59:59
+UTC aralığına kesildi (bucket'a sonradan eklenen aylar denetimi değiştirmesin diye).
 
 **Kapsam:** Yalnızca kapsama ve bütünlük. Getiri, fiyat değişimi, volatilite,
 funding ortalaması veya olay benzeri hiçbir istatistik hesaplanmamış ve
-yazılmamıştır (CLAUDE.md §3.1).
+yazılmamıştır (CLAUDE.md §3.1). Tek istisna, ön-kayıt §2'nin istediği
+`|open/close[t-1] − 1| > 0.30` bütünlük listesidir.
 
-Ham çıktılar: `sembol_ozeti_tam.csv`, `yillik_kapsama_tam.csv`,
-`butunluk_sicramalari_tam.csv`, `bosluklar_tam.csv`, `bosluk_olaylari_tam.csv`,
-`funding_araliklari_tam.csv`, `cross_dogrulama_tam.csv`,
-`cross_yogun_tarihler_tam.csv`, `fiyat_farki_listeleme_yasi_tam.csv`,
-`karantina_kaybi_tam.csv`, `kisa_donemler_tam.csv`, `ortam_tam.csv`.
+Ham çıktılar (`*_tam.csv`): `sembol_ozeti`, `delist_siniflandirmasi`, `dolgu_kosulari`,
+`kisa_sifir_kosulari`, `funding_siz_donemler`, `donem_sonu_degisimleri`, `settled_aylari`,
+`yillik_kapsama`, `butunluk_sicramalari`, `bosluklar`, `bosluk_olaylari`,
+`funding_araliklari`, `cross_dogrulama`, `cross_yogun_tarihler`,
+`fiyat_farki_listeleme_yasi`, `kisa_donemler`, `ortam`.
+Rev.7 ile anlamını yitiren `karantina_kaybi_tam.csv` kaldırıldı.
 
 ---
 
-## 1. Evren ve bölme
+## 1. Evren, bölme ve dönemler
 
 | Kalem | Sayı |
 |---|---|
 | Bucket'taki USDT perpetual dizini | 864 |
 | **Evrene dahil** | **678** |
-| Hariç: `contractType = TRADIFI_PERPETUAL` | 179 |
-| Hariç: endeks sözleşmesi | 6 |
-| Hariç: stablecoin tabanlı çift (USDCUSDT) | 1 |
-| Dahil olanlardan delist edilmiş | 28 |
+| Hariç: `TRADIFI_PERPETUAL` / endeks / stablecoin | 179 / 6 / 1 |
+| Listeleme dönemi (dahil) | **690** (666 sembol tek, 12 sembol iki dönem) |
+| Commit edilmiş dönemler ham seriden yeniden türetilenle aynı | **678/678** |
 
-**Bölme (`data/split.csv`):** 678 sembol → 669 varlık anahtarı.
-A: 333 varlık / 333 sembol · B: 336 varlık / 345 sembol.
-Dokuz yeniden adlandırma zinciri tek varlık anahtarında birleşti.
+İki dönemli 12 sembol: AERGOUSDT, AIAUSDT, BNXUSDT, CTKUSDT, CVCUSDT, CVXUSDT, ICPUSDT,
+LITUSDT, MAVIAUSDT, PUMPUSDT, SLPUSDT, TLMUSDT. Bölen: 11'inde iç dolgu koşusu, BNXUSDT'de
+7 günden uzun eksik bar boşluğu (bkz. §3, §6).
 
-**Delist sembollerin geçmişi: 28/28 eksiksiz indirildi** (toplam 127.834 bar).
-Ön-kayıt §2'deki "kötümser yanlılık" etiketi **gerekmiyor**; hayatta kalma
-yanlılığı bu veri kümesinde yok.
+Bölme (`data/split.csv`) değişmedi: 678 sembol → 669 varlık anahtarı.
 
-## 2. Kapsama
+## 2. Delist sınıflandırması
+
+exchangeInfo görüntüsüne göre dahil 678 sembol:
+
+| Sınıf | Sembol | Dönem sonundan sonra dolgu barı olan | Bu dolgu barları |
+|---|---|---|---|
+| TRADING | 522 | 0 | 0 |
+| **SETTLING** (uzlaşmış) | **128** | 128 | 268.383 |
+| **exchangeInfo dışı** | **28** | 17 | 27.139 |
+| **Toplam delist** | **156** | 145 | 295.522 |
+
+Ön-kayıt §2 rev.7'deki "128 SETTLING + 28 exchangeInfo dışı ≈ 156" sayısı görüntüyle
+**birebir** doğrulandı. Görüntüdeki sözleşme/dayanak tipleri `universe.csv` ile
+çelişmiyor (678/678).
+
+**deliveryDate ile dönem sonu.** 128 SETTLING sembolün **128'inde** deliveryDate son
+gerçek barın içine düşüyor (`donem_bitis ≤ deliveryDate < donem_bitis + 4 saat`):
+
+| deliveryDate − son gerçek bar açılışı | Sembol |
+|---|---|
+| 0 saat (FTTUSDT, RAYUSDT) | 2 |
+| 1 saat (tipik 09:00 UTC teslimi, son bar 08:00) | 121 |
+| 1,5 / 2 / 2,5 saat | 2 / 2 / 1 |
+
+Yani bar düzeyindeki dönem sonu uzlaşma anını 4 saat çözünürlükte tam yakalıyor.
+Görüntüde TRADING olan 522 sembolün hepsinin son dönemi verinin son barında
+(2026-08-31 20:00) bitiyor. Bu üç kontrol `tests/test_exchange_info_anlik.py` ile
+görüntüden okunarak sabitlendi.
+
+**Delist dönem sonlarının yıllara dağılımı:**
+
+| Yıl | SETTLING | exchangeInfo dışı |
+|---|---|---|
+| 2020 | — | 1 |
+| 2021 | — | 2 |
+| 2022 | 3 | 11 |
+| 2023 | — | 3 |
+| 2024 | 21 | 7 |
+| 2025 | 44 | 2 |
+| 2026 | 60 | 2 |
+
+**exchangeInfo dışı 28 sembolde deliveryDate yok**; dönem sonu yalnızca hacimden
+geliyor. 17'sinde dönem sonundan sonra dolgu var (en uzunu BTCSTUSDT: 11.621 bar).
+Dolgusu olmayan 11'in 9'unda seri gerçek işlemle bitiyor (1000BTTCUSDT, AERGOUSDT,
+ANCUSDT, BZRXUSDT, DODOUSDT, EOSUSDT, KEEPUSDT, NUUSDT, YFIIUSDT). Kalan ikisi,
+AKROUSDT (1 bar) ve LUNAUSDT (4 bar), seriyi dolgu eşiğinin altında kalan **sondaki**
+sıfır hacimli barlarla bitiriyor; dönem yine son gerçek barda bittiği için bu barlar
+dönem dışında kalıyor.
+
+## 3. Dolgu barları
+
+| Konum | Koşu | Bar | Sembol | Medyan süre | En uzun |
+|---|---|---|---|---|---|
+| Baş (listeleme öncesi) | 0 | 0 | 0 | — | — |
+| İç (iki dönem arası) | 11 | 18.104 | 11 | 264,5 gün | 898,5 gün (CVCUSDT) |
+| Son (uzlaşma sonrası) | 145 | 295.522 | 145 | 264,5 gün | 1.936,8 gün (BTCSTUSDT) |
+| **Toplam** | **156** | **313.626** | 156 | | |
+
+Toplam 4h bar 3.692.573 = dönem içi 3.378.942 + dolgu 313.626 (**%8,5** dolgu).
+Eski kural bu dolgu barlarını dönem içinde sayıyordu (§5).
+
+**İç dolgu koşuları (tamamı):**
+
+| Sembol | Başlangıç | Bitiş | Gün |
+|---|---|---|---|
+| CVCUSDT | 2022-11-29 12:00 | 2025-05-15 20:00 | 898,5 |
+| CVXUSDT | 2024-05-14 12:00 | 2025-07-22 20:00 | 434,5 |
+| SLPUSDT | 2024-05-15 12:00 | 2025-07-22 20:00 | 433,5 |
+| CTKUSDT | 2024-04-01 12:00 | 2025-04-29 20:00 | 393,5 |
+| LITUSDT | 2025-01-31 12:00 | 2025-12-22 20:00 | 325,5 |
+| TLMUSDT | 2022-06-09 12:00 | 2023-02-28 20:00 | 264,5 |
+| MAVIAUSDT | 2024-12-16 12:00 | 2025-03-25 20:00 | 99,5 |
+| ICPUSDT | 2022-06-10 12:00 | 2022-08-31 20:00 | 82,5 |
+| AIAUSDT | 2025-12-11 16:00 | 2026-01-19 20:00 | 39,3 |
+| PUMPUSDT | 2025-06-13 12:00 | 2025-07-09 20:00 | 26,5 |
+| AERGOUSDT | 2025-03-27 12:00 | 2025-04-15 20:00 | 19,5 |
+
+**Serinin ortasındaki kısa (1–5 bar) sıfır hacim koşusu: 0.** F1 ölçümü S2 ile aynı.
+`tests/test_kisa_sifir_kosusu.py` bunu önbellekteki tüm dahil sembollerde tarar ve
+böyle bir koşu çıkarsa `KisaSifirKosusuUyarisi` verir.
+
+## 4. Funding'siz dönemler
+
+Ön-kayıt §2 rev.7: hiç funding kaydı olmayan dönem üç hipotezde de kullanılmaz.
+
+| Sembol | Dönem | Başlangıç | Bitiş | Gerçek bar |
+|---|---|---|---|---|
+| ICPUSDT | 0 | 2021-05-11 00:00 | 2022-06-10 08:00 | 2.373 |
+| TLMUSDT | 0 | 2021-07-16 00:00 | 2022-06-09 08:00 | 1.971 |
+
+İkisi de iki dönemli sembollerin **ilk** dönemi; ikinci dönemlerinde funding var.
+Bu iki dönem toplam 4.344 gerçek bar eder.
+
+**Dönem sonrası funding kayıtları** (ön-kayıt §2 rev.7: yok sayılır):
+
+| Kalem | Kayıt | Sembol |
+|---|---|---|
+| Toplam funding kaydı (toplam dönem içinde) | 2.562.456 | 678 |
+| Atılan: son dönemden sonra | 63.718 | 57 (38 SETTLING + 19 exchangeInfo dışı) |
+| Atılan: iki dönem arasındaki dolguya düşen | 8.881 | 12 |
+| **Atılan toplam** | **72.599** | **68** |
+| Korunan: ilk dönem başlangıcından önce | 936 | 150 |
+
+Son dönemden sonraki kayıtlar 57 sembolün 54'ünde dönem kapanışından en geç 8 saat
+sonra başlıyor; sembol başına 1–2 farklı oran değeri içeriyor (ön-kayıttaki "bir ya da
+birkaç sabit oran" gözlemiyle uyumlu).
+
+⚠️ **Ön-kayıt metniyle sayı farkı.** §2 rev.7 "38 sembolde uzlaşma sonrasında da funding
+kaydı yayınlandığını" yazıyor. 38 yalnızca SETTLING sembollerin sayısıdır; exchangeInfo
+dışı 19 sembolde de aynı durum var ve toplam **57**. Kural (kayıtları yok say) iki grup
+için de aynı işliyor, hesap etkilenmiyor; yalnızca metindeki sayı eksik.
+Ön-kayıt kilitli olduğu için dokunulmadı.
+
+## 5. Dönem sonu değişimlerinin özeti (rev.7 öncesi → rev.7)
+
+Karşılaştırma: `a66a5e0:data/universe.csv` (ay düzeyi, karantinalı) ile commit
+edilmiş rev.7 tablosu. Eski son sınır = eski son dönemin son ayındaki son 4h bar,
+serinin son barına kırpılmış.
+
+| Kalem | Değer |
+|---|---|
+| Dönem sonu değişen sembol | **147 / 678** |
+| Dönem sonu daha **erken** biten | 147 |
+| Dönem sonu daha geç biten | 0 |
+| Başlangıcı değişen | 2 (BNXUSDT −153 gün, MINAUSDT −21,7 gün: karantina ayları artık dönem içinde) |
+| Dönem sayısı değişen | 1 (TLMUSDT 4 → 2) |
+| Toplam dönem | 692 → 690 |
+
+**Kısalma miktarı (147 sembol):**
+
+| Kısalma | Sembol |
+|---|---|
+| ≤ 1 gün | 2 (AKROUSDT 4 saat, LUNAUSDT 16 saat) |
+| 1–7 gün | 4 |
+| 7–31 gün | 11 |
+| 31–90 gün | 9 |
+| 90–365 gün | 76 |
+| 1–2 yıl | 30 |
+| > 2 yıl | 15 |
+
+Medyan kısalma 237,5 gün, en büyüğü 1.936,8 gün. En büyük beşi: BTCSTUSDT (1.936,8),
+SCUSDT (1.536,5), FTTUSDT (1.386,7), RAYUSDT (1.385,7), STRAXUSDT (899,5). Eski
+kuralda bu sembollerin dönemi uzlaşmadan sonra yıllarca sıfır hacimli sabit fiyatlı
+dolgu barlarla devam ediyordu. Kısalan 147'nin 145'i §3'teki sondaki dolgu
+koşularıdır; kalan ikisi (AKRO, LUNA) eşik altı sondaki sıfır barlardır.
+
+Veri sonuna yakın uzlaşanlarda da fark var: ACXUSDT, HFTUSDT, VANRYUSDT, VICUSDT
+(24,5 gün, deliveryDate 2026-08-07) ve ICXUSDT, SCRTUSDT, STORJUSDT (5,5 gün).
+
+## 6. SETTLED ayları (yalnızca denetim)
+
+34 SETTLED ayı, 13 sembol. Her ayda dolgu koşusu ya da dönem sınırı var mı:
+
+| | Dönem sınırı var | Dönem sınırı yok |
+|---|---|---|
+| Dolgu koşusu var | 11 | 5 |
+| Dolgu koşusu yok | 5 | **13** |
+
+13 ayda ne dolgu ne dönem sınırı var: bu aylarda seri kesintisiz işlem görmüş.
+Rev.7'deki "34 karantina ayının 14'ünde dolgu koşusu bulunmayan" ölçümüyle aynı
+yönde (burada ölçüt dolgu **ve** dönem sınırı yokluğu olduğu için sayı 13).
+
+## 7. Kapsama ve bar boşlukları
 
 | Kalem | Değer |
 |---|---|
 | Toplam 4h bar | 3.692.573 |
-| Beklenen (kesintisiz ızgara) | 3.694.538 |
-| Eksik bar | 1.965 (**%0.053**) |
+| Eksik bar (kesintisiz ızgaraya göre) | 1.965 (%0,053) |
 | Türetilmiş 1d gün | 615.043 |
 
-### Eksik bar oranının sembol başına dağılımı
+3 bardan uzun 105 boşluk, zaman örtüşmesine göre **10 olay** (önceki raporla aynı).
+Bunların **3'ü** 7 günden uzun olduğu için dönemi böler:
 
-| Eksik oran | Sembol |
-|---|---|
-| 0 (tam) | 618 |
-| %0–0.1 | 8 |
-| %0.1–0.5 | 47 |
-| %0.5–1 | 1 |
-| >%1 | 4 |
-
-En yüksek dördü: BNXUSDT %1.64 (159 bar), TLMUSDT %1.58 (177), ICPUSDT %1.34
-(156), LUNAUSDT %1.06 (30). İlk üçü karantinalı sembollerdir; boşlukları
-sözleşmenin yerinde kapatılıp yeniden açılmasıyla örtüşür.
-
-## 3. Bar boşlukları (3 bardan uzun)
-
-105 boşluk kaydı, **zaman örtüşmesine göre 10 olaya** toplandı. Örtüşen
-boşluklar tek olay sayıldı; olayın başlangıcı en erken başlangıç, bitişi en geç
-bitiştir.
-
-### Borsa geneli / sembole özgü
-
-Kural: olay, o zaman aralığında verisi bulunan sembollerin **en az yarısını**
-etkiliyorsa borsa genelidir.
-
-| Grup | Olay |
-|---|---|
-| Borsa geneli (≥%50) | **0** |
-| Sembole özgü | 10 |
-
-### En uzun 10 olay (tamamı)
-
-| # | Başlangıç | Bitiş | Etkilenen | O aralıkta verisi olan | Oran | Azami eksik bar |
-|---|---|---|---|---|---|---|
-| 7 | 2023-03-01 00:00 | 2023-03-30 08:00 | 1 (TLMUSDT) | 174 | %0.6 | 177 |
-| 5 | 2022-09-01 00:00 | 2022-09-26 20:00 | 1 (ICPUSDT) | 148 | %0.7 | 156 |
-| 6 | 2023-02-01 00:00 | 2023-02-22 08:00 | 1 (BNXUSDT) | 165 | %0.6 | 129 |
-| 0 | 2022-02-26 00:00 | 2022-02-28 20:00 | **48** | 137 | **%35** | 18 |
-| 4 | 2022-08-10 00:00 | 2022-08-12 20:00 | 1 (BNXUSDT) | 141 | %0.7 | 18 |
-| 1 | 2022-04-01 00:00 | 2022-04-02 20:00 | **49** | 141 | **%35** | 12 |
-| 2 | 2022-04-17 00:00 | 2022-04-17 20:00 | 1 (BNXUSDT) | 141 | %0.7 | 6 |
-| 3 | 2022-06-09 00:00 | 2022-06-09 20:00 | 1 (BNXUSDT) | 141 | %0.7 | 6 |
-| 8 | 2025-03-26 00:00 | 2025-03-26 12:00 | 1 (MAVIAUSDT) | 413 | %0.2 | 4 |
-| 9 | 2025-12-23 00:00 | 2025-12-23 12:00 | 1 (LITUSDT) | 603 | %0.2 | 4 |
-
-⚠️ **Eşiğe dikkat edilmesi gereken nokta.** 0 ve 1 numaralı olaylar 48 ve 49
-sembolü *aynı dakikada, aynı pencerede* etkiliyor. Bu açıkça sembole özgü bir
-durum değil, ama etkilenen oran %35 olduğu için %50 eşiğini geçmiyor ve kural
-gereği "sembole özgü" sayılıyor. Sayı sıfır diye borsa geneli boşluk yok
-denemez; eşik bu iki olayı ıskalıyor. Revizyon 3 için eşiği düşürmek ya da
-"aynı pencerede N'den çok sembol" gibi ikinci bir ölçüt eklemek düşünülebilir.
-
-## 4. Veri bütünlüğü (|open[t] / close[t−1] − 1| > 0.30) — tam liste
-
-**10 sıçrama bulundu: 8'i karantinayla açıklanıyor, 2'si açıklanmıyor.**
-
-### 4a. Karantinayla açıklananlar (8)
-
-| Sembol | Zaman | Önceki close | Open | Bağıl fark | Karantina ayı |
-|---|---|---|---|---|---|
-| LITUSDT | 2025-12-23 16:00 | 0.592 | 3.734 | +531% | 2025-12 |
-| AERGOUSDT | 2025-04-16 08:00 | 0.0667 | 0.328 | +392% | 2025-04 |
-| CVXUSDT | 2025-07-23 08:00 | 2.374 | 5.104 | +115% | 2025-07 |
-| BNXUSDT | 2023-02-22 12:00 | 85.59 | 1.411 | −98% | 2023-02 |
-| PUMPUSDT | 2025-07-10 04:00 | 0.0471 | 0.00595 | −87% | 2025-07 |
-| MAVIAUSDT | 2025-03-26 16:00 | 1.4929 | 0.4179 | −72% | 2025-03 |
-| CTKUSDT | 2025-04-30 08:00 | 1.0106 | 0.5149 | −49% | 2025-04 |
-| TLMUSDT | 2023-03-30 12:00 | 0.0347 | 0.02073 | −40% | 2023-03 |
-
-Hepsinde o ay için `SETTLED` kaydı var. Token yeniden fiyatlandırması.
-
-### 4b. Karantinayla AÇIKLANAMAYANLAR (2)
-
-| Sembol | Zaman | Önceki close | Open | Bağıl fark | O ay SETTLED kaydı |
-|---|---|---|---|---|---|
-| WAVESUSDT | 2022-03-01 00:00 | 10.544 | 16.246 | **+54.1%** | **yok** |
-| KNCUSDT | 2022-03-01 00:00 | 1.862 | 2.444 | **+31.3%** | **yok** |
-
-**İkisi de yeniden fiyatlandırma değil — veri boşluğu kaynaklı.** Her ikisi de
-0 numaralı boşluk olayının (2022-02-26 00:00 → 2022-02-28 20:00, 18 bar)
-hemen ardından gelen **ilk bar**. Fiyat boşluk süresince hareket etmiş; barlar
-boşluğun iki yanında kesintisiz ve normal:
-
-```
-WAVESUSDT  2022-02-25 20:00  open 10.282  close 10.544   <- boslugun oncesi
-           [2022-02-26 .. 2022-02-28 : 18 bar eksik]
-           2022-03-01 00:00  open 16.246  close 17.555   <- boslugun sonrasi
-```
-
-Her iki sembol de 0 numaralı olayın etkilediği 48 sembolün içinde.
-
-Ön-kayıt §2 rev.2, karantinayla açıklanamayan kayıtlar için F2'den önce ayrı bir
-revizyon kararı istiyor. Bu ikisinin nedeni belirlenmiştir (veri boşluğu,
-yeniden fiyatlandırma değil); karar sizindir (bkz. §9).
-
-## 5. Karantina kaybı
-
-Karantina yüzünden dışarıda kalan toplam: **34 sembol-ay**, 13 sembolde.
-
-| Sembol | Karantina ayı | Aylar |
-|---|---|---|
-| ICPUSDT | 9 | 2022-01 … 2022-09 (kesintisiz) |
-| TLMUSDT | 9 | 2022-01, 02, 04, 05, 06, 07, 08 · 2023-02, 03 |
-| BNXUSDT | 6 | 2022-04 … 2022-08 · 2023-02 |
-| AERGOUSDT, AIAUSDT, CVCUSDT, CTKUSDT, LITUSDT, CVXUSDT, MAVIAUSDT, MINAUSDT, PUMPUSDT, SLPUSDT | 1'er | — |
-
-En çok kayıplı 5: ICPUSDT (9), TLMUSDT (9), BNXUSDT (6), ardından 1 aylık
-10 sembol.
-
-## 6. 60 günden kısa listeleme dönemleri
-
-Yalnızca 3 tane; asgari dönem kuralı eklenmedi (30 günlük uygunluk penceresi
-bunları zaten etkisiz bırakıyor).
-
-| Sembol | Dönem | Gün |
-|---|---|---|
-| DOSUSDT | 2026-08 → 2026-08 | 31 |
-| TLMUSDT | 2022-03 → 2022-03 (dönem 1) | 31 |
-| 牛来USDT | 2026-08 → 2026-08 | 31 |
-
-## 7. Uygunluk eşiğini geçen sembol sayısı (yıllara göre)
-
-Uygunluk ön-kayıt rev.2 kurallarıyla: pencere dönem başlangıcını aşamaz,
-karantina günleri uygun sayılmaz, listeleme yaşı dönem başında sıfırlanır.
-
-| Yıl | Veri bulunan | ≥10M (H1, H2) | ≥2M (H3) |
-|---|---|---|---|
-| 2020 | 80 | 61 | 77 |
-| 2021 | 136 | 132 | 132 |
-| 2022 | 159 | 155 | 158 |
-| 2023 | 248 | 229 | 234 |
-| 2024 | 379 | 341 | 343 |
-| 2025 | 605 | 539 | 572 |
-| 2026 | 654 | 317 | 534 |
-
-2026'daki düşüş listeleme yaşından: o yıl listelenen çok sayıda sembol 30 günlük
-yaş ve hacim penceresini yıl içinde dolduramıyor.
-
-## 8. Funding
-
-**678/678 sembolde funding verisi var ve mum geçmişiyle örtüşüyor.** Kapsama
-boşluğu veya örtüşmeyen sembol **yok**.
-
-### Ödeme aralığı dağılımı
-
-| Aralık | Kayıt | Sembol |
-|---|---|---|
-| 8 saat | 992.586 | 284 |
-| 4 saat | 1.487.688 | 516 |
-| 1 saat | 78.690 | 162 |
-| **2 saat** | **3.492** | **19** |
-
-8 saat dışına çıkan sembol: **520**. Artık çoğunluk 4 saatlik aralıkta.
-
-⚠️ **Ön-kayıtla çelişki (Revizyon 3'te düzeltilecek):** §2 yalnızca "4 saatlik
-veya 1 saatlik" diyor; veride **2 saatlik** aralık da var (19 sembol, 3.492
-kayıt). Kod genel formüle (`oran × 8 / aralık`) dayandığı için doğru
-normalleştiriyor; düzeltilmesi gereken metin. Bu davranış testle sabitlendi
-(`test_genel_formul_her_araligi_kapsar`).
-
-## 9. 1d türetmesinin birincil 1d dosyalarıyla karşılaştırması
-
-Karşılaştırılan gün: **615.043** (678 sembol, hepsi karşılaştırıldı).
-
-| Alan | Farklı gün | Oran |
-|---|---|---|
-| Fiyat (open, high, low, close) | **7** | %0.0011 |
-| Hacim (volume, quote_volume) | 261 | %0.042 |
-
-Türetme fiyat tarafında 615.036/615.043 birebir aynı.
-
-### Fiyat farkı olan 7 günün tamamı ve listeleme yaşı
-
-| Sembol | Gün | İlk bar | Listelemeden sonra | İlk 30 gün içinde |
+| Sembol | Başlangıç | Bitiş | Eksik bar | Etki |
 |---|---|---|---|---|
-| XRPUSDT | 2020-01-16 | 2020-01-06 | 9.7 gün | **evet** |
-| TRUMPUSDT | 2025-01-29 | 2025-01-18 | 10.5 gün | **evet** |
-| XRPUSDT | 2020-01-17 | 2020-01-06 | 10.7 gün | **evet** |
-| EOSUSDT | 2020-01-19 | 2020-01-08 | 10.7 gün | **evet** |
-| INJUSDT | 2023-08-16 | 2022-08-17 | 364 gün | hayır |
-| SFPUSDT | 2023-08-16 | 2021-02-24 | 903 gün | hayır |
-| UNFIUSDT | 2023-08-16 | 2021-02-19 | 908 gün | hayır |
+| TLMUSDT | 2023-03-01 00:00 | 2023-03-30 08:00 | 177 | iç dolguya bitişik; sınır zaten dolguda |
+| ICPUSDT | 2022-09-01 00:00 | 2022-09-26 20:00 | 156 | iç dolguya bitişik; sınır zaten dolguda |
+| BNXUSDT | 2023-02-01 00:00 | 2023-02-22 08:00 | 129 | **dönemi tek başına böler** |
 
-**4/7'si sembolün listelenmesinden sonraki ilk 30 gün içinde** (hepsi 9–11.
-günlerde). Kalan 3'ü tek bir tarihte toplanıyor: 2023-08-16.
+Kalan 7 olay 18 bar ve altındadır; rev.3 boşluk kurallarına tabidir. En büyük ikisi
+2022-02-26…28 (48 sembol, 18 bar) ve 2022-04-01…02 (49 sembol, 12 bar).
 
-### En yoğun 5 tarih
+## 8. Veri bütünlüğü (|open[t] / close[t−1] − 1| > 0.30) — tam liste
 
-| Tarih | Tip | Sembol sayısı |
-|---|---|---|
-| 2023-08-16 | hacim | **192** |
-| 2023-09-19 | hacim | 13 |
-| 2023-09-20 | hacim | 13 |
-| 2023-11-30 | hacim | 11 |
-| 2023-09-21 | hacim | 9 |
-| 2023-08-16 | fiyat | 3 |
+**10 kayıt: 8'i dönem başı (dönem bölme kuralıyla açıklanıyor), 2'si dönem içi kısa
+boşluk sonrası.** Dönem içinde bitişik barlar arasında sıçrama: **0**.
 
-**2023-08-16 baskın bir aykırı gün:** 192 sembolde hacim, 3 sembolde fiyat farkı.
-Kaynak tarafında o güne özgü bir yayın tutarsızlığı; 4h dosyalarının toplamı ile
-1d dosyası uyuşmuyor. Kararınız uyarınca uygunluk hacmi türetilmiş seriden
-gelmeye devam ediyor; 30 günlük medyan kullanıldığı için tek günlük fark eşiği
-taşımıyor.
+| Sembol | Zaman | Önceki bar | Eksik süre | Bağıl fark | Sınıf | SETTLED ayı |
+|---|---|---|---|---|---|---|
+| LITUSDT | 2025-12-23 16:00 | 2025-12-22 20:00 | 16 s | %531 | dönem başı | evet |
+| AERGOUSDT | 2025-04-16 08:00 | 2025-04-15 20:00 | 8 s | %392 | dönem başı | evet |
+| CVXUSDT | 2025-07-23 08:00 | 2025-07-22 20:00 | 8 s | %115 | dönem başı | evet |
+| BNXUSDT | 2023-02-22 12:00 | 2023-01-31 20:00 | 516 s | %98 | dönem başı | evet |
+| PUMPUSDT | 2025-07-10 04:00 | 2025-07-09 20:00 | 4 s | %87 | dönem başı | evet |
+| MAVIAUSDT | 2025-03-26 16:00 | 2025-03-25 20:00 | 16 s | %72 | dönem başı | evet |
+| **WAVESUSDT** | 2022-03-01 00:00 | 2022-02-25 20:00 | 72 s | %54 | **dönem içi, boşluk sonrası** | hayır |
+| CTKUSDT | 2025-04-30 08:00 | 2025-04-29 20:00 | 8 s | %49 | dönem başı | evet |
+| TLMUSDT | 2023-03-30 12:00 | 2023-02-28 20:00 | 708 s | %40 | dönem başı | evet |
+| **KNCUSDT** | 2022-03-01 00:00 | 2022-02-25 20:00 | 72 s | %31 | **dönem içi, boşluk sonrası** | hayır |
 
-## 10. Ortam
+Dönem başı kayıtlarında önceki bar ya dolgu barı ya da uzun boşluğun öbür yanıdır;
+sıçrama iki dönem arasındadır ve hiçbir pencere dönem başını aşamaz.
+WAVESUSDT ve KNCUSDT önceki raporda da tespit edilmişti: 2022-02-26…28 kesintisinin
+ardından ilk bar. Rev.3 tamlık şartı bunları zaten dışarıda bırakır
+(`tests/test_pencere.py`). Ön-kayıt §2 "dönem bölme kurallarıyla açıklanamayan
+kayıtlar F2'den önce ayrı revizyonla ele alınır" diyor; bu ikisi dönem kuralıyla
+değil, rev.3 boşluk kuralıyla açıklanıyor. Ayrı bir revizyon gerekip gerekmediği
+sizin kararınız.
 
-| Bileşen | Sürüm |
-|---|---|
-| Python | 3.13.12 (Miniconda, `D:\Miniconda\python.exe`, derleme 2026-02-24) |
-| Platform | Windows-10-10.0.19045-SP0 |
-| pandas | 2.3.3 |
-| numpy | 2.4.4 |
-| pyarrow | 21.0.0 |
-| requests | 2.32.5 |
+## 9. 60 günden kısa listeleme dönemleri
 
-Koşu **Miniconda Python** ile yapılmıştır.
+| Sembol | Başlangıç | Bitiş | Gün |
+|---|---|---|---|
+| 牛来USDT | 2026-08-30 08:00 | 2026-08-31 20:00 | 1,7 |
+| BTCSTUSDT | 2021-03-04 04:00 | 2021-03-12 00:00 | 8,0 |
+| DOSUSDT | 2026-08-11 12:00 | 2026-08-31 20:00 | 20,5 |
+| GRVTUSDT | 2026-07-31 12:00 | 2026-08-31 20:00 | 31,5 |
+| DATAIPUSDT | 2026-07-03 04:00 | 2026-08-31 20:00 | 59,8 |
+
+Önceki rapordaki üç kayıt (DOSUSDT, TLMUSDT dönem 1, 牛来USDT) ay düzeyinde "31 gün"
+görünüyordu. Bar düzeyinde TLMUSDT'nin eski kısa dönemi yok, BTCSTUSDT (uzlaşma
+sonrası dolgusu kesilince 8 gün kaldı), GRVTUSDT ve DATAIPUSDT eklendi. 30 günlük
+listeleme yaşı şartı ilk üçünü tümüyle etkisiz bırakır.
+
+## 10. Uygunluk eşiğini geçen sembol sayısı (yıllara göre)
+
+Rev.7 dönemleriyle; funding'siz iki dönem sayılmadı; küme sınırı uygulanmadı
+(denetim tüm geçmişi ölçer). "Geçen" = yıl içinde en az bir 4h barda uygun.
+
+| Yıl | Verisi olan | ≥10M (H1, H2) | ≥2M (H3) | Önceki rapor (10M / 2M) |
+|---|---|---|---|---|
+| 2020 | 80 | 61 | 77 | 61 / 77 |
+| 2021 | 136 | 130 | 130 | 132 / 132 |
+| 2022 | 159 | 154 | 157 | 155 / 158 |
+| 2023 | 248 | 229 | 234 | 229 / 234 |
+| 2024 | 379 | 341 | 343 | 341 / 343 |
+| 2025 | 607 | 538 | 569 | 539 / 572 |
+| 2026 | 654 | 317 | 534 | 317 / 534 |
+
+Farklar küçük (en çok 3 sembol) ve sembol düzeyinde ayrıştırılmadı. "Verisi olan"
+2025'te 605 → 607: sayım artık türetilmiş günlük seriden değil 4h barlardan yapılıyor
+(tam günü olmayan barlar da sayılıyor).
+
+## 11. Funding aralıkları
+
+Değişmedi: 8 saat 992.586 kayıt / 284 sembol · 4 saat 1.487.688 / 516 · 1 saat
+78.690 / 162 · 2 saat 3.492 / 19. 678/678 sembolde funding verisi var.
+
+## 12. 1d türetmesinin birincil 1d dosyalarıyla karşılaştırması
+
+Değişmedi: 615.043 gün karşılaştırıldı; fiyat farkı 7 gün (%0,0011), hacim farkı 261
+gün (%0,042). Fiyat farklı 7 günün 4'ü dönem başından sonraki ilk 30 gün içinde
+(9,7–10,7. gün), 3'ü 2023-08-16'da (INJ, SFP, UNFI). 2023-08-16 hacim tarafında
+192 sembolle baskın aykırı gün.
+
+## 13. Ortam
+
+Python 3.13.12 (Miniconda, `D:\Miniconda\python.exe`), Windows-10-10.0.19045-SP0,
+pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
 ---
 
-## 11. Karar gerektiren noktalar (Revizyon 3 için)
+## 14. Açık noktalar
 
-1. **İki açıklanamayan sıçrama** (WAVESUSDT, KNCUSDT, ikisi de 2022-03-01 00:00).
-   Nedeni belirlendi: 18 barlık veri boşluğu, yeniden fiyatlandırma değil.
-   Karantinaya alınsın mı, yoksa "boşluk sonrası ilk bar" olarak ayrı bir kuralla
-   mı ele alınsın? Boşluk sonrası ilk barda giriş yapılması zaten sorunlu; genel
-   bir "boşluğu aşan pencere geçersizdir" kuralı ikisini de kapsar.
-2. **Borsa geneli boşluk eşiği.** %50 eşiği, 48–49 sembolü aynı pencerede
-   etkileyen iki olayı (%35) ıskalıyor. Eşik düşürülsün mü, ikinci ölçüt
-   eklensin mi?
-3. **2 saatlik funding aralığı.** §2 metni düzeltilecek (19 sembol, 3.492 kayıt).
-4. **Zamanla tanımlı ortak pencere yardımcısı.** Ayrı olarak raporlandı:
-   mevcut dört pencere noktasından üçü bar sırasıyla sayıyor, biri (1d türetmesi)
-   zaten zaman ve tamlık temelli.
+1. **Ön-kayıt §2 rev.7 funding sayısı** (§4): "38 sembol" yalnızca SETTLING'i kapsıyor;
+   doğrusu 57. Kural etkilenmiyor, metin eksik. Ön-kayıt kilitli; düzeltme revizyon
+   ister.
+2. **WAVESUSDT / KNCUSDT** (§8): dönem kuralıyla değil rev.3 boşluk kuralıyla
+   açıklanıyor. Ön-kayıt §2'nin "ayrı revizyon" şartının bunlar için işletilip
+   işletilmeyeceği sizin kararınız.
+3. **exchangeInfo görüntüsü evrenden sonra alındı** (2026-09-18). Dahil sembollerin
+   durumu `universe.csv` ile tutarlı (128 SETTLING, 28 dışarıda, tip uyuşmazlığı 0),
+   ama `universe.csv` üretilirken kullanılan canlı yanıtın kendisi saklanmamıştı.
+4. `data/exchange_info_anlik.json` kilitli dosya listesinde değil.
 
-## 12. Sonraki adım
+## 15. Tarihsel not: rev.3 boşluk kuralının etkisi
 
-Revizyon 3 metninden sonra F2 (keşif). Bu rapordaki hiçbir sayı getiri, olay ya
-da fiyat davranışı içermez; keşif verisine bakılmamıştır.
-
----
-
-## 13. Revizyon 3 sonrası: veri boşluğu kuralının etkisi
-
-Ön-kayıt §2 rev.3'ün tamlık şartı (bir pencerede tek bar bile eksikse değer
-hesaplanmaz), 4 saatlik seride aşağıdaki kadar bar-sembol kombinasyonunu olay
-üretmekten çıkarır. Tarama tüm evren üzerinde yapılmıştır (3.692.251 bar,
-boşluk içeren 60 sembol).
-
-| Pencere | Uzunluk | Elenen bar-sembol |
-|---|---|---|
-| H1 hacim medyanı | 180 bar | 19.647 |
-| H2 önceki yükseliş | 30 bar | 3.248 |
-| H2 yapı kırılımı (k azami) | 12 bar | 1.232 |
-| H1 yükseliş penceresi | 6 bar | 560 |
-| **En az bir pencereden elenen (birleşik)** | — | **19.763** |
-
-Birleşik eleme toplam barın **%0.535**'idir. Baskın katkı H1'in 180 barlık
-hacim penceresinden gelir; uzun pencere, bir boşluğu daha uzun süre "taşır".
-
-Bu sayım yalnızca kaç barın pencere kuralına takıldığını ölçer; hiçbir olay,
-getiri veya fiyat davranışı hesaplanmamıştır.
-
-Kuralın hedeflediği iki kayıt (WAVESUSDT ve KNCUSDT, 2022-03-01 00:00) bu
-elemenin içindedir ve `tests/test_pencere.py` içinde gerçek veriyle
-doğrulanmıştır.
+Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
+%0,535) ay düzeyindeki eski dönemlerle yapılmıştı ve bu koşuda **yeniden
+üretilmedi**. Rev.7 dönemleriyle sayılar farklı olabilir.

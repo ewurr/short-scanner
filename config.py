@@ -20,6 +20,9 @@ SPLIT_CSV = VERI_DIZINI / "split.csv"
 # Listeleme donemleri; split.csv gibi sabit (on-kayit §2 rev.4, rev.7).
 UNIVERSE_CSV = VERI_DIZINI / "universe.csv"
 ONAY_KAYDI = KOK / "ONAY_KAYDI.md"
+# exchangeInfo anlik goruntusu (yalnizca denetim): delist siniflandirmasi ve
+# deliveryDate denetimi canli uc noktadan degil bu dosyadan okur.
+EXCHANGE_INFO_ANLIK = VERI_DIZINI / "exchange_info_anlik.json"
 
 # --- Piyasa ve evren (on-kayit §2) -------------------------------------------
 
