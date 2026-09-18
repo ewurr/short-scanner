@@ -347,7 +347,18 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 3. **exchangeInfo görüntüsü evrenden sonra alındı** (2026-09-18). Dahil sembollerin
    durumu `universe.csv` ile tutarlı (128 SETTLING, 28 dışarıda, tip uyuşmazlığı 0),
    ama `universe.csv` üretilirken kullanılan canlı yanıtın kendisi saklanmamıştı.
-4. `data/exchange_info_anlik.json` kilitli dosya listesinde değil.
+4. **`data/exchange_info_anlik.json` kilitli dosya listesinde değil.** B4 ile
+   `evren_kur` sözleşme ve dayanak tipini canlı uç noktadan değil bu görüntüden okuyor;
+   evrenin depodaki veriden yeniden üretilebilmesi artık bu dosyaya bağlı. Delist
+   sınıflandırması ve deliveryDate testi de buradan okuyor. `exchange_info_anlik_kaydet`
+   var olan dosyanın üzerine yazmıyor, ama dosya silinip yeniden alınırsa yeni bir
+   görüntü sessizce yerine geçer. Testlerdeki 128/28 sayımı bunu yakalar;
+   deliveryDate değişikliklerini yakalamaz.
+   **Öneri:** Görüntü `universe.csv` ve `split.csv` ile aynı statüde (bir kez üretilen,
+   sonuçları belirleyen girdi) olduğu için kilitli dosya listesine eklensin. Kilit
+   değiştirilmedi; karar sizin.
+   deliveryDate testi artık toplam dönemden sonra teslim edilen SETTLING sembolleri
+   sessizce atlamıyor, `AtlananTeslimUyarisi` ile listeliyor. Bugün atlanan sembol: 0.
 5. **Uzlaşma sonrası funding kaydı dönem içinde kalıyor (denetçi bulgusu A1, ölçüldü).**
    `data/funding.py` `_donem_icinde` üst sınırı son barın kapanışı; deliveryDate çoğunlukla
    o barın içinde. 128 SETTLING sembolün **19'unda 23 kayıt** deliveryDate'ten sonra gelip

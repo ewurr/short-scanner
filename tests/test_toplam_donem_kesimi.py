@@ -72,7 +72,8 @@ def sahte_bucket(monkeypatch):
     monkeypatch.setattr(bv, "funding_dosyalari", lambda s: [_anahtar(bv.FUNDING_ONEKI, s, a) for a in aylar])
     monkeypatch.setattr(klines_modulu, "ham_mumlari_yukle", lambda s, bar=config.BAR_4H, yenile=False: mumlar.copy())
     monkeypatch.setattr(funding_modulu, "ham_funding_yukle", lambda s, yenile=False: fund.copy())
-    monkeypatch.setattr(universe, "exchange_info_siniflari", lambda: {sembol: ("PERPETUAL", "COIN")})
+    monkeypatch.setattr(universe, "exchange_info_anlik_siniflari",
+                        lambda yol=None: {sembol: ("PERPETUAL", "COIN")})
     return sembol
 
 

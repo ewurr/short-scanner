@@ -15,6 +15,7 @@ ise uzlasma sonrasi dolgu barlarin doneme sizdigini gosterir.
 from __future__ import annotations
 
 import json
+import warnings
 
 import pandas as pd
 import pytest
@@ -139,10 +140,26 @@ def test_delist_sayilari_on_kayitla_ayni(siniflar):
     assert sayim.get("exchangeInfo_disi") == 28
 
 
+class AtlananTeslimUyarisi(UserWarning):
+    """deliveryDate'i toplam donemden sonra olan SETTLING sembol kontrolden atlandi."""
+
+
 @gercek_veri
 def test_uzlasmis_sozlesmenin_deliverydate_i_son_gercek_barin_icinde(siniflar):
-    """`donem_bitis <= deliveryDate < donem_bitis + 4h` (veri sonundan onceki teslimler)."""
+    """`donem_bitis <= deliveryDate < donem_bitis + 4h` (veri sonundan onceki teslimler).
+
+    deliveryDate'i toplam donemden sonra olan SETTLING semboller kontrol
+    edilemez; bunlar 128 delist sayimina girer ama tum pencere boyunca islem
+    gormustur. Sessizce atlanmazlar: listeleri `AtlananTeslimUyarisi` ile
+    raporlanir (denetci bulgusu D-B4).
+    """
     s = siniflar.loc[siniflar["sinif"] == universe.SETTLING_DURUMU]
+    atlanan = s.loc[~(s["deliveryDate"] <= pd.Timestamp(config.DONEM_SONU))]
+    if not atlanan.empty:
+        warnings.warn(AtlananTeslimUyarisi(
+            f"{len(atlanan)} SETTLING sembolun deliveryDate'i toplam donemden sonra, kontrol "
+            f"edilmedi: {', '.join(f'{r.sembol} ({r.deliveryDate})' for r in atlanan.itertuples())}"
+        ))
     s = s.loc[s["deliveryDate"] <= pd.Timestamp(config.DONEM_SONU)]
     assert not s.empty
     sapan = s.loc[~((s["son_donem_bitis"] <= s["deliveryDate"])

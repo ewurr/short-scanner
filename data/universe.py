@@ -85,22 +85,27 @@ def haric_gerekce(sembol: str, sozlesme_tipi: str | None, dayanak_tipi: str | No
 # --- exchangeInfo ------------------------------------------------------------
 
 
-def exchange_info_siniflari() -> dict[str, tuple[str, str]]:
-    """{sembol: (contractType, underlyingType)}. Herkese acik uc nokta."""
-    cevap = requests.get(EXCHANGE_INFO, timeout=60)
-    cevap.raise_for_status()
+def exchange_info_anlik_siniflari(yol=None) -> dict[str, tuple[str, str]]:
+    """{sembol: (contractType, underlyingType)}, depodaki goruntuden. Ag kullanmaz.
+
+    `evren_kur` sozlesme ve dayanak tipini buradan okur (denetci bulgusu D-B4):
+    canli uc nokta zamanla degisir (delist olan sembol yanittan duser), goruntu
+    ise sabittir. Goruntude olmayan sembolun tipi bilinmez (None).
+    """
+    anlik = exchange_info_anlik_yukle(yol)
     return {
-        s["symbol"]: (s.get("contractType"), s.get("underlyingType"))
-        for s in cevap.json()["symbols"]
+        r.symbol: (r.contractType, r.underlyingType)
+        for r in anlik.itertuples()
     }
 
 
-# --- exchangeInfo anlik goruntusu (yalnizca denetim) --------------------------
+# --- exchangeInfo anlik goruntusu ---------------------------------------------
 #
 # Canli exchangeInfo zamanla degisir; delist siniflandirmasi (SETTLING /
-# exchangeInfo disi) ve deliveryDate denetimi depoya alinmis tek bir goruntuden
-# okunur. Goruntu hicbir olay, uygunluk ya da getiri hesabina girmez; evren
-# tablosu (`universe.csv`) sabittir ve bu dosyadan yeniden turetilmez.
+# exchangeInfo disi), deliveryDate denetimi ve evren kurulumundaki sozlesme/dayanak
+# tipi depoya alinmis tek bir goruntuden okunur. Goruntu hicbir olay, uygunluk ya
+# da getiri hesabina girmez. Evren tablosu (`universe.csv`) commit edilmistir ve
+# sabittir; goruntu yalnizca onun depodaki veriden yeniden uretilebilmesini saglar.
 
 # Goruntude tutulan sembol alanlari. Filtreler ve emir tipleri denetimle ilgisiz
 # oldugu icin atilir; ham yanitin SHA256 ozeti kanit olarak saklanir.
@@ -247,16 +252,19 @@ def sembol_satirlari(ortak: dict, zamanlar, hacim, funding: pd.DataFrame) -> lis
 
 
 def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
-    """Bucket, onbellekteki 4h mumlar ve exchangeInfo'dan evren tablosunu kurar (ag kullanir).
+    """Bucket, onbellekteki 4h mumlar ve depodaki exchangeInfo goruntusunden evren
+    tablosunu kurar (bucket listesi ve eksik aylar icin ag kullanir).
 
     Her satir bir (sembol, listeleme donemi) ciftidir. Sutunlar `CSV_SUTUNLARI`;
-    donem sinirlari zaman damgasidir.
+    donem sinirlari zaman damgasidir. Sozlesme/dayanak tipi canli uc noktadan
+    degil `exchange_info_anlik_siniflari`ndan okunur (denetci bulgusu D-B4).
     """
     from data import funding, klines  # klines, split uzerinden bu modulu dolayli import edebilir
 
     dizinler = bv.tum_sembol_dizinleri()
     adaylar = usdt_perpetual_adaylari(dizinler)
-    siniflar = exchange_info_siniflari()
+    # Canli uc nokta degil, depodaki goruntu (D-B4).
+    siniflar = exchange_info_anlik_siniflari()
     settled = settled_aylari_haritasi(dizinler)
 
     satirlar = []
@@ -299,12 +307,11 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
 
 
 def evren_turet(yenile: bool = False, haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
-    """Evreni onbellekten okur, yoksa (veya `yenile`) bucket ve exchangeInfo'dan kurar.
+    """Evreni onbellekten okur, yoksa (veya `yenile`) bucket ve exchangeInfo goruntusunden kurar.
 
     YALNIZCA `data/universe.csv` dosyasini uretmek ve dogrulamak icindir.
-    Analiz bu yolu kullanmaz: exchangeInfo zamanla degisir (delist olan sembol
-    yanittan duser), yeniden turetilen evren commit edilmis tablodan sapabilir
-    (on-kayit §2 rev.4).
+    Analiz bu yolu kullanmaz: bucket zamanla degisir, yeniden turetilen evren
+    commit edilmis tablodan sapabilir (on-kayit §2 rev.4).
     """
     yol = bv.onbellek_yolu(ONBELLEK_ADI)
     if not yenile:
