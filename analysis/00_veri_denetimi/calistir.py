@@ -407,6 +407,11 @@ def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
 
     Uygunluk rev.7 donemleriyle olculur; funding'siz donemler (hic kullanilmaz)
     sayilmaz.
+
+    Payda (denetci bulgusu D-C1): `veri_bulunan_sembol` o yil en az bir GERCEK
+    (donem ici) bari olan sembollerdir; dolgu barlari hicbir hesaba girmez
+    (on-kayit §2 rev.7). Yalnizca dolgu bari olan semboller ayrica
+    `yalniz_dolgu_bari_olan` sutununda sayilir.
     """
     funding_yok = {
         (r.sembol, int(r.donem_id))
@@ -416,16 +421,20 @@ def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
     for yil in range(config.DONEM_BASI.year, config.DONEM_SONU.year + 1):
         bas = pd.Timestamp(f"{yil}-01-01", tz="UTC")
         son = pd.Timestamp(f"{yil}-12-31 23:59:59", tz="UTC")
-        veri_var = esik_10m = esik_2m = 0
+        veri_var = yalniz_dolgu = esik_10m = esik_2m = 0
 
         for d in detaylar:
             gunluk = d["_gunluk"]
             donemler = d["_donemler"]
             mm = d["_mumlar"]
-            if mm.empty or not donemler:
+            if mm.empty:
                 continue
             yil_ici = mm.loc[(mm["open_time"] >= bas) & (mm["open_time"] <= son), "open_time"]
             if yil_ici.empty:
+                continue
+            gercek = any(x.baslangic <= son and bas <= x.bitis for x in donemler)
+            if not gercek:
+                yalniz_dolgu += 1
                 continue
             veri_var += 1
 
@@ -449,7 +458,7 @@ def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
             esik_2m += int(iki_m)
 
         satirlar.append(
-            {"yil": yil, "veri_bulunan_sembol": veri_var,
+            {"yil": yil, "veri_bulunan_sembol": veri_var, "yalniz_dolgu_bari_olan": yalniz_dolgu,
              "esik_10M_gecen": esik_10m, "esik_2M_gecen": esik_2m}
         )
     return pd.DataFrame(satirlar)
@@ -493,19 +502,22 @@ def bosluklari_grupla(detaylar: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]
     sinirlar.append((su_an, olay_bas, olay_son))
     tablo["olay_id"] = olay_id
 
-    def veri_olan(bas, son) -> int:
-        n = 0
-        for d in detaylar:
-            mm = d["_mumlar"]
-            if not mm.empty and mm["open_time"].iloc[0] <= son and bas <= mm["open_time"].iloc[-1]:
-                n += 1
-        return n
+    def veri_olan(bas, son, etkilenen: set[str]) -> int:
+        # Payda: o aralikla kesisen bir listeleme donemi olan sembol. Yalnizca
+        # dolgu bari olan (uzlasmis) semboller sayilmaz (denetci bulgusu D-C1).
+        # Boslugu donemleri ayiran sembol (BNXUSDT) hicbir donemle kesismez ama
+        # etkilenmistir; etkilenen her sembol paydaya girer.
+        return sum(
+            1 for d in detaylar
+            if d["sembol"] in etkilenen
+            or any(x.baslangic <= son and bas <= x.bitis for x in d["_donemler"])
+        )
 
     olaylar = []
     for kimlik, bas, son in sinirlar:
         parca = tablo.loc[tablo["olay_id"] == kimlik]
         etki = parca["sembol"].nunique()
-        kapsam = veri_olan(bas, son)
+        kapsam = veri_olan(bas, son, set(parca["sembol"]))
         olaylar.append(
             {"olay_id": kimlik, "bas": bas, "son": son, "etki_sembol": etki,
              "o_aralikta_veri_olan": kapsam,
