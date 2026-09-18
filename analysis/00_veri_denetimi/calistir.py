@@ -934,7 +934,10 @@ def main() -> None:
                 if tamam % 25 == 0 or tamam == len(semboller):
                     _gunluk.info(f"  {tamam}/{len(semboller)} tamam (son: {sembol})")
 
+    # Tamamlanma sirasi is parcaciklarina baglidir; ciktilar sembole gore
+    # siralanir (tekrarlanabilirlik, denetci bulgusu D-B5).
     detaylar.sort(key=lambda d: d["sembol"])
+    hatalar.sort()
     _gunluk.info(f"yukleme bitti. basarili: {len(detaylar)}, hatali: {len(hatalar)}")
 
     # Tum tablolar once bellekte hesaplanir, en sonda birlikte yazilir: hesap
