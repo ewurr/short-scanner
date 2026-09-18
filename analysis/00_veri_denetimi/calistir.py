@@ -262,12 +262,29 @@ def _ay_sonu_bari(ay: str) -> pd.Timestamp:
     return pd.Period(ay, freq="M").end_time.floor("4h").tz_localize("UTC")
 
 
+def _eski_donem_ici(zamanlar: pd.DatetimeIndex, eski_satirlar: pd.DataFrame) -> pd.Series:
+    """Eski (ay duzeyi) donemlere gore her bar donem icinde mi. Saf."""
+    ici = pd.Series(False, index=zamanlar)
+    for r in eski_satirlar.itertuples():
+        bas = pd.Period(r.donem_bas_ay, freq="M").start_time.tz_localize("UTC")
+        son = pd.Period(r.donem_son_ay, freq="M").end_time.tz_localize("UTC")
+        ici |= (zamanlar >= bas) & (zamanlar <= son)
+    return ici
+
+
 def donem_sonu_degisimleri(eski: pd.DataFrame, detaylar: list[dict]) -> pd.DataFrame:
     """Sembol basina eski (ay duzeyi, karantinali) ile yeni (bar duzeyi) donem sinirlari.
 
     Eski son sinir = eski son donemin son ayindaki son 4h bar, serinin son barina
     kirpilmis. Eski karantina aylari donemleri boldugu icin donem sayisi da
     karsilastirilir. Pozitif `bitis_kisalma_gun`, yeni donemin daha erken bittigidir.
+
+    Ic sinirlar (denetci bulgusu D-A2): ilk baslangic ve son bitis ayni olsa bile
+    ic donem sinirlari degismis olabilir (CVCUSDT: eski donem 0 ic dolguyu
+    iceriyordu). Bu yuzden serinin her bari eski ve yeni kurala gore ayri ayri
+    siniflanir: `eski_ici_yeni_disi_bar` (eskide donem ici, yenide degil) ve
+    `yeni_ici_eski_disi_bar`. `degisti`: iki sayidan biri sifir degil.
+    `yalniz_ic_sinir`: degisti ama ilk baslangic ve son bitis ayni.
     """
     eski = eski.loc[(eski["haric"].astype(str) == "False") & (eski["donem_id"].astype(int) >= 0)]
     eski_grup = {s: g.sort_values("donem_id") for s, g in eski.groupby("sembol")}
@@ -281,11 +298,24 @@ def donem_sonu_degisimleri(eski: pd.DataFrame, detaylar: list[dict]) -> pd.DataF
             eski_bas = pd.Period(g["donem_bas_ay"].iloc[0], freq="M").start_time.tz_localize("UTC")
             eski_bas = max(eski_bas, pd.Timestamp(d["ilk_bar"]))
             eski_son = min(_ay_sonu_bari(g["donem_son_ay"].iloc[-1]), pd.Timestamp(d["son_bar"]))
+            zamanlar = pd.DatetimeIndex(d["_mumlar"]["open_time"])
+            eski_ici = _eski_donem_ici(zamanlar, g).to_numpy()
+            yeni_ici = pd.Series(False, index=zamanlar)
+            for x in yeni:
+                yeni_ici |= (zamanlar >= x.baslangic) & (zamanlar <= x.bitis)
+            yeni_ici = yeni_ici.to_numpy()
+            eksi, arti = int((eski_ici & ~yeni_ici).sum()), int((yeni_ici & ~eski_ici).sum())
+            bas_gecikme = round((yeni[0].baslangic - eski_bas) / pd.Timedelta(days=1), 2)
+            son_kisalma = round((eski_son - yeni[-1].bitis) / pd.Timedelta(days=1), 2)
             satir.update({
                 "eski_ilk_baslangic": eski_bas, "yeni_ilk_baslangic": yeni[0].baslangic,
                 "eski_son_bitis": eski_son, "yeni_son_bitis": yeni[-1].bitis,
-                "baslangic_gecikme_gun": round((yeni[0].baslangic - eski_bas) / pd.Timedelta(days=1), 2),
-                "bitis_kisalma_gun": round((eski_son - yeni[-1].bitis) / pd.Timedelta(days=1), 2),
+                "baslangic_gecikme_gun": bas_gecikme,
+                "bitis_kisalma_gun": son_kisalma,
+                "eski_ici_yeni_disi_bar": eksi,
+                "yeni_ici_eski_disi_bar": arti,
+                "degisti": bool(eksi or arti),
+                "yalniz_ic_sinir": bool((eksi or arti) and bas_gecikme == 0 and son_kisalma == 0),
                 "eski_karantina_aylari": str(g["karantina_aylari"].iloc[0]),
             })
         satirlar.append(satir)
@@ -703,6 +733,11 @@ def main() -> None:
     _gunluk.info(f"delist siniflari    : {delist.attrs['durum_sayimi']}")
     _gunluk.info(f"teslim son barda    : {int(delist['teslim_son_bar_icinde'].sum())}")
     _gunluk.info(f"funding'siz donem   : {len(fundingsiz)}")
+    if "degisti" in degisim:
+        dg = degisim.loc[degisim["degisti"].fillna(False).astype(bool)]
+        _gunluk.info(f"donem degisen sembol: {len(dg)} (yalniz ic sinir {int(dg['yalniz_ic_sinir'].sum())}), "
+                     f"eski ici yeni disi bar {int(dg['eski_ici_yeni_disi_bar'].sum())}, "
+                     f"yeni ici eski disi bar {int(dg['yeni_ici_eski_disi_bar'].sum())}")
     if len(settled_ic):
         ic = settled_ic.loc[settled_ic["donem_icinde"]]
         _gunluk.info(f"SETTLED donem ici ay: {len(ic)}, ortak bar {int(ic['ortak_bar'].sum())}, "
