@@ -1,11 +1,13 @@
 # F1 Veri Denetimi — TAM EVREN (678 sembol), ön-kayıt rev.7
 
 **Durum:** Tam koşu, 678/678 sembol, **hata yok**.
-**Koşu:** 2026-09-18 21:19:29 → 21:37:15 UTC, 8 iş parçacığı, önbellekten,
+**Koşu:** 2026-09-18 21:42:43 → 21:58:44 UTC, 8 iş parçacığı, önbellekten,
 `--eski-evren` (rev.7 öncesi tabloyla karşılaştırma, §5) açık.
-**Kod:** `ee4407e`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
-hiçbir çıktı yazılmadan alındı). A1 ölçümü aynı commit'te, aynı ağaçta
-2026-09-18 21:19:31 → 21:27:12 UTC koşuldu (`a1_ortam_tam.csv`, temiz).
+**Kod:** `16b012c`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
+hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor (665 geçti,
+1 xfail). Aynı çıktılar bir önceki temiz koşuda (`ee4407e`, 21:19 → 21:37 UTC) da
+birebir üretilmişti; o commit'te A2 değişikliğinin kırdığı iki test başarısızdı
+(16b012c'de düzeltildi). İki temiz koşu arasında yalnızca `ortam_tam.csv` farklı.
 **Önceki koşudan (73f3ab0 üzerine kirli ağaç, 12:43 UTC) farklar:**
 - `sembol_ozeti`: 4 yeni sütun (D-A5, C2). Eski sütunların hepsi aynı.
 - `donem_sonu_degisimleri`: 4 yeni sütun (D-A2). Eski sütunların hepsi aynı.
