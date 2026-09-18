@@ -14,6 +14,7 @@ okunur, canli uc noktadan degil.
 Kullanim:
     python analysis/00_veri_denetimi/calistir.py --ornek       # 30 sembollu ornek
     python analysis/00_veri_denetimi/calistir.py --is-parcaci 6  # tam evren
+    python analysis/00_veri_denetimi/calistir.py --eski-evren    # + rev.7 oncesiyle karsilastirma
 """
 
 from __future__ import annotations
@@ -44,8 +45,9 @@ from data import universe as universe_modulu  # noqa: E402
 CIKTI_DIZINI = Path(__file__).resolve().parent
 
 # Rev.7 oncesi (ay duzeyi, karantinali) evren tablosunun son hali. Donem sonu
-# degisimlerinin ozeti bununla karsilastirilir; sabit commit, tekrarlanabilir.
-ESKI_EVREN_REF = "a66a5e0:data/universe.csv"
+# degisimlerinin ozeti bununla karsilastirilir (istege bagli, `--eski-evren`).
+# Tam hash: kisaltilmis hash ileride belirsizlesebilir (D-B1).
+ESKI_EVREN_REF = "a66a5e0923d8fa4cc1d08329316a46f3b86a191b:data/universe.csv"
 
 # Ornek kume: >=5 delist, >=5 SETTLED ayli (TLMUSDT ve BNXUSDT dahil), iki donemli
 # (ICPUSDT, TLMUSDT), uzun dolgulu (FTTUSDT), MATICUSDT ve POLUSDT.
@@ -852,10 +854,28 @@ def main() -> None:
     ayristirici.add_argument("--ornek", action="store_true", help="30 sembollu ornek kume")
     ayristirici.add_argument("--is-parcaci", type=int, default=6,
                              help="es zamanli indirme parcacigi (sinirli tutulur)")
+    ayristirici.add_argument(
+        "--eski-evren", nargs="?", const=ESKI_EVREN_REF, default=None, metavar="GIT_REF:YOL",
+        help="istege bagli: rev.7 oncesi evren tablosuyla donem sonu karsilastirmasi "
+             f"(varsayilan ref {ESKI_EVREN_REF}); git gecmisi gerektirir",
+    )
     argumanlar = ayristirici.parse_args()
 
     etiket = "ornek" if argumanlar.ornek else "tam"
     log_yolu = _kaydedici_kur(etiket)
+
+    # Istege bagli eski tablo karsilastirmasi (denetci bulgusu D-B1): git gecmisi
+    # gerektirdigi icin varsayilan kosunun parcasi degil. Istenirse YUKLEMEDEN ONCE
+    # okunur; git yoksa ya da ref cozulemezse kosu hicbir sey yazmadan durur.
+    eski_evren = None
+    if argumanlar.eski_evren:
+        try:
+            eski_evren = eski_evreni_oku(argumanlar.eski_evren)
+        except (OSError, subprocess.CalledProcessError) as hata:
+            _gunluk.error(f"eski evren tablosu okunamadi ({argumanlar.eski_evren}): {hata}. "
+                          f"Kosu durduruldu, hicbir cikti yazilmadi.")
+            raise SystemExit(2) from hata
+        _gunluk.info(f"eski evren tablosu: {argumanlar.eski_evren} ({len(eski_evren)} satir)")
 
     evren = universe_modulu.evren_yukle()
     semboller = (
@@ -890,8 +910,12 @@ def main() -> None:
     detaylar.sort(key=lambda d: d["sembol"])
     _gunluk.info(f"yukleme bitti. basarili: {len(detaylar)}, hatali: {len(hatalar)}")
 
+    # Tum tablolar once bellekte hesaplanir, en sonda birlikte yazilir: hesap
+    # sirasinda hata cikarsa dizinde iki kosunun ciktilari karismaz (D-B1).
+    ciktilar: dict[str, pd.DataFrame] = {}
+
     def yaz(tablo: pd.DataFrame, ad: str) -> None:
-        tablo.to_csv(CIKTI_DIZINI / f"{ad}_{etiket}.csv", index=False, lineterminator="\n")
+        ciktilar[ad] = tablo
 
     # --- Ciktilar
     ozet = pd.DataFrame([{k: v for k, v in d.items() if not k.startswith("_")} for d in detaylar])
@@ -905,8 +929,9 @@ def main() -> None:
     yaz(kisa_sifir, "kisa_sifir_kosulari")
     fundingsiz = funding_siz_donemler(evren.loc[evren["sembol"].isin(semboller)])
     yaz(fundingsiz, "funding_siz_donemler")
-    degisim = donem_sonu_degisimleri(eski_evreni_oku(), detaylar)
-    yaz(degisim, "donem_sonu_degisimleri")
+    degisim = donem_sonu_degisimleri(eski_evren, detaylar) if eski_evren is not None else pd.DataFrame()
+    if eski_evren is not None:
+        yaz(degisim, "donem_sonu_degisimleri")
     settled = settled_karsilastirma(detaylar)
     yaz(settled, "settled_aylari")
     settled_ic = settled_icerik(detaylar, bv.tum_sembol_dizinleri(), settled)
@@ -942,6 +967,15 @@ def main() -> None:
 
     if hatalar:
         yaz(pd.DataFrame(hatalar, columns=["sembol", "hata"]), "hatalar")
+
+    for ad, tablo in ciktilar.items():
+        tablo.to_csv(CIKTI_DIZINI / f"{ad}_{etiket}.csv", index=False, lineterminator="\n")
+    # Bu kosuda uretilmeyen karsilastirma ciktisi onceki kosudan kalmasin.
+    for ad in ("donem_sonu_degisimleri", "hatalar"):
+        eski_dosya = CIKTI_DIZINI / f"{ad}_{etiket}.csv"
+        if ad not in ciktilar and eski_dosya.exists():
+            eski_dosya.unlink()
+            _gunluk.info(f"onceki kosudan kalan {eski_dosya.name} silindi (bu kosuda uretilmedi)")
 
     _gunluk.info("--- OZET ---")
     _gunluk.info(f"toplam 4h bar       : {int(ozet['bar_4h'].sum())}")
