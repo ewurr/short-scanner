@@ -1,8 +1,12 @@
 """short-lab sabitleri.
 
-Buradaki her deger PREREGISTRATION.md'den gelir ve yanina geldigi bolum yazilir.
-Bu dosyadaki bir sabiti degistirmek on-kaydi degistirmek demektir; once revizyon
-yazilmadan burasi degistirilemez (CLAUDE.md §3.4).
+Buradaki degerler PREREGISTRATION.md'den gelir ve yanina geldigi bolum yazilir.
+Bu dosyadaki bir on-kayit sabitini degistirmek on-kaydi degistirmek demektir; once
+revizyon yazilmadan burasi degistirilemez (CLAUDE.md §3.4).
+
+Istisnalar "ON-KAYIT DEGILDIR" diye isaretlidir: dizin ve dosya yollari (ornegin
+`EXCHANGE_INFO_ANLIK`) ve F1 denetim teshis esikleri (`DENETIM_*`). Bunlar hicbir
+olay, uygunluk ya da getiri hesabinin esigi degildir.
 """
 
 from __future__ import annotations
@@ -11,6 +15,8 @@ import datetime as dt
 from pathlib import Path
 
 # --- Dizinler (CLAUDE.md §7) -------------------------------------------------
+#
+# ON-KAYIT DEGILDIR: dosya ve dizin yollari.
 
 KOK = Path(__file__).resolve().parent
 VERI_DIZINI = KOK / "data"
@@ -20,8 +26,10 @@ SPLIT_CSV = VERI_DIZINI / "split.csv"
 # Listeleme donemleri; split.csv gibi sabit (on-kayit §2 rev.4, rev.7).
 UNIVERSE_CSV = VERI_DIZINI / "universe.csv"
 ONAY_KAYDI = KOK / "ONAY_KAYDI.md"
-# exchangeInfo anlik goruntusu (yalnizca denetim): delist siniflandirmasi ve
-# deliveryDate denetimi canli uc noktadan degil bu dosyadan okur.
+# exchangeInfo anlik goruntusu. ON-KAYIT DEGILDIR (on-kayitta tanimli degil;
+# 2026-09-18'de F1 denetimi icin alindi). Delist siniflandirmasi, deliveryDate
+# denetimi ve evren kurulumundaki sozlesme/dayanak tipi canli uc noktadan degil bu
+# dosyadan okunur.
 EXCHANGE_INFO_ANLIK = VERI_DIZINI / "exchange_info_anlik.json"
 
 # --- Piyasa ve evren (on-kayit §2) -------------------------------------------
