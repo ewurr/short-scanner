@@ -113,7 +113,8 @@ düzenlemeye karşı korur, kararlı bir atlatmaya karşı değil.
 
 **Metodoloji denetçisi** (`.claude/agents/metodoloji-denetcisi.md`): her faz
 sonunda ve her analiz kodu yazıldıktan sonra çalıştırılır. Geleceğe bakış,
-pencere ve boşluk kuralı, dönem ve karantina, veri bölmesi, ön-kayıttan sapma,
+pencere ve boşluk kuralı, dönem sınırları, dolgu koşuları ve uzun boşluklar,
+veri bölmesi, ön-kayıttan sapma,
 tohum ve tekrarlanabilirlik başlıklarında bulgu listesi döner. Kod düzeltmez.
 
 **Sızıntı testçisi** (`.claude/agents/sizinti-testcisi.md`): yeni hesaplama kodu
