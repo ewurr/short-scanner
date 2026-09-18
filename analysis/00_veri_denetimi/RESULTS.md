@@ -69,7 +69,9 @@ A1 ölçümü (`a1_olcumu.py`):
 LITUSDT, MAVIAUSDT, PUMPUSDT, SLPUSDT, TLMUSDT. Bölen: 11'inde iç dolgu koşusu, BNXUSDT'de
 7 günden uzun eksik bar boşluğu (bkz. §3, §6).
 
-Bölme (`data/split.csv`) değişmedi: 678 sembol → 669 varlık anahtarı.
+Bölme (`data/split.csv`) değişmedi: 678 sembol → 669 varlık anahtarı (A 333, B 345
+sembol). Bu sayılar artık betik tarafından `split.csv`'den sayılıyor
+(`rapor_sayilari_tam.csv`, D-A5). İki dönemi ayıran şeyin türü `donem_aralari_tam.csv`'de.
 
 ## 2. Delist sınıflandırması
 
@@ -170,13 +172,19 @@ Bu iki dönem toplam 4.344 gerçek bar eder.
 |---|---|---|
 | Toplam funding kaydı (toplam dönem içinde) | 2.562.456 | 678 |
 | Atılan: son dönemden sonra | 63.718 | 57 (38 SETTLING + 19 exchangeInfo dışı) |
-| Atılan: iki dönem arasındaki dolguya düşen | 8.881 | 12 |
+| Atılan: iki dönem arasında, ayırıcı dolgu koşusu | 8.817 | 11 |
+| Atılan: iki dönem arasında, ayırıcı eksik bar boşluğu (BNXUSDT) | 64 | 1 |
 | **Atılan toplam** | **72.599** | **68** |
 | Korunan: ilk dönem başlangıcından önce | 936 | 150 |
 
-Son dönemden sonraki kayıtlar 57 sembolün 54'ünde dönem kapanışından en geç 8 saat
-sonra başlıyor; sembol başına 1–2 farklı oran değeri içeriyor (ön-kayıttaki "bir ya da
-birkaç sabit oran" gözlemiyle uyumlu).
+İki dönem arasındaki 8.881 kaydın hepsi dolguya düşmüyor. BNXUSDT'nin iki dönemini
+dolgu değil 129 barlık (21,5 gün) eksik bar boşluğu ayırıyor (`bosluklar_tam.csv`); onun 64 kaydı bu boşluğa düşüyor
+(`donem_aralari_tam.csv`, D-A5).
+
+Son dönemden sonraki kayıtlar **57 sembolün 57'sinde** dönem kapanışından (son
+barın kapanışı) en geç 8 saat sonra başlıyor (`sembol_ozeti`,
+`funding_son_donem_sonrasi_ilk_gecikme_saat`). Önceki rapordaki "54" betik dışı bir
+hesaptı ve yeniden üretilemedi.
 
 ⚠️ **Ön-kayıt metniyle sayı farkı.** §2 rev.7 "38 sembolde uzlaşma sonrasında da funding
 kaydı yayınlandığını" yazıyor. 38 yalnızca SETTLING sembollerin sayısıdır; exchangeInfo
@@ -478,3 +486,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     aynı gün değildi (FTTUSDT 2022-11-14, SRMUSDT 2022-11-15).
 
   İşaret sayımı (18/5) kaldı.
+- 2026-09-19: §4'teki betik dışı sayılar betik çıktısından yeniden türetildi (D-A5).
+  - "57 sembolün 54'ünde en geç 8 saat" yerine 57/57.
+  - "İki dönem arasındaki dolguya düşen 8.881 / 12" ayrıldı: dolgu 8.817 / 11,
+    BNXUSDT eksik bar boşluğu 64 / 1.
+  - Oran değerine dayanan "sembol başına 1–2 farklı oran değeri" cümlesi çıkarıldı.
