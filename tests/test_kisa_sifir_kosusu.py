@@ -1,11 +1,13 @@
 """Serinin ortasindaki kisa sifir hacim kosulari icin denetim uyarisi (on-kayit §2 rev.7).
 
 Rev.7: "6 veya daha fazla ardisik sifir hacimli bar (bir gun) donemi boler."
-Bundan kisa (1-5 bar) bir sifir hacim kosusu donemi bolmez ve donemin parcasi
-sayilir. F1 olcumu S2 evrende boyle bir kosu bulmamisti. Veri yenilenip boyle bir
-kosu ortaya cikarsa bir likidite boslugu sessizce hesaba girer; bu test onu
-`KisaSifirKosusuUyarisi` ile gorunur kilar. Test basarisiz olmaz, uyarir: kisa
-kosunun nasil ele alinacagi bir on-kayit kararidir, testin karari degildir.
+Karar rev.7'de verilmistir: bundan kisa (1-5 bar) bir sifir hacim kosusu donemi
+bolmez ve donemin parcasidir. Bu test o karari degistirmez ve sorgulamaz.
+F1 olcumu S2 evrende boyle bir kosu bulmamisti; rev.7 karari bu olcumle
+verildi. Veri yenilenip boyle bir kosu ortaya cikarsa, kural geregi doneme giren
+bu barlar `KisaSifirKosusuUyarisi` ile gorunur kilinir. Test basarisiz olmaz,
+cunku kural ihlali yoktur; uyari yalnizca kararin dayandigi olcumun artik
+gecerli olmadigini bildirir.
 
 Gercek veri testi onbellekten okur, aga cikmaz; onbellek yoksa atlanir.
 """
