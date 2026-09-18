@@ -368,19 +368,32 @@ listeleme yaşı şartı ilk üçünü tümüyle etkisiz bırakır.
 Rev.7 dönemleriyle; funding'siz iki dönem sayılmadı; küme sınırı uygulanmadı
 (denetim tüm geçmişi ölçer). "Geçen" = yıl içinde en az bir 4h barda uygun.
 
-| Yıl | Verisi olan | ≥10M (H1, H2) | ≥2M (H3) | Önceki rapor (10M / 2M) |
-|---|---|---|---|---|
-| 2020 | 80 | 61 | 77 | 61 / 77 |
-| 2021 | 136 | 130 | 130 | 132 / 132 |
-| 2022 | 159 | 154 | 157 | 155 / 158 |
-| 2023 | 248 | 229 | 234 | 229 / 234 |
-| 2024 | 379 | 341 | 343 | 341 / 343 |
-| 2025 | 607 | 538 | 569 | 539 / 572 |
-| 2026 | 654 | 317 | 534 | 317 / 534 |
+**Payda (denetçi bulgusu D-C1).** "Verisi olan" artık yalnızca o yıl bir listeleme
+dönemiyle kesişen, yani en az bir **gerçek** barı olan sembolleri sayar. Önceki sürüm
+yalnızca dolgu barı olan (uzlaşmış, işlem görmeyen) sembolleri de sayıyordu. Bunlar
+ayrı sütunda.
 
-Farklar küçük (en çok 3 sembol) ve sembol düzeyinde ayrıştırılmadı. "Verisi olan"
-2025'te 605 → 607: sayım artık türetilmiş günlük seriden değil 4h barlardan yapılıyor
-(tam günü olmayan barlar da sayılıyor).
+| Yıl | Verisi olan (gerçek bar) | Yalnızca dolgu barı olan | ≥10M (H1, H2) | ≥2M (H3) | Önceki koşu: verisi olan | Rev.7 öncesi rapor: 10M / 2M |
+|---|---|---|---|---|---|---|
+| 2020 | 80 | 0 | 61 | 77 | 80 | 61 / 77 |
+| 2021 | 136 | 0 | 130 | 130 | 136 | 132 / 132 |
+| 2022 | 158 | 1 | 154 | 157 | 159 | 155 / 158 |
+| 2023 | 241 | 7 | 229 | 234 | 248 | 229 / 234 |
+| 2024 | 369 | 10 | 341 | 343 | 379 | 341 / 343 |
+| 2025 | 582 | 25 | 538 | 569 | 607 | 539 / 572 |
+| 2026 | 584 | 70 | 317 | 534 | 654 | 317 / 534 |
+
+Eşik sayıları C1 düzeltmesinden etkilenmedi; dolgu barları uygunluk sayımına zaten
+girmiyordu. "Rev.7 öncesi rapor" sütunundaki eşik farkları (en çok 3 sembol) rev.7 öncesi
+dönemlerden geliyor ve sembol düzeyinde ayrıştırılmadı.
+
+Aynı düzeltme bar boşluğu olaylarının paydasına da uygulandı (§7,
+`bosluk_olaylari_tam.csv`, `o_aralikta_veri_olan`). Payda artık aralıkla kesişen bir
+dönemi olan sembolleri sayıyor. Boşluğu dönemleri ayıran sembol (BNXUSDT) hiçbir dönemle
+kesişmese de etkilendiği için paydaya giriyor. `borsa_geneli` sınıflaması değişmedi.
+Eksik bar sayımı (§7) ise ilk ve son bar arasındaki ham ızgaraya göredir. Uzlaşma
+sonrası dolgu aralığını da kapsar; bu bir ham seri kapsama ölçüsüdür, uygunluk paydası
+değildir.
 
 ## 11. Funding aralıkları
 
