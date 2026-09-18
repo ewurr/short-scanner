@@ -170,3 +170,25 @@ def donem_bul(t, donemler: list[Donem]) -> int | None:
         if d.baslangic <= zaman <= d.bitis:
             return i
     return None
+
+
+# --- Toplam donem kesimi (on-kayit §2) ----------------------------------------
+
+
+def toplam_doneme_kes(cerceve: pd.DataFrame, sutun: str) -> pd.DataFrame:
+    """Toplam donem (`config.DONEM_BASI` .. `config.DONEM_SONU`, uclar dahil)
+    disindaki satirlari atar. Saf.
+
+    Evren kurulumu (`universe.evren_kur`) ve F1 denetimi AYNI siniri kullanir
+    (denetci bulgusu D-B3): bucket'a sonradan eklenen aylar ne donemleri ne de
+    denetimi degistirir.
+    """
+    if cerceve.empty:
+        return cerceve
+    maske = (cerceve[sutun] >= config.DONEM_BASI) & (cerceve[sutun] <= config.DONEM_SONU)
+    return cerceve.loc[maske].reset_index(drop=True)
+
+
+def ay_toplam_donemde(ay: str) -> bool:
+    """"YYYY-MM" ayi toplam donemle kesisiyor mu. Saf."""
+    return config.DONEM_BASI.strftime("%Y-%m") <= ay <= config.DONEM_SONU.strftime("%Y-%m")

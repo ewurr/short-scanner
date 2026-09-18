@@ -261,7 +261,11 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
 
     satirlar = []
     for sembol in adaylar:
-        dosyalar = bv.mum_dosyalari(sembol, config.BAR_4H)
+        # Toplam donem kesimi (denetci bulgusu D-B3): F1 denetimiyle ayni sinir.
+        # Bucket'a sonradan eklenen aylar dosya sayisini, ay sinirlarini ve
+        # donemleri degistirmez.
+        dosyalar = [d for d in bv.mum_dosyalari(sembol, config.BAR_4H)
+                    if donem_modulu.ay_toplam_donemde(bv.dosya_ayi(d))]
         if not dosyalar:
             continue
         aylar = [bv.dosya_ayi(d) for d in dosyalar]
@@ -271,13 +275,16 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
         if not gerekce and haric_mi(sembol, haric_liste):
             gerekce = "kesin haric listesi (on-kayit rev.2)"
 
-        mumlar = klines.ham_mumlari_yukle(sembol, config.BAR_4H)
+        mumlar = donem_modulu.toplam_doneme_kes(klines.ham_mumlari_yukle(sembol, config.BAR_4H), "open_time")
+        fund = donem_modulu.toplam_doneme_kes(funding.ham_funding_yukle(sembol), "odeme_zamani")
+        funding_dosyalari = [d for d in bv.funding_dosyalari(sembol)
+                             if donem_modulu.ay_toplam_donemde(bv.dosya_ayi(d))]
         ortak = {
             "sembol": sembol,
             "ilk_ay": aylar[0],
             "son_ay": aylar[-1],
             "dosya_sayisi_4h": len(dosyalar),
-            "funding_dosya_sayisi": len(bv.funding_dosyalari(sembol)),
+            "funding_dosya_sayisi": len(funding_dosyalari),
             "sozlesme_tipi": sozlesme_tipi,
             "dayanak_tipi": dayanak_tipi,
             "settled_aylari": ",".join(settled_kirp(settled.get(sembol, []), aylar[0], aylar[-1])),
@@ -285,7 +292,7 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
             "haric_gerekce": gerekce,
         }
         satirlar.extend(sembol_satirlari(
-            ortak, pd.DatetimeIndex(mumlar["open_time"]), mumlar["quote_volume"], funding.ham_funding_yukle(sembol),
+            ortak, pd.DatetimeIndex(mumlar["open_time"]), mumlar["quote_volume"], fund,
         ))
 
     return pd.DataFrame(satirlar).sort_values(["sembol", "donem_id"], ignore_index=True)

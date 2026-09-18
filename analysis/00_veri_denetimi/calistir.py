@@ -77,13 +77,9 @@ def _kaydedici_kur(etiket: str) -> Path:
     return log_yolu
 
 
-def _toplam_doneme_kes(cerceve: pd.DataFrame, sutun: str) -> pd.DataFrame:
-    """Toplam donem (on-kayit §2) disindaki kayitlari atar; bucket'a sonradan eklenen
-    aylar denetimi degistirmesin."""
-    if cerceve.empty:
-        return cerceve
-    maske = (cerceve[sutun] >= config.DONEM_BASI) & (cerceve[sutun] <= config.DONEM_SONU)
-    return cerceve.loc[maske].reset_index(drop=True)
+# Toplam donem kesimi veri katmanindadir; evren kurulumu da ayni fonksiyonu
+# kullanir (denetci bulgusu D-B3).
+_toplam_doneme_kes = donem_modulu.toplam_doneme_kes
 
 
 # --- Sembol basina olcum -----------------------------------------------------
