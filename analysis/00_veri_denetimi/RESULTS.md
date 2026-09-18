@@ -8,6 +8,8 @@ hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor 
 1 xfail). Aynı çıktılar bir önceki temiz koşuda (`ee4407e`, 21:19 → 21:37 UTC) da
 birebir üretilmişti; o commit'te A2 değişikliğinin kırdığı iki test başarısızdı
 (16b012c'de düzeltildi). İki temiz koşu arasında yalnızca `ortam_tam.csv` farklı.
+**A1 ölçümü:** `209f115`, çalışma ağacı temiz, 2026-09-18 22:05:04 → 22:11:46 UTC
+(`a1_ortam_tam.csv`). Çıktılar `ee4407e` üzerindeki temiz koşuyla birebir aynı.
 **Önceki koşudan (73f3ab0 üzerine kirli ağaç, 12:43 UTC) farklar:**
 - `sembol_ozeti`: 4 yeni sütun (D-A5, C2). Eski sütunların hepsi aynı.
 - `donem_sonu_degisimleri`: 4 yeni sütun (D-A2). Eski sütunların hepsi aynı.
