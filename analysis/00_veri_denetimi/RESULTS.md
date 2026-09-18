@@ -482,6 +482,38 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
    - Ara dönem sonlarında 5 kayıt: AERGOUSDT, BNXUSDT, MAVIAUSDT, PUMPUSDT, SLPUSDT,
      her birinde 1 kayıt.
 
+   D-B8 düzeltmesinden sonra (funding iki uçtan toplam döneme kesildi) yukarıdaki
+   sayıların hiçbiri değişmedi: 23 / 19, konumlar, 28 kayıt ve 43 kayıt dökümü aynı.
+
+   **D kuralının kapsamı (sayım; kod değişmedi, `a1_d_kurali_tam.csv`).**
+   - **Kural:** Dönem sonu çıkışlarında funding penceresi son barın açılışında (dahil)
+     biter; veri sonu dönemi hariç. Dışarıda kalan kayıt: `bitis + 1 dk ≤ p < bitis + 4h + 1 dk`.
+   - **Tamlık ölçümü:** Temsili bir pozisyon için `_odemeler_tam_mi`. Pozisyon son bar
+     açılışından 24 saat önce (ya da dönem başında) girer ve dönem sonunda çıkar. "Bozuk"
+     demek, pozisyon funding'inin NaN olacağı, yani pozisyonun düşeceği demek.
+
+   | Dönem sonu türü | Dönem sonu | Dışarıda kalacak kayıt (dönem sonu) | Tamlık bozuk: mevcut kural | Tamlık bozuk: D kuralı |
+   |---|---|---|---|---|
+   | Delist, SETTLING | 128 | 24 (19) | **78** | 1 |
+   | Delist, exchangeInfo dışı | 28 | 5 (5) | 3 | 0 |
+   | Dolgu koşusu (iç) | 11 | 4 (4) | 3 | 2 |
+   | Uzun boşluk (iç) | 1 | 1 (1) | 1 | 1 |
+   | **Kural uygulanan toplam** | **168** | **34 (29)** | **85** | **4** |
+   | Veri sonu (kural uygulanmaz) | 522 | 9 (3) | 522 | 0 |
+
+   - **Mevcut kuralda 78 SETTLING dönem sonu bozuk.** Bu D kuralının değil, bugünkü
+     kodun davranışıdır (denetçi bulgusu D-B6'nın bugünkü karşılığı). Mevcut kural son
+     ödemeyi son barın kapanışında arıyor. Uzlaşmış sözleşmelerin çoğunda kapanış anında
+     kayıt yok: 128'in yalnızca 19'unda var. Bu yüzden ufku dönem sonunu aşan pozisyon
+     bugünkü kodla NaN olup düşüyor. Etkilenen delist sembolleri.
+   - **D kuralında bozuk kalan 4:**
+     - FTTUSDT: 2 saat aralık; uzlaşma anında (son bar açılışı) kayıt yok.
+     - ICPUSDT ve TLMUSDT ilk dönemleri: funding'siz dönemler (§4), zaten kullanılmıyor.
+     - BNXUSDT'nin boşluktan önceki dönemi.
+   - **Veri sonu satırı:** Buradaki 522 bozukluk ölçümün kendi sonucudur. Kapanış anındaki
+     kayıt (2026-09-01 00:00) toplam dönemin dışında ve kesiliyor. Kural bu dönemlere
+     uygulanmadığı için sayı yalnızca bilgi amaçlı yazıldı.
+
    > **Denetim sınırı aşımı.** A1 ölçümünde (1093e69) uzlaşma sonrası funding kayıtlarının oran değerleri ve işaretleri raporlandı. Bu kayıtlar dönem sonunu aşan pozisyonların net getirisine girebilecek türdendi ve bir kısmı C1 grubuna ve C2 dönemine ait. Bu, §3.1'deki veri denetimi sınırını aştı; talep araştırma tarafının isteğinden geldi. Değer düzeyindeki analiz bu bölümden çıkarıldı, ham CSV'ler iz için depoda duruyor. Bu bilginin funding üst sınırı kuralıyla ilişkisi ön-kayıt Rev.8'de yazılıdır.
 
 6. **1 dakikalık toleransın kenarı (denetçi bulgusu D-B7, yalnızca not).**
