@@ -187,17 +187,47 @@ için de aynı işliyor, hesap etkilenmiyor; yalnızca metindeki sayı eksik.
 ## 5. Dönem sonu değişimlerinin özeti (rev.7 öncesi → rev.7)
 
 Karşılaştırma: `a66a5e0:data/universe.csv` (ay düzeyi, karantinalı) ile commit
-edilmiş rev.7 tablosu. Eski son sınır = eski son dönemin son ayındaki son 4h bar,
-serinin son barına kırpılmış.
+edilmiş rev.7 tablosu; isteğe bağlı `--eski-evren` adımı (D-B1). Eski son sınır = eski
+son dönemin son ayındaki son 4h bar, serinin son barına kırpılmış.
+
+**İç sınırlar (denetçi bulgusu D-A2).** Önceki sürüm yalnızca ilk başlangıcı ve son
+bitişi karşılaştırıyordu. İç dönem sınırı değişen semboller bu yüzden "değişmedi"
+sayılıyordu. CVCUSDT örneğin: eski dönem 0 iç dolguyu içine alıyordu. Artık serinin
+her barı eski ve yeni kurala göre ayrı ayrı sınıflanıyor (`eski_ici_yeni_disi_bar`,
+`yeni_ici_eski_disi_bar`).
 
 | Kalem | Değer |
 |---|---|
-| Dönem sonu değişen sembol | **147 / 678** |
-| Dönem sonu daha **erken** biten | 147 |
-| Dönem sonu daha geç biten | 0 |
+| **Dönemi değişen sembol** (en az bir bar sınıf değiştirdi) | **159 / 678** |
+| Son bitişi daha **erken** | 147 |
+| Son bitişi daha geç | 0 |
+| **Yalnızca iç sınırı değişen** (ilk başlangıç ve son bitiş aynı) | **11** |
+| Yalnızca başlangıcı değişen | 1 (MINAUSDT) |
 | Başlangıcı değişen | 2 (BNXUSDT −153 gün, MINAUSDT −21,7 gün: karantina ayları artık dönem içinde) |
 | Dönem sayısı değişen | 1 (TLMUSDT 4 → 2) |
 | Toplam dönem | 692 → 690 |
+| Eskide dönem içi, yenide dışı | 311.399 bar |
+| Eskide dönem dışı, yenide içi | 3.397 bar |
+
+Yalnızca iç sınırı değişen 11 sembol (eski içi → yeni dışı / eski dışı → yeni içi, bar):
+
+| Sembol | Eski içi → yeni dışı | Eski dışı → yeni içi |
+|---|---|---|
+| CVCUSDT | 5.301 | 94 |
+| CVXUSDT | 2.475 | 52 |
+| SLPUSDT | 2.469 | 52 |
+| CTKUSDT | 2.187 | 4 |
+| LITUSDT | 1.821 | 50 |
+| TLMUSDT | 918 | 780 |
+| MAVIAUSDT | 447 | 32 |
+| AIAUSDT | 122 | 70 |
+| PUMPUSDT | 105 | 131 |
+| AERGOUSDT | 27 | 88 |
+| ICPUSDT | 0 | 987 |
+
+"Eski içi → yeni dışı" barlar eski kuralın dönem içinde saydığı iç dolgu barlarıdır.
+"Eski dışı → yeni içi" barlar eski karantina aylarının artık dönem içinde kalan
+gerçek barlarıdır.
 
 **Kısalma miktarı (147 sembol):**
 
