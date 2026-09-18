@@ -410,6 +410,16 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
    > **Denetim sınırı aşımı.** A1 ölçümünde (1093e69) uzlaşma sonrası funding kayıtlarının oran değerleri ve işaretleri raporlandı. Bu kayıtlar dönem sonunu aşan pozisyonların net getirisine girebilecek türdendi ve bir kısmı C1 grubuna ve C2 dönemine ait. Bu, §3.1'deki veri denetimi sınırını aştı; talep araştırma tarafının isteğinden geldi. Değer düzeyindeki analiz bu bölümden çıkarıldı, ham CSV'ler iz için depoda duruyor. Bu bilginin funding üst sınırı kuralıyla ilişkisi ön-kayıt Rev.8'de yazılıdır.
 
+6. **1 dakikalık toleransın kenarı (denetçi bulgusu D-B7, yalnızca not).**
+   - Ön-kayıt §4: "1 dakikadan **küçük** zaman kayması aynı an sayılır."
+   - `a1_olcumu.py` (`konum`, `sembol_olc`) tam 1 dakikalık kaymayı "aynı an" sayıyor
+     (`<= tolerans`).
+   - `data/funding.py` `_donem_icinde` üst uçta tam 1 dakikayı dışarıda bırakıyor
+     (`< bitis + adım + 1 dk`).
+
+   Kenar tanımı tutarsız. Gözlenen kaymalar en fazla 31 ms olduğu için bugünkü sayılar
+   etkilenmiyor. Kod değiştirilmedi; tanım ön-kayıt revizyonunda çözülecek.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,

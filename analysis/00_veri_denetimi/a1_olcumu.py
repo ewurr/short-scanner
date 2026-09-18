@@ -44,6 +44,7 @@ sys.path.insert(0, str(BU_DIZIN))
 
 import config  # noqa: E402
 from calistir import git_durumu, ortam_kaydi  # noqa: E402
+from data import donem as donem_modulu  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import universe as universe_modulu  # noqa: E402
@@ -62,9 +63,9 @@ TOL = funding_modulu.ODEME_TOLERANSI
 
 
 def funding_yukle(sembol: str) -> pd.DataFrame:
-    """Sembolun ham funding kayitlari, toplam donem sonuna kesilmis."""
-    fund = funding_modulu.ham_funding_yukle(sembol)
-    return fund.loc[fund["odeme_zamani"] <= config.DONEM_SONU].reset_index(drop=True)
+    """Sembolun ham funding kayitlari, toplam doneme IKI UCTAN kesilmis
+    (denetci bulgusu D-B8; F1 denetimiyle ayni fonksiyon)."""
+    return donem_modulu.toplam_doneme_kes(funding_modulu.ham_funding_yukle(sembol), "odeme_zamani")
 
 
 def sembol_olc(sembol: str, teslim: pd.Timestamp, donem, fund: pd.DataFrame) -> list[dict]:
@@ -111,8 +112,11 @@ def oran_karsilastir(kayitlar: pd.DataFrame, referans: pd.DataFrame) -> pd.DataF
     Yalnizca `--oran-degerleri` ile, 1093e69 kosusunun yeniden uretimi icin
     cagrilir (bkz. modul belgesi).
 
-    `referans`: ayni sembolun incelenen kayitlardan onceki kayitlari (zaman
-    sirali); yalnizca son `REFERANS_KAYIT` tanesi kullanilir.
+    `referans`: ayni sembolun incelenen kayitlardan onceki kayitlari. ON KOSUL:
+    `referans` `odeme_zamani`na gore ARTAN sirada olmalidir. Fonksiyon siralamaz;
+    `tail` ve `iloc[-1]` konuma gore calisir, sirasiz girdide "son 30 kayit" ve
+    "referansin son orani" sessizce yanlis kayitlardan hesaplanir. Yalnizca son
+    `REFERANS_KAYIT` tanesi kullanilir.
     """
     ref = referans.tail(REFERANS_KAYIT)
     medyan = float(ref["oran"].abs().median()) if len(ref) else float("nan")
