@@ -34,6 +34,7 @@ KOK = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(KOK))
 
 import config  # noqa: E402
+from data import binance_vision as bv  # noqa: E402
 from data import donem as donem_modulu  # noqa: E402
 from data import eligibility as uyg  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
@@ -304,6 +305,32 @@ def settled_karsilastirma(detaylar: list[dict]) -> pd.DataFrame:
             satirlar.append({"sembol": d["sembol"], "ay": ay, "dolgu_kosusu_var": dolgu,
                              "donem_siniri_var": sinir})
     return pd.DataFrame(satirlar, columns=["sembol", "ay", "dolgu_kosusu_var", "donem_siniri_var"])
+
+
+def settled_icerik(detaylar: list[dict], sembol_dizinleri: list[str], ozet: pd.DataFrame) -> pd.DataFrame:
+    """Her SETTLED ayinin mumlarini ana seriyle bar bar karsilastirir (denetci bulgusu C3).
+
+    `ozet`: `settled_karsilastirma` ciktisi; `donem_icinde` = o ayda ne dolgu kosusu
+    ne donem siniri var, yani ay tumuyle bir donemin icinde (rev.7 ile doneme giren aylar).
+    Yalnizca veri butunlugu: getiri veya fiyat davranisi hesaplanmaz.
+    """
+    satirlar = []
+    for d in detaylar:
+        aylar = [a for a in d["settled_aylari"].split(",") if a]
+        if not aylar:
+            continue
+        dizinler = klines_modulu.settled_dizinleri(d["sembol"], sembol_dizinleri)
+        parcalar = [klines_modulu.ham_settled_mumlari_yukle(x) for x in dizinler]
+        settled = pd.concat(parcalar, ignore_index=True) if parcalar else pd.DataFrame(columns=["open_time"])
+        for ay in aylar:
+            satirlar.append({"sembol": d["sembol"], "settled_dizini": ",".join(dizinler),
+                             **klines_modulu.settled_ay_karsilastir(d["_mumlar"], settled, ay)})
+    tablo = pd.DataFrame(satirlar)
+    if tablo.empty:
+        return tablo
+    tablo = tablo.merge(ozet, on=["sembol", "ay"], how="left")
+    tablo["donem_icinde"] = ~tablo["dolgu_kosusu_var"] & ~tablo["donem_siniri_var"]
+    return tablo.sort_values(["sembol", "ay"], ignore_index=True)
 
 
 # --- Toplu olcumler ----------------------------------------------------------
@@ -645,6 +672,8 @@ def main() -> None:
     yaz(degisim, "donem_sonu_degisimleri")
     settled = settled_karsilastirma(detaylar)
     yaz(settled, "settled_aylari")
+    settled_ic = settled_icerik(detaylar, bv.tum_sembol_dizinleri(), settled)
+    yaz(settled_ic, "settled_icerik")
 
     yaz(yillik_kapsama(detaylar, evren), "yillik_kapsama")
     sicramalar = sicramalari_grupla(detaylar)
@@ -674,6 +703,11 @@ def main() -> None:
     _gunluk.info(f"delist siniflari    : {delist.attrs['durum_sayimi']}")
     _gunluk.info(f"teslim son barda    : {int(delist['teslim_son_bar_icinde'].sum())}")
     _gunluk.info(f"funding'siz donem   : {len(fundingsiz)}")
+    if len(settled_ic):
+        ic = settled_ic.loc[settled_ic["donem_icinde"]]
+        _gunluk.info(f"SETTLED donem ici ay: {len(ic)}, ortak bar {int(ic['ortak_bar'].sum())}, "
+                     f"fiyat farkli {int(ic['fiyat_farkli_bar'].sum())}, hacim farkli {int(ic['hacim_farkli_bar'].sum())}, "
+                     f"yalniz settled {int(ic['yalniz_settled'].sum())}, yalniz ana {int(ic['yalniz_ana'].sum())}")
     _gunluk.info(f"sicrama             : {len(sicramalar)} {sicramalar['sinif'].value_counts().to_dict()}")
     _gunluk.info(f"bosluk              : {len(bosluklar)} adet, {len(bosluk_olaylari)} olay")
     _gunluk.info(f"60 gunden kisa donem: {len(kisa)}")

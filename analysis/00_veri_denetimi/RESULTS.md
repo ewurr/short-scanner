@@ -1,11 +1,12 @@
 # F1 Veri Denetimi — TAM EVREN (678 sembol), ön-kayıt rev.7
 
 **Durum:** Tam koşu, 678/678 sembol, **hata yok**.
-**Koşu:** 2026-09-18 14:42 → 15:01 UTC+3, 8 iş parçacığı, önbellekten.
-**Kod:** `db5ba82` üzerine commit edilmemiş değişikliklerle koşuldu (`ortam_tam.csv`:
-"çalışma ağacı kirli"). Değişiklikler: `calistir.py` rev.7 evren API'sine göre yeniden
-yazıldı, `data/universe.py`'ye exchangeInfo görüntüsü eklendi. İndirme ve ayrıştırma
-katmanına dokunulmadı.
+**Koşu:** 2026-09-18 12:43 → 13:00 UTC, 8 iş parçacığı, önbellekten. İlk koşu
+(11:42 → 12:01 UTC) ile SETTLED içerik karşılaştırması (§6a) eklenmiş ikinci koşunun
+çıktıları, `ortam` dışında birebir aynıdır.
+**Kod:** `73f3ab0` üzerine commit edilmemiş C3 değişiklikleriyle (`calistir.py`,
+`data/klines.py`) koşuldu; `ortam_tam.csv` "çalışma ağacı kirli" gösterir. Bu
+değişiklikler rapordan hemen sonraki commit'tedir.
 **Evren:** commit edilmiş `data/universe.csv` (rev.7, bar düzeyinde dönemler).
 **exchangeInfo:** depodaki görüntü `data/exchange_info_anlik.json`
 (alınma 2026-09-18 11:31:55 UTC, ham yanıt SHA256 `41244d4d…58c6a`), canlı uç nokta değil.
@@ -21,7 +22,8 @@ Ham çıktılar (`*_tam.csv`): `sembol_ozeti`, `delist_siniflandirmasi`, `dolgu_
 `kisa_sifir_kosulari`, `funding_siz_donemler`, `donem_sonu_degisimleri`, `settled_aylari`,
 `yillik_kapsama`, `butunluk_sicramalari`, `bosluklar`, `bosluk_olaylari`,
 `funding_araliklari`, `cross_dogrulama`, `cross_yogun_tarihler`,
-`fiyat_farki_listeleme_yasi`, `kisa_donemler`, `ortam`.
+`fiyat_farki_listeleme_yasi`, `kisa_donemler`, `settled_icerik`, `ortam`;
+ayrıca `a1_uzlasma_sonrasi_funding_tam.csv` (`a1_olcumu.py`).
 Rev.7 ile anlamını yitiren `karantina_kaybi_tam.csv` kaldırıldı.
 
 ---
@@ -204,6 +206,36 @@ Veri sonuna yakın uzlaşanlarda da fark var: ACXUSDT, HFTUSDT, VANRYUSDT, VICUS
 Rev.7'deki "34 karantina ayının 14'ünde dolgu koşusu bulunmayan" ölçümüyle aynı
 yönde (burada ölçüt dolgu **ve** dönem sınırı yokluğu olduğu için sayı 13).
 
+### 6a. SETTLED dosyalarının içeriği ana seriyle (denetçi bulgusu C3)
+
+Her SETTLED ayında bucket'taki `<SEMBOL>SETTLED` dizininin 4h mumları ana seriyle
+aynı zaman damgasında bar bar karşılaştırıldı (OHLC ve hacim, bağıl tolerans 1e-6).
+Çıktı: `settled_icerik_tam.csv`; kod: `data/klines.py` `settled_ay_karsilastir`.
+
+**Rev.7 ile dönem içine giren 13 ay** (BNXUSDT 2022-05…08, ICPUSDT 2022-01…05,
+TLMUSDT 2022-01, 02, 04, 05):
+
+| Kalem | Değer |
+|---|---|
+| Ortak bar | 2.310 |
+| Fiyatı farklı bar | **0** |
+| Hacmi farklı bar | **0** |
+| Yalnızca SETTLED'da olan bar | 24 (BNXUSDT 2022-06: 6, 2022-08: 18) |
+| Yalnızca ana seride olan bar | 30 (TLMUSDT 2022-02: 18, 2022-04: 12) |
+
+Ortak barların tamamı birebir aynı; dönem içine alınan 13 ayda SETTLED dosyası ana
+seriden farklı bir fiyat taşımıyor. BNXUSDT'nin SETTLED dosyasındaki 24 fazla bar,
+ana serideki 2022-06-09 (6 bar) ve 2022-08-10…12 (18 bar) boşluklarının tam yerine
+düşüyor. Bu barlar ana seriye alınmıyor; SETTLED bilgisi hiçbir kurala girmez.
+
+**Kalan 21 ay (dolgu ya da dönem sınırı olan):** 1.451 ortak bar, 5'inde fark var
+(AERGOUSDT 2025-04, CTKUSDT 2025-04, CVCUSDT 2025-05, MAVIAUSDT 2025-03, PUMPUSDT
+2025-07). Beşinde de farklı bar, yeniden listelenen dönemin **ilk barı**. Ana seride
+yeni sözleşmenin gerçek (sıfır olmayan hacimli) barı var. SETTLED dosyasında ise aynı
+zaman damgasında eski sözleşmenin sıfır hacimli, eski fiyatlı dolgu barı var.
+BNXUSDT 2023-02, ICPUSDT 2022-09 ve TLMUSDT 2023-03'te SETTLED barları ana serinin
+7 günden uzun boşluklarına düşüyor (128, 152, 177 bar); ortak bar yok.
+
 ## 7. Kapsama ve bar boşlukları
 
 | Kalem | Değer |
@@ -316,6 +348,14 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
    durumu `universe.csv` ile tutarlı (128 SETTLING, 28 dışarıda, tip uyuşmazlığı 0),
    ama `universe.csv` üretilirken kullanılan canlı yanıtın kendisi saklanmamıştı.
 4. `data/exchange_info_anlik.json` kilitli dosya listesinde değil.
+5. **Uzlaşma sonrası funding kaydı dönem içinde kalıyor (denetçi bulgusu A1, ölçüldü).**
+   `data/funding.py` `_donem_icinde` üst sınırı son barın kapanışı; deliveryDate çoğunlukla
+   o barın içinde. 128 SETTLING sembolün **19'unda 23 kayıt** deliveryDate'ten sonra gelip
+   dönem içinde sayılıyor; bunların **19'u** dönem sonu çıkış anına (son bar kapanışı)
+   denk geliyor ve ufku dönem sonunu aşan bir pozisyonun çıkış ödemesi olur. Aralık
+   dağılımı: 4 saat 14, 2 saat 4, 1 saat 3, 8 saat 2 (FTTUSDT, RAYUSDT).
+   exchangeInfo dışı 28 sembolde deliveryDate olmadığı için ölçülemedi.
+   Betik `a1_olcumu.py`, çıktı `a1_uzlasma_sonrasi_funding_tam.csv`. Kod düzeltilmedi.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi
 

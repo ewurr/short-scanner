@@ -298,3 +298,83 @@ def butunluk_sicramalari(
             "bagil_fark": bagil[secili],
         }
     ).reset_index(drop=True)
+
+
+# --- SETTLED dizinleri (yalnizca denetim, on-kayit §2 rev.7) ------------------
+
+
+def settled_dizinleri(sembol: str, sembol_dizinleri: list[str]) -> list[str]:
+    """Bucket'ta bir sembole ait `<SEMBOL>SETTLED...` / `<SEMBOL>_SETTLED` dizinleri. Saf.
+
+    Esleme `universe.settled_aylari_haritasi` ile aynidir: SETTLED son ekleri ve
+    ardindaki alt cizgi atildiginda kalan ad sembole esit olmalidir.
+    """
+    sonuc = []
+    for dizin in sembol_dizinleri:
+        if not dizin.endswith(config.SETTLED_SONEKI):
+            continue
+        temel = dizin
+        while temel.endswith(config.SETTLED_SONEKI):
+            temel = temel[: -len(config.SETTLED_SONEKI)]
+        if temel.rstrip("_") == sembol:
+            sonuc.append(dizin)
+    return sorted(sonuc)
+
+
+def ham_settled_mumlari_yukle(dizin: str, bar: str = config.BAR_4H, yenile: bool = False) -> pd.DataFrame:
+    """Bir SETTLED dizininin tum mumlari, KUME KORUMASI OLMADAN (ag kullanir).
+
+    Yalnizca F1 denetiminin SETTLED icerik karsilastirmasi icindir; SETTLED
+    bilgisi hicbir kurala girmez (on-kayit §2 rev.7). Analiz ve olay kodu bunu
+    CAGIRMAZ. Onbellek: `cache/klines_settled/<dizin>/<bar>/<ay>.parquet`.
+    """
+    parcalar = []
+    for anahtar in bv.mum_dosyalari(dizin, bar):
+        yol = bv.onbellek_yolu("klines_settled", dizin, bar, f"{bv.dosya_ayi(anahtar)}.parquet")
+        cerceve = None if yenile else bv.onbellekten_oku(yol)
+        if cerceve is None:
+            cerceve = _ay_cercevesi(bv.zip_indir(anahtar))
+            bv.onbellege_yaz(cerceve, yol)
+        parcalar.append(cerceve)
+    if not parcalar:
+        return pd.DataFrame(columns=[s for s in bv.MUM_SUTUNLARI if s != "ignore"])
+    return _tekrarsiz_birlestir(parcalar, f"ham_settled_mumlari_yukle({dizin}, {bar})")
+
+
+def _bagil_fark(a: pd.Series, b: pd.Series) -> pd.Series:
+    """|a - b| / max(|a|, |b|); ikisi de sifirsa 0."""
+    payda = pd.concat([a.abs(), b.abs()], axis=1).max(axis=1)
+    return ((a - b).abs() / payda.where(payda != 0)).fillna(0.0)
+
+
+def settled_ay_karsilastir(ana: pd.DataFrame, settled: pd.DataFrame, ay: str,
+                           tolerans: float = config.DENETIM_CAPRAZ_TOLERANS) -> dict:
+    """Bir takvim ayinda SETTLED mumlarini ana seriyle bar bar karsilastirir. Saf.
+
+    Yalnizca veri butunlugu olcumudur: iki kaynakta ayni zaman damgali barlarin
+    OHLC ve hacim alanlari ayni mi? Getiri veya fiyat davranisi hesaplamaz.
+    """
+    p = pd.Period(ay, freq="M")
+    bas, son = p.start_time.tz_localize("UTC"), p.end_time.tz_localize("UTC")
+
+    def kes(c):
+        return c.loc[(c["open_time"] >= bas) & (c["open_time"] <= son)] if not c.empty else c
+
+    a, s = kes(ana), kes(settled)
+    ortak = a.merge(s, on="open_time", suffixes=("_ana", "_set"))
+    fiyat = pd.concat([_bagil_fark(ortak[f"{c}_ana"], ortak[f"{c}_set"]) for c in ("open", "high", "low", "close")],
+                      axis=1).max(axis=1) if len(ortak) else pd.Series(dtype=float)
+    hacim = pd.concat([_bagil_fark(ortak[f"{c}_ana"], ortak[f"{c}_set"]) for c in ("volume", "quote_volume")],
+                      axis=1).max(axis=1) if len(ortak) else pd.Series(dtype=float)
+    return {
+        "ay": ay,
+        "ana_bar": len(a),
+        "settled_bar": len(s),
+        "ortak_bar": len(ortak),
+        "yalniz_ana": int((~a["open_time"].isin(s["open_time"])).sum()) if len(a) else 0,
+        "yalniz_settled": int((~s["open_time"].isin(a["open_time"])).sum()) if len(s) else 0,
+        "fiyat_farkli_bar": int((fiyat > tolerans).sum()),
+        "hacim_farkli_bar": int((hacim > tolerans).sum()),
+        "azami_fiyat_bagil_fark": float(fiyat.max()) if len(fiyat) else float("nan"),
+        "azami_hacim_bagil_fark": float(hacim.max()) if len(hacim) else float("nan"),
+    }
