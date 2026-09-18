@@ -81,8 +81,6 @@ def test_delist_sinifi_goruntude_olmayan_sembolu_ayirir():
     })
     sinif = universe.delist_sinifi(evren, anlik).set_index("sembol")["sinif"].to_dict()
     assert sinif == {"AUSDT": "SETTLING", "BUSDT": "TRADING", "CUSDT": "exchangeInfo_disi"}
-    # DUSDT haric=True: goruntude SETTLING olsa bile ciktida hic gorunmemeli.
-    assert "DUSDT" not in sinif
 
 
 def test_delist_sinifi_haric_semboller_disarida_kalir():
