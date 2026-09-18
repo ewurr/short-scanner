@@ -1,5 +1,9 @@
 bilesen,surum
-git_commit,73f3ab0025b420f2adddefd4945d97bf8aae1fbc (calisma agaci kirli)
+git_commit,ee4407e790ad14a8b35aa23e34e1e202ea459074
+calisma_agaci,temiz
+calisma_agaci_degisiklikleri,
+kosu_baslangic_utc,2026-09-18 21:19:29
+kosu_bitis_utc,2026-09-18 21:37:15
 python,3.13.12
 python_derleme,Feb 24 2026 16:05:56
 python_yolu,D:\Miniconda\python.exe

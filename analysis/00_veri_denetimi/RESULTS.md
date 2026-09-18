@@ -1,12 +1,20 @@
 # F1 Veri Denetimi — TAM EVREN (678 sembol), ön-kayıt rev.7
 
 **Durum:** Tam koşu, 678/678 sembol, **hata yok**.
-**Koşu:** 2026-09-18 12:43 → 13:00 UTC, 8 iş parçacığı, önbellekten. İlk koşu
-(11:42 → 12:01 UTC) ile SETTLED içerik karşılaştırması (§6a) eklenmiş ikinci koşunun
-çıktıları, `ortam` dışında birebir aynıdır.
-**Kod:** `73f3ab0` üzerine commit edilmemiş C3 değişiklikleriyle (`calistir.py`,
-`data/klines.py`) koşuldu; `ortam_tam.csv` "çalışma ağacı kirli" gösterir. Bu
-değişiklikler rapordan hemen sonraki commit'tedir.
+**Koşu:** 2026-09-18 21:19:29 → 21:37:15 UTC, 8 iş parçacığı, önbellekten,
+`--eski-evren` (rev.7 öncesi tabloyla karşılaştırma, §5) açık.
+**Kod:** `ee4407e`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
+hiçbir çıktı yazılmadan alındı). A1 ölçümü aynı commit'te, aynı ağaçta
+2026-09-18 21:19:31 → 21:27:12 UTC koşuldu (`a1_ortam_tam.csv`, temiz).
+**Önceki koşudan (73f3ab0 üzerine kirli ağaç, 12:43 UTC) farklar:**
+- `sembol_ozeti`: 4 yeni sütun (D-A5, C2). Eski sütunların hepsi aynı.
+- `donem_sonu_degisimleri`: 4 yeni sütun (D-A2). Eski sütunların hepsi aynı.
+- `yillik_kapsama`: `veri_bulunan_sembol` paydası değişti (D-C1); `yalniz_dolgu_bari_olan`
+  sütunu eklendi. Eşik sayıları aynı.
+- `bosluk_olaylari`: `o_aralikta_veri_olan` paydası değişti (D-C1). `borsa_geneli`
+  sınıflaması aynı.
+- Yeni dosyalar: `donem_aralari`, `rapor_sayilari`.
+- Diğer tüm `*_tam.csv` dosyaları birebir aynı.
 **Evren:** commit edilmiş `data/universe.csv` (rev.7, bar düzeyinde dönemler).
 **exchangeInfo:** depodaki görüntü `data/exchange_info_anlik.json`
 (alınma 2026-09-18 11:31:55 UTC, ham yanıt SHA256 `41244d4d…58c6a`), canlı uç nokta değil.
@@ -29,13 +37,15 @@ Ham çıktılar (`*_tam.csv`), `calistir.py`: `sembol_ozeti`, `delist_siniflandi
 `dolgu_kosulari`, `kisa_sifir_kosulari`, `funding_siz_donemler`, `donem_sonu_degisimleri`,
 `settled_aylari`, `yillik_kapsama`, `butunluk_sicramalari`, `bosluklar`, `bosluk_olaylari`,
 `funding_araliklari`, `cross_dogrulama`, `cross_yogun_tarihler`,
-`fiyat_farki_listeleme_yasi`, `kisa_donemler`, `settled_icerik`, `ortam`.
-Rev.7 ile anlamını yitiren `karantina_kaybi_tam.csv` kaldırıldı.
+`fiyat_farki_listeleme_yasi`, `kisa_donemler`, `settled_icerik`, `donem_aralari`, `ortam`.
+`rapor_sayilari_tam.csv` bu rapordaki sayıların kaynağıdır (bölüm, kalem, değer); rapor
+başka bir hesaptan sayı almaz (denetçi bulgusu D-A5). Rev.7 ile anlamını yitiren
+`karantina_kaybi_tam.csv` kaldırıldı.
 
 A1 ölçümü (`a1_olcumu.py`):
 - Varsayılan koşunun çıktıları (değer içermez): `a1_uzlasma_sonrasi_funding_tam.csv`,
-  `a1_konumlar_tam.csv`, `a1_oneri_etkisi_tam.csv`, `a1_ortam_tam.csv` (koşunun
-  commit'i, çalışma ağacı durumu ve UTC zamanı).
+  `a1_konumlar_tam.csv`, `a1_oneri_etkisi_tam.csv`, `a1_d_kurali_tam.csv`,
+  `a1_ortam_tam.csv` (koşunun commit'i, çalışma ağacı durumu ve UTC zamanı).
 - **1093e69 koşusunun iz dosyaları (oran değeri içerir, bu rapor kullanmaz):**
   `a1_uzlasma_sonrasi_oranlar_tam.csv`, `a1_teslimsiz_son_bar_funding_tam.csv`.
   Koşu 2026-09-18 13:35:41 UTC'de yapıldı (dosya zamanı; o koşunun ortam kaydı yok).
