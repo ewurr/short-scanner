@@ -131,8 +131,21 @@ dönem dışında kalıyor.
 | Son (uzlaşma sonrası) | 145 | 295.522 | 145 | 264,5 gün | 1.936,8 gün (BTCSTUSDT) |
 | **Toplam** | **156** | **313.626** | 156 | | |
 
-Toplam 4h bar 3.692.573 = dönem içi 3.378.942 + dolgu 313.626 (**%8,5** dolgu).
-Eski kural bu dolgu barlarını dönem içinde sayıyordu (§5).
+Toplam 4h bar 3.692.573 = dönem içi 3.378.942 + dolgu 313.626 + **ne dönem ne dolgu 5**
+(**%8,5** dolgu). Eski kural dolgu barlarını dönem içinde sayıyordu (§5).
+
+**5 barlık fark (denetçi bulgusu D-C2).** Önceki rapor eşitliği bu 5 bar olmadan
+yazmıştı; toplam tutmuyordu (3.378.942 + 313.626 = 3.692.568). Bu 5 bar AKROUSDT'de 1,
+LUNAUSDT'de 4 bardır (`sembol_ozeti`, `ne_donem_ne_dolgu_bar`). İkisi de seriyi dolgu
+eşiğinin (6 bar) altında kalan sondaki sıfır hacimli barlarla bitiriyor (§2). Dönem son
+gerçek barda bittiği için bu barlar dönem dışı; koşu 6 bardan kısa olduğu için dolgu
+da sayılmıyor.
+
+**§6a'daki "dönem dışındaki 5 ayda birer bar" ile aynı değil.** Oradaki 5 bar AERGOUSDT
+2025-04, CTKUSDT 2025-04, CVCUSDT 2025-05, MAVIAUSDT 2025-03 ve PUMPUSDT 2025-07'deki
+farklı barlardır. Hepsi yeniden listelenen bir dönemin **ilk gerçek barı**, yani dönem
+içindedir. SETTLED dosyası aynı zaman damgasında eski sözleşmenin dolgu barını taşır.
+Buradaki 5 bar ise başka iki sembolde, dönem dışında. Sayıların eşit olması rastlantı.
 
 **İç dolgu koşuları (tamamı):**
 
