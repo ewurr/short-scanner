@@ -334,13 +334,6 @@ def donem_sonu_degisimleri(eski: pd.DataFrame, detaylar: list[dict]) -> pd.DataF
             eski_bas = pd.Period(g["donem_bas_ay"].iloc[0], freq="M").start_time.tz_localize("UTC")
             eski_bas = max(eski_bas, pd.Timestamp(d["ilk_bar"]))
             eski_son = min(_ay_sonu_bari(g["donem_son_ay"].iloc[-1]), pd.Timestamp(d["son_bar"]))
-            zamanlar = pd.DatetimeIndex(d["_mumlar"]["open_time"])
-            eski_ici = _eski_donem_ici(zamanlar, g).to_numpy()
-            yeni_ici = pd.Series(False, index=zamanlar)
-            for x in yeni:
-                yeni_ici |= (zamanlar >= x.baslangic) & (zamanlar <= x.bitis)
-            yeni_ici = yeni_ici.to_numpy()
-            eksi, arti = int((eski_ici & ~yeni_ici).sum()), int((yeni_ici & ~eski_ici).sum())
             bas_gecikme = round((yeni[0].baslangic - eski_bas) / pd.Timedelta(days=1), 2)
             son_kisalma = round((eski_son - yeni[-1].bitis) / pd.Timedelta(days=1), 2)
             satir.update({
@@ -348,12 +341,25 @@ def donem_sonu_degisimleri(eski: pd.DataFrame, detaylar: list[dict]) -> pd.DataF
                 "eski_son_bitis": eski_son, "yeni_son_bitis": yeni[-1].bitis,
                 "baslangic_gecikme_gun": bas_gecikme,
                 "bitis_kisalma_gun": son_kisalma,
-                "eski_ici_yeni_disi_bar": eksi,
-                "yeni_ici_eski_disi_bar": arti,
-                "degisti": bool(eksi or arti),
-                "yalniz_ic_sinir": bool((eksi or arti) and bas_gecikme == 0 and son_kisalma == 0),
-                "eski_karantina_aylari": str(g["karantina_aylari"].iloc[0]),
             })
+            # Bar duzeyi karsilastirma mumlari gerektirir; mum yoksa (yalnizca
+            # sinir bilgisiyle cagrilirsa) alanlar bos kalir.
+            mumlar = d.get("_mumlar")
+            if mumlar is not None:
+                zamanlar = pd.DatetimeIndex(mumlar["open_time"])
+                eski_ici = _eski_donem_ici(zamanlar, g).to_numpy()
+                yeni_ici = pd.Series(False, index=zamanlar)
+                for x in yeni:
+                    yeni_ici |= (zamanlar >= x.baslangic) & (zamanlar <= x.bitis)
+                yeni_ici = yeni_ici.to_numpy()
+                eksi, arti = int((eski_ici & ~yeni_ici).sum()), int((yeni_ici & ~eski_ici).sum())
+                satir.update({
+                    "eski_ici_yeni_disi_bar": eksi,
+                    "yeni_ici_eski_disi_bar": arti,
+                    "degisti": bool(eksi or arti),
+                    "yalniz_ic_sinir": bool((eksi or arti) and bas_gecikme == 0 and son_kisalma == 0),
+                })
+            satir["eski_karantina_aylari"] = str(g["karantina_aylari"].iloc[0])
         satirlar.append(satir)
     return pd.DataFrame(satirlar)
 
