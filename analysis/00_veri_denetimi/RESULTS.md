@@ -354,8 +354,45 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
    dönem içinde sayılıyor; bunların **19'u** dönem sonu çıkış anına (son bar kapanışı)
    denk geliyor ve ufku dönem sonunu aşan bir pozisyonun çıkış ödemesi olur. Aralık
    dağılımı: 4 saat 14, 2 saat 4, 1 saat 3, 8 saat 2 (FTTUSDT, RAYUSDT).
-   exchangeInfo dışı 28 sembolde deliveryDate olmadığı için ölçülemedi.
-   Betik `a1_olcumu.py`, çıktı `a1_uzlasma_sonrasi_funding_tam.csv`. Kod düzeltilmedi.
+   Betik `a1_olcumu.py`, çıktılar `a1_uzlasma_sonrasi_funding_tam.csv`,
+   `a1_uzlasma_sonrasi_oranlar_tam.csv`, `a1_teslimsiz_son_bar_funding_tam.csv`.
+   Kod düzeltilmedi.
+
+   **Konum.** 23 kaydın tamamı son barın içinde ve deliveryDate'ten sonra. 19'u son bar
+   kapanışında (çıkış anı). Kalan 4'ü son barın içinde, deliveryDate'ten sonra ama
+   kapanıştan önce: ALPACAUSDT 10:00 ve 11:00 (1 saat aralık), TROYUSDT 10:00 ve
+   VIDTUSDT 10:00 (2 saat aralık); üçünde de son bar 08:00–12:00, deliveryDate 09:00.
+   Bunlar bir pozisyonun tutulduğu sürede ödenir, çıkış anı değildir.
+
+   **Oranlar** (her kayıt, sembolün deliveryDate'e kadarki son 30 kaydının medyan
+   |oran_8h|'ı ile yan yana, CSV'de). Sıfır oran yok; işaret 18 pozitif, 5 negatif.
+   Referans 30 kaydı sabit olan sembol yok. 23 kayıt üç gruba ayrılıyor:
+   - *Taban değer (9 kayıt):* 8 saat eşdeğeri tam 0,0001 (4h'de 5e-05, 2h'de 2,5e-05,
+     1h'de 1,25e-05): BLZ, ORBS, SNT, STMX, STPT, ALPACA 11:00 ve 12:00, TROY 12:00,
+     VIDT 12:00. Uzlaşma sonrası sabit taban oran görünümünde; 3'ü (ORBS, STMX, STPT)
+     uzlaşma öncesi son kayıtla aynı. ALPACA'da 11:00 ve 12:00 aynı değer.
+   - *Uç değer (8 kayıt):* |oran| ≥ 0,0176, referans medyanın 2–750 katı. Altısı yuvarlak:
+     ALPACA 10:00 +0,04 (1 saatte), AMB +0,03, BNX +0,03, BOND +0,02, FTT −0,025,
+     VIDT 10:00 −0,02. İkisi yuvarlak değil: REEF +0,0176, TROY 10:00 −0,0188.
+   - *Olağan büyüklük (6 kayıt):* BADGER, LOOM, NULS, RAY, STRAX, UNFI; referans
+     medyanın 0,7–35 katı.
+
+   Dikkat: ALPACAUSDT'de deliveryDate anındaki (09:00) kayıt da +0,0372 (1 saatte);
+   bu kayıt tolerans içinde "teslim anında" sayıldığı için 23'e girmiyor.
+
+   **deliveryDate'i olmayan 28 sembol.** Hepsinde funding var; 27'sinin son barında
+   (açılış ve kapanış dahil) toplam 28 kayıt var, ANCUSDT'de yok. 23 kayıt son barın
+   açılışında, 5 kayıt kapanışında: AKRO −0,0046, LEND 0,0001, LUNA −0,0100, MBL 5e-05
+   (4h), SRM −0,025. SRMUSDT'nin −0,025'i FTTUSDT'nin uzlaşma sonrası değeriyle aynı
+   ve aynı gün (FTX dönemi). Açılış anındaki kayıtlarda da referans medyanın 100 katını
+   aşanlar var (GALUSDT −0,0109, SXPUSDT −0,0108); deliveryDate olmadığı için bunların
+   uzlaşmadan önce mi sonra mı olduğu bilinemiyor.
+
+   **Öneri sınırının etkisi** (üst sınır son barın kapanışı yerine açılışı olsaydı, tüm
+   dahil sembollerin tüm dönemleri): 43 kayıt, 31 sembol. Son dönemlerde 38: 24 SETTLING
+   (23 yukarıdaki + ALPACA 09:00), 5 exchangeInfo dışı, 9 veri sonu dönemi (ONG, SKR,
+   ZKC: 2026-08-31 21:00–23:00, 1 saat aralık, gerçek işlem sürerken). Ara dönem
+   sonlarında 5 (AERGO, BNX, MAVIA, PUMP, SLP, her biri 1 kayıt); bunlar incelenmedi.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi
 
