@@ -119,8 +119,41 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
     # Funding: donem sonrasi kayitlar (on-kayit §2 rev.7) ve ilk donem oncesi kayitlar
     kalan = funding_modulu.donem_sonrasi_kayitlari_at(fund, donemler, config.BAR_4H)
     ilk_oncesi = 0
+    son_sonrasi = arada = 0
+    ilk_gecikme_saat = float("nan")
+    aralar = []
     if donemler and not fund.empty:
-        ilk_oncesi = int((fund["odeme_zamani"] < donemler[0].baslangic - funding_modulu.ODEME_TOLERANSI).sum())
+        tol = funding_modulu.ODEME_TOLERANSI
+        ilk_oncesi = int((fund["odeme_zamani"] < donemler[0].baslangic - tol).sum())
+        # Atilan kayitlarin ayrimi (denetci bulgusu D-A5): son donemden sonra ve
+        # iki donem arasinda. Ust sinir `_donem_icinde` ile ayni: son bar kapanisi + 1 dk.
+        atilan = fund.loc[~fund["odeme_zamani"].isin(kalan["odeme_zamani"]), "odeme_zamani"]
+        son_ust = donemler[-1].bitis + ADIM_4H + tol
+        son_sonrasi = int((atilan >= son_ust).sum())
+        arada = len(atilan) - son_sonrasi
+        if son_sonrasi:
+            ilk_gecikme_saat = (atilan.loc[atilan >= son_ust].min() - (donemler[-1].bitis + ADIM_4H)) / pd.Timedelta(hours=1)
+        for onceki, sonraki in zip(donemler[:-1], donemler[1:]):
+            ic_dolgu = any(k.konum == "ic" and onceki.bitis < k.baslangic < sonraki.baslangic for k in dolgu)
+            aralar.append({
+                "sembol": sembol, "onceki_bitis": onceki.bitis, "sonraki_baslangic": sonraki.baslangic,
+                "ayirici": "dolgu_kosusu" if ic_dolgu else "eksik_bar_boslugu",
+                "atilan_funding": int(((atilan >= onceki.bitis + ADIM_4H + tol) & (atilan < sonraki.baslangic - tol)).sum()),
+            })
+    elif donemler:
+        for onceki, sonraki in zip(donemler[:-1], donemler[1:]):
+            ic_dolgu = any(k.konum == "ic" and onceki.bitis < k.baslangic < sonraki.baslangic for k in dolgu)
+            aralar.append({"sembol": sembol, "onceki_bitis": onceki.bitis, "sonraki_baslangic": sonraki.baslangic,
+                           "ayirici": "dolgu_kosusu" if ic_dolgu else "eksik_bar_boslugu", "atilan_funding": 0})
+
+    # Ne donem ici ne dolgu olan bar (C2): esik alti sondaki/bastaki sifir hacimli barlar.
+    donem_ici_maske = pd.Series(False, index=zamanlar)
+    for x in donemler:
+        donem_ici_maske |= (zamanlar >= x.baslangic) & (zamanlar <= x.bitis)
+    dolgu_maske = pd.Series(False, index=zamanlar)
+    for k in dolgu:
+        dolgu_maske |= (zamanlar >= k.baslangic) & (zamanlar <= k.bitis)
+    ne_donem_ne_dolgu = int((~donem_ici_maske & ~dolgu_maske).sum())
 
     sicramalar = klines_modulu.butunluk_sicramalari(mumlar)
     aralik = funding_modulu.aralik_ozeti(fund)
@@ -175,7 +208,11 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
         "settled_aylari": ",".join(settled),
         "funding_kayit": len(fund),
         "funding_donem_sonrasi_atilan": len(fund) - len(kalan),
+        "funding_son_donem_sonrasi_atilan": son_sonrasi,
+        "funding_donemler_arasi_atilan": arada,
+        "funding_son_donem_sonrasi_ilk_gecikme_saat": ilk_gecikme_saat,
         "funding_ilk_donem_oncesi": ilk_oncesi,
+        "ne_donem_ne_dolgu_bar": ne_donem_ne_dolgu,
         "funding_aralik_8h_disi_kayit": int(sekiz_disi["kayit"].sum()) if not sekiz_disi.empty else 0,
         "funding_aralik_degerleri": ",".join(
             str(int(a)) for a in sorted(aralik["aralik_saat"].dropna().unique())
@@ -188,6 +225,7 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
         "_mumlar": mumlar,
         "_gunluk": gunluk,
         "_donemler": donemler,
+        "_aralar": aralar,
         "_dolgu": dolgu,
         "_kisa_sifir": kisa_sifir,
         "_sicramalar": sicramalar,
@@ -637,6 +675,175 @@ def capraz_ozet(detaylar: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]:
     return ozet, yogun
 
 
+def donem_aralari_tablosu(detaylar: list[dict]) -> pd.DataFrame:
+    """Iki donemli sembollerde donemleri ayiran sey: dolgu kosusu ya da 7 gunden uzun
+    eksik bar boslugu; aradaki atilan funding kaydi sayisiyla (denetci bulgusu D-A5)."""
+    return pd.DataFrame(
+        [a for d in detaylar for a in d["_aralar"]],
+        columns=["sembol", "onceki_bitis", "sonraki_baslangic", "ayirici", "atilan_funding"],
+    )
+
+
+def rapor_sayilari(t: dict[str, pd.DataFrame], evren: pd.DataFrame, bolme: pd.DataFrame) -> pd.DataFrame:
+    """RESULTS.md'deki her sayinin betikten turetilmis kaynagi (denetci bulgusu D-A5).
+
+    `t`: bu kosunun tablolari. Satir: bolum, kalem, deger. Rapor yalnizca bu
+    tablodaki ve ham CSV'lerdeki sayilari kullanir.
+    """
+    s: list[tuple[str, str, object]] = []
+
+    def ekle(bolum: str, kalem: str, deger) -> None:
+        s.append((bolum, kalem, deger))
+
+    ozet = t["sembol_ozeti"]
+    semboller = set(ozet["sembol"])
+
+    # §1 Evren, bolme ve donemler
+    tekil = evren.drop_duplicates("sembol")
+    ekle("1", "evren_tablosu_sembol (bucket USDT perpetual dizini)", tekil["sembol"].nunique())
+    ekle("1", "dahil_sembol", len(semboller))
+    gerekce = tekil.loc[tekil["haric"], "haric_gerekce"].astype(str)
+    ekle("1", "haric_tradifi", int(gerekce.str.contains("TRADIFI").sum()))
+    ekle("1", "haric_endeks", int(gerekce.str.contains("endeks").sum()))
+    ekle("1", "haric_stablecoin", int(gerekce.str.contains("stablecoin").sum()))
+    ekle("1", "donem_sayisi", int(ozet["donem_sayisi"].sum()))
+    for n, g in ozet.groupby("donem_sayisi"):
+        ekle("1", f"donem_sayisi_{n}_olan_sembol", len(g))
+    ekle("1", "donemler_yeniden_turetimle_ayni", int(ozet["donemler_yeniden_turetimle_ayni"].sum()))
+    aralar = t["donem_aralari"]
+    for a, g in aralar.groupby("ayirici"):
+        ekle("1", f"donem_ayirici_{a}", len(g))
+    b = bolme.loc[bolme["sembol"].isin(semboller)]
+    ekle("1", "bolme_sembol", len(b))
+    ekle("1", "bolme_varlik_anahtari", b["varlik_anahtari"].nunique())
+    for grup, g in b.groupby("grup"):
+        ekle("1", f"bolme_grup_{grup}", len(g))
+
+    # §2 Delist siniflandirmasi
+    delist = t["delist_siniflandirmasi"]
+    for sinif, n in sorted(delist.attrs.get("durum_sayimi", {}).items()):
+        ekle("2", f"sinif_{sinif}", int(n))
+    for sinif, g in delist.groupby("sinif"):
+        ekle("2", f"{sinif}_sonraki_dolgu_olan", int((g["sonraki_dolgu_bar"] > 0).sum()))
+        ekle("2", f"{sinif}_sonraki_dolgu_bar", int(g["sonraki_dolgu_bar"].sum()))
+        ekle("2", f"{sinif}_teslim_son_bar_icinde", int(g["teslim_son_bar_icinde"].sum()))
+        for saat, n in g["teslim_eksi_bitis_saat"].dropna().value_counts().sort_index().items():
+            ekle("2", f"{sinif}_teslim_eksi_bitis_{saat:g}_saat", int(n))
+        for yil, n in g["son_donem_bitis"].dt.year.value_counts().sort_index().items():
+            ekle("2", f"{sinif}_donem_sonu_yili_{yil}", int(n))
+        dolgusuz = g.loc[g["sonraki_dolgu_bar"] == 0, "sembol"]
+        esik_alti = ozet.loc[ozet["sembol"].isin(dolgusuz) & (ozet["ne_donem_ne_dolgu_bar"] > 0), "sembol"]
+        ekle("2", f"{sinif}_dolgusuz_gercek_islemle_biten", len(dolgusuz) - len(esik_alti))
+        ekle("2", f"{sinif}_dolgusuz_esik_alti_sifirla_biten", ",".join(sorted(esik_alti)))
+    trading = set(ozet["sembol"]) - set(delist["sembol"])
+    son_bitis = ozet.set_index("sembol")["son_donem_bitis"]
+    veri_sonu = son_bitis.max()
+    ekle("2", "delist_olmayan_sembol", len(trading))
+    ekle("2", "delist_olmayan_veri_sonunda_biten", int((son_bitis.loc[sorted(trading)] == veri_sonu).sum()))
+    ekle("2", "veri_sonu_bari", str(veri_sonu))
+
+    # §3 Dolgu barlari
+    dolgu = t["dolgu_kosulari"]
+    for konum in ("bas", "ic", "son"):
+        g = dolgu.loc[dolgu["konum"] == konum]
+        ekle("3", f"dolgu_{konum}_kosu", len(g))
+        ekle("3", f"dolgu_{konum}_bar", int(g["bar_sayisi"].sum()))
+        ekle("3", f"dolgu_{konum}_sembol", g["sembol"].nunique())
+        ekle("3", f"dolgu_{konum}_medyan_gun", float(g["gun"].median()) if len(g) else float("nan"))
+        ekle("3", f"dolgu_{konum}_en_uzun_gun", float(g["gun"].max()) if len(g) else float("nan"))
+    ekle("3", "dolgu_toplam_kosu", len(dolgu))
+    ekle("3", "dolgu_toplam_bar", int(dolgu["bar_sayisi"].sum()))
+    ekle("3", "toplam_4h_bar", int(ozet["bar_4h"].sum()))
+    ekle("3", "donem_ici_bar", int(ozet["donem_ici_bar"].sum()))
+    ekle("3", "ne_donem_ne_dolgu_bar", int(ozet["ne_donem_ne_dolgu_bar"].sum()))
+    ndd = ozet.loc[ozet["ne_donem_ne_dolgu_bar"] > 0]
+    ekle("3", "ne_donem_ne_dolgu_semboller",
+         ",".join(f"{r.sembol}:{r.ne_donem_ne_dolgu_bar}" for r in ndd.itertuples()))
+    ekle("3", "kisa_sifir_kosusu", len(t["kisa_sifir_kosulari"]))
+
+    # §4 Funding'siz donemler ve donem sonrasi funding
+    fs = t["funding_siz_donemler"]
+    ekle("4", "funding_siz_donem", len(fs))
+    ekle("4", "funding_siz_donem_gercek_bar", int(fs["donem_gercek_bar_sayisi"].sum()) if len(fs) else 0)
+    ekle("4", "funding_kayit_toplam", int(ozet["funding_kayit"].sum()))
+    ekle("4", "funding_kayit_sembol", int((ozet["funding_kayit"] > 0).sum()))
+    son_s = ozet.loc[ozet["funding_son_donem_sonrasi_atilan"] > 0]
+    ekle("4", "atilan_son_donem_sonrasi_kayit", int(ozet["funding_son_donem_sonrasi_atilan"].sum()))
+    ekle("4", "atilan_son_donem_sonrasi_sembol", len(son_s))
+    sinif_haritasi = delist.set_index("sembol")["sinif"]
+    for sinif, n in son_s["sembol"].map(sinif_haritasi).fillna("delist_degil").value_counts().sort_index().items():
+        ekle("4", f"atilan_son_donem_sonrasi_sembol_{sinif}", int(n))
+    ekle("4", "atilan_son_donem_sonrasi_8_saat_icinde_baslayan",
+         int((son_s["funding_son_donem_sonrasi_ilk_gecikme_saat"] <= 8 + 1 / 60).sum()))
+    ekle("4", "atilan_donemler_arasi_kayit", int(ozet["funding_donemler_arasi_atilan"].sum()))
+    ekle("4", "atilan_donemler_arasi_sembol", int((ozet["funding_donemler_arasi_atilan"] > 0).sum()))
+    for a, g in aralar.groupby("ayirici"):
+        ekle("4", f"atilan_donemler_arasi_kayit_{a}", int(g["atilan_funding"].sum()))
+        ekle("4", f"atilan_donemler_arasi_sembol_{a}", int((g["atilan_funding"] > 0).sum()))
+    ekle("4", "atilan_toplam_kayit", int(ozet["funding_donem_sonrasi_atilan"].sum()))
+    ekle("4", "atilan_toplam_sembol", int((ozet["funding_donem_sonrasi_atilan"] > 0).sum()))
+    ekle("4", "korunan_ilk_donem_oncesi_kayit", int(ozet["funding_ilk_donem_oncesi"].sum()))
+    ekle("4", "korunan_ilk_donem_oncesi_sembol", int((ozet["funding_ilk_donem_oncesi"] > 0).sum()))
+
+    # §5 Donem sonu degisimleri
+    dg = t.get("donem_sonu_degisimleri")
+    if dg is not None and "degisti" in dg:
+        k = dg.dropna(subset=["bitis_kisalma_gun"])
+        degisen = dg["degisti"].fillna(False).astype(bool)
+        ekle("5", "karsilastirilan_sembol", len(k))
+        ekle("5", "donemi_degisen_sembol", int(degisen.sum()))
+        ekle("5", "yalniz_ic_siniri_degisen", int(dg["yalniz_ic_sinir"].fillna(False).astype(bool).sum()))
+        ekle("5", "son_bitisi_erken", int((k["bitis_kisalma_gun"] > 0).sum()))
+        ekle("5", "son_bitisi_gec", int((k["bitis_kisalma_gun"] < 0).sum()))
+        ekle("5", "baslangici_degisen", int((k["baslangic_gecikme_gun"] != 0).sum()))
+        ekle("5", "donem_sayisi_degisen", int((k["eski_donem_sayisi"] != k["yeni_donem_sayisi"]).sum()))
+        ekle("5", "eski_toplam_donem", int(k["eski_donem_sayisi"].sum()))
+        ekle("5", "yeni_toplam_donem", int(k["yeni_donem_sayisi"].sum()))
+        ekle("5", "eski_ici_yeni_disi_bar", int(dg["eski_ici_yeni_disi_bar"].sum()))
+        ekle("5", "yeni_ici_eski_disi_bar", int(dg["yeni_ici_eski_disi_bar"].sum()))
+        kisalan = k.loc[k["bitis_kisalma_gun"] > 0, "bitis_kisalma_gun"]
+        ekle("5", "kisalma_medyan_gun", float(kisalan.median()) if len(kisalan) else float("nan"))
+        kovalar = [(0, 1), (1, 7), (7, 31), (31, 90), (90, 365), (365, 730), (730, float("inf"))]
+        for alt, ust in kovalar:
+            ekle("5", f"kisalma_{alt}_{ust}_gun", int(((kisalan > alt) & (kisalan <= ust)).sum()))
+
+    # §6 SETTLED aylari
+    st = t["settled_aylari"]
+    ekle("6", "settled_ay", len(st))
+    ekle("6", "settled_sembol", st["sembol"].nunique())
+    for dv in (True, False):
+        for sv in (True, False):
+            ekle("6", f"settled_dolgu_{dv}_sinir_{sv}",
+                 int(((st["dolgu_kosusu_var"] == dv) & (st["donem_siniri_var"] == sv)).sum()))
+    si = t["settled_icerik"]
+    if len(si):
+        for etiket, g in (("donem_ici", si.loc[si["donem_icinde"]]), ("diger", si.loc[~si["donem_icinde"]])):
+            ekle("6", f"settled_icerik_{etiket}_ay", len(g))
+            for sutun in ("ortak_bar", "fiyat_farkli_bar", "hacim_farkli_bar", "yalniz_settled", "yalniz_ana"):
+                ekle("6", f"settled_icerik_{etiket}_{sutun}", int(g[sutun].sum()))
+
+    # §7 Kapsama ve bosluklar
+    ekle("7", "eksik_bar", int(ozet["eksik_bar"].sum()))
+    ekle("7", "gun_1d", int(ozet["gun_1d"].sum()))
+    ekle("7", "bosluk_3bardan_uzun", len(t["bosluklar"]))
+    ekle("7", "bosluk_olayi", len(t["bosluk_olaylari"]))
+    ekle("7", "donem_bolen_bosluk", int(t["bosluklar"]["donem_bolen"].sum()) if len(t["bosluklar"]) else 0)
+
+    # §8, §9
+    sic = t["butunluk_sicramalari"]
+    ekle("8", "sicrama", len(sic))
+    for sinif, n in sic["sinif"].value_counts().sort_index().items():
+        ekle("8", f"sicrama_{sinif}", int(n))
+    ekle("9", "kisa_donem", len(t["kisa_donemler"]))
+
+    # §12 capraz
+    cr = t["cross_dogrulama"]
+    for anahtar in ("toplam_gun", "fiyat_gun", "hacim_gun"):
+        ekle("12", f"capraz_{anahtar}", cr.attrs.get(anahtar))
+
+    return pd.DataFrame(s, columns=["bolum", "kalem", "deger"])
+
+
 # --- Ana akis ----------------------------------------------------------------
 
 
@@ -719,6 +926,18 @@ def main() -> None:
     yaz(fiyat_yasi, "fiyat_farki_listeleme_yasi")
     kisa = kisa_donemler(detaylar)
     yaz(kisa, "kisa_donemler")
+    aralar = donem_aralari_tablosu(detaylar)
+    yaz(aralar, "donem_aralari")
+    from data import split as split_modulu
+
+    tablolar = {
+        "sembol_ozeti": ozet, "delist_siniflandirmasi": delist, "dolgu_kosulari": dolgu,
+        "kisa_sifir_kosulari": kisa_sifir, "funding_siz_donemler": fundingsiz,
+        "donem_sonu_degisimleri": degisim, "settled_aylari": settled, "settled_icerik": settled_ic,
+        "butunluk_sicramalari": sicramalar, "bosluklar": bosluklar, "bosluk_olaylari": bosluk_olaylari,
+        "cross_dogrulama": capraz, "kisa_donemler": kisa, "donem_aralari": aralar,
+    }
+    yaz(rapor_sayilari(tablolar, evren, split_modulu.split_oku()), "rapor_sayilari")
     yaz(ortam_kaydi(), "ortam")
 
     if hatalar:
