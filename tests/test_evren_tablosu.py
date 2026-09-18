@@ -161,30 +161,19 @@ def test_onbellekle_uyusmazsa_hata_verir(tmp_path, boz):
 
 # --- Gercek dosya ------------------------------------------------------------
 #
-# Asagidaki uc test commit edilmis data/universe.csv'yi okur. Rev.7 kodu bu
-# turda yazildi ama tablo KILITLI oldugu icin henuz yeniden uretilmedi (kullanici
-# karari: kilit en sonda tek is icin acilacak). Mevcut tablo rev.7 oncesi
-# bicimdedir; bu testler bu yuzden simdilik basarisizdir ve xfail(strict=True)
-# isaretlidir. Tablo yeniden uretilince gecmeleri gerekir; strict=True sayesinde
-# gecince takim kirmiziya doner ve isaret kaldirilmak zorunda kalir (unutulamaz).
+# Asagidaki uc test commit edilmis data/universe.csv'yi okur (rev.7 bicimi).
 
 gercek_csv_var = pytest.mark.skipif(not config.UNIVERSE_CSV.exists(), reason="universe.csv yok")
-TABLO_BEKLIYOR = pytest.mark.xfail(
-    strict=True,
-    reason="rev.7: data/universe.csv henuz yeni kurallarla yeniden uretilmedi (kilitli); uretilince gecmeli",
-)
 
 
 @gercek_csv_var
 @pytest.mark.skipif(not ONBELLEK.exists(), reason="onbellekte evren yok")
-@TABLO_BEKLIYOR
 def test_commit_edilmis_evren_onbellekle_uyusur():
     """Dosya onbellekteki turetilmis evrenle birebir ayni olmali; sapma hata verir."""
     universe.evren_onbellekle_dogrula()
 
 
 @gercek_csv_var
-@TABLO_BEKLIYOR
 def test_evren_dahil_sembolleri_split_ile_ayni():
     """split.csv bu evrenden uretildi; dahil semboller birebir ayni olmali."""
     evren = universe.evren_yukle()
@@ -192,7 +181,6 @@ def test_evren_dahil_sembolleri_split_ile_ayni():
 
 
 @gercek_csv_var
-@TABLO_BEKLIYOR
 def test_evren_denetim_olcumleriyle_tutarli():
     """F1 kapanis olcumleriyle (V1, S3) tutarlilik: dahil 678 sembol; CVCUSDT'nin
     ilk donemi 2022-11-29 12:00'de baslayan dolgu kosusundan once biter; TLMUSDT
