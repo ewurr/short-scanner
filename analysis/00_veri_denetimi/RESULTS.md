@@ -488,34 +488,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
    D-B8 düzeltmesinden sonra (funding iki uçtan toplam döneme kesildi) yukarıdaki
    sayıların hiçbiri değişmedi: 23 / 19, konumlar, 28 kayıt ve 43 kayıt dökümü aynı.
 
-   **D kuralının kapsamı (sayım; kod değişmedi, `a1_d_kurali_tam.csv`).**
-   - **Kural:** Dönem sonu çıkışlarında funding penceresi son barın açılışında (dahil)
-     biter; veri sonu dönemi hariç. Dışarıda kalan kayıt: `bitis + 1 dk ≤ p < bitis + 4h + 1 dk`.
-   - **Tamlık ölçümü:** Temsili bir pozisyon için `_odemeler_tam_mi`. Pozisyon son bar
-     açılışından 24 saat önce (ya da dönem başında) girer ve dönem sonunda çıkar. "Bozuk"
-     demek, pozisyon funding'inin NaN olacağı, yani pozisyonun düşeceği demek.
-
-   | Dönem sonu türü | Dönem sonu | Dışarıda kalacak kayıt (dönem sonu) | Tamlık bozuk: mevcut kural | Tamlık bozuk: D kuralı |
-   |---|---|---|---|---|
-   | Delist, SETTLING | 128 | 24 (19) | **78** | 1 |
-   | Delist, exchangeInfo dışı | 28 | 5 (5) | 3 | 0 |
-   | Dolgu koşusu (iç) | 11 | 4 (4) | 3 | 2 |
-   | Uzun boşluk (iç) | 1 | 1 (1) | 1 | 1 |
-   | **Kural uygulanan toplam** | **168** | **34 (29)** | **85** | **4** |
-   | Veri sonu (kural uygulanmaz) | 522 | 9 (3) | 522 | 0 |
-
-   - **Mevcut kuralda 78 SETTLING dönem sonu bozuk.** Bu D kuralının değil, bugünkü
-     kodun davranışıdır (denetçi bulgusu D-B6'nın bugünkü karşılığı). Mevcut kural son
-     ödemeyi son barın kapanışında arıyor. Uzlaşmış sözleşmelerin çoğunda kapanış anında
-     kayıt yok: 128'in yalnızca 19'unda var. Bu yüzden ufku dönem sonunu aşan pozisyon
-     bugünkü kodla NaN olup düşüyor. Etkilenen delist sembolleri.
-   - **D kuralında bozuk kalan 4:**
-     - FTTUSDT: 2 saat aralık; uzlaşma anında (son bar açılışı) kayıt yok.
-     - ICPUSDT ve TLMUSDT ilk dönemleri: funding'siz dönemler (§4), zaten kullanılmıyor.
-     - BNXUSDT'nin boşluktan önceki dönemi.
-   - **Veri sonu satırı:** Buradaki 522 bozukluk ölçümün kendi sonucudur. Kapanış anındaki
-     kayıt (2026-09-01 00:00) toplam dönemin dışında ve kesiliyor. Kural bu dönemlere
-     uygulanmadığı için sayı yalnızca bilgi amaçlı yazıldı.
+   **D kuralının kapsamı ve delist çıkışlarındaki tamlık sorunu §14.7'de.** Oradaki
+   ölçüm, bu bölümün A1 sayılarıyla aynı koşudan gelir (`a1_d_kurali_tam.csv`).
 
    > **Denetim sınırı aşımı.** A1 ölçümünde (1093e69) uzlaşma sonrası funding kayıtlarının oran değerleri ve işaretleri raporlandı. Bu kayıtlar dönem sonunu aşan pozisyonların net getirisine girebilecek türdendi ve bir kısmı C1 grubuna ve C2 dönemine ait. Bu, §3.1'deki veri denetimi sınırını aştı. Ölçümü bu kapsamda isteyen araştırma tarafıydı; aşımın sorumluluğu oradadır.
    >
@@ -532,6 +506,78 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
    Kenar tanımı tutarsız. Gözlenen kaymalar en fazla 31 ms olduğu için bugünkü sayılar
    etkilenmiyor. Kod değiştirilmedi; tanım ön-kayıt revizyonunda çözülecek.
+
+7. **F2'nin önünde duran açık nokta: delist çıkışlarında funding tamlığı
+   (denetçi bulgusu D-A4).**
+
+   **Bulgu.** Bugünkü kodla, ufku dönem sonunu aşan bir pozisyon 128 SETTLING sembolün
+   **78'inde** NaN oluyor ve düşüyor. H3'ün 1 günlük çıkışlarında durum daha ağır:
+   168 dönem sonunun **167'sinde** tamlık bozuluyor.
+
+   **Sebep.** `pozisyon_fundingi` son ödemeyi çıkış anında (son barın kapanışı) arar.
+   Uzlaşmış bir sözleşmede o anda ödeme kaydı yoktur, çünkü sözleşme son barın içinde
+   uzlaşmıştır. 128 SETTLING sembolün yalnızca **19'unda** kapanış anında kayıt var
+   (`a1_d_kurali_tam.csv`, `kapanista_odeme`). Kalan 109'un **31'i** yine de geçiyor:
+   son ödemelerinin aralığı 8 saat olduğu için zincir çıkış anına yetişiyor
+   (`son_odeme_aralik_saat`). Geçemeyen 78'in 72'sinde son ödeme aralığı 4 saat,
+   6'sında 1 saat. 1 günlük ızgarada çıkış anı ertesi günün 00:00'ı olduğu için
+   8 saatlik ritim de yetişmiyor; 167 dönem sonu bozuluyor.
+
+   **Neden önemli.** Düşen pozisyonlar delist edilen coinlerdedir. CLAUDE.md §2.4:
+   delist coinler en iyi short adaylarıdır ve sessizce hesaptan düşmemelidir. Bu hâliyle
+   kod, tam da ölçülmek istenen olayların bir kısmını hayatta kalma yanlılığı yaratacak
+   şekilde eliyor.
+
+   **Ölçüm** (`a1_d_kurali_tam.csv`; yalnızca sayı, değer ve işaret yok). "Bozuk" =
+   temsili pozisyonun funding'i NaN olur. Temsili pozisyon, çıkış barının açılışından
+   24 saat önce (ya da dönem başında) girer ve dönem sonunda çıkar.
+
+   Çıkış ızgarası **4 saat** (H1, H2):
+
+   | Dönem sonu türü | Dönem sonu | Dışarıda kalacak kayıt (dönem sonu) | Kapanışta ödeme | Tamlık bozuk: mevcut | Tamlık bozuk: D |
+   |---|---|---|---|---|---|
+   | Delist, SETTLING | 128 | 24 (19) | 19 | **78** | 1 |
+   | Delist, exchangeInfo dışı | 28 | 5 (5) | 5 | 3 | 0 |
+   | Dolgu koşusu (iç) | 11 | 4 (4) | 4 | 3 | 2 |
+   | Uzun boşluk (iç) | 1 | 1 (1) | 1 | 1 | 1 |
+   | **Kural uygulanan toplam** | **168** | **34 (29)** | **29** | **85** | **4** |
+   | Veri sonu (kural uygulanmaz) | 522 | 9 (3) | 0 | 522 | 0 |
+
+   Çıkış ızgarası **1 gün** (H3):
+
+   | Dönem sonu türü | Dönem sonu | Dışarıda kalacak kayıt (dönem sonu) | Kapanışta ödeme | Tamlık bozuk: mevcut | Tamlık bozuk: D |
+   |---|---|---|---|---|---|
+   | Delist, SETTLING | 128 | 132 (38) | 38 | **128** | 1 |
+   | Delist, exchangeInfo dışı | 28 | 46 (21) | 20 | 27 | 0 |
+   | Dolgu koşusu (iç) | 11 | 24 (8) | 8 | 11 | 2 |
+   | Uzun boşluk (iç) | 1 | 1 (1) | 1 | 1 | 1 |
+   | **Kural uygulanan toplam** | **168** | **203 (68)** | **67** | **167** | **4** |
+   | Veri sonu (kural uygulanmaz) | 522 | 9 (3) | 0 | 522 | 1 |
+
+   **D kuralı bunu 78'den (H3'te 167'den) 4'e indiriyor.** Kural henüz koda geçmedi;
+   ön-kayıt revizyonu bekliyor. Her iki ızgarada da bozuk kalan aynı dört dönem sonu:
+   - FTTUSDT (delist, SETTLING): son ödeme aralığı 2 saat ve uzlaşma anında kayıt yok
+     (`son_odeme_aralik_saat = 2`).
+   - ICPUSDT ve TLMUSDT'nin ilk dönemleri: funding'siz dönemler (§4); üç hipotezde de
+     zaten kullanılmıyor.
+   - BNXUSDT'nin boşluktan önceki dönemi.
+
+   **Veri sonu satırı.** Oradaki 522 bozukluk ölçümün kendi sonucudur: çıkış anındaki
+   kayıt (2026-09-01 00:00) toplam dönemin dışında kalıyor ve kesiliyor. Gerçek akışta
+   bu çıkışlar zaten küme sınırında reddedilir (`pencere.ufuk_kumeye_sigar_mi`,
+   ön-kayıt §3 rev.4), yani sayının pratik bir karşılığı yok; kural da bu dönemlere
+   uygulanmıyor (denetçi bulgusu D-C2).
+
+   **Ölçümün sınırı (denetçi bulgusu D-B4).** `a1_olcumu.py` veri katmanının
+   `pozisyon_fundingi` hesabını **taklit eder**, onu çağırmaz: oran ve aralık için NaN
+   kontrolü yapmaz (oran sütununa bakmamak için), tabanı yalnızca dönem başıdır (küme
+   başı değil) ve bozuk zaman dizisi kontrolü yoktur. Temsili pozisyonun giriş süresi
+   (24 saat) betikte sabittir. Bu yüzden sayılar tek yönlü okunmalıdır: "bozuk" gerçek
+   kodun da NaN üreteceği anlamına gelir, "tam" ise başka bir nedenle NaN olmayacağını
+   garanti etmez. D kuralı koda geçtiğinde bu sayılar gerçek kod yoluyla yeniden
+   üretilip buradakilerle karşılaştırılacaktır.
+
+   **F2'ye geçiş.** Bu açık nokta kapanmadan F2'ye geçilmez.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi
 
