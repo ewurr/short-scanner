@@ -32,10 +32,9 @@ yazılmamıştır (CLAUDE.md §3.1). Bilinçli istisna, ön-kayıt §2'nin isted
 
 **Sınır aşımı (§14.5).** A1 ölçümünün ilk hâli (1093e69) uzlaşma sonrası funding
 kayıtlarının oran değerlerini ve işaretlerini raporladı. Bu, yukarıdaki kapsamın
-dışındaydı ve bir sınır aşımıdır. Değer düzeyindeki içerik rapordan çıkarıldı. Rapordaki
-tek kalıntı, §14.5'teki işaret sayımıdır (18 pozitif / 5 negatif). O koşunun iki ham
-CSV'si iz için depoda duruyor. `a1_olcumu.py`'nin varsayılan koşusu artık oran değeri
-üretmiyor ve yazdırmıyor.
+dışındaydı ve bir sınır aşımıdır. **Değer düzeyindeki analiz rapordan çıkarıldı; 18
+pozitif / 5 negatif işaret sayımı bilerek bırakıldı** ve bu sayım da aşımın parçasıdır
+(gerekçesi §14.5'teki notta).
 
 Ham çıktılar (`*_tam.csv`), `calistir.py`: `sembol_ozeti`, `delist_siniflandirmasi`,
 `dolgu_kosulari`, `kisa_sifir_kosulari`, `funding_siz_donemler`, `donem_sonu_degisimleri`,
@@ -518,7 +517,11 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
      kayıt (2026-09-01 00:00) toplam dönemin dışında ve kesiliyor. Kural bu dönemlere
      uygulanmadığı için sayı yalnızca bilgi amaçlı yazıldı.
 
-   > **Denetim sınırı aşımı.** A1 ölçümünde (1093e69) uzlaşma sonrası funding kayıtlarının oran değerleri ve işaretleri raporlandı. Bu kayıtlar dönem sonunu aşan pozisyonların net getirisine girebilecek türdendi ve bir kısmı C1 grubuna ve C2 dönemine ait. Bu, §3.1'deki veri denetimi sınırını aştı; talep araştırma tarafının isteğinden geldi. Değer düzeyindeki analiz bu bölümden çıkarıldı, ham CSV'ler iz için depoda duruyor. Bu bilginin funding üst sınırı kuralıyla ilişkisi ön-kayıt Rev.8'de yazılıdır.
+   > **Denetim sınırı aşımı.** A1 ölçümünde (1093e69) uzlaşma sonrası funding kayıtlarının oran değerleri ve işaretleri raporlandı. Bu kayıtlar dönem sonunu aşan pozisyonların net getirisine girebilecek türdendi ve bir kısmı C1 grubuna ve C2 dönemine ait. Bu, §3.1'deki veri denetimi sınırını aştı. Ölçümü bu kapsamda isteyen araştırma tarafıydı; aşımın sorumluluğu oradadır.
+   >
+   > Değer düzeyindeki analiz bu bölümden çıkarıldı. Geriye kalan 18 pozitif / 5 negatif işaret sayımı da aşımın bir parçasıdır: içindeki 5 kayıt C1 grubundaki sembollere aittir (AMB, NULS, SNT, TROY×2). Bu sayım, funding üst sınırı kuralının hipotez lehine mi aleyhine mi çalıştığını gösterdiği için bilerek bırakıldı.
+   >
+   > İz CSV'leri çalışma ağacından kaldırıldı; commit 1093e69 içinde durmaya devam ediyor. Bu aşımın funding üst sınırı kuralıyla ilişkisi ön-kayıtta yazılı hâle getirilecek; ön-kayıt henüz revize edilmedi.
 
 6. **1 dakikalık toleransın kenarı (denetçi bulgusu D-B7, yalnızca not).**
    - Ön-kayıt §4: "1 dakikadan **küçük** zaman kayması aynı an sayılır."
@@ -538,7 +541,9 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
 ## Değişiklik kaydı
 
-- 2026-09-19: §14.5 daraltıldı (denetçi bulguları D-B1…D-B5). Çıkarılan içerik:
+- 2026-09-19: §14.5'teki **değer düzeyindeki analiz** çıkarıldı; **işaret sayımı (18/5)
+  bilerek bırakıldı** ve aşımın parçası olarak işaretlendi (denetçi bulguları D-B1…D-B5).
+  Çıkarılan içerik:
   - uzlaşma sonrası 23 kaydın ve deliveryDate'i olmayan sembollerdeki 5 kaydın oran
     değerleri;
   - taban / uç / olağan gruplaması ve "referans medyanın N katı" karşılaştırmaları;
@@ -547,7 +552,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   - SRMUSDT/FTTUSDT cümlesi. Bu cümledeki tarih hatası da düzeltilmiş oldu: kayıtlar
     aynı gün değildi (FTTUSDT 2022-11-14, SRMUSDT 2022-11-15).
 
-  İşaret sayımı (18/5) kaldı.
+  İşaret sayımı (18/5) bilerek bırakıldı; içindeki 5 kayıt C1 grubundadır ve §14.5'teki
+  not bunu açıkça yazar.
 - 2026-09-19: §4'teki betik dışı sayılar betik çıktısından yeniden türetildi (D-A5).
   - "57 sembolün 54'ünde en geç 8 saat" yerine 57/57.
   - "İki dönem arasındaki dolguya düşen 8.881 / 12" ayrıldı: dolgu 8.817 / 11,
