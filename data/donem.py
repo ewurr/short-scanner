@@ -190,5 +190,13 @@ def toplam_doneme_kes(cerceve: pd.DataFrame, sutun: str) -> pd.DataFrame:
 
 
 def ay_toplam_donemde(ay: str) -> bool:
-    """"YYYY-MM" ayi toplam donemle kesisiyor mu. Saf."""
-    return config.DONEM_BASI.strftime("%Y-%m") <= ay <= config.DONEM_SONU.strftime("%Y-%m")
+    """Ay toplam donemle kesisiyor mu. Saf.
+
+    Karsilastirma metin uzerinden degil YIL-AY DEGERI uzerinden yapilir: metin
+    karsilastirmasi sifir dolgusuz "2026-8" gibi bir ayi sozluk sirasina gore
+    "2026-08"den buyuk sayar ve donemin son ayini sessizce disarida birakirdi
+    (sizinti testcisi bulgusu). Gecersiz ay ifadesi `ValueError` verir.
+    """
+    p = pd.Period(ay, freq="M")
+    return (pd.Period(config.DONEM_BASI.strftime("%Y-%m"), freq="M") <= p
+            <= pd.Period(config.DONEM_SONU.strftime("%Y-%m"), freq="M"))
