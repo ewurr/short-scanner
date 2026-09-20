@@ -118,7 +118,7 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
     kalan = funding_modulu.donem_sonrasi_kayitlari_at(fund, donemler, config.BAR_4H)
     ilk_oncesi = 0
     son_sonrasi = arada = 0
-    ilk_gecikme_saat = float("nan")
+    ilk_gecikme_saat = ilk_gecikme_bitisten_saat = float("nan")
     aralar = []
     if donemler and not fund.empty:
         tol = funding_modulu.ODEME_TOLERANSI
@@ -130,7 +130,11 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
         son_sonrasi = int((atilan >= son_ust).sum())
         arada = len(atilan) - son_sonrasi
         if son_sonrasi:
-            ilk_gecikme_saat = (atilan.loc[atilan >= son_ust].min() - (donemler[-1].bitis + ADIM_4H)) / pd.Timedelta(hours=1)
+            ilk = atilan.loc[atilan >= son_ust].min()
+            # Iki referans (denetci bulgusu D-A5 / "54 mu 57 mi"): donem KAPANISI
+            # (son barin kapanisi, cikis ani) ve donem BITISI (son barin acilisi).
+            ilk_gecikme_saat = (ilk - (donemler[-1].bitis + ADIM_4H)) / pd.Timedelta(hours=1)
+            ilk_gecikme_bitisten_saat = (ilk - donemler[-1].bitis) / pd.Timedelta(hours=1)
         for onceki, sonraki in zip(donemler[:-1], donemler[1:]):
             ic_dolgu = any(k.konum == "ic" and onceki.bitis < k.baslangic < sonraki.baslangic for k in dolgu)
             aralar.append({
@@ -209,6 +213,7 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
         "funding_son_donem_sonrasi_atilan": son_sonrasi,
         "funding_donemler_arasi_atilan": arada,
         "funding_son_donem_sonrasi_ilk_gecikme_saat": ilk_gecikme_saat,
+        "funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat": ilk_gecikme_bitisten_saat,
         "funding_ilk_donem_oncesi": ilk_oncesi,
         "ne_donem_ne_dolgu_bar": ne_donem_ne_dolgu,
         "funding_aralik_8h_disi_kayit": int(sekiz_disi["kayit"].sum()) if not sekiz_disi.empty else 0,
@@ -814,8 +819,13 @@ def rapor_sayilari(t: dict[str, pd.DataFrame], evren: pd.DataFrame, bolme: pd.Da
     sinif_haritasi = delist.set_index("sembol")["sinif"]
     for sinif, n in son_s["sembol"].map(sinif_haritasi).fillna("delist_degil").value_counts().sort_index().items():
         ekle("4", f"atilan_son_donem_sonrasi_sembol_{sinif}", int(n))
-    ekle("4", "atilan_son_donem_sonrasi_8_saat_icinde_baslayan",
+    ekle("4", "atilan_son_donem_sonrasi_8_saat_icinde_baslayan_kapanistan",
          int((son_s["funding_son_donem_sonrasi_ilk_gecikme_saat"] <= 8 + 1 / 60).sum()))
+    ekle("4", "atilan_son_donem_sonrasi_8_saat_icinde_baslayan_bitisten",
+         int((son_s["funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat"] <= 8 + 1 / 60).sum()))
+    ekle("4", "atilan_son_donem_sonrasi_bitisten_8_saati_asan_semboller",
+         ",".join(sorted(son_s.loc[son_s["funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat"] > 8 + 1 / 60,
+                                   "sembol"])))
     ekle("4", "atilan_donemler_arasi_kayit", int(ozet["funding_donemler_arasi_atilan"].sum()))
     ekle("4", "atilan_donemler_arasi_sembol", int((ozet["funding_donemler_arasi_atilan"] > 0).sum()))
     for a, g in aralar.groupby("ayirici"):
@@ -876,6 +886,15 @@ def rapor_sayilari(t: dict[str, pd.DataFrame], evren: pd.DataFrame, bolme: pd.Da
     for sinif, n in sic["sinif"].value_counts().sort_index().items():
         ekle("8", f"sicrama_{sinif}", int(n))
     ekle("9", "kisa_donem", len(t["kisa_donemler"]))
+
+    # Rev.8'de duzeltilecek uc sayi (tanimlar RESULTS §14'te)
+    st_r = t["settled_aylari"]
+    ekle("rev8", "settled_ayinda_dolgu_kosusu_yok (on-kayit: 14)",
+         int((~st_r["dolgu_kosusu_var"]).sum()))
+    ekle("rev8", "uzlasma_sonrasi_dolgusu_olan_sembol (on-kayit: 131)",
+         int((delist["sonraki_dolgu_bar"] > 0).sum()))
+    ekle("rev8", "uzlasma_sonrasi_funding_yayinlanan_sembol (on-kayit: 38)",
+         int((ozet["funding_son_donem_sonrasi_atilan"] > 0).sum()))
 
     # §12 capraz
     cr = t["cross_dogrulama"]
