@@ -4,7 +4,8 @@
 **Koşu:** 2026-09-20 20:43:09 → 21:02:05 UTC, 8 iş parçacığı, önbellekten,
 `--eski-evren` (rev.7 öncesi tabloyla karşılaştırma, §5) açık.
 **Kod:** `6aa73a4`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
-hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor.
+hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor (betik dışı sayı:
+`pytest -q` çıktısından).
 **A1 ölçümü:** aynı commit, aynı temiz ağaç, 2026-09-20 20:43:11 → 20:51:22 UTC
 (`a1_ortam_tam.csv`). A1'in referans koşusu budur; daha eski A1 çıktılarının zamanı
 dosya tarihinden türetilmişti ve artık kullanılmıyor (denetçi bulgusu D-B2).
@@ -38,9 +39,12 @@ Ham çıktılar (`*_tam.csv`), `calistir.py`: `sembol_ozeti`, `delist_siniflandi
 `settled_aylari`, `yillik_kapsama`, `butunluk_sicramalari`, `bosluklar`, `bosluk_olaylari`,
 `funding_araliklari`, `cross_dogrulama`, `cross_yogun_tarihler`,
 `fiyat_farki_listeleme_yasi`, `kisa_donemler`, `settled_icerik`, `donem_aralari`, `ortam`.
-`rapor_sayilari_tam.csv` bu rapordaki sayıların kaynağıdır (bölüm, kalem, değer); rapor
-başka bir hesaptan sayı almaz (denetçi bulgusu D-A5). Rev.7 ile anlamını yitiren
-`karantina_kaybi_tam.csv` kaldırıldı.
+`rapor_sayilari_tam.csv` bu rapordaki sayıların kaynağıdır (bölüm, kalem, değer).
+Ölçüm sayılarının tamamı bu dosyadan ya da ham `*_tam.csv` çıktılarından gelir
+(denetçi bulgusu D-A5). **Betikten türetilmeyen sayılar** üçtür ve bulundukları yerde
+"betik dışı" diye işaretlidir: (a) başlıktaki test takımı sonucu, (b) §10'daki "önceki
+koşu" ve "rev.7 öncesi rapor" karşılaştırma sütunları, (c) §15'teki tarihsel not.
+Rev.7 ile anlamını yitiren `karantina_kaybi_tam.csv` kaldırıldı.
 
 A1 ölçümü (`a1_olcumu.py`):
 - Varsayılan koşunun çıktıları (değer içermez): `a1_uzlasma_sonrasi_funding_tam.csv`,
@@ -399,7 +403,10 @@ dönemiyle kesişen, yani en az bir **gerçek** barı olan sembolleri sayar. Ön
 yalnızca dolgu barı olan (uzlaşmış, işlem görmeyen) sembolleri de sayıyordu. Bunlar
 ayrı sütunda.
 
-| Yıl | Verisi olan (gerçek bar) | Yalnızca dolgu barı olan | ≥10M (H1, H2) | ≥2M (H3) | Önceki koşu: verisi olan | Rev.7 öncesi rapor: 10M / 2M |
+Son iki sütun **betik dışıdır**: biri bu turdan önceki koşunun çıktısından, diğeri
+rev.7 öncesi rapordan alınmıştır; bu koşunun hiçbir CSV'sinden türetilemez.
+
+| Yıl | Verisi olan (gerçek bar) | Yalnızca dolgu barı olan | ≥10M (H1, H2) | ≥2M (H3) | Önceki koşu: verisi olan (betik dışı) | Rev.7 öncesi rapor: 10M / 2M (betik dışı) |
 |---|---|---|---|---|---|---|
 | 2020 | 80 | 0 | 61 | 77 | 80 | 61 / 77 |
 | 2021 | 136 | 0 | 130 | 130 | 136 | 132 / 132 |
@@ -597,7 +604,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
    **F2'ye geçiş.** Bu açık nokta kapanmadan F2'ye geçilmez.
 
-## 15. Tarihsel not: rev.3 boşluk kuralının etkisi
+## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
 %0,535) ay düzeyindeki eski dönemlerle yapılmıştı ve bu koşuda **yeniden
@@ -623,3 +630,10 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   - "İki dönem arasındaki dolguya düşen 8.881 / 12" ayrıldı: dolgu 8.817 / 11,
     BNXUSDT eksik bar boşluğu 64 / 1.
   - Oran değerine dayanan "sembol başına 1–2 farklı oran değeri" cümlesi çıkarıldı.
+- 2026-09-21: Sınır aşımı notu yeniden yazıldı (D-A1, D-A2): Rev.8'e yapılan yanlış atıf
+  kaldırıldı, işaret sayımının da aşımın parçası olduğu ve içindeki 5 kaydın C1 grubuna
+  ait olduğu yazıldı. Oran değeri üreten kod yolu ve onu açan bayrak kaldırıldı, iz
+  CSV'leri çalışma ağacından silindi (D-B1). A1 koşusunun dosya tarihinden türetilen
+  zamanı kaldırıldı; referans koşu artık ortam kaydı olan temiz koşudur (D-B2). §14.7
+  açıldı: delist çıkışlarında funding tamlığı, H3 ölçümüyle birlikte (D-A4, D-B3).
+  Betik dışı kalan üç sayı işaretlendi (D-C1).
