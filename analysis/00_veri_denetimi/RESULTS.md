@@ -197,10 +197,20 @@ Bu iki dönem toplam 4.344 gerçek bar eder.
 dolgu değil 129 barlık (21,5 gün) eksik bar boşluğu ayırıyor (`bosluklar_tam.csv`); onun 64 kaydı bu boşluğa düşüyor
 (`donem_aralari_tam.csv`, D-A5).
 
-Son dönemden sonraki kayıtlar **57 sembolün 57'sinde** dönem kapanışından (son
-barın kapanışı) en geç 8 saat sonra başlıyor (`sembol_ozeti`,
-`funding_son_donem_sonrasi_ilk_gecikme_saat`). Önceki rapordaki "54" betik dışı bir
-hesaptı ve yeniden üretilemedi.
+**"57'nin 54'ü" tutarsızlığı (denetçi bulgusu D-A5) çözüldü.** İlk uzlaşma sonrası
+kaydın gecikmesi iki farklı ana göre ölçülebilir; betik ikisini de yazıyor
+(`sembol_ozeti`):
+
+| Referans | En geç 8 saat sonra başlayan | Sütun |
+|---|---|---|
+| Dönem **kapanışı** (son barın kapanışı, çıkış anı) | **57 / 57** | `funding_son_donem_sonrasi_ilk_gecikme_saat` |
+| Dönem **bitişi** (son barın açılışı) | 53 / 57 | `funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat` |
+
+Bitişe göre 8 saati aşan 4 sembol: FTTUSDT, LUNAUSDT, RAYUSDT, SRMUSDT.
+
+Eski rapordaki **54 hiçbir tanımla üretilemiyor**; betik dışı bir sayımdı ve yanlıştı.
+Cümlenin kendi ifadesi ("dönem kapanışından en geç 8 saat sonra") kapanış referansını
+kullanıyor, dolayısıyla doğru sayı **57 / 57**'dir.
 
 ⚠️ **Ön-kayıt metniyle sayı farkı.** §2 rev.7 "38 sembolde uzlaşma sonrasında da funding
 kaydı yayınlandığını" yazıyor. 38 yalnızca SETTLING sembollerin sayısıdır; exchangeInfo
@@ -432,9 +442,17 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
 ## 14. Açık noktalar
 
-1. **Ön-kayıt §2 rev.7 funding sayısı** (§4): "38 sembol" yalnızca SETTLING'i kapsıyor;
-   doğrusu 57. Kural etkilenmiyor, metin eksik. Ön-kayıt kilitli; düzeltme revizyon
-   ister.
+1. **Ön-kayıt §2 rev.7'de düzeltilecek üç sayı** (Rev.8 için). Üçü de
+   `rapor_sayilari_tam.csv`'nin `rev8` bölümünden gelir; tanımları şöyledir:
+
+   | Ön-kayıt | Doğrusu | Kalem ve tanım |
+   |---|---|---|
+   | 14 | **18** | `settled_ayinda_dolgu_kosusu_yok`: 34 SETTLED ayından, o ay içinde hiç dolgu koşusu (6+ ardışık sıfır hacimli bar) bulunmayanların sayısı. |
+   | 131 | **145** | `uzlasma_sonrasi_dolgusu_olan_sembol`: delist edilen 156 sembolden, dönem sonundan sonra en az bir dolgu barı olanların sayısı. |
+   | 38 | **57** | `uzlasma_sonrasi_funding_yayinlanan_sembol`: son döneminin bitişinden sonra en az bir funding kaydı atılan sembol sayısı (38 SETTLING + 19 exchangeInfo dışı). |
+
+   Üçünde de kural aynı işliyor, etkilenen yalnızca ön-kayıt metnindeki sayılar.
+   Ön-kayıt kilitli; düzeltme revizyon ister.
 2. **WAVESUSDT / KNCUSDT** (§8): dönem kuralıyla değil rev.3 boşluk kuralıyla
    açıklanıyor. Ön-kayıt §2'nin "ayrı revizyon" şartının bunlar için işletilip
    işletilmeyeceği sizin kararınız.
