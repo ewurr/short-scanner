@@ -5,7 +5,8 @@
 `--eski-evren` (rev.7 öncesi tabloyla karşılaştırma, §5) açık.
 **Kod:** `6aa73a4`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
 hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor (betik dışı sayı:
-`pytest -q` çıktısından).
+`pytest -q` çıktısından). Bu commit'ten sonraki commit'ler yalnızca bu raporun metnini
+değiştirir; hiçbir çıktıyı etkilemez.
 **A1 ölçümü:** aynı commit, aynı temiz ağaç, 2026-09-20 20:43:11 → 20:51:22 UTC
 (`a1_ortam_tam.csv`). A1'in referans koşusu budur; daha eski A1 çıktılarının zamanı
 dosya tarihinden türetilmişti ve artık kullanılmıyor (denetçi bulgusu D-B2).
