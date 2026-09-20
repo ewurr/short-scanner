@@ -49,12 +49,15 @@ A1 ölçümü (`a1_olcumu.py`):
 - Varsayılan koşunun çıktıları (değer içermez): `a1_uzlasma_sonrasi_funding_tam.csv`,
   `a1_konumlar_tam.csv`, `a1_oneri_etkisi_tam.csv`, `a1_d_kurali_tam.csv`,
   `a1_ortam_tam.csv` (koşunun commit'i, çalışma ağacı durumu ve UTC zamanı).
-- **1093e69 koşusunun iz dosyaları (oran değeri içerir, bu rapor kullanmaz):**
-  `a1_uzlasma_sonrasi_oranlar_tam.csv`, `a1_teslimsiz_son_bar_funding_tam.csv`.
-  Koşu 2026-09-18 13:35:41 UTC'de yapıldı (dosya zamanı; o koşunun ortam kaydı yok).
-  Kod, 1093e69'da commit edilen `a1_olcumu.py` hâliydi; çalışma ağacı f942537 üzerine
-  commit edilmemiş değişikliklerle kirliydi. Bu iki dosya yeniden üretilmez; betik
-  onları yalnızca `--oran-degerleri` bayrağıyla yazar.
+- **Sınır aşımının iz dosyaları (oran değeri içerir).** Çalışma ağacından kaldırıldı;
+  `1093e69` commit'inin içinde duruyorlar. Yolları:
+  - `analysis/00_veri_denetimi/a1_uzlasma_sonrasi_oranlar_tam.csv`
+  - `analysis/00_veri_denetimi/a1_teslimsiz_son_bar_funding_tam.csv`
+
+  Okumak için: `git show 1093e69:analysis/00_veri_denetimi/a1_uzlasma_sonrasi_oranlar_tam.csv`.
+  Betik bu dosyaları üretmez; oran değeri üreten kod yolu ve onu açan bayrak kaldırıldı.
+  Yeniden üretmek bilinçli bir kod değişikliği ister
+  (`tests/test_a1_deger_yolu_yok.py`).
 
 ---
 
