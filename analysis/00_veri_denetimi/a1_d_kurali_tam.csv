@@ -1,691 +1,1381 @@
-sembol,donem_sira,donem_bitis,tur,kural_uygulanir,disarida_kalan,tamlik_mevcut,tamlik_d
-0GUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000000BOBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000000MOGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000BONKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000BTTCUSDT,0,2022-04-11 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-1000CATUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000CHEEMSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000FLOKIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000LUNCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000PEPEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000RATSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000SATSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000SHIBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000WHYUSDT,0,2026-03-17 08:00:00+00:00,delist_SETTLING,True,0,False,True
-1000XECUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1000XUSDT,0,2025-11-14 08:00:00+00:00,delist_SETTLING,True,0,False,True
-1INCHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-1MBABYDOGEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-2ZUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-42USDT,0,2026-01-30 08:00:00+00:00,delist_SETTLING,True,0,False,True
-4USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-A2ZUSDT,0,2026-03-24 08:00:00+00:00,delist_SETTLING,True,0,False,True
-AAVEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ACEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ACHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ACTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ACUUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ACXUSDT,0,2026-08-07 08:00:00+00:00,delist_SETTLING,True,0,False,True
-ADAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AERGOUSDT,0,2025-03-27 08:00:00+00:00,dolgu_kosusu,True,1,True,True
-AERGOUSDT,1,2026-06-30 20:00:00+00:00,delist_exchangeInfo_disi,True,0,False,True
-AEROUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AEVOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AGIXUSDT,0,2024-06-25 08:00:00+00:00,delist_SETTLING,True,0,True,True
-AGLDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AGTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AI16ZUSDT,0,2025-11-06 08:00:00+00:00,delist_SETTLING,True,0,False,True
-AIAUSDT,0,2025-12-11 12:00:00+00:00,dolgu_kosusu,True,0,False,True
-AIAUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AIGENSYNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AINUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AIOTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AIOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AIUSDT,0,2026-04-28 08:00:00+00:00,delist_SETTLING,True,0,False,True
-AIXBTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AKEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AKROUSDT,0,2022-05-27 04:00:00+00:00,delist_exchangeInfo_disi,True,1,True,True
-AKTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ALCHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ALGOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ALICEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ALLOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ALPACAUSDT,0,2025-04-30 08:00:00+00:00,delist_SETTLING,True,4,True,True
-ALPHAUSDT,0,2025-09-23 08:00:00+00:00,delist_SETTLING,True,0,True,True
-ALPINEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ALTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AMBUSDT,0,2025-02-21 08:00:00+00:00,delist_SETTLING,True,1,True,True
-ANCUSDT,0,2022-05-13 04:00:00+00:00,delist_exchangeInfo_disi,True,0,False,True
-ANIMEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ANKRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ANTUSDT,0,2024-04-01 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-APEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-API3USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-APRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-APTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ARBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ARCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ARIAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ARKMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ARKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ARPAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ARUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ARXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ASRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ASTERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ASTRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ATAUSDT,0,2026-05-19 08:00:00+00:00,delist_SETTLING,True,0,True,True
-ATHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ATOMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ATUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AUCTIONUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AUDIOUSDT,0,2024-05-16 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-AUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AVAAIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AVAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AVAXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AVNTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AWEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AXLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AXSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-AZTECUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-B2USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-B3USDT,0,2026-04-28 08:00:00+00:00,delist_SETTLING,True,0,False,True
-BABYUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BADGERUSDT,0,2025-04-14 08:00:00+00:00,delist_SETTLING,True,1,True,True
-BAKEUSDT,0,2025-10-03 08:00:00+00:00,delist_SETTLING,True,0,True,True
-BALUSDT,0,2025-04-14 08:00:00+00:00,delist_SETTLING,True,0,True,True
-BANANAS31USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BANANAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BANDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BANKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BANUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BARDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BASEDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BASUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BATUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BCHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BDXNUSDT,0,2026-03-17 08:00:00+00:00,delist_exchangeInfo_disi,True,0,False,True
-BEAMXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BEATUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BELUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BERAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BICOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BIDUSDT,0,2026-01-21 08:00:00+00:00,delist_SETTLING,True,0,False,True
-BIGTIMEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BILLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BIOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BIRBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BLESSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BLUAIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BLURUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BLZUSDT,0,2024-12-23 08:00:00+00:00,delist_SETTLING,True,1,True,True
-BMTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BNBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BNTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BNXUSDT,0,2023-01-31 20:00:00+00:00,uzun_bosluk,True,1,False,False
-BNXUSDT,1,2025-03-17 08:00:00+00:00,delist_SETTLING,True,1,True,True
-BOBUSDT,0,2026-04-28 08:00:00+00:00,delist_SETTLING,True,0,False,True
-BOMEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BONDUSDT,0,2024-12-16 08:00:00+00:00,delist_SETTLING,True,1,True,True
-BRETTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BREVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BROCCOLI714USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BROCCOLIF3BUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BSBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BSVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BSWUSDT,0,2025-09-15 08:00:00+00:00,delist_SETTLING,True,0,False,True
-BTCSTUSDT,0,2021-03-12 00:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-BTCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BTRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BTSUSDT,0,2022-08-18 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-BTTUSDT,0,2022-01-14 00:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-BTWUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BULLAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-BZRXUSDT,0,2021-12-19 00:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-C98USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CAKEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CAPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CARVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CATIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CELOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CELRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CETUSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CFGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CFXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CGPTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CHESSUSDT,0,2026-02-06 08:00:00+00:00,delist_SETTLING,True,0,False,True
-CHILLGUYUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CHIPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CHRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CHZUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CKBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CLANKERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CLOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-COAIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-COCOSUSDT,0,2023-05-25 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-COLLECTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-COMBOUSDT,0,2025-03-27 08:00:00+00:00,delist_SETTLING,True,0,True,True
-COMMONUSDT,0,2026-01-30 08:00:00+00:00,delist_SETTLING,True,0,False,True
-COMPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-COOKIEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-COSUSDT,0,2026-06-11 08:00:00+00:00,delist_SETTLING,True,0,False,True
-COTIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-COWUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CROSSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CRVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CTKUSDT,0,2024-04-01 08:00:00+00:00,dolgu_kosusu,True,0,True,True
-CTKUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CTRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CTSIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CUDISUSDT,0,2026-01-30 08:00:00+00:00,delist_SETTLING,True,0,False,True
-CUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CVCUSDT,0,2022-11-29 08:00:00+00:00,dolgu_kosusu,True,0,True,True
-CVCUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CVXUSDT,0,2024-05-14 08:00:00+00:00,dolgu_kosusu,True,0,True,True
-CVXUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CYBERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-CYSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DAMUSDT,0,2026-04-29 08:00:00+00:00,delist_SETTLING,True,0,False,True
-DARUSDT,0,2024-12-26 08:00:00+00:00,delist_SETTLING,True,0,True,True
-DASHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DATAIPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DEEPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DEGENUSDT,0,2026-04-28 08:00:00+00:00,delist_SETTLING,True,0,False,True
-DEGOUSDT,0,2026-04-21 08:00:00+00:00,delist_SETTLING,True,0,False,True
-DENTUSDT,0,2026-04-21 08:00:00+00:00,delist_SETTLING,True,0,True,True
-DEXEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DFUSDT,0,2026-02-06 08:00:00+00:00,delist_SETTLING,True,0,False,True
-DGBUSDT,0,2024-04-01 08:00:00+00:00,delist_SETTLING,True,0,True,True
-DIAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DMCUSDT,0,2026-01-21 08:00:00+00:00,delist_SETTLING,True,0,False,True
-DODOUSDT,0,2022-05-27 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-DODOXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DOGEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DOGSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DOLOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DOODUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DOSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DOTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DRIFTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DUSDT,0,2026-06-11 08:00:00+00:00,delist_SETTLING,True,0,False,True
-DUSKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DYDXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-DYMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-EDENUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-EDGEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-EDUUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-EGLDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-EIGENUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ELSAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ENAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ENJUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ENSOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ENSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-EOSUSDT,0,2025-05-21 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-EPICUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-EPTUSDT,0,2026-01-30 08:00:00+00:00,delist_SETTLING,True,0,False,True
-ERAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ESPORTSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ESPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ETCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ETHFIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ETHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ETHWUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-EULUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-EVAAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FARTCOINUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FETUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FFUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FHEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FIDAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FIGHTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FILUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FIOUSDT,0,2026-04-15 08:00:00+00:00,delist_SETTLING,True,0,False,True
-FISUSDT,0,2025-12-10 08:00:00+00:00,delist_SETTLING,True,0,False,True
-FLMUSDT,0,2025-11-21 08:00:00+00:00,delist_SETTLING,True,0,False,True
-FLOCKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FLOWUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FLUIDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FLUXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FOGOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FOLKSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FORMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FORTHUSDT,0,2026-03-24 08:00:00+00:00,delist_SETTLING,True,0,False,True
-FRAXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FRONTUSDT,0,2024-08-23 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-FTMUSDT,0,2025-01-06 08:00:00+00:00,delist_SETTLING,True,0,True,True
-FTTUSDT,0,2022-11-14 04:00:00+00:00,delist_SETTLING,True,1,True,False
-FUNUSDT,0,2026-04-15 08:00:00+00:00,delist_SETTLING,True,0,False,True
-FUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-FXSUSDT,0,2026-01-06 08:00:00+00:00,delist_SETTLING,True,0,True,True
-GALAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GALUSDT,0,2024-07-11 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-GASUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GENIUSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GHSTUSDT,0,2026-02-06 08:00:00+00:00,delist_SETTLING,True,0,False,True
-GIGGLEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GLMRUSDT,0,2024-05-15 08:00:00+00:00,delist_SETTLING,True,0,True,True
-GLMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GMTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GMXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GOATUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GPSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GRAMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GRASSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GRIFFAINUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GRTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GRVTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GTCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GUAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GUNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-GWEIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HAEDALUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HANAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HBARUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HEIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HEMIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HFTUSDT,0,2026-08-07 08:00:00+00:00,delist_SETTLING,True,0,False,True
-HIFIUSDT,0,2025-10-03 08:00:00+00:00,delist_SETTLING,True,0,False,True
-HIGHUSDT,0,2026-06-11 08:00:00+00:00,delist_SETTLING,True,0,True,True
-HIPPOUSDT,0,2026-04-08 08:00:00+00:00,delist_SETTLING,True,0,False,True
-HIVEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HMSTRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HNTUSDT,0,2023-03-20 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-HOLOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HOMEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HOOKUSDT,0,2026-03-24 08:00:00+00:00,delist_SETTLING,True,0,True,True
-HOTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HUMAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HYPERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-HYPEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ICNTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ICPUSDT,0,2022-06-10 08:00:00+00:00,dolgu_kosusu,True,0,False,False
-ICPUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ICXUSDT,0,2026-08-26 08:00:00+00:00,delist_SETTLING,True,0,False,True
-IDEXUSDT,0,2024-05-15 08:00:00+00:00,delist_SETTLING,True,0,True,True
-IDOLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-IDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ILVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-IMXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-INITUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-INJUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-INUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-INXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-IOSTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-IOTAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-IOTXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-IOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-IPUSDT,0,2026-06-28 08:00:00+00:00,delist_SETTLING,True,0,False,True
-IRUSDT,0,2026-04-29 08:00:00+00:00,delist_SETTLING,True,0,False,True
-IRYSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-JASMYUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-JCTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-JELLYJELLYUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-JOEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-JSTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-JTOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-JUPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KAIAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KAITOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KASUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KATUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KAVAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KDAUSDT,0,2025-11-06 08:00:00+00:00,delist_SETTLING,True,0,False,True
-KEEPUSDT,0,2022-02-15 00:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-KERNELUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KEYUSDT,0,2024-12-03 08:00:00+00:00,delist_SETTLING,True,0,True,True
-KGENUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KITEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KLAYUSDT,0,2024-10-22 08:00:00+00:00,delist_SETTLING,True,0,True,True
-KMNOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KNCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KOMAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-KSMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LABUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LAYERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LDOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LENDUSDT,0,2020-10-09 20:00:00+00:00,delist_exchangeInfo_disi,True,1,True,True
-LEVERUSDT,0,2025-09-03 08:00:00+00:00,delist_SETTLING,True,0,True,True
-LIGHTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LINAUSDT,0,2025-03-27 08:00:00+00:00,delist_SETTLING,True,0,True,True
-LINEAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LINKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LISTAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LITUSDT,0,2025-01-31 08:00:00+00:00,dolgu_kosusu,True,0,True,True
-LITUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LOKAUSDT,0,2025-07-21 08:00:00+00:00,delist_SETTLING,True,0,False,True
-LOOMUSDT,0,2024-12-09 08:00:00+00:00,delist_SETTLING,True,1,True,True
-LPTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LQTYUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LRCUSDT,0,2026-03-24 08:00:00+00:00,delist_SETTLING,True,0,False,True
-LSKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LTCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LUMIAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LUNA2USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-LUNAUSDT,0,2022-05-12 12:00:00+00:00,delist_exchangeInfo_disi,True,1,True,True
-LYNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MAGICUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MAGMAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MANAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MANTAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MANTRAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MASKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MATICUSDT,0,2024-09-04 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-MAVIAUSDT,0,2024-12-16 08:00:00+00:00,dolgu_kosusu,True,1,True,True
-MAVIAUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MAVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MBLUSDT,0,2024-05-13 08:00:00+00:00,delist_exchangeInfo_disi,True,1,True,True
-MBOXUSDT,0,2026-06-11 08:00:00+00:00,delist_SETTLING,True,0,False,True
-MDTUSDT,0,2024-05-16 08:00:00+00:00,delist_SETTLING,True,0,True,True
-MEGAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MELANIAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MEMEFIUSDT,0,2025-08-11 08:00:00+00:00,delist_SETTLING,True,0,False,True
-MEMEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MERLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-METISUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-METUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MEWUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MILKUSDT,0,2025-12-05 08:00:00+00:00,delist_SETTLING,True,0,False,True
-MINAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MIRAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MITOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MKRUSDT,0,2025-09-08 08:00:00+00:00,delist_SETTLING,True,0,True,True
-MLNUSDT,0,2026-05-19 08:00:00+00:00,delist_SETTLING,True,0,False,True
-MMTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MOCAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MONUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MOODENGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MORPHOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MOVEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MOVRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MTLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MUBARAKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-MYROUSDT,0,2025-11-14 08:00:00+00:00,delist_SETTLING,True,0,False,True
-MYXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NAORISUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NEARUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NEIROETHUSDT,0,2025-09-26 08:00:00+00:00,delist_SETTLING,True,0,False,True
-NEIROUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NEOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NEWTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NFPUSDT,0,2026-07-02 08:00:00+00:00,delist_SETTLING,True,0,False,True
-NIGHTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NILUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NKNUSDT,0,2026-02-06 08:00:00+00:00,delist_SETTLING,True,0,False,True
-NMRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NOMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NOTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-NTRNUSDT,0,2026-03-24 08:00:00+00:00,delist_SETTLING,True,0,False,True
-NULSUSDT,0,2025-04-14 08:00:00+00:00,delist_SETTLING,True,1,True,True
-NUUSDT,0,2022-02-15 00:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-NXPCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-OBOLUSDT,0,2025-12-05 08:00:00+00:00,delist_SETTLING,True,0,False,True
-OCEANUSDT,0,2024-06-25 08:00:00+00:00,delist_SETTLING,True,0,True,True
-OGNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-OGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-OLUSDT,0,2026-04-08 08:00:00+00:00,delist_SETTLING,True,0,False,True
-OMGUSDT,0,2025-01-31 08:00:00+00:00,delist_SETTLING,True,0,True,True
-OMNIUSDT,0,2025-09-22 08:00:00+00:00,delist_SETTLING,True,0,False,True
-OMUSDT,0,2026-02-23 08:00:00+00:00,delist_SETTLING,True,0,False,True
-ONDOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ONEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ONGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,3,False,True
-ONTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ONUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-OPENUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-OPGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-OPNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-OPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ORBSUSDT,0,2024-12-09 08:00:00+00:00,delist_SETTLING,True,1,True,True
-ORCAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ORDERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ORDIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-OUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-OXTUSDT,0,2026-04-15 08:00:00+00:00,delist_SETTLING,True,0,True,True
-PARTIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PAXGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PENDLEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PENGUUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PEOPLEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PERPUSDT,0,2025-11-21 08:00:00+00:00,delist_SETTLING,True,0,False,True
-PHAROSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PHAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PHBUSDT,0,2026-05-19 08:00:00+00:00,delist_SETTLING,True,0,True,True
-PIEVERSEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PIPPINUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PIXELUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PLAYUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PLUMEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PNUTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-POLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-POLYXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PONKEUSDT,0,2025-11-28 08:00:00+00:00,delist_SETTLING,True,0,False,True
-POPCATUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PORT3USDT,0,2025-11-23 04:00:00+00:00,delist_SETTLING,True,0,False,True
-PORTALUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-POWERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-POWRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PRLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PROMPTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PROMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PROVEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PTBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PUFFERUSDT,0,2026-04-08 08:00:00+00:00,delist_SETTLING,True,0,False,True
-PUMPBTCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PUMPUSDT,0,2025-06-13 08:00:00+00:00,dolgu_kosusu,True,1,True,True
-PUMPUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PUNDIXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-PYTHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-QNTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-QTUMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-QUICKUSDT,0,2025-11-28 08:00:00+00:00,delist_SETTLING,True,0,False,True
-QUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RADUSDT,0,2024-05-14 08:00:00+00:00,delist_SETTLING,True,0,True,True
-RAREUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RAVEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RAYSOLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RAYUSDT,0,2022-11-15 04:00:00+00:00,delist_SETTLING,True,1,True,True
-RDNTUSDT,0,2026-03-24 08:00:00+00:00,delist_SETTLING,True,0,False,True
-RECALLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-REDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-REEFUSDT,0,2025-01-22 08:00:00+00:00,delist_SETTLING,True,1,True,True
-REIUSDT,0,2025-12-10 08:00:00+00:00,delist_SETTLING,True,0,False,True
-RENDERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RENUSDT,0,2024-12-03 08:00:00+00:00,delist_SETTLING,True,0,True,True
-RESOLVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-REUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-REZUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RIFUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RIVERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RLCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RLSUSDT,0,2026-04-08 08:00:00+00:00,delist_SETTLING,True,0,False,True
-RNDRUSDT,0,2024-07-16 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-ROBOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RONINUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ROSEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RPLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RSRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RUNEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RVNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-RVVUSDT,0,2026-02-10 08:00:00+00:00,delist_SETTLING,True,0,False,True
-SAFEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SAGAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SAHARAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SANDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SANTOSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SAPIENUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SCRTUSDT,0,2026-08-26 08:00:00+00:00,delist_SETTLING,True,0,False,True
-SCRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SCUSDT,0,2022-06-17 08:00:00+00:00,delist_SETTLING,True,0,True,True
-SEIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SENTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SFPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SHELLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SIGNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SIRENUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SKATEUSDT,0,2025-12-10 08:00:00+00:00,delist_SETTLING,True,0,False,True
-SKLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SKRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,3,False,True
-SKYAIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SKYUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SLERFUSDT,0,2025-10-20 08:00:00+00:00,delist_SETTLING,True,0,False,True
-SLPUSDT,0,2024-05-15 08:00:00+00:00,dolgu_kosusu,True,1,True,True
-SLPUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SLXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SNTUSDT,0,2024-05-13 08:00:00+00:00,delist_SETTLING,True,1,True,True
-SNXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SOLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SOLVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SOMIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SONICUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SOONUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SOPHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SPACEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SPELLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SPKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SPORTFUNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SPXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SQDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SRMUSDT,0,2022-11-15 04:00:00+00:00,delist_exchangeInfo_disi,True,1,True,True
-SSVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-STABLEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-STARUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-STBLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-STEEMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-STGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-STMXUSDT,0,2025-02-21 08:00:00+00:00,delist_SETTLING,True,1,True,True
-STORJUSDT,0,2026-08-26 08:00:00+00:00,delist_SETTLING,True,0,False,True
-STOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-STPTUSDT,0,2024-05-13 08:00:00+00:00,delist_SETTLING,True,1,True,True
-STRAXUSDT,0,2024-03-15 08:00:00+00:00,delist_SETTLING,True,1,True,True
-STRKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-STXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SUIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SUNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SUPERUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SUSHIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SWARMSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SWELLUSDT,0,2025-11-28 08:00:00+00:00,delist_SETTLING,True,0,False,True
-SXPUSDT,0,2025-12-05 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-SXTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SYNUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SYRUPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-SYSUSDT,0,2026-05-19 08:00:00+00:00,delist_SETTLING,True,0,False,True
-TACUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TAGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TAIKOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TAKEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TANSSIUSDT,0,2026-01-21 08:00:00+00:00,delist_SETTLING,True,0,False,True
-TAOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-THETAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-THEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TIAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TLMUSDT,0,2022-06-09 08:00:00+00:00,dolgu_kosusu,True,0,False,False
-TLMUSDT,1,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TNSRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TOKENUSDT,0,2025-12-05 08:00:00+00:00,delist_SETTLING,True,0,False,True
-TOMOUSDT,0,2023-11-14 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-TONUSDT,0,2026-06-23 08:00:00+00:00,delist_SETTLING,True,0,False,True
-TOSHIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TOWNSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TRADOORUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TRBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TREEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TRIAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TROYUSDT,0,2025-04-14 08:00:00+00:00,delist_SETTLING,True,2,True,True
-TRUMPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TRUSTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TRUTHUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TRUUSDT,0,2026-04-21 08:00:00+00:00,delist_SETTLING,True,0,True,True
-TRXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TSTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TURBOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TURTLEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TUTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-TWTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-UAIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-UBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-UMAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-UNFIUSDT,0,2024-10-30 08:00:00+00:00,delist_SETTLING,True,1,True,True
-UNIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-USELESSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-USTCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-USUALUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-USUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-UXLINKUSDT,0,2025-09-26 08:00:00+00:00,delist_SETTLING,True,0,False,True
-VANAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-VANRYUSDT,0,2026-08-07 08:00:00+00:00,delist_SETTLING,True,0,False,True
-VELODROMEUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-VELVETUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-VETUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-VFYUSDT,0,2026-03-17 08:00:00+00:00,delist_SETTLING,True,0,False,True
-VICUSDT,0,2026-08-07 08:00:00+00:00,delist_SETTLING,True,0,False,True
-VIDTUSDT,0,2025-04-14 08:00:00+00:00,delist_SETTLING,True,2,True,True
-VINEUSDT,0,2026-04-28 08:00:00+00:00,delist_SETTLING,True,0,False,True
-VIRTUALUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-VOXELUSDT,0,2025-12-10 08:00:00+00:00,delist_SETTLING,True,0,False,True
-VTHOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-VVVUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-WALUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-WAVESUSDT,0,2024-06-11 08:00:00+00:00,delist_SETTLING,True,0,True,True
-WAXPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-WCTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-WETUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-WIFUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-WLDUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-WLFIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-WOOUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-WUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XAIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XANUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XAUTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XCNUSDT,0,2025-11-21 08:00:00+00:00,delist_SETTLING,True,0,False,True
-XEMUSDT,0,2024-12-09 08:00:00+00:00,delist_SETTLING,True,0,True,True
-XLMUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XMRUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XNYUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XPINUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XPLUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XRPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XTZUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XVGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-XVSUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-YALAUSDT,0,2026-02-10 08:00:00+00:00,delist_SETTLING,True,0,False,True
-YBUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-YFIIUSDT,0,2022-04-12 08:00:00+00:00,delist_exchangeInfo_disi,True,0,True,True
-YFIUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-YGGUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZAMAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZBTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZECUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZENUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZEREBROUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZESTUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZETAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZILUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZKCUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,3,False,True
-ZKJUSDT,0,2026-04-29 08:00:00+00:00,delist_SETTLING,True,0,False,True
-ZKPUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZKUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZORAUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZRCUSDT,0,2026-01-21 08:00:00+00:00,delist_SETTLING,True,0,False,True
-ZROUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-ZRXUSDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-币安人生USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-我踏马来了USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-牛来USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
-龙虾USDT,0,2026-08-31 20:00:00+00:00,veri_sonu,False,0,False,True
+sembol,bar,donem_sira,donem_bitis,cikis_ani,tur,kural_uygulanir,disarida_kalan,kapanista_odeme,son_odeme_aralik_saat,tamlik_mevcut,tamlik_d
+0GUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+0GUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000000BOBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000000BOBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000000MOGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000000MOGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000BONKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000BONKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000BTTCUSDT,4h,0,2022-04-11 08:00:00+00:00,2022-04-11 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+1000BTTCUSDT,1d,0,2022-04-11 08:00:00+00:00,2022-04-12 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+1000CATUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000CATUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000CHEEMSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000CHEEMSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000FLOKIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1000FLOKIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1000LUNCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1000LUNCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1000PEPEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1000PEPEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1000RATSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000RATSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000SATSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000SATSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000SHIBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1000SHIBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1000WHYUSDT,4h,0,2026-03-17 08:00:00+00:00,2026-03-17 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+1000WHYUSDT,1d,0,2026-03-17 08:00:00+00:00,2026-03-18 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+1000XECUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000XECUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1000XUSDT,4h,0,2025-11-14 08:00:00+00:00,2025-11-14 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+1000XUSDT,1d,0,2025-11-14 08:00:00+00:00,2025-11-15 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+1INCHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1INCHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+1MBABYDOGEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+1MBABYDOGEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+2ZUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+2ZUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+42USDT,4h,0,2026-01-30 08:00:00+00:00,2026-01-30 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+42USDT,1d,0,2026-01-30 08:00:00+00:00,2026-01-31 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+4USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+4USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+A2ZUSDT,4h,0,2026-03-24 08:00:00+00:00,2026-03-24 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+A2ZUSDT,1d,0,2026-03-24 08:00:00+00:00,2026-03-25 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+AAVEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+AAVEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ACEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ACEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ACHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ACHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ACTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ACTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ACUUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ACUUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ACXUSDT,4h,0,2026-08-07 08:00:00+00:00,2026-08-07 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+ACXUSDT,1d,0,2026-08-07 08:00:00+00:00,2026-08-08 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+ADAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ADAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+AERGOUSDT,4h,0,2025-03-27 08:00:00+00:00,2025-03-27 12:00:00+00:00,dolgu_kosusu,True,1,True,4.0,True,True
+AERGOUSDT,4h,1,2026-06-30 20:00:00+00:00,2026-07-01 00:00:00+00:00,delist_exchangeInfo_disi,True,0,False,4.0,False,True
+AERGOUSDT,1d,0,2025-03-27 08:00:00+00:00,2025-03-28 00:00:00+00:00,dolgu_kosusu,True,4,True,4.0,False,True
+AERGOUSDT,1d,1,2026-06-30 20:00:00+00:00,2026-07-01 00:00:00+00:00,delist_exchangeInfo_disi,True,0,False,4.0,False,True
+AEROUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AEROUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AEVOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AEVOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AGIXUSDT,4h,0,2024-06-25 08:00:00+00:00,2024-06-25 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+AGIXUSDT,1d,0,2024-06-25 08:00:00+00:00,2024-06-26 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+AGLDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+AGLDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+AGTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AGTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AI16ZUSDT,4h,0,2025-11-06 08:00:00+00:00,2025-11-06 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+AI16ZUSDT,1d,0,2025-11-06 08:00:00+00:00,2025-11-07 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+AIAUSDT,4h,0,2025-12-11 12:00:00+00:00,2025-12-11 16:00:00+00:00,dolgu_kosusu,True,0,False,1.0,False,True
+AIAUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AIAUSDT,1d,0,2025-12-11 12:00:00+00:00,2025-12-12 00:00:00+00:00,dolgu_kosusu,True,0,False,1.0,False,True
+AIAUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AIGENSYNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AIGENSYNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AINUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AINUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AIOTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AIOTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AIOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AIOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AIUSDT,4h,0,2026-04-28 08:00:00+00:00,2026-04-28 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+AIUSDT,1d,0,2026-04-28 08:00:00+00:00,2026-04-29 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+AIXBTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AIXBTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AKEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AKEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AKROUSDT,4h,0,2022-05-27 04:00:00+00:00,2022-05-27 08:00:00+00:00,delist_exchangeInfo_disi,True,1,True,8.0,True,True
+AKROUSDT,1d,0,2022-05-27 04:00:00+00:00,2022-05-28 00:00:00+00:00,delist_exchangeInfo_disi,True,1,False,8.0,False,True
+AKTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AKTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALCHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALCHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALGOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ALGOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ALICEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALICEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALLOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALLOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALPACAUSDT,4h,0,2025-04-30 08:00:00+00:00,2025-04-30 12:00:00+00:00,delist_SETTLING,True,4,True,1.0,True,True
+ALPACAUSDT,1d,0,2025-04-30 08:00:00+00:00,2025-05-01 00:00:00+00:00,delist_SETTLING,True,16,True,1.0,False,True
+ALPHAUSDT,4h,0,2025-09-23 08:00:00+00:00,2025-09-23 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+ALPHAUSDT,1d,0,2025-09-23 08:00:00+00:00,2025-09-24 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+ALPINEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALPINEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ALTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AMBUSDT,4h,0,2025-02-21 08:00:00+00:00,2025-02-21 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+AMBUSDT,1d,0,2025-02-21 08:00:00+00:00,2025-02-22 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+ANCUSDT,4h,0,2022-05-13 04:00:00+00:00,2022-05-13 08:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,False,True
+ANCUSDT,1d,0,2022-05-13 04:00:00+00:00,2022-05-14 00:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,False,True
+ANIMEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ANIMEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ANKRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ANKRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ANTUSDT,4h,0,2024-04-01 08:00:00+00:00,2024-04-01 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+ANTUSDT,1d,0,2024-04-01 08:00:00+00:00,2024-04-02 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+APEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+APEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+API3USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+API3USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+APRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+APRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+APTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+APTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ARBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ARBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ARCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ARCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ARIAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ARIAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ARKMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ARKMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ARKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ARKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ARPAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ARPAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ARUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ARUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ARXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ARXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ASRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ASRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ASTERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ASTERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ASTRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ASTRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ATAUSDT,4h,0,2026-05-19 08:00:00+00:00,2026-05-19 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+ATAUSDT,1d,0,2026-05-19 08:00:00+00:00,2026-05-20 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+ATHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ATHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ATOMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ATOMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ATUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ATUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AUCTIONUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AUCTIONUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AUDIOUSDT,4h,0,2024-05-16 08:00:00+00:00,2024-05-16 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+AUDIOUSDT,1d,0,2024-05-16 08:00:00+00:00,2024-05-17 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+AUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AVAAIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AVAAIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AVAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AVAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AVAXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+AVAXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+AVNTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AVNTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AWEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AWEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AXLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AXLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AXSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AXSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AZTECUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+AZTECUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+B2USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+B2USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+B3USDT,4h,0,2026-04-28 08:00:00+00:00,2026-04-28 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+B3USDT,1d,0,2026-04-28 08:00:00+00:00,2026-04-29 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+BABYUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BABYUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BADGERUSDT,4h,0,2025-04-14 08:00:00+00:00,2025-04-14 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+BADGERUSDT,1d,0,2025-04-14 08:00:00+00:00,2025-04-15 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+BAKEUSDT,4h,0,2025-10-03 08:00:00+00:00,2025-10-03 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+BAKEUSDT,1d,0,2025-10-03 08:00:00+00:00,2025-10-04 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+BALUSDT,4h,0,2025-04-14 08:00:00+00:00,2025-04-14 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+BALUSDT,1d,0,2025-04-14 08:00:00+00:00,2025-04-15 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+BANANAS31USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BANANAS31USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BANANAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BANANAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BANDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BANDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BANKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BANKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BANUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BANUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BARDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BARDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BASEDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BASEDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BASUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BASUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BATUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BATUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BCHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BCHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BDXNUSDT,4h,0,2026-03-17 08:00:00+00:00,2026-03-17 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,4.0,False,True
+BDXNUSDT,1d,0,2026-03-17 08:00:00+00:00,2026-03-18 00:00:00+00:00,delist_exchangeInfo_disi,True,0,False,4.0,False,True
+BEAMXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BEAMXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BEATUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BEATUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BELUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BELUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BERAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BERAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BICOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BICOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BIDUSDT,4h,0,2026-01-21 08:00:00+00:00,2026-01-21 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+BIDUSDT,1d,0,2026-01-21 08:00:00+00:00,2026-01-22 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+BIGTIMEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BIGTIMEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BILLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BILLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BIOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BIOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BIRBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BIRBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BLESSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BLESSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BLUAIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BLUAIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BLURUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BLURUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BLZUSDT,4h,0,2024-12-23 08:00:00+00:00,2024-12-23 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+BLZUSDT,1d,0,2024-12-23 08:00:00+00:00,2024-12-24 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+BMTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BMTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BNBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BNBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BNTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BNTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BNXUSDT,4h,0,2023-01-31 20:00:00+00:00,2023-02-01 00:00:00+00:00,uzun_bosluk,True,1,True,,False,False
+BNXUSDT,4h,1,2025-03-17 08:00:00+00:00,2025-03-17 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+BNXUSDT,1d,0,2023-01-31 20:00:00+00:00,2023-02-01 00:00:00+00:00,uzun_bosluk,True,1,True,,False,False
+BNXUSDT,1d,1,2025-03-17 08:00:00+00:00,2025-03-18 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+BOBUSDT,4h,0,2026-04-28 08:00:00+00:00,2026-04-28 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+BOBUSDT,1d,0,2026-04-28 08:00:00+00:00,2026-04-29 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+BOMEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BOMEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BONDUSDT,4h,0,2024-12-16 08:00:00+00:00,2024-12-16 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+BONDUSDT,1d,0,2024-12-16 08:00:00+00:00,2024-12-17 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+BRETTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BRETTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BREVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BREVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BROCCOLI714USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BROCCOLI714USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BROCCOLIF3BUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BROCCOLIF3BUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BSBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BSBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BSVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BSVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BSWUSDT,4h,0,2025-09-15 08:00:00+00:00,2025-09-15 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+BSWUSDT,1d,0,2025-09-15 08:00:00+00:00,2025-09-16 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+BTCSTUSDT,4h,0,2021-03-12 00:00:00+00:00,2021-03-12 04:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+BTCSTUSDT,1d,0,2021-03-12 00:00:00+00:00,2021-03-13 00:00:00+00:00,delist_exchangeInfo_disi,True,3,True,8.0,False,True
+BTCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BTCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+BTRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BTRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BTSUSDT,4h,0,2022-08-18 08:00:00+00:00,2022-08-18 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+BTSUSDT,1d,0,2022-08-18 08:00:00+00:00,2022-08-19 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+BTTUSDT,4h,0,2022-01-14 00:00:00+00:00,2022-01-14 04:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+BTTUSDT,1d,0,2022-01-14 00:00:00+00:00,2022-01-15 00:00:00+00:00,delist_exchangeInfo_disi,True,3,True,8.0,False,True
+BTWUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BTWUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BULLAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BULLAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+BZRXUSDT,4h,0,2021-12-19 00:00:00+00:00,2021-12-19 04:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+BZRXUSDT,1d,0,2021-12-19 00:00:00+00:00,2021-12-20 00:00:00+00:00,delist_exchangeInfo_disi,True,3,True,8.0,False,True
+C98USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+C98USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CAKEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CAKEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CAPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CAPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CARVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CARVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CATIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CATIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CELOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CELOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CELRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CELRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CETUSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CETUSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CFGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CFGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CFXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CFXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CGPTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CGPTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CHESSUSDT,4h,0,2026-02-06 08:00:00+00:00,2026-02-06 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+CHESSUSDT,1d,0,2026-02-06 08:00:00+00:00,2026-02-07 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+CHILLGUYUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CHILLGUYUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CHIPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CHIPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CHRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CHRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CHZUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CHZUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CKBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CKBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CLANKERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CLANKERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CLOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CLOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COAIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COAIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COCOSUSDT,4h,0,2023-05-25 08:00:00+00:00,2023-05-25 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+COCOSUSDT,1d,0,2023-05-25 08:00:00+00:00,2023-05-26 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+COLLECTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COLLECTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COMBOUSDT,4h,0,2025-03-27 08:00:00+00:00,2025-03-27 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+COMBOUSDT,1d,0,2025-03-27 08:00:00+00:00,2025-03-28 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+COMMONUSDT,4h,0,2026-01-30 08:00:00+00:00,2026-01-30 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+COMMONUSDT,1d,0,2026-01-30 08:00:00+00:00,2026-01-31 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+COMPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+COMPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+COOKIEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COOKIEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COSUSDT,4h,0,2026-06-11 08:00:00+00:00,2026-06-11 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+COSUSDT,1d,0,2026-06-11 08:00:00+00:00,2026-06-12 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+COTIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COTIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COWUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+COWUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CROSSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CROSSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CRVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CRVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CTKUSDT,4h,0,2024-04-01 08:00:00+00:00,2024-04-01 12:00:00+00:00,dolgu_kosusu,True,0,False,8.0,True,True
+CTKUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CTKUSDT,1d,0,2024-04-01 08:00:00+00:00,2024-04-02 00:00:00+00:00,dolgu_kosusu,True,2,True,8.0,False,True
+CTKUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CTRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CTRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CTSIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CTSIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+CUDISUSDT,4h,0,2026-01-30 08:00:00+00:00,2026-01-30 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+CUDISUSDT,1d,0,2026-01-30 08:00:00+00:00,2026-01-31 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+CUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CVCUSDT,4h,0,2022-11-29 08:00:00+00:00,2022-11-29 12:00:00+00:00,dolgu_kosusu,True,0,False,8.0,True,True
+CVCUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CVCUSDT,1d,0,2022-11-29 08:00:00+00:00,2022-11-30 00:00:00+00:00,dolgu_kosusu,True,2,True,8.0,False,True
+CVCUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CVXUSDT,4h,0,2024-05-14 08:00:00+00:00,2024-05-14 12:00:00+00:00,dolgu_kosusu,True,0,False,8.0,True,True
+CVXUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CVXUSDT,1d,0,2024-05-14 08:00:00+00:00,2024-05-15 00:00:00+00:00,dolgu_kosusu,True,2,True,8.0,False,True
+CVXUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CYBERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CYBERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CYSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+CYSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DAMUSDT,4h,0,2026-04-29 08:00:00+00:00,2026-04-29 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DAMUSDT,1d,0,2026-04-29 08:00:00+00:00,2026-04-30 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DARUSDT,4h,0,2024-12-26 08:00:00+00:00,2024-12-26 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+DARUSDT,1d,0,2024-12-26 08:00:00+00:00,2024-12-27 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+DASHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+DASHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+DATAIPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DATAIPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DEEPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DEEPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DEGENUSDT,4h,0,2026-04-28 08:00:00+00:00,2026-04-28 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DEGENUSDT,1d,0,2026-04-28 08:00:00+00:00,2026-04-29 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DEGOUSDT,4h,0,2026-04-21 08:00:00+00:00,2026-04-21 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DEGOUSDT,1d,0,2026-04-21 08:00:00+00:00,2026-04-22 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DENTUSDT,4h,0,2026-04-21 08:00:00+00:00,2026-04-21 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+DENTUSDT,1d,0,2026-04-21 08:00:00+00:00,2026-04-22 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+DEXEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DEXEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DFUSDT,4h,0,2026-02-06 08:00:00+00:00,2026-02-06 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DFUSDT,1d,0,2026-02-06 08:00:00+00:00,2026-02-07 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DGBUSDT,4h,0,2024-04-01 08:00:00+00:00,2024-04-01 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+DGBUSDT,1d,0,2024-04-01 08:00:00+00:00,2024-04-02 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+DIAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DIAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DMCUSDT,4h,0,2026-01-21 08:00:00+00:00,2026-01-21 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DMCUSDT,1d,0,2026-01-21 08:00:00+00:00,2026-01-22 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DODOUSDT,4h,0,2022-05-27 08:00:00+00:00,2022-05-27 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+DODOUSDT,1d,0,2022-05-27 08:00:00+00:00,2022-05-28 00:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,False,True
+DODOXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DODOXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DOGEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+DOGEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+DOGSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DOGSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DOLOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DOLOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DOODUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DOODUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DOSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DOSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DOTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+DOTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+DRIFTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DRIFTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DUSDT,4h,0,2026-06-11 08:00:00+00:00,2026-06-11 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DUSDT,1d,0,2026-06-11 08:00:00+00:00,2026-06-12 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+DUSKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DUSKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DYDXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+DYDXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+DYMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+DYMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EDENUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EDENUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EDGEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EDGEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EDUUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+EDUUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+EGLDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+EGLDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+EIGENUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EIGENUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ELSAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ELSAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ENAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ENAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ENJUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ENJUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ENSOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ENSOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ENSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ENSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+EOSUSDT,4h,0,2025-05-21 08:00:00+00:00,2025-05-21 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+EOSUSDT,1d,0,2025-05-21 08:00:00+00:00,2025-05-22 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+EPICUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EPICUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EPTUSDT,4h,0,2026-01-30 08:00:00+00:00,2026-01-30 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+EPTUSDT,1d,0,2026-01-30 08:00:00+00:00,2026-01-31 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+ERAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ERAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ESPORTSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ESPORTSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ESPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ESPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ETCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ETCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ETHFIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ETHFIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ETHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ETHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ETHWUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ETHWUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EULUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EULUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EVAAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+EVAAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FARTCOINUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FARTCOINUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FETUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+FETUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+FFUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FFUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FHEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FHEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FIDAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FIDAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FIGHTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FIGHTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FILUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+FILUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+FIOUSDT,4h,0,2026-04-15 08:00:00+00:00,2026-04-15 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FIOUSDT,1d,0,2026-04-15 08:00:00+00:00,2026-04-16 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FISUSDT,4h,0,2025-12-10 08:00:00+00:00,2025-12-10 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FISUSDT,1d,0,2025-12-10 08:00:00+00:00,2025-12-11 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FLMUSDT,4h,0,2025-11-21 08:00:00+00:00,2025-11-21 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FLMUSDT,1d,0,2025-11-21 08:00:00+00:00,2025-11-22 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FLOCKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FLOCKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FLOWUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FLOWUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FLUIDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FLUIDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FLUXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FLUXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FOGOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FOGOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FOLKSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FOLKSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FORMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FORMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FORTHUSDT,4h,0,2026-03-24 08:00:00+00:00,2026-03-24 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FORTHUSDT,1d,0,2026-03-24 08:00:00+00:00,2026-03-25 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FRAXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FRAXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FRONTUSDT,4h,0,2024-08-23 08:00:00+00:00,2024-08-23 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+FRONTUSDT,1d,0,2024-08-23 08:00:00+00:00,2024-08-24 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+FTMUSDT,4h,0,2025-01-06 08:00:00+00:00,2025-01-06 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+FTMUSDT,1d,0,2025-01-06 08:00:00+00:00,2025-01-07 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+FTTUSDT,4h,0,2022-11-14 04:00:00+00:00,2022-11-14 08:00:00+00:00,delist_SETTLING,True,1,True,2.0,True,False
+FTTUSDT,1d,0,2022-11-14 04:00:00+00:00,2022-11-15 00:00:00+00:00,delist_SETTLING,True,3,True,2.0,False,False
+FUNUSDT,4h,0,2026-04-15 08:00:00+00:00,2026-04-15 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FUNUSDT,1d,0,2026-04-15 08:00:00+00:00,2026-04-16 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+FUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+FXSUSDT,4h,0,2026-01-06 08:00:00+00:00,2026-01-06 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+FXSUSDT,1d,0,2026-01-06 08:00:00+00:00,2026-01-07 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+GALAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+GALAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+GALUSDT,4h,0,2024-07-11 08:00:00+00:00,2024-07-11 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+GALUSDT,1d,0,2024-07-11 08:00:00+00:00,2024-07-12 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+GASUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GASUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GENIUSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GENIUSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GHSTUSDT,4h,0,2026-02-06 08:00:00+00:00,2026-02-06 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+GHSTUSDT,1d,0,2026-02-06 08:00:00+00:00,2026-02-07 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+GIGGLEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GIGGLEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GLMRUSDT,4h,0,2024-05-15 08:00:00+00:00,2024-05-15 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+GLMRUSDT,1d,0,2024-05-15 08:00:00+00:00,2024-05-16 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+GLMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GLMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GMTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GMTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GMXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+GMXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+GOATUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GOATUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GPSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GPSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GRAMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GRAMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GRASSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GRASSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GRIFFAINUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GRIFFAINUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GRTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+GRTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+GRVTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GRVTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GTCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+GTCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+GUAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GUAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GUNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GUNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GWEIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+GWEIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HAEDALUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HAEDALUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HANAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HANAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HBARUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+HBARUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+HEIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HEIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HEMIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HEMIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HFTUSDT,4h,0,2026-08-07 08:00:00+00:00,2026-08-07 12:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+HFTUSDT,1d,0,2026-08-07 08:00:00+00:00,2026-08-08 00:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+HIFIUSDT,4h,0,2025-10-03 08:00:00+00:00,2025-10-03 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+HIFIUSDT,1d,0,2025-10-03 08:00:00+00:00,2025-10-04 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+HIGHUSDT,4h,0,2026-06-11 08:00:00+00:00,2026-06-11 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+HIGHUSDT,1d,0,2026-06-11 08:00:00+00:00,2026-06-12 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+HIPPOUSDT,4h,0,2026-04-08 08:00:00+00:00,2026-04-08 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+HIPPOUSDT,1d,0,2026-04-08 08:00:00+00:00,2026-04-09 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+HIVEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HIVEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HMSTRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HMSTRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HNTUSDT,4h,0,2023-03-20 08:00:00+00:00,2023-03-20 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+HNTUSDT,1d,0,2023-03-20 08:00:00+00:00,2023-03-21 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+HOLOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HOLOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HOMEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HOMEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HOOKUSDT,4h,0,2026-03-24 08:00:00+00:00,2026-03-24 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+HOOKUSDT,1d,0,2026-03-24 08:00:00+00:00,2026-03-25 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+HOTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+HOTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+HUMAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HUMAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HYPERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HYPERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HYPEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+HYPEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ICNTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ICNTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ICPUSDT,4h,0,2022-06-10 08:00:00+00:00,2022-06-10 12:00:00+00:00,dolgu_kosusu,True,0,False,,False,False
+ICPUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ICPUSDT,1d,0,2022-06-10 08:00:00+00:00,2022-06-11 00:00:00+00:00,dolgu_kosusu,True,0,False,,False,False
+ICPUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ICXUSDT,4h,0,2026-08-26 08:00:00+00:00,2026-08-26 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+ICXUSDT,1d,0,2026-08-26 08:00:00+00:00,2026-08-27 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+IDEXUSDT,4h,0,2024-05-15 08:00:00+00:00,2024-05-15 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+IDEXUSDT,1d,0,2024-05-15 08:00:00+00:00,2024-05-16 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+IDOLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+IDOLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+IDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+IDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ILVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ILVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+IMXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+IMXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+INITUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+INITUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+INJUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+INJUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+INUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+INUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+INXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+INXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+IOSTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+IOSTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+IOTAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+IOTAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+IOTXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+IOTXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+IOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+IOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+IPUSDT,4h,0,2026-06-28 08:00:00+00:00,2026-06-28 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+IPUSDT,1d,0,2026-06-28 08:00:00+00:00,2026-06-29 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+IRUSDT,4h,0,2026-04-29 08:00:00+00:00,2026-04-29 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+IRUSDT,1d,0,2026-04-29 08:00:00+00:00,2026-04-30 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+IRYSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+IRYSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JASMYUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+JASMYUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+JCTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JCTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JELLYJELLYUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JELLYJELLYUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JOEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+JOEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+JSTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JSTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JTOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JTOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JUPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+JUPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KAIAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KAIAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KAITOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KAITOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KASUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KASUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KATUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KATUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KAVAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KAVAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KDAUSDT,4h,0,2025-11-06 08:00:00+00:00,2025-11-06 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+KDAUSDT,1d,0,2025-11-06 08:00:00+00:00,2025-11-07 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+KEEPUSDT,4h,0,2022-02-15 00:00:00+00:00,2022-02-15 04:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+KEEPUSDT,1d,0,2022-02-15 00:00:00+00:00,2022-02-16 00:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,False,True
+KERNELUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KERNELUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KEYUSDT,4h,0,2024-12-03 08:00:00+00:00,2024-12-03 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+KEYUSDT,1d,0,2024-12-03 08:00:00+00:00,2024-12-04 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+KGENUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KGENUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KITEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KITEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KLAYUSDT,4h,0,2024-10-22 08:00:00+00:00,2024-10-22 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+KLAYUSDT,1d,0,2024-10-22 08:00:00+00:00,2024-10-23 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+KMNOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KMNOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KNCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+KNCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+KOMAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KOMAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+KSMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+KSMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+LABUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LABUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LAYERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LAYERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LDOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+LDOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+LENDUSDT,4h,0,2020-10-09 20:00:00+00:00,2020-10-10 00:00:00+00:00,delist_exchangeInfo_disi,True,1,True,8.0,True,True
+LENDUSDT,1d,0,2020-10-09 20:00:00+00:00,2020-10-10 00:00:00+00:00,delist_exchangeInfo_disi,True,1,True,8.0,True,True
+LEVERUSDT,4h,0,2025-09-03 08:00:00+00:00,2025-09-03 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+LEVERUSDT,1d,0,2025-09-03 08:00:00+00:00,2025-09-04 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+LIGHTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LIGHTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LINAUSDT,4h,0,2025-03-27 08:00:00+00:00,2025-03-27 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+LINAUSDT,1d,0,2025-03-27 08:00:00+00:00,2025-03-28 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+LINEAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LINEAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LINKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+LINKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+LISTAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LISTAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LITUSDT,4h,0,2025-01-31 08:00:00+00:00,2025-01-31 12:00:00+00:00,dolgu_kosusu,True,0,False,8.0,True,True
+LITUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LITUSDT,1d,0,2025-01-31 08:00:00+00:00,2025-02-01 00:00:00+00:00,dolgu_kosusu,True,2,True,8.0,False,True
+LITUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LOKAUSDT,4h,0,2025-07-21 08:00:00+00:00,2025-07-21 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+LOKAUSDT,1d,0,2025-07-21 08:00:00+00:00,2025-07-22 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+LOOMUSDT,4h,0,2024-12-09 08:00:00+00:00,2024-12-09 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+LOOMUSDT,1d,0,2024-12-09 08:00:00+00:00,2024-12-10 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+LPTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LPTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LQTYUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+LQTYUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+LRCUSDT,4h,0,2026-03-24 08:00:00+00:00,2026-03-24 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+LRCUSDT,1d,0,2026-03-24 08:00:00+00:00,2026-03-25 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+LSKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LSKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LTCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+LTCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+LUMIAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LUMIAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LUNA2USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LUNA2USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LUNAUSDT,4h,0,2022-05-12 12:00:00+00:00,2022-05-12 16:00:00+00:00,delist_exchangeInfo_disi,True,1,True,8.0,True,True
+LUNAUSDT,1d,0,2022-05-12 12:00:00+00:00,2022-05-13 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+LYNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+LYNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MAGICUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MAGICUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MAGMAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MAGMAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MANAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+MANAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+MANTAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MANTAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MANTRAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MANTRAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MASKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MASKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MATICUSDT,4h,0,2024-09-04 08:00:00+00:00,2024-09-04 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+MATICUSDT,1d,0,2024-09-04 08:00:00+00:00,2024-09-05 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+MAVIAUSDT,4h,0,2024-12-16 08:00:00+00:00,2024-12-16 12:00:00+00:00,dolgu_kosusu,True,1,True,4.0,True,True
+MAVIAUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MAVIAUSDT,1d,0,2024-12-16 08:00:00+00:00,2024-12-17 00:00:00+00:00,dolgu_kosusu,True,4,True,4.0,False,True
+MAVIAUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MAVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+MAVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+MBLUSDT,4h,0,2024-05-13 08:00:00+00:00,2024-05-13 12:00:00+00:00,delist_exchangeInfo_disi,True,1,True,4.0,True,True
+MBLUSDT,1d,0,2024-05-13 08:00:00+00:00,2024-05-14 00:00:00+00:00,delist_exchangeInfo_disi,True,4,True,4.0,False,True
+MBOXUSDT,4h,0,2026-06-11 08:00:00+00:00,2026-06-11 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MBOXUSDT,1d,0,2026-06-11 08:00:00+00:00,2026-06-12 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MDTUSDT,4h,0,2024-05-16 08:00:00+00:00,2024-05-16 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+MDTUSDT,1d,0,2024-05-16 08:00:00+00:00,2024-05-17 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+MEGAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MEGAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MELANIAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MELANIAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MEMEFIUSDT,4h,0,2025-08-11 08:00:00+00:00,2025-08-11 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MEMEFIUSDT,1d,0,2025-08-11 08:00:00+00:00,2025-08-12 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MEMEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MEMEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MERLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MERLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+METISUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+METISUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+METUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+METUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MEWUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MEWUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MILKUSDT,4h,0,2025-12-05 08:00:00+00:00,2025-12-05 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MILKUSDT,1d,0,2025-12-05 08:00:00+00:00,2025-12-06 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MINAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+MINAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+MIRAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MIRAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MITOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MITOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MKRUSDT,4h,0,2025-09-08 08:00:00+00:00,2025-09-08 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+MKRUSDT,1d,0,2025-09-08 08:00:00+00:00,2025-09-09 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+MLNUSDT,4h,0,2026-05-19 08:00:00+00:00,2026-05-19 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MLNUSDT,1d,0,2026-05-19 08:00:00+00:00,2026-05-20 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MMTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MMTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MOCAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MOCAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MONUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MONUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MOODENGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MOODENGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MORPHOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MORPHOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MOVEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MOVEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MOVRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MOVRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MTLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+MTLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+MUBARAKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MUBARAKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MYROUSDT,4h,0,2025-11-14 08:00:00+00:00,2025-11-14 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MYROUSDT,1d,0,2025-11-14 08:00:00+00:00,2025-11-15 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+MYXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+MYXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NAORISUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NAORISUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NEARUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+NEARUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+NEIROETHUSDT,4h,0,2025-09-26 08:00:00+00:00,2025-09-26 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+NEIROETHUSDT,1d,0,2025-09-26 08:00:00+00:00,2025-09-27 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+NEIROUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NEIROUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NEOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+NEOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+NEWTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NEWTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NFPUSDT,4h,0,2026-07-02 08:00:00+00:00,2026-07-02 12:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+NFPUSDT,1d,0,2026-07-02 08:00:00+00:00,2026-07-03 00:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+NIGHTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NIGHTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NILUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NILUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NKNUSDT,4h,0,2026-02-06 08:00:00+00:00,2026-02-06 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+NKNUSDT,1d,0,2026-02-06 08:00:00+00:00,2026-02-07 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+NMRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NMRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NOMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NOMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NOTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NOTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NTRNUSDT,4h,0,2026-03-24 08:00:00+00:00,2026-03-24 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+NTRNUSDT,1d,0,2026-03-24 08:00:00+00:00,2026-03-25 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+NULSUSDT,4h,0,2025-04-14 08:00:00+00:00,2025-04-14 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+NULSUSDT,1d,0,2025-04-14 08:00:00+00:00,2025-04-15 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+NUUSDT,4h,0,2022-02-15 00:00:00+00:00,2022-02-15 04:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+NUUSDT,1d,0,2022-02-15 00:00:00+00:00,2022-02-16 00:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,False,True
+NXPCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+NXPCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OBOLUSDT,4h,0,2025-12-05 08:00:00+00:00,2025-12-05 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+OBOLUSDT,1d,0,2025-12-05 08:00:00+00:00,2025-12-06 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+OCEANUSDT,4h,0,2024-06-25 08:00:00+00:00,2024-06-25 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+OCEANUSDT,1d,0,2024-06-25 08:00:00+00:00,2024-06-26 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+OGNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OGNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OLUSDT,4h,0,2026-04-08 08:00:00+00:00,2026-04-08 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+OLUSDT,1d,0,2026-04-08 08:00:00+00:00,2026-04-09 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+OMGUSDT,4h,0,2025-01-31 08:00:00+00:00,2025-01-31 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+OMGUSDT,1d,0,2025-01-31 08:00:00+00:00,2025-02-01 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+OMNIUSDT,4h,0,2025-09-22 08:00:00+00:00,2025-09-22 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+OMNIUSDT,1d,0,2025-09-22 08:00:00+00:00,2025-09-23 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+OMUSDT,4h,0,2026-02-23 08:00:00+00:00,2026-02-23 12:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+OMUSDT,1d,0,2026-02-23 08:00:00+00:00,2026-02-24 00:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+ONDOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ONDOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ONEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ONEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ONGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,3,False,1.0,False,True
+ONGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,3,False,1.0,False,True
+ONTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ONTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ONUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ONUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OPENUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OPENUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OPGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OPGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OPNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OPNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+OPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ORBSUSDT,4h,0,2024-12-09 08:00:00+00:00,2024-12-09 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+ORBSUSDT,1d,0,2024-12-09 08:00:00+00:00,2024-12-10 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+ORCAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ORCAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ORDERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ORDERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ORDIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ORDIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+OXTUSDT,4h,0,2026-04-15 08:00:00+00:00,2026-04-15 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+OXTUSDT,1d,0,2026-04-15 08:00:00+00:00,2026-04-16 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+PARTIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PARTIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PAXGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PAXGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PENDLEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+PENDLEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+PENGUUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PENGUUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PEOPLEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+PEOPLEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+PERPUSDT,4h,0,2025-11-21 08:00:00+00:00,2025-11-21 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+PERPUSDT,1d,0,2025-11-21 08:00:00+00:00,2025-11-22 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+PHAROSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PHAROSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PHAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PHAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PHBUSDT,4h,0,2026-05-19 08:00:00+00:00,2026-05-19 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+PHBUSDT,1d,0,2026-05-19 08:00:00+00:00,2026-05-20 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+PIEVERSEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PIEVERSEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PIPPINUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PIPPINUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PIXELUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PIXELUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PLAYUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PLAYUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PLUMEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PLUMEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PNUTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PNUTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+POLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+POLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+POLYXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+POLYXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PONKEUSDT,4h,0,2025-11-28 08:00:00+00:00,2025-11-28 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+PONKEUSDT,1d,0,2025-11-28 08:00:00+00:00,2025-11-29 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+POPCATUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+POPCATUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PORT3USDT,4h,0,2025-11-23 04:00:00+00:00,2025-11-23 08:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+PORT3USDT,1d,0,2025-11-23 04:00:00+00:00,2025-11-24 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+PORTALUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PORTALUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+POWERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+POWERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+POWRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+POWRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PRLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PRLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PROMPTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PROMPTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PROMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PROMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PROVEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PROVEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PTBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PTBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PUFFERUSDT,4h,0,2026-04-08 08:00:00+00:00,2026-04-08 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+PUFFERUSDT,1d,0,2026-04-08 08:00:00+00:00,2026-04-09 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+PUMPBTCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PUMPBTCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PUMPUSDT,4h,0,2025-06-13 08:00:00+00:00,2025-06-13 12:00:00+00:00,dolgu_kosusu,True,1,True,4.0,True,True
+PUMPUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PUMPUSDT,1d,0,2025-06-13 08:00:00+00:00,2025-06-14 00:00:00+00:00,dolgu_kosusu,True,4,True,4.0,False,True
+PUMPUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PUNDIXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PUNDIXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PYTHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+PYTHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+QNTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+QNTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+QTUMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+QTUMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+QUICKUSDT,4h,0,2025-11-28 08:00:00+00:00,2025-11-28 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+QUICKUSDT,1d,0,2025-11-28 08:00:00+00:00,2025-11-29 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+QUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+QUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RADUSDT,4h,0,2024-05-14 08:00:00+00:00,2024-05-14 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+RADUSDT,1d,0,2024-05-14 08:00:00+00:00,2024-05-15 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+RAREUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RAREUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RAVEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RAVEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RAYSOLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RAYSOLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RAYUSDT,4h,0,2022-11-15 04:00:00+00:00,2022-11-15 08:00:00+00:00,delist_SETTLING,True,1,True,8.0,True,True
+RAYUSDT,1d,0,2022-11-15 04:00:00+00:00,2022-11-16 00:00:00+00:00,delist_SETTLING,True,3,True,8.0,False,True
+RDNTUSDT,4h,0,2026-03-24 08:00:00+00:00,2026-03-24 12:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+RDNTUSDT,1d,0,2026-03-24 08:00:00+00:00,2026-03-25 00:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+RECALLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RECALLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+REDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+REDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+REEFUSDT,4h,0,2025-01-22 08:00:00+00:00,2025-01-22 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+REEFUSDT,1d,0,2025-01-22 08:00:00+00:00,2025-01-23 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+REIUSDT,4h,0,2025-12-10 08:00:00+00:00,2025-12-10 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+REIUSDT,1d,0,2025-12-10 08:00:00+00:00,2025-12-11 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+RENDERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RENDERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RENUSDT,4h,0,2024-12-03 08:00:00+00:00,2024-12-03 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+RENUSDT,1d,0,2024-12-03 08:00:00+00:00,2024-12-04 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+RESOLVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RESOLVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+REUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+REUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+REZUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+REZUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RIFUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RIFUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RIVERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RIVERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RLCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+RLCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+RLSUSDT,4h,0,2026-04-08 08:00:00+00:00,2026-04-08 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+RLSUSDT,1d,0,2026-04-08 08:00:00+00:00,2026-04-09 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+RNDRUSDT,4h,0,2024-07-16 08:00:00+00:00,2024-07-16 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+RNDRUSDT,1d,0,2024-07-16 08:00:00+00:00,2024-07-17 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+ROBOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ROBOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RONINUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RONINUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ROSEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ROSEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+RPLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RPLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RSRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+RSRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+RUNEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+RUNEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+RVNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RVNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+RVVUSDT,4h,0,2026-02-10 08:00:00+00:00,2026-02-10 12:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+RVVUSDT,1d,0,2026-02-10 08:00:00+00:00,2026-02-11 00:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+SAFEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SAFEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SAGAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SAGAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SAHARAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SAHARAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SANDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SANDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SANTOSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SANTOSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SAPIENUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SAPIENUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SCRTUSDT,4h,0,2026-08-26 08:00:00+00:00,2026-08-26 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+SCRTUSDT,1d,0,2026-08-26 08:00:00+00:00,2026-08-27 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+SCRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SCRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SCUSDT,4h,0,2022-06-17 08:00:00+00:00,2022-06-17 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+SCUSDT,1d,0,2022-06-17 08:00:00+00:00,2022-06-18 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+SEIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SEIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SENTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SENTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SFPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SFPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SHELLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SHELLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SIGNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SIGNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SIRENUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SIRENUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SKATEUSDT,4h,0,2025-12-10 08:00:00+00:00,2025-12-10 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+SKATEUSDT,1d,0,2025-12-10 08:00:00+00:00,2025-12-11 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+SKLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SKLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SKRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,3,False,1.0,False,True
+SKRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,3,False,1.0,False,True
+SKYAIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SKYAIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SKYUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SKYUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SLERFUSDT,4h,0,2025-10-20 08:00:00+00:00,2025-10-20 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+SLERFUSDT,1d,0,2025-10-20 08:00:00+00:00,2025-10-21 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+SLPUSDT,4h,0,2024-05-15 08:00:00+00:00,2024-05-15 12:00:00+00:00,dolgu_kosusu,True,1,True,4.0,True,True
+SLPUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SLPUSDT,1d,0,2024-05-15 08:00:00+00:00,2024-05-16 00:00:00+00:00,dolgu_kosusu,True,4,True,4.0,False,True
+SLPUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SLXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SLXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SNTUSDT,4h,0,2024-05-13 08:00:00+00:00,2024-05-13 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+SNTUSDT,1d,0,2024-05-13 08:00:00+00:00,2024-05-14 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+SNXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SNXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SOLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SOLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SOLVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SOLVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SOMIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SOMIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SONICUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SONICUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SOONUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SOONUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SOPHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SOPHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SPACEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SPACEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SPELLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SPELLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SPKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SPKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SPORTFUNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SPORTFUNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SPXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SPXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SQDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SQDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SRMUSDT,4h,0,2022-11-15 04:00:00+00:00,2022-11-15 08:00:00+00:00,delist_exchangeInfo_disi,True,1,True,8.0,True,True
+SRMUSDT,1d,0,2022-11-15 04:00:00+00:00,2022-11-16 00:00:00+00:00,delist_exchangeInfo_disi,True,3,True,8.0,False,True
+SSVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SSVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+STABLEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STABLEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STARUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STARUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STBLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STBLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STEEMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STEEMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STMXUSDT,4h,0,2025-02-21 08:00:00+00:00,2025-02-21 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+STMXUSDT,1d,0,2025-02-21 08:00:00+00:00,2025-02-22 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+STORJUSDT,4h,0,2026-08-26 08:00:00+00:00,2026-08-26 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+STORJUSDT,1d,0,2026-08-26 08:00:00+00:00,2026-08-27 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+STOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STPTUSDT,4h,0,2024-05-13 08:00:00+00:00,2024-05-13 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+STPTUSDT,1d,0,2024-05-13 08:00:00+00:00,2024-05-14 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+STRAXUSDT,4h,0,2024-03-15 08:00:00+00:00,2024-03-15 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+STRAXUSDT,1d,0,2024-03-15 08:00:00+00:00,2024-03-16 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+STRKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STRKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+STXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+STXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SUIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SUIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SUNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SUNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SUPERUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SUPERUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SUSHIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SUSHIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+SWARMSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SWARMSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SWELLUSDT,4h,0,2025-11-28 08:00:00+00:00,2025-11-28 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+SWELLUSDT,1d,0,2025-11-28 08:00:00+00:00,2025-11-29 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+SXPUSDT,4h,0,2025-12-05 08:00:00+00:00,2025-12-05 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+SXPUSDT,1d,0,2025-12-05 08:00:00+00:00,2025-12-06 00:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,False,True
+SXTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SXTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SYNUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SYNUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SYRUPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SYRUPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+SYSUSDT,4h,0,2026-05-19 08:00:00+00:00,2026-05-19 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+SYSUSDT,1d,0,2026-05-19 08:00:00+00:00,2026-05-20 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+TACUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TACUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TAGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TAGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TAIKOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TAIKOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TAKEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TAKEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TANSSIUSDT,4h,0,2026-01-21 08:00:00+00:00,2026-01-21 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+TANSSIUSDT,1d,0,2026-01-21 08:00:00+00:00,2026-01-22 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+TAOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TAOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+THETAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+THETAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+THEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+THEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TIAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TIAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TLMUSDT,4h,0,2022-06-09 08:00:00+00:00,2022-06-09 12:00:00+00:00,dolgu_kosusu,True,0,False,,False,False
+TLMUSDT,4h,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TLMUSDT,1d,0,2022-06-09 08:00:00+00:00,2022-06-10 00:00:00+00:00,dolgu_kosusu,True,0,False,,False,False
+TLMUSDT,1d,1,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TNSRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TNSRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TOKENUSDT,4h,0,2025-12-05 08:00:00+00:00,2025-12-05 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+TOKENUSDT,1d,0,2025-12-05 08:00:00+00:00,2025-12-06 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+TOMOUSDT,4h,0,2023-11-14 08:00:00+00:00,2023-11-14 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+TOMOUSDT,1d,0,2023-11-14 08:00:00+00:00,2023-11-15 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+TONUSDT,4h,0,2026-06-23 08:00:00+00:00,2026-06-23 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+TONUSDT,1d,0,2026-06-23 08:00:00+00:00,2026-06-24 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+TOSHIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TOSHIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TOWNSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TOWNSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRADOORUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRADOORUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TREEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TREEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRIAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRIAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TROYUSDT,4h,0,2025-04-14 08:00:00+00:00,2025-04-14 12:00:00+00:00,delist_SETTLING,True,2,True,2.0,True,True
+TROYUSDT,1d,0,2025-04-14 08:00:00+00:00,2025-04-15 00:00:00+00:00,delist_SETTLING,True,8,True,2.0,False,True
+TRUMPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRUMPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRUSTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRUSTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRUTHUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRUTHUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TRUUSDT,4h,0,2026-04-21 08:00:00+00:00,2026-04-21 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+TRUUSDT,1d,0,2026-04-21 08:00:00+00:00,2026-04-22 00:00:00+00:00,delist_SETTLING,True,0,False,8.0,False,True
+TRXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+TRXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+TSTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TSTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TURBOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TURBOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TURTLEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TURTLEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TUTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TUTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TWTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+TWTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+UAIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+UAIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+UBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+UBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+UMAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+UMAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+UNFIUSDT,4h,0,2024-10-30 08:00:00+00:00,2024-10-30 12:00:00+00:00,delist_SETTLING,True,1,True,4.0,True,True
+UNFIUSDT,1d,0,2024-10-30 08:00:00+00:00,2024-10-31 00:00:00+00:00,delist_SETTLING,True,4,True,4.0,False,True
+UNIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+UNIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+USELESSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+USELESSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+USTCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+USTCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+USUALUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+USUALUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+USUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+USUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+UXLINKUSDT,4h,0,2025-09-26 08:00:00+00:00,2025-09-26 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+UXLINKUSDT,1d,0,2025-09-26 08:00:00+00:00,2025-09-27 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VANAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VANAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VANRYUSDT,4h,0,2026-08-07 08:00:00+00:00,2026-08-07 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VANRYUSDT,1d,0,2026-08-07 08:00:00+00:00,2026-08-08 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VELODROMEUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VELODROMEUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VELVETUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VELVETUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VETUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+VETUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+VFYUSDT,4h,0,2026-03-17 08:00:00+00:00,2026-03-17 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VFYUSDT,1d,0,2026-03-17 08:00:00+00:00,2026-03-18 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VICUSDT,4h,0,2026-08-07 08:00:00+00:00,2026-08-07 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VICUSDT,1d,0,2026-08-07 08:00:00+00:00,2026-08-08 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VIDTUSDT,4h,0,2025-04-14 08:00:00+00:00,2025-04-14 12:00:00+00:00,delist_SETTLING,True,2,True,2.0,True,True
+VIDTUSDT,1d,0,2025-04-14 08:00:00+00:00,2025-04-15 00:00:00+00:00,delist_SETTLING,True,8,True,2.0,False,True
+VINEUSDT,4h,0,2026-04-28 08:00:00+00:00,2026-04-28 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VINEUSDT,1d,0,2026-04-28 08:00:00+00:00,2026-04-29 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VIRTUALUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VIRTUALUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VOXELUSDT,4h,0,2025-12-10 08:00:00+00:00,2025-12-10 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VOXELUSDT,1d,0,2025-12-10 08:00:00+00:00,2025-12-11 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+VTHOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VTHOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VVVUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+VVVUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WALUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WALUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WAVESUSDT,4h,0,2024-06-11 08:00:00+00:00,2024-06-11 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+WAVESUSDT,1d,0,2024-06-11 08:00:00+00:00,2024-06-12 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+WAXPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WAXPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WCTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WCTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WETUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WETUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WIFUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WIFUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WLDUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+WLDUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+WLFIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WLFIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WOOUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+WOOUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+WUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+WUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XAIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XAIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XANUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XANUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XAUTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XAUTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XCNUSDT,4h,0,2025-11-21 08:00:00+00:00,2025-11-21 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+XCNUSDT,1d,0,2025-11-21 08:00:00+00:00,2025-11-22 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+XEMUSDT,4h,0,2024-12-09 08:00:00+00:00,2024-12-09 12:00:00+00:00,delist_SETTLING,True,0,False,8.0,True,True
+XEMUSDT,1d,0,2024-12-09 08:00:00+00:00,2024-12-10 00:00:00+00:00,delist_SETTLING,True,2,True,8.0,False,True
+XLMUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+XLMUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+XMRUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+XMRUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+XNYUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XNYUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XPINUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XPINUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XPLUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XPLUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XRPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+XRPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+XTZUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XTZUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+XVGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+XVGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+XVSUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+XVSUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+YALAUSDT,4h,0,2026-02-10 08:00:00+00:00,2026-02-10 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+YALAUSDT,1d,0,2026-02-10 08:00:00+00:00,2026-02-11 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+YBUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+YBUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+YFIIUSDT,4h,0,2022-04-12 08:00:00+00:00,2022-04-12 12:00:00+00:00,delist_exchangeInfo_disi,True,0,False,8.0,True,True
+YFIIUSDT,1d,0,2022-04-12 08:00:00+00:00,2022-04-13 00:00:00+00:00,delist_exchangeInfo_disi,True,2,True,8.0,False,True
+YFIUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+YFIUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+YGGUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+YGGUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZAMAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZAMAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZBTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZBTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZECUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ZECUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ZENUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ZENUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,8.0,False,True
+ZEREBROUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZEREBROUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZESTUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZESTUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZETAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZETAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZILUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZILUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZKCUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,3,False,1.0,False,True
+ZKCUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,3,False,1.0,False,True
+ZKJUSDT,4h,0,2026-04-29 08:00:00+00:00,2026-04-29 12:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+ZKJUSDT,1d,0,2026-04-29 08:00:00+00:00,2026-04-30 00:00:00+00:00,delist_SETTLING,True,0,False,1.0,False,True
+ZKPUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZKPUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZKUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZKUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZORAUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZORAUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZRCUSDT,4h,0,2026-01-21 08:00:00+00:00,2026-01-21 12:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+ZRCUSDT,1d,0,2026-01-21 08:00:00+00:00,2026-01-22 00:00:00+00:00,delist_SETTLING,True,0,False,4.0,False,True
+ZROUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZROUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZRXUSDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+ZRXUSDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+币安人生USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+币安人生USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+我踏马来了USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+我踏马来了USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+牛来USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+牛来USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,False
+龙虾USDT,4h,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True
+龙虾USDT,1d,0,2026-08-31 20:00:00+00:00,2026-09-01 00:00:00+00:00,veri_sonu,False,0,False,4.0,False,True

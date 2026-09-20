@@ -1,23 +1,20 @@
 # F1 Veri Denetimi — TAM EVREN (678 sembol), ön-kayıt rev.7
 
 **Durum:** Tam koşu, 678/678 sembol, **hata yok**.
-**Koşu:** 2026-09-18 21:42:43 → 21:58:44 UTC, 8 iş parçacığı, önbellekten,
+**Koşu:** 2026-09-20 20:43:09 → 21:02:05 UTC, 8 iş parçacığı, önbellekten,
 `--eski-evren` (rev.7 öncesi tabloyla karşılaştırma, §5) açık.
-**Kod:** `16b012c`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
-hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor (665 geçti,
-1 xfail). Aynı çıktılar bir önceki temiz koşuda (`ee4407e`, 21:19 → 21:37 UTC) da
-birebir üretilmişti; o commit'te A2 değişikliğinin kırdığı iki test başarısızdı
-(16b012c'de düzeltildi). İki temiz koşu arasında yalnızca `ortam_tam.csv` farklı.
-**A1 ölçümü:** `209f115`, çalışma ağacı temiz, 2026-09-18 22:05:04 → 22:11:46 UTC
-(`a1_ortam_tam.csv`). Çıktılar `ee4407e` üzerindeki temiz koşuyla birebir aynı.
-**Önceki koşudan (73f3ab0 üzerine kirli ağaç, 12:43 UTC) farklar:**
-- `sembol_ozeti`: 4 yeni sütun (D-A5, C2). Eski sütunların hepsi aynı.
-- `donem_sonu_degisimleri`: 4 yeni sütun (D-A2). Eski sütunların hepsi aynı.
-- `yillik_kapsama`: `veri_bulunan_sembol` paydası değişti (D-C1); `yalniz_dolgu_bari_olan`
-  sütunu eklendi. Eşik sayıları aynı.
-- `bosluk_olaylari`: `o_aralikta_veri_olan` paydası değişti (D-C1). `borsa_geneli`
-  sınıflaması aynı.
-- Yeni dosyalar: `donem_aralari`, `rapor_sayilari`.
+**Kod:** `6aa73a4`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
+hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor.
+**A1 ölçümü:** aynı commit, aynı temiz ağaç, 2026-09-20 20:43:11 → 20:51:22 UTC
+(`a1_ortam_tam.csv`). A1'in referans koşusu budur; daha eski A1 çıktılarının zamanı
+dosya tarihinden türetilmişti ve artık kullanılmıyor (denetçi bulgusu D-B2).
+**Önceki temiz koşudan (`16b012c` / `209f115`) farklar:**
+- `sembol_ozeti`: `funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat` sütunu eklendi.
+- `rapor_sayilari`: 8 saat sayımı iki referansa ayrıldı, `rev8` bölümü eklendi.
+- `a1_d_kurali`: 1 günlük çıkış ızgarası (H3) satırları ve `cikis_ani`,
+  `kapanista_odeme`, `son_odeme_aralik_saat` sütunları eklendi.
+- `a1_uzlasma_sonrasi_oranlar` ve `a1_teslimsiz_son_bar_funding`: çalışma ağacından
+  kaldırıldı (D-B1).
 - Diğer tüm `*_tam.csv` dosyaları birebir aynı.
 **Evren:** commit edilmiş `data/universe.csv` (rev.7, bar düzeyinde dönemler).
 **exchangeInfo:** depodaki görüntü `data/exchange_info_anlik.json`

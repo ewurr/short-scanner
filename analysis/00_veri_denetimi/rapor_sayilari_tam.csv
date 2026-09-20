@@ -76,7 +76,9 @@ bolum,kalem,deger
 4,atilan_son_donem_sonrasi_sembol,57
 4,atilan_son_donem_sonrasi_sembol_SETTLING,38
 4,atilan_son_donem_sonrasi_sembol_exchangeInfo_disi,19
-4,atilan_son_donem_sonrasi_8_saat_icinde_baslayan,57
+4,atilan_son_donem_sonrasi_8_saat_icinde_baslayan_kapanistan,57
+4,atilan_son_donem_sonrasi_8_saat_icinde_baslayan_bitisten,53
+4,atilan_son_donem_sonrasi_bitisten_8_saati_asan_semboller,"FTTUSDT,LUNAUSDT,RAYUSDT,SRMUSDT"
 4,atilan_donemler_arasi_kayit,8881
 4,atilan_donemler_arasi_sembol,12
 4,atilan_donemler_arasi_kayit_dolgu_kosusu,8817
@@ -133,6 +135,9 @@ bolum,kalem,deger
 8,sicrama_donem_basi,8
 8,sicrama_donem_ici_bosluk_sonrasi,2
 9,kisa_donem,5
+rev8,settled_ayinda_dolgu_kosusu_yok (on-kayit: 14),18
+rev8,uzlasma_sonrasi_dolgusu_olan_sembol (on-kayit: 131),145
+rev8,uzlasma_sonrasi_funding_yayinlanan_sembol (on-kayit: 38),57
 12,capraz_toplam_gun,615043
 12,capraz_fiyat_gun,7
 12,capraz_hacim_gun,261
