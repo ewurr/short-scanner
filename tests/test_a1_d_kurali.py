@@ -165,3 +165,53 @@ def test_ic_donem_sonu_dolgu_kosusu():
 def test_ic_donem_sonu_uzun_bosluk():
     donemler, z, h = _iki_donem(ara_sifir_bar=0, ara_eksik_bar=43)  # > 7 gun
     assert a1.donem_sonu_turleri(donemler, "TRADING", donemler[1].bitis, z, h) == ["uzun_bosluk", "veri_sonu"]
+
+
+# --- Cikis izgarasi (4h / 1d) ve yeni sutunlar ------------------------------------
+
+
+def test_donem_sonu_cikisi_4h_son_barin_kapanisi():
+    assert a1.donem_sonu_cikisi(DONEM, config.BAR_4H) == (BITIS, T("2025-04-14 12:00"))
+
+
+def test_donem_sonu_cikisi_1d_gunun_kapanisi():
+    """H3: donem bitisini iceren 1 gunluk barin acilisi o gunun 00:00'i, cikis
+    ertesi gun 00:00."""
+    assert a1.donem_sonu_cikisi(DONEM, config.BAR_1D) == (T("2025-04-14 00:00"), T("2025-04-15 00:00"))
+
+
+def test_1d_cikisinda_disarida_kalan_gun_sonuna_kadar_sayar():
+    """1 gunluk cikista pencere donem bitisinden ertesi gun 00:00'a kadar uzar;
+    4 saatlik olcumde sayilmayan 16:00 ve 20:00 kayitlari da girer."""
+    fund = _fund(_ritim("2025-04-13 00:00", "2025-04-14 20:00", 4))
+    dort = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund, config.BAR_4H)[0]
+    gun = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund, config.BAR_1D)[0]
+    assert dort["disarida_kalan"] == 1        # yalnizca 12:00
+    assert gun["disarida_kalan"] == 3         # 12:00, 16:00, 20:00
+    assert gun["cikis_ani"] == T("2025-04-15 00:00")
+
+
+def test_1d_cikisinda_tamlik_mevcut_bozuk_d_kurali_tam():
+    """Uzlasmadan sonra odeme kesilince 1 gunluk cikisin kapanisinda (ertesi gun
+    00:00) kayit yoktur; mevcut kural bozulur, D kurali donem bitisinde arar."""
+    fund = _fund(_ritim("2025-04-12 00:00", "2025-04-14 08:00", 4))
+    gun = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund, config.BAR_1D)[0]
+    assert not gun["tamlik_mevcut"]
+    assert gun["tamlik_d"]
+
+
+def test_kapanista_odeme_sutunu():
+    var = _fund(_ritim("2025-04-13 00:00", "2025-04-14 12:00", 4))
+    yok = _fund(_ritim("2025-04-13 00:00", "2025-04-14 08:00", 4))
+    assert a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], var, config.BAR_4H)[0]["kapanista_odeme"]
+    assert not a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], yok, config.BAR_4H)[0]["kapanista_odeme"]
+
+
+def test_son_odeme_aralik_saat_donem_bitisine_kadarki_son_kayittan():
+    """Aralik degisirse (8h -> 2h) sutun donem bitisine kadarki SON kaydin
+    araligini yazmali; uzlasma sonrasi kaydin araligini degil."""
+    zamanlar = _ritim("2025-04-13 00:00", "2025-04-14 06:00", 2)
+    fund = _fund(zamanlar + [T("2025-04-14 12:00")])
+    fund.loc[fund["odeme_zamani"] == T("2025-04-14 12:00"), "aralik_saat"] = 8
+    satir = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund, config.BAR_4H)[0]
+    assert satir["son_odeme_aralik_saat"] == 4  # _fund varsayilani; 06:00 kaydi
