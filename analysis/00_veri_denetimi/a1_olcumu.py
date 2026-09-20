@@ -48,7 +48,7 @@ sys.path.insert(0, str(KOK))
 sys.path.insert(0, str(BU_DIZIN))
 
 import config  # noqa: E402
-from calistir import git_durumu, ortam_kaydi  # noqa: E402
+from calistir import csv_yaz, git_durumu, ortam_kaydi  # noqa: E402
 from data import donem as donem_modulu  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
 from data import klines as klines_modulu  # noqa: E402
@@ -267,7 +267,7 @@ def main(argv: list[str] | None = None) -> None:
                              "konum": konum(x["odeme_zamani"], acilis, kapanis, None)})
     tablo = pd.DataFrame(satirlar, columns=["sembol", "deliveryDate", "donem_bitis", "odeme_zamani",
                                             "teslimden_sonra_saat", "aralik_saat", "cikis_anina_denk"])
-    tablo.to_csv(CIKTI, index=False, lineterminator="\n")
+    csv_yaz(tablo, CIKTI)
     etkilenen = sum(1 for _, n in sayim if n)
     print(f"SETTLING sembol: {len(sayim)}")
     print(f"uzlasma sonrasi donem icinde kalan kayit: {len(tablo)} ({etkilenen} sembol)")
@@ -278,7 +278,7 @@ def main(argv: list[str] | None = None) -> None:
 
     konum_tablosu = pd.DataFrame(konumlar, columns=["sembol", "sinif", "deliveryDate", "son_bar_acilisi",
                                                     "son_bar_kapanisi", "odeme_zamani", "aralik_saat", "konum"])
-    konum_tablosu.to_csv(CIKTI_KONUM, index=False, lineterminator="\n")
+    csv_yaz(konum_tablosu, CIKTI_KONUM)
     print("\n--- Konumlar (yalnizca zaman; deger yok) ---")
     for s_, g in konum_tablosu.groupby("sinif"):
         print(f"{s_}: {len(g)} kayit, {g['sembol'].nunique()} sembol, {g['konum'].value_counts().to_dict()}")
@@ -289,8 +289,11 @@ def main(argv: list[str] | None = None) -> None:
     # Oneri etkisi (1093e69'daki 43 kayit dokumu, ayni sinirlarla): ust sinir son
     # barin kapanisi yerine acilisi olsaydi kac kayit donem disina cikardi.
     # Alt uc `>` (1093e69 ile karsilastirilabilir); D kurali olcumu `>=` kullanir.
-    veri_sonu_bari = max(x.bitis for s_ in universe_modulu.dahil_semboller(evren)
-                         for x in universe_modulu.sembol_donemleri(evren, s_))
+    donem_bitisleri = [x.bitis for s_ in universe_modulu.dahil_semboller(evren)
+                       for x in universe_modulu.sembol_donemleri(evren, s_)]
+    # Hic donemi olmayan evrende cokmek yerine bos olcum: veri sonu bari
+    # tanimsizdir, hicbir donem sonu "veri_sonu" sayilmaz.
+    veri_sonu_bari = max(donem_bitisleri) if donem_bitisleri else pd.Timestamp.min.tz_localize("UTC")
     etki, d_satirlari = [], []
     for sembol in universe_modulu.dahil_semboller(evren):
         fund = funding_yukle(sembol)
@@ -312,7 +315,7 @@ def main(argv: list[str] | None = None) -> None:
             d_satirlari += d_kurali_olc(sembol, donemler, turler, fund, bar)
 
     etki = pd.DataFrame(etki, columns=["sembol", "donem_sira", "son_donem", "donem_bitis", "kayit"])
-    etki.to_csv(CIKTI_ONERI, index=False, lineterminator="\n")
+    csv_yaz(etki, CIKTI_ONERI)
     print("\n--- Oneri etkisi (1093e69 dokumu): (son bar acilisi + 1 dk, son bar kapanisi + 1 dk) ---")
     print(f"kayit: {int(etki['kayit'].sum())}, sembol: {etki['sembol'].nunique()}, "
           f"son donemde: {int(etki.loc[etki['son_donem'], 'kayit'].sum())}, "
@@ -322,7 +325,7 @@ def main(argv: list[str] | None = None) -> None:
     d_tablo = pd.DataFrame(d_satirlari, columns=["sembol", "bar", "donem_sira", "donem_bitis", "cikis_ani",
                                                  "tur", "kural_uygulanir", "disarida_kalan", "kapanista_odeme",
                                                  "son_odeme_aralik_saat", "tamlik_mevcut", "tamlik_d"])
-    d_tablo.to_csv(CIKTI_D, index=False, lineterminator="\n")
+    csv_yaz(d_tablo, CIKTI_D)
     for bar in (config.BAR_4H, config.BAR_1D):
         print(f"\n--- D kurali, cikis izgarasi {bar} (sayim; kod degismedi) ---")
         b = d_tablo.loc[d_tablo["bar"] == bar]
@@ -345,7 +348,7 @@ def main(argv: list[str] | None = None) -> None:
           d_tablo.loc[(d_tablo["sembol"] == "FTTUSDT") & (d_tablo["bar"] == config.BAR_4H),
                       "son_odeme_aralik_saat"].tolist())
 
-    ortam_kaydi(git, baslangic, pd.Timestamp.now(tz="UTC")).to_csv(CIKTI_ORTAM, index=False, lineterminator="\n")
+    csv_yaz(ortam_kaydi(git, baslangic, pd.Timestamp.now(tz="UTC")), CIKTI_ORTAM)
     print(f"\nCSV: {CIKTI.name}, {CIKTI_KONUM.name}, {CIKTI_ONERI.name}, {CIKTI_D.name}, {CIKTI_ORTAM.name}")
 
 

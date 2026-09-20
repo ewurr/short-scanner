@@ -23,6 +23,7 @@ import argparse
 import collections
 import io
 import logging
+import os
 import subprocess
 import sys
 import threading
@@ -80,6 +81,18 @@ def _kaydedici_kur(etiket: str) -> Path:
 # Toplam donem kesimi veri katmanindadir; evren kurulumu da ayni fonksiyonu
 # kullanir (denetci bulgusu D-B3).
 _toplam_doneme_kes = donem_modulu.toplam_doneme_kes
+
+
+def csv_yaz(tablo: pd.DataFrame, yol: Path) -> None:
+    """CSV'yi ATOMIK yazar: once ayni dizinde gecici dosya, sonra yeniden adlandirma
+    (denetci bulgusu D-C3).
+
+    Yarida kesilen bir yazma onceki kosunun dosyasini yarim birakmaz: ya eski
+    dosya oldugu gibi kalir ya da yeni dosya tam haliyle yerine gecer.
+    """
+    gecici = yol.with_name(yol.name + ".tmp")
+    tablo.to_csv(gecici, index=False, lineterminator="\n")
+    os.replace(gecici, yol)
 
 
 # --- Sembol basina olcum -----------------------------------------------------
@@ -1036,7 +1049,7 @@ def main() -> None:
         yaz(pd.DataFrame(hatalar, columns=["sembol", "hata"]), "hatalar")
 
     for ad, tablo in ciktilar.items():
-        tablo.to_csv(CIKTI_DIZINI / f"{ad}_{etiket}.csv", index=False, lineterminator="\n")
+        csv_yaz(tablo, CIKTI_DIZINI / f"{ad}_{etiket}.csv")
     # Bu kosuda uretilmeyen karsilastirma ciktisi onceki kosudan kalmasin.
     for ad in ("donem_sonu_degisimleri", "hatalar"):
         eski_dosya = CIKTI_DIZINI / f"{ad}_{etiket}.csv"
