@@ -169,3 +169,29 @@ def test_donem_sonu_turleri_tek_kaynak():
     """A1 olcumu donem sonu turunu F1 denetimiyle ayni fonksiyondan alir."""
     assert a1.donem_sonu_turleri.__module__ == "calistir"
     assert "def donem_sonu_turleri" not in (DIZIN / "a1_olcumu.py").read_text(encoding="utf-8")
+
+
+# --- D-A2: funding sinifi D penceresiyle -----------------------------------------
+
+
+def test_funding_sinifi_yalniz_kapanis_kaydi_varsa_d_penceresinde_fundingsiz():
+    """BNXUSDT donem 0 deseni: donemin tek kaydi son barin kapanisinda. Veri
+    katmani donemi funding'li sayar; D penceresi (ust uc bitis + 1 dk) saymaz."""
+    z = [T("2025-04-14 12:00")]
+    s = a1.d_kurali_olc("X", [DONEM], ["uzun_bosluk"], _fund(z), config.BAR_4H)[0]
+    assert s["funding_var_mevcut"] and not s["funding_var_d"]
+
+
+@pytest.mark.parametrize("kayma,beklenen", [
+    (pd.Timedelta(0), True), (59 * pd.Timedelta(seconds=1), True), (pd.Timedelta(minutes=1), False),
+])
+def test_funding_sinifi_d_penceresinin_ust_ucu(kayma, beklenen):
+    s = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund([DONEM.bitis + kayma]), config.BAR_4H)[0]
+    assert s["funding_var_mevcut"] and s["funding_var_d"] is beklenen
+
+
+def test_funding_sinifi_izgaradan_bagimsiz():
+    z = list(pd.date_range(T("2025-04-12 00:00"), T("2025-04-14 12:00"), freq="4h"))
+    dort = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund(z), config.BAR_4H)[0]
+    gun = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund(z), config.BAR_1D)[0]
+    assert (dort["funding_var_mevcut"], dort["funding_var_d"]) == (gun["funding_var_mevcut"], gun["funding_var_d"])

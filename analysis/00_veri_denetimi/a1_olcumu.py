@@ -167,12 +167,18 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
       kuraliyla aynidir. 1 gunluk izgarada temsili pozisyon, donemin tamamen
       icinde kalan son UTC gununun acilisinda girer (`giris_aday`; donem
       basindan once olamaz).
+    - `funding_var_mevcut` / `funding_var_d` (denetci bulgusu D-A2): donemin
+      funding'li sayilip sayilmadigi. Mevcut: veri katmaninin kendi fonksiyonu
+      (`funding.donemde_funding_var`, pencere `[baslangic - 1 dk, bitis + 4h + 1 dk)`).
+      D: ayni pencerenin ust ucu D kuralindaki gibi `bitis + 1 dk`. Yalnizca
+      kaydin varligi ve zamani; izgaradan bagimsizdir.
     - `son_odeme_aralik_saat`: donem bitisine kadarki son odemenin aralik saati;
       tamligin neden gectigini ya da kaldigini bu sutun acikliyor (8 saatlik bir
       ritim cikis anina yetisir, 2 ya da 4 saatlik ritim yetismez).
     """
     adim_b = pencere_modulu.adim(bar)
     satirlar = []
+    zam_ham = pd.DatetimeIndex(fund["odeme_zamani"]) if len(fund) else pd.DatetimeIndex([], tz="UTC")
     seri = funding_modulu.donem_sonrasi_kayitlari_at(fund, donemler, config.BAR_4H) if len(fund) else fund
     zam = pd.DatetimeIndex(seri["odeme_zamani"]) if len(seri) else pd.DatetimeIndex([], tz="UTC")
     araliklar = (pd.to_numeric(seri["aralik_saat"], errors="coerce").to_numpy(dtype=float)
@@ -210,7 +216,9 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
                          "son_odeme_aralik_saat": son_aralik,
                          "tamlik_mevcut": bool(tam_m), "tamlik_d": bool(tam_d),
                          "giris_aday": giris_aday, "cikis_ani_aday": cikis_ani_aday,
-                         "tamlik_aday": bool(tam_a)})
+                         "tamlik_aday": bool(tam_a),
+                         "funding_var_mevcut": funding_modulu.donemde_funding_var(fund, d, config.BAR_4H),
+                         "funding_var_d": bool(((zam_ham >= d.baslangic - TOL) & (zam_ham < d.bitis + TOL)).any())})
     return satirlar
 
 
@@ -322,7 +330,8 @@ def _kos() -> None:
     d_tablo = pd.DataFrame(d_satirlari, columns=["sembol", "bar", "donem_sira", "donem_bitis", "cikis_ani",
                                                  "tur", "kural_uygulanir", "disarida_kalan", "kapanista_odeme",
                                                  "son_odeme_aralik_saat", "tamlik_mevcut", "tamlik_d",
-                                                 "giris_aday", "cikis_ani_aday", "tamlik_aday"])
+                                                 "giris_aday", "cikis_ani_aday", "tamlik_aday",
+                                                 "funding_var_mevcut", "funding_var_d"])
     csv_yaz(d_tablo, CIKTI_D)
     for bar in (config.BAR_4H, config.BAR_1D):
         print(f"\n--- D kurali, cikis izgarasi {bar} (sayim; kod degismedi) ---")
@@ -338,6 +347,18 @@ def _kos() -> None:
                   f"aday {int((~g['tamlik_aday']).sum())} | "
                   f"mevcutta tam D'de bozuk {int((g['tamlik_mevcut'] & ~g['tamlik_d']).sum())}, "
                   f"mevcutta bozuk D'de tam {int((~g['tamlik_mevcut'] & g['tamlik_d']).sum())}")
+    # D-A2: donemin funding sinifi D kuralinin penceresiyle belirlenseydi (izgaradan
+    # bagimsiz; 4 saatlik satirlar). Yalnizca kaydin varligi ve zamani.
+    fs = d_tablo.loc[d_tablo["bar"] == config.BAR_4H]
+    print("\n--- Funding sinifi: mevcut pencere -> D penceresi (donem sayisi) ---")
+    for tur in SON_TURLERI:
+        g = fs.loc[fs["tur"] == tur]
+        if g.empty:
+            continue
+        print(f"{tur:26s} donem {len(g):4d} | funding'siz: mevcut {int((~g['funding_var_mevcut']).sum())}, "
+              f"D {int((~g['funding_var_d']).sum())} | funding'li -> funding'siz "
+              f"{int((g['funding_var_mevcut'] & ~g['funding_var_d']).sum())}, funding'siz -> funding'li "
+              f"{int((~g['funding_var_mevcut'] & g['funding_var_d']).sum())}")
     # Kapanista odemesi olmayip mevcut kuralda yine de gecen donem sonlari: son
     # odemenin aralik saatine gore (8 saatlik ritim cikis anina yetisir).
     kap = d_tablo.loc[(d_tablo["bar"] == config.BAR_4H) & (d_tablo["tur"] == "delist_SETTLING")]
