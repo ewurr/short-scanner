@@ -83,14 +83,20 @@ def donem_ici_mi(t, bar: str, *, donem_baslangic, donem_bitis) -> bool:
     bas = utc_zamani(donem_baslangic, "donem_baslangic")
     bitis = utc_zamani(donem_bitis, "donem_bitis")
     if bar == config.BAR_4H:
-        ilk = son = zaman
-    elif bar == config.BAR_1D:
+        return bool(donem_ici_4h_maskesi(zaman, donem_baslangic=bas, donem_bitis=bitis))
+    if bar == config.BAR_1D:
         if zaman != zaman.floor("D"):
             raise ValueError(f"1d bar zamani gun acilisi olmali: {zaman}")
-        ilk, son = zaman, zaman + GUNUN_SON_4H_BARI
-    else:
-        raise ValueError(f"Bilinmeyen bar: {bar!r}")
-    return bool(ayni_ya_da_sonra(ilk, bas) and ayni_ya_da_once(son, bitis))
+        return bool(donem_ici_4h_maskesi(zaman, donem_baslangic=bas, donem_bitis=bitis)
+                    and donem_ici_4h_maskesi(zaman + GUNUN_SON_4H_BARI, donem_baslangic=bas, donem_bitis=bitis))
+    raise ValueError(f"Bilinmeyen bar: {bar!r}")
+
+
+def donem_ici_4h_maskesi(zamanlar, *, donem_baslangic, donem_bitis):
+    """4h bar acilis(lar)i [donem basi, B] icinde mi (zaman toleransiyla). `donem_ici_mi`nin
+    4h dali ve 1d serisinin kurulmasi (`klines.gunluge_cevir`) bu tek ifadeyi kullanir."""
+    return _sonuc(np.asarray(ayni_ya_da_sonra(zamanlar, donem_baslangic), dtype=bool)
+                  & np.asarray(ayni_ya_da_once(zamanlar, donem_bitis), dtype=bool))
 
 
 # 1d barin son 4h barinin acilisi gun acilisindan 20 saat sonradir (on-kayit §2 rev.8).

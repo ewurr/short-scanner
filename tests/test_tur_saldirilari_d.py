@@ -28,6 +28,8 @@ import threading
 from pathlib import Path
 
 import pandas as pd
+
+from tests.donem_yardimcisi import tum_seri_donemi
 import pytest
 
 import config
@@ -285,7 +287,7 @@ def test_gunluk_sinir_tablosu_delistte_olmayan_sembol_veri_sonu_sayilir():
     m = _mumlar("2025-04-01 00:00", "2025-04-14 20:00")
     donem = Donem(T("2025-04-01 00:00"), T("2025-04-14 20:00"), 84, 84)
     detay = {"sembol": "BILINMEYENUSDT", "_donemler": [donem], "_mumlar": m,
-             "_gunluk": klines_modulu.gunluge_cevir(m)}
+             "_gunluk": klines_modulu.gunluge_cevir(m, donemler=tum_seri_donemi(m))}
     delist_bos = pd.DataFrame(columns=["sembol", "sinif"])
     tablo = calistir.gunluk_sinir_tablosu([detay], delist_bos)
     assert len(tablo) == 1
@@ -301,7 +303,7 @@ def test_gunluk_sinir_tablosu_tek_gunluk_donem_ayni_gunde_baslar_biter():
     m = _mumlar("2025-04-01 00:00", "2025-04-01 20:00")
     donem = Donem(T("2025-04-01 00:00"), T("2025-04-01 20:00"), 6, 6)
     detay = {"sembol": "TEKGUNUSDT", "_donemler": [donem], "_mumlar": m,
-             "_gunluk": klines_modulu.gunluge_cevir(m)}
+             "_gunluk": klines_modulu.gunluge_cevir(m, donemler=tum_seri_donemi(m))}
     delist_bos = pd.DataFrame(columns=["sembol", "sinif"])
     tablo = calistir.gunluk_sinir_tablosu([detay], delist_bos)
     assert len(tablo) == 1

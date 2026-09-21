@@ -24,6 +24,8 @@ import textwrap
 
 import numpy as np
 import pandas as pd
+
+from tests.donem_yardimcisi import tum_seri_donemi
 import pytest
 
 import config
@@ -83,7 +85,7 @@ def _mumlar(fiyat, hacim_olcegi: float) -> pd.DataFrame:
 
 
 def _detay(mumlar):
-    return {"sembol": "X", "_donemler": [D0, D1], "_mumlar": mumlar, "_gunluk": klines.gunluge_cevir(mumlar)}
+    return {"sembol": "X", "_donemler": [D0, D1], "_mumlar": mumlar, "_gunluk": klines.gunluge_cevir(mumlar, donemler=tum_seri_donemi(mumlar))}
 
 
 def test_gunluk_sinir_tablosu_fiyat_ve_hacim_degerinden_bagimsiz():

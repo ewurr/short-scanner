@@ -10,6 +10,8 @@ aga cikmaz.
 from __future__ import annotations
 
 import pandas as pd
+
+from tests.donem_yardimcisi import tum_seri_donemi
 import pytest
 
 import config
@@ -71,7 +73,7 @@ def test_tekrarsiz_parcalar_normal_birlesir(monkeypatch, tmp_path):
 
 
 def test_birincil_1d_tekrari_da_hata_verir(monkeypatch, tmp_path):
-    gunluk = klines.gunluge_cevir(sahte_4h("2021-01-01", 18))
+    gunluk = klines.gunluge_cevir(sahte_4h("2021-01-01", 18), donemler=tum_seri_donemi(sahte_4h("2021-01-01", 18)))
     sembol = _sahte_onbellek(
         monkeypatch, tmp_path, "birincil", [("2021-01", gunluk), ("2021-02", gunluk.iloc[[-1]])]
     )

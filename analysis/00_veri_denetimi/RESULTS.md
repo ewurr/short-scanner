@@ -930,3 +930,21 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   K'dan 1 ms önceki teslim True → False, B'den 1 ms önceki teslim False → True
   (rev.8 §4 "Zaman toleransı": 1 dakikadan küçük fark aynı an); tam 1 dk kenarları için
   iki durum eklendi.
+- 2026-09-22 (Rev.8 uygulaması, madde 3: rev.8 §2 "1 günlük barlar", §2 Veri
+  boşlukları). `klines.gunluge_cevir(dort_saatlik, *, donemler)` tek 1d yolu: yalnızca
+  dönem içi, 00/04/08/12/16/20 UTC hizalı altı 4h bardan, dönem dönem. `donemler`
+  zorunlu. `ham_mumlari_yukle(s, "1d")` commit edilmiş dönemleri kullanır. Başka 1d
+  kaynağı: `klines.birincil_gunluk_indir` (Binance'in kendi 1d dosyaları; yalnızca F1
+  çapraz doğrulaması). Yalnızca gün sayan karşılaştırmalar: `calistir.eski_kural_gunleri`,
+  `hiza_olcumu`. **Bilerek güncellenen mevcut testler:**
+  - `gunluge_cevir(...)` çağrısı olan testlere `donemler=` eklendi (API değişikliği;
+    beklenen değerler aynı): `test_klines.py` (6 çağrı), `test_klines_tekrar.py`,
+    `test_kume_korumasi.py`, `test_f1_kapanis_saldirilari.py`,
+    `test_tamlik_sayimi_deger_icermez.py`, `test_tur_saldirilari_d.py` (2),
+    `test_kume_geriye_bakis.py` (gerçek sembolün commit edilmiş dönemleriyle).
+  - `test_hiza_olcumu.py::test_alti_satirli_hizasiz_gun_sayilir_ve_gunluge_cevir_onu_tam_sayar`:
+    beklenti 1 → 0 (hizasız bar içeren gün artık oluşmaz; D-C5'in eski davranışı).
+  - `test_gunluk_sinirlar.py`: `test_uzlasma_gununun_dolgu_barlari_son_gune_girer` ve
+    `test_ic_sinir_ikinci_donemin_ilk_gunu_dolgu_barlari_icerir` kısmi günlerin 1d
+    serisinde olduğunu (D-A1) sabitliyordu; rev.8'de kısmi ilk ve son günler seride yok
+    (son gün 04-14 → 04-13, dönem dışı bar 3 → 0; ilk gün 04-20 → 04-21, 2 → 0).

@@ -51,20 +51,22 @@ def _mumlar(bas: str, son: str, sifir_bas: str | None = None) -> pd.DataFrame:
 
 def _satir(mumlar, donemler, turler):
     zamanlar = pd.DatetimeIndex(mumlar["open_time"])
-    gunler = pd.DatetimeIndex(klines.gunluge_cevir(mumlar)["open_time"])
+    gunler = pd.DatetimeIndex(klines.gunluge_cevir(mumlar, donemler=donemler)["open_time"])
     return calistir.gunluk_sinir_satirlari("X", zamanlar, gunler, donemler, turler)
 
 
 def test_uzlasma_gununun_dolgu_barlari_son_gune_girer():
     """SETTLING tipik durumu: son gercek bar 08:00, ayni gunun 12:00-20:00
-    barlari dolgu. Bugunku 1 gunluk seri o gunu tam gun sayar (6 bar var) ve
-    donem sonu cikisi o gunun barindan okunur: 3 donem disi bar."""
+    barlari dolgu. Rev.8 oncesi seri o gunu tam gun sayiyordu (6 bar) ve son
+    1d bari 3 donem disi bar iceriyordu (D-A1). Rev.8 §2 "1 gunluk barlar":
+    kismi son gun seride yok; son 1d bari bir onceki gun, donem disi bar 0
+    (beklentiler 04-14/3/True -> 04-13/0/False; RESULTS degisiklik kaydi)."""
     m = _mumlar("2025-04-01 00:00", "2025-04-20 20:00", sifir_bas="2025-04-14 12:00")
     donem = Donem(T("2025-04-01 00:00"), T("2025-04-14 08:00"), 80, 80)
     s = _satir(m, [donem], ["delist_SETTLING"])[0]
-    assert s["son_gun"] == T("2025-04-14 00:00")
-    assert s["son_gun_donem_disi_bar"] == 3
-    assert s["bitis_gunu_1d_serisinde"] and s["bitis_gunu_donem_ici_bar"] == 3
+    assert s["son_gun"] == T("2025-04-13 00:00")
+    assert s["son_gun_donem_disi_bar"] == 0
+    assert not s["bitis_gunu_1d_serisinde"] and s["bitis_gunu_donem_ici_bar"] == 3
     assert s["ilk_gun"] == T("2025-04-01 00:00") and s["ilk_gun_donem_disi_bar"] == 0
 
 
@@ -90,15 +92,18 @@ def test_bitis_gun_sonundaysa_donem_disi_bar_yok():
 
 def test_ic_sinir_ikinci_donemin_ilk_gunu_dolgu_barlari_icerir():
     """Ic dolgudan sonra 08:00'de baslayan donem: baslangic gununun 00:00 ve 04:00
-    barlari dolgu. Ilk 1 gunluk bar o gundur ve 2 donem disi bar icerir."""
+    barlari dolgu. Rev.8 oncesi ilk 1d bari o gundu ve 2 donem disi bar iceriyordu;
+    rev.8 §2 "1 gunluk barlar": kismi ilk gun seride yok, ilk 1d bari ertesi gun
+    ve donem disi bar 0. Birinci donemin kismi son gunu de seride yok
+    (beklentiler 3 -> 0, 04-20/2 -> 04-21/0; RESULTS degisiklik kaydi)."""
     m = _mumlar("2025-04-01 00:00", "2025-04-30 20:00", sifir_bas="2025-04-10 12:00")
     m.loc[m["open_time"] >= T("2025-04-20 08:00"), ["volume", "quote_volume"]] = 1.0
     d0 = Donem(T("2025-04-01 00:00"), T("2025-04-10 08:00"), 57, 57)
     d1 = Donem(T("2025-04-20 08:00"), T("2025-04-30 20:00"), 64, 64)
     s = _satir(m, [d0, d1], ["dolgu_kosusu", "veri_sonu"])
     assert s[0]["bas_turu"] == "donem_basi" and s[1]["bas_turu"] == "ic_sinir"
-    assert s[0]["son_gun_donem_disi_bar"] == 3
-    assert s[1]["ilk_gun"] == T("2025-04-20 00:00") and s[1]["ilk_gun_donem_disi_bar"] == 2
+    assert s[0]["son_gun_donem_disi_bar"] == 0 and s[0]["son_gun"] == T("2025-04-09 00:00")
+    assert s[1]["ilk_gun"] == T("2025-04-21 00:00") and s[1]["ilk_gun_donem_disi_bar"] == 0
     assert s[1]["bas_gunu_donem_ici_bar"] == 4
 
 
@@ -114,7 +119,7 @@ def test_son_gun_gercek_cikis_bariyla_ayni(bitis, seri_son, sifir):
     m = _mumlar("2025-04-01 00:00", seri_son, sifir_bas=sifir)
     donem = Donem(T("2025-04-01 00:00"), T(bitis), 80, 80)
     s = _satir(m, [donem], ["delist_SETTLING"])[0]
-    gunler = pd.DatetimeIndex(klines.gunluge_cevir(m)["open_time"])
+    gunler = pd.DatetimeIndex(klines.gunluge_cevir(m, donemler=[donem])["open_time"])
     cikis = pencere.cikis_bari(gunler, T("2025-04-05 00:00"), 30, config.BAR_1D, birincil_ufuk=30,
                                donem_bitis=donem.bitis, kume_bitis=None)
     assert cikis.kirpildi and cikis.zaman == s["son_gun"]

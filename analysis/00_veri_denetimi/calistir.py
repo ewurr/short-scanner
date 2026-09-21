@@ -155,10 +155,13 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
     # hesaplamaz (CLAUDE.md §3.1); bu yuzden kume korumasiz ham yukleyiciler
     # bilerek kullanilir. Analiz ve olay kodu bunlari cagirmaz.
     mumlar = _toplam_doneme_kes(klines_modulu.ham_mumlari_yukle(sembol, config.BAR_4H), "open_time")
-    gunluk = klines_modulu.gunluge_cevir(mumlar)
     fund = _toplam_doneme_kes(funding_modulu.ham_funding_yukle(sembol), "odeme_zamani")
 
     donemler = universe_modulu.sembol_donemleri(evren, sembol)
+    # Tek 1d yolu (on-kayit §2 rev.8): yalnizca donem ici hizali 4h barlardan.
+    gunluk = klines_modulu.gunluge_cevir(mumlar, donemler=donemler)
+    cikan_gunler = cikan_gun_turleri(eski_kural_gunleri(pd.DatetimeIndex(mumlar["open_time"])),
+                                     pd.DatetimeIndex(gunluk["open_time"]), donemler)
     settled = universe_modulu.settled_listesi(evren, sembol)
     zamanlar = pd.DatetimeIndex(mumlar["open_time"])
     hacim = mumlar["quote_volume"]
@@ -260,6 +263,7 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
         "eksik_oran": (beklenen - len(mumlar)) / beklenen if beklenen else float("nan"),
         "bosluk_3bardan_uzun": len(uzun_bosluk),
         "gun_1d": len(gunluk),
+        **{f"gun_1d_cikan_{tur}": n for tur, n in cikan_gunler.items()},
         "ilk_bar": mumlar["open_time"].iloc[0] if not mumlar.empty else pd.NaT,
         "son_bar": mumlar["open_time"].iloc[-1] if not mumlar.empty else pd.NaT,
         "donem_sayisi": len(donemler),
@@ -402,6 +406,47 @@ def donem_sonu_turleri(donemler, sinif: str | None, veri_sonu_bari: pd.Timestamp
             dolgu = any(d.bitis < k.baslangic < sonraki for k in dolgular)
             turler.append("dolgu_kosusu" if dolgu else "uzun_bosluk")
     return turler
+
+
+# --- 1 gunluk seri: rev.8 oncesiyle karsilastirma (yalnizca sayim) ---------------
+
+CIKAN_GUN_TURLERI = ("donem_basi", "donem_sonu", "ic_sinir", "donem_disi", "eklenen")
+
+
+def eski_kural_gunleri(zamanlar: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Rev.8 ONCESI kuralin 1d gunleri: bütün 4h seride 6 satiri olan UTC gunleri. Saf.
+
+    Yalnizca karsilastirma sayimi icindir (RESULTS §14.8); fiyat ya da hacim
+    toplamaz, 1d serisi URETMEZ. Tek 1d turetme yolu `klines.gunluge_cevir`dir.
+    """
+    gunler = pd.DatetimeIndex(zamanlar).floor("D")
+    sayim = pd.Series(1, index=gunler).groupby(level=0).size()
+    return pd.DatetimeIndex(sayim.index[sayim.to_numpy() == klines_modulu.GUNLUK_BAR_SAYISI])
+
+
+def cikan_gun_turleri(eski: pd.DatetimeIndex, yeni: pd.DatetimeIndex, donemler) -> dict[str, int]:
+    """Eski kuralin 1d serisinde olup rev.8 serisinde olmayan gunler, yere gore. Saf.
+
+    `donem_basi`: ilk donemin baslangic gunu; `donem_sonu`: son donemin bitis (B) gunu;
+    `ic_sinir`: diger donem baslangic ve bitis gunleri; `donem_disi`: hicbir donemin
+    baslangic ya da bitis gununu icermeyen gun (ör. uzlasma sonrasi dolgu gunleri).
+    `eklenen`: rev.8 serisinde olup eskide olmayan gun (beklenen 0).
+    """
+    sayim = dict.fromkeys(CIKAN_GUN_TURLERI, 0)
+    son = len(donemler) - 1
+    baslar = {d.baslangic.floor("D"): i for i, d in enumerate(donemler)}
+    bitisler = {d.bitis.floor("D"): i for i, d in enumerate(donemler)}
+    for gun in eski.difference(yeni):
+        if baslar.get(gun) == 0:
+            sayim["donem_basi"] += 1
+        elif bitisler.get(gun) == son:
+            sayim["donem_sonu"] += 1
+        elif gun in baslar or gun in bitisler:
+            sayim["ic_sinir"] += 1
+        else:
+            sayim["donem_disi"] += 1
+    sayim["eklenen"] = len(yeni.difference(eski))
+    return sayim
 
 
 # --- 1 gunluk barlarin donem sinirlari (denetci bulgusu D-A1) ------------------
@@ -1157,6 +1202,11 @@ def rapor_sayilari(t: dict[str, pd.DataFrame], evren: pd.DataFrame, bolme: pd.Da
         ekle("14.8", "kismi_gun_ic_sinir_bas", int((bas_kismi & (gs["bas_turu"] == "ic_sinir")).sum()))
         ekle("14.8", "kismi_gun_ic_sinir_son", int((son_kismi & ic_son).sum()))
         ekle("14.8", "kismi_gun_donem_sonu", int((son_kismi & ~ic_son).sum()))
+        # Rev.8 1d serisinden cikan gunler (eski kural: 6 satirli her gun), yere gore.
+        for tur in CIKAN_GUN_TURLERI:
+            sutun = f"gun_1d_cikan_{tur}"
+            if sutun in ozet:
+                ekle("14.8", f"rev8_1d_cikan_gun_{tur}", int(ozet[sutun].sum()))
         # Ayni gunde baslayip biten donem varsa o gun iki kez sayilmis olur.
         ekle("14.8", "ayni_gunde_baslayan_ve_biten_donem", int((gs["bas_gunu"] == gs["bitis_gunu"]).sum()))
 

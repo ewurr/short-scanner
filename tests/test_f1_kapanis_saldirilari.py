@@ -17,6 +17,8 @@ sahte olarak kurulur; gercek cache/ ve ONAY_KAYDI.md dosyalarina dokunulmaz.
 from __future__ import annotations
 
 import pandas as pd
+
+from tests.donem_yardimcisi import tum_seri_donemi
 import pytest
 
 import config
@@ -247,7 +249,7 @@ def test_gunluge_cevir_nan_hacimli_bari_tam_gun_sayar_kismi_toplar():
     dortsaatlik = _sahte_4h("2021-01-01", 6, hacim=1_000_000.0)
     dortsaatlik.loc[3, "quote_volume"] = float("nan")
 
-    gunluk = klines.gunluge_cevir(dortsaatlik)
+    gunluk = klines.gunluge_cevir(dortsaatlik, donemler=tum_seri_donemi(dortsaatlik))
 
     assert gunluk.empty, (
         "bir 4h barin quote_volume degeri NaN oldugu halde gun 'tam' sayildi "

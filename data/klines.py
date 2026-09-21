@@ -13,6 +13,7 @@ ve fark denetim raporuna yazilir.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 import config
@@ -20,6 +21,8 @@ from data import binance_vision as bv
 
 # Bir UTC gunu tam olmasi icin gereken 4h bar sayisi.
 GUNLUK_BAR_SAYISI = 6
+# 1d gununu olusturan 4h barlarin izgara adimi (00:00, 04:00, ..., 20:00 UTC).
+GUNLUK_IZGARA_ADIMI = pd.Timedelta(hours=4)
 
 SAYISAL_SUTUNLAR = [
     "open",
@@ -98,7 +101,12 @@ def ham_mumlari_yukle(sembol: str, bar: str = config.BAR_4H, yenile: bool = Fals
     bu sayede yeniden calistirma tamamlanmis aylari yeniden indirmez.
     """
     if bar == config.BAR_1D:
-        return gunluge_cevir(ham_mumlari_yukle(sembol, config.BAR_4H, yenile))
+        # Tek 1d yolu (on-kayit §2 rev.8): sembolun commit edilmis listeleme
+        # donemleriyle, yalnizca donem ici hizali 4h barlardan.
+        from data import universe as universe_modulu
+
+        donemler = universe_modulu.sembol_donemleri(universe_modulu.evren_yukle(), sembol)
+        return gunluge_cevir(ham_mumlari_yukle(sembol, config.BAR_4H, yenile), donemler=donemler)
 
     anahtarlar = bv.mum_dosyalari(sembol, bar)
     parcalar = []
@@ -151,19 +159,48 @@ def donem_kes(cerceve: pd.DataFrame, bas, son) -> pd.DataFrame:
 # --- 1d turetme --------------------------------------------------------------
 
 
-def gunluge_cevir(dort_saatlik: pd.DataFrame) -> pd.DataFrame:
-    """4h barlardan UTC gunluk barlar turetir.
+def gunluge_cevir(dort_saatlik: pd.DataFrame, *, donemler) -> pd.DataFrame:
+    """4h barlardan UTC gunluk barlar turetir; TEK 1d turetme yolu (on-kayit §2 rev.8
+    "1 gunluk barlar").
 
-    Tam olmayan gunler (6'dan az bar) dusurulur; kismi toplama yapilmaz.
-    Saf fonksiyon: ag veya disk kullanmaz.
+    "1d barlar yalnizca donem ici 4h barlardan turetilir ... Bir gun, yalnizca o
+    gunun 00:00, 04:00, 08:00, 12:00, 16:00 ve 20:00 UTC acilisli alti 4h barinin
+    tamami mevcut ve ayni donemin icindeyse olusur; aksi halde o gun eksik (NaN)
+    sayilir." Seri donem donem kurulur: her 4h bar yalnizca iceren donemin
+    (`pencere.donem_ici_4h_maskesi`) gunune sayilir; izgara disindaki (hizasiz)
+    bar hicbir gune girmez. Donemin kismi ilk ve son gunleri seride yoktur.
+
+    `donemler` zorunludur (varsayilan yok): sembolun listeleme donemleri
+    (`universe.sembol_donemleri`). Bos liste bos seri verir. Saf fonksiyon.
     """
-    if dort_saatlik.empty:
-        return dort_saatlik.copy()
+    from data import pencere as pencere_modulu
 
-    calisma = dort_saatlik.sort_values("open_time").copy()
-    calisma["gun"] = calisma["open_time"].dt.floor("D")
+    if not isinstance(donemler, (list, tuple)):
+        raise TypeError(f"donemler bir Donem listesi olmali: {type(donemler).__name__}")
+    sutunlar = [s for s in bv.MUM_SUTUNLARI if s != "ignore"]
+    if dort_saatlik.empty or not donemler:
+        return pd.DataFrame(columns=sutunlar)
 
-    toplanan = calisma.groupby("gun", sort=True).agg(
+    calisma = dort_saatlik.sort_values("open_time").reset_index(drop=True)
+    zamanlar = pd.DatetimeIndex(calisma["open_time"])
+    gun = zamanlar.floor("D")
+    ofset = zamanlar - gun
+    # Izgara hizasi acikca: acilis gun basindan tam 0, 4, ..., 20 saat sonra.
+    hizali = np.asarray((ofset % GUNLUK_IZGARA_ADIMI) == pd.Timedelta(0), dtype=bool)
+
+    donem_no = np.full(len(calisma), -1)
+    for i, donem in enumerate(donemler):
+        ici = np.asarray(pencere_modulu.donem_ici_4h_maskesi(
+            zamanlar, donem_baslangic=donem.baslangic, donem_bitis=donem.bitis), dtype=bool)
+        donem_no[ici] = i
+    calisma["gun"] = gun
+    calisma["_donem"] = donem_no
+    calisma["_ofset"] = ofset
+    calisma = calisma.loc[(donem_no >= 0) & hizali]
+    if calisma.empty:
+        return pd.DataFrame(columns=sutunlar)
+
+    toplanan = calisma.groupby(["_donem", "gun"], sort=True).agg(
         open=("open", "first"),
         high=("high", "max"),
         low=("low", "min"),
@@ -175,10 +212,13 @@ def gunluge_cevir(dort_saatlik: pd.DataFrame) -> pd.DataFrame:
         taker_buy_quote_volume=("taker_buy_quote_volume", "sum"),
         close_time=("close_time", "last"),
         bar_sayisi=("open", "size"),
+        farkli_acilis=("_ofset", "nunique"),
     )
-    tam = toplanan.loc[toplanan["bar_sayisi"] == GUNLUK_BAR_SAYISI].drop(columns=["bar_sayisi"])
-    tam = tam.reset_index().rename(columns={"gun": "open_time"})
-    return tam[[s for s in bv.MUM_SUTUNLARI if s != "ignore"]]
+    tam = toplanan.loc[(toplanan["bar_sayisi"] == GUNLUK_BAR_SAYISI)
+                       & (toplanan["farkli_acilis"] == GUNLUK_BAR_SAYISI)]
+    tam = tam.reset_index().drop(columns=["_donem", "bar_sayisi", "farkli_acilis"])
+    tam = tam.rename(columns={"gun": "open_time"}).sort_values("open_time", ignore_index=True)
+    return tam[sutunlar]
 
 
 def cross_dogrula(turetilmis: pd.DataFrame, birincil: pd.DataFrame) -> pd.DataFrame:

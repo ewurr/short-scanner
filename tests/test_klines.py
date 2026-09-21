@@ -7,6 +7,8 @@ import zipfile
 
 import pandas as pd
 
+from tests.donem_yardimcisi import tum_seri_donemi
+
 import config
 from conftest import sahte_4h
 from data import binance_vision as bv
@@ -55,7 +57,7 @@ def test_gunluge_cevirme_dogru_toplar():
     dort.loc[6, "open"] = 111.0
     dort.loc[11, "close"] = 222.0
 
-    gunluk = klines.gunluge_cevir(dort)
+    gunluk = klines.gunluge_cevir(dort, donemler=tum_seri_donemi(dort))
 
     assert len(gunluk) == 2
     ikinci = gunluk.iloc[1]
@@ -69,14 +71,14 @@ def test_gunluge_cevirme_dogru_toplar():
 def test_eksik_barli_gun_kismi_toplanmaz():
     """6 bari tam olmayan gun NaN sayilir, kismi toplanmaz."""
     dort = sahte_4h("2021-05-01", 12).drop(index=3).reset_index(drop=True)
-    gunluk = klines.gunluge_cevir(dort)
+    gunluk = klines.gunluge_cevir(dort, donemler=tum_seri_donemi(dort))
 
     assert len(gunluk) == 1  # eksik gun dusuruldu
     assert gunluk["open_time"].iloc[0] == pd.Timestamp("2021-05-02", tz="UTC")
 
 
 def test_gunluk_open_time_utc_gun_basinda():
-    gunluk = klines.gunluge_cevir(sahte_4h("2021-05-01", 18))
+    gunluk = klines.gunluge_cevir(sahte_4h("2021-05-01", 18), donemler=tum_seri_donemi(sahte_4h("2021-05-01", 18)))
     assert (gunluk["open_time"].dt.hour == 0).all()
     assert (gunluk["open_time"].dt.tz is not None)
 
@@ -105,7 +107,7 @@ def test_eksiksiz_seride_bosluk_yok():
 
 def test_cross_dogrulama_ayni_veride_sifir_fark():
     dort = sahte_4h("2021-05-01", 24)
-    turetilmis = klines.gunluge_cevir(dort)
+    turetilmis = klines.gunluge_cevir(dort, donemler=tum_seri_donemi(dort))
     fark = klines.cross_dogrula(turetilmis, turetilmis)
     for sutun in fark.columns:
         if sutun.endswith("_bagil_fark"):
@@ -121,7 +123,7 @@ def test_alti_bari_eksik_gun_nan_olur():
     dort = sahte_4h("2021-05-01", 18)          # 3 tam gun
     eksikli = dort.drop(index=8).reset_index(drop=True)  # 2. gunden bir bar eksik
 
-    gunluk = klines.gunluge_cevir(eksikli)
+    gunluk = klines.gunluge_cevir(eksikli, donemler=tum_seri_donemi(eksikli))
     gunler = list(gunluk["open_time"])
 
     assert pd.Timestamp("2021-05-02", tz="UTC") not in gunler   # eksik gun dusuruldu
@@ -135,7 +137,7 @@ def test_kismi_gun_hacmi_toplanmaz():
     dort = sahte_4h("2021-05-01", 12, hacim=1000.0)
     eksikli = dort.drop(index=[6, 7]).reset_index(drop=True)
 
-    gunluk = klines.gunluge_cevir(eksikli)
+    gunluk = klines.gunluge_cevir(eksikli, donemler=tum_seri_donemi(eksikli))
 
     assert len(gunluk) == 1
     assert gunluk["quote_volume"].iloc[0] == 6000.0  # yalnizca tam gun

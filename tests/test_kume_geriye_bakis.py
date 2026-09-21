@@ -232,7 +232,11 @@ def test_gercek_veride_c2_ilk_barinda_180_barlik_pencere_nan():
 
 @gercek_veri
 def test_gercek_veride_c2_ilk_gununde_medyan_hacim_nan():
-    gunluk = klines.gunluge_cevir(_gercek_4h())
+    # rev.8 §2 "1 gunluk barlar": 1d serisi sembolun commit edilmis donemleriyle kurulur.
+    from data import universe
+
+    donemler = universe.sembol_donemleri(universe.evren_yukle(), GERCEK_SEMBOL)
+    gunluk = klines.gunluge_cevir(_gercek_4h(), donemler=donemler)
     hacim = eligibility.gunluk_hacim_serisi(gunluk)
 
     assert not pd.isna(eligibility.medyan_hacim(hacim, C2_BAS, kume_baslangic=None, donem_baslangic=None, pencere_gun=config.HACIM_PENCERESI_GUN))

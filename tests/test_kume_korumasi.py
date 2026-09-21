@@ -13,6 +13,8 @@ from __future__ import annotations
 import inspect
 
 import pandas as pd
+
+from tests.donem_yardimcisi import tum_seri_donemi
 import pytest
 
 import config
@@ -65,7 +67,7 @@ def sahte_ham(monkeypatch):
                 "taker_buy_volume": 1.0, "taker_buy_quote_volume": 1.0,
             }
         )
-        return klines.gunluge_cevir(cerceve) if bar == config.BAR_1D else cerceve
+        return klines.gunluge_cevir(cerceve, donemler=tum_seri_donemi(cerceve)) if bar == config.BAR_1D else cerceve
 
     def fund(sembol, yenile=False):
         zaman = pd.date_range("2025-08-25", "2025-09-10", freq="8h", tz="UTC")
