@@ -137,6 +137,9 @@ DENETIM_ILK_GECIKME_SAAT = 8
 # A1 olcumu ve rev.8 etki sayimlari kullanir; F2 hipotez kodu da buradan okur.
 BIRINCIL_UFUK = {BAR_4H: 18, BAR_1D: 14}
 
+# Hipotezlerin izgarasi (on-kayit §4-§5: H1, H2 4 saatlik; H3 1 gunluk).
+HIPOTEZ_IZGARASI = {"H1": BAR_4H, "H2": BAR_4H, "H3": BAR_1D}
+
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 
 # Listeleme yasi >= 30 gun
