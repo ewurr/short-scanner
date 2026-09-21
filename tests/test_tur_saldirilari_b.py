@@ -105,26 +105,21 @@ def test_ay_toplam_donemde_dogru_bicimli_sinir_aylari(ay, beklenen):
 
 
 def test_ay_toplam_donemde_bicimsiz_tek_haneli_ay_donem_sonunda_yanlis_sonuc():
-    """SALDIRI: 'YYYY-M' (sifirsiz, tek haneli ay) ile DONEM_SONU ayi (2026-08)
-    karsilastirildiginda fonksiyon SAF STRING karsilastirmasi yapar (tarih
-    ayristirmaz). '2026-8' lex. olarak '2026-08'den BUYUKTUR ('8' > '0'),
-    bu yuzden `ay <= DONEM_SONU.strftime(...)` YANLIS doner ve 2026 Agustos
-    (gercekte toplam donemin icinde olan bir ay) DISARIDA sayilir.
+    """GERILEME TESTI: 'YYYY-M' (sifirsiz, tek haneli ay) toplam donemin son ayi
+    olan 2026-08 ile ayni ay sayilmali.
 
-    bv.dosya_ayi() daima sifir dolgulu bicim urettigi icin bu, bugunku pratikte
-    tetiklenmez; ancak fonksiyonun kendisi bicimi DOGRULAMAZ ve caller'in
-    sozlesmeye uymasina sessizce guvenir -- ay_toplam_donemde tarih ayristirmasi
-    degil, string karsilastirmasi yaptigi icin kirilgandir. Bu test o kirilganligi
-    sabitler: Agustos 2026 fiilen toplam donem icindedir, bu yuzden fonksiyon
-    True donmelidir. Asagidaki assert, mevcut string-karsilastirma davranisinda
-    BASARISIZ olur (False doner); bu, bir dokumantasyon/robustluk acigidir.
+    Eski kusur (ed354ce ile duzeltildi): fonksiyon ayi metin olarak
+    karsilastiriyordu. '2026-8' sozluk sirasinda '2026-08'den BUYUK oldugu icin
+    ('8' > '0') Agustos 2026 toplam donemin disinda sayiliyordu. Bugun
+    karsilastirma `pd.Period` degeri uzerinden yapilir ve bu test yesildir;
+    metin karsilastirmasina geri donulurse kirilir. Pratik etkisi yoktu:
+    bv.dosya_ayi() hep sifir dolgulu bicim uretir (denetci bulgusu D-C2:
+    aciklama eski hatali davranisi bugunku davranis gibi anlatiyordu).
     """
     assert donem_modulu.ay_toplam_donemde("2026-8") is True, (
-        "ay_toplam_donemde('2026-8') False dondu: fonksiyon tarih ayristirmasi yerine "
-        "SAF STRING karsilastirmasi kullaniyor ('2026-8' > '2026-08' lex. olarak). "
-        "Agustos 2026 fiilen toplam donemin (2020-01..2026-08) icindeyken disarida "
-        "sayildi. Bugunku callerlar (bv.dosya_ayi) hep sifir dolgulu bicim urettigi "
-        "icin PRATIKTE tetiklenmiyor, ama fonksiyonun kendisi bunu garanti etmiyor."
+        "ay_toplam_donemde('2026-8') False dondu: ay karsilastirmasi yeniden metin "
+        "uzerinden yapiliyor olabilir ('2026-8' > '2026-08' sozluk sirasinda). "
+        "Agustos 2026 toplam donemin (2020-01..2026-08) icindedir."
     )
 
 

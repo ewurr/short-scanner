@@ -121,6 +121,12 @@ DENETIM_BORSA_GENELI_ORANI = 0.5
 # Raporda listelenen kisa listeleme donemi esigi (gun)
 DENETIM_KISA_DONEM_GUN = 60
 
+# A1 olcumunde (D kurali, funding tamligi) temsili pozisyonun cikis barinin
+# acilisindan ne kadar once girdigi (denetci bulgusu D-C5: betige gomuluydu).
+# En uzun odeme araligindan (8 saat) uzundur; boylece son odemeler zincirin
+# icinde kalir. Iki izgarada da aynidir (4 saatlikte 6 bar, 1 gunlukte 1 bar).
+DENETIM_TEMSILI_GIRIS_SURE = dt.timedelta(hours=24)
+
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 
 # Listeleme yasi >= 30 gun

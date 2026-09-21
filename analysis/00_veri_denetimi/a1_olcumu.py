@@ -63,12 +63,11 @@ CIKTI_ORTAM = BU_DIZIN / "a1_ortam_tam.csv"
 
 ADIM = pencere_modulu.adim(config.BAR_4H)
 TOL = funding_modulu.ODEME_TOLERANSI
-# D kurali tamlik olcumunde temsili pozisyon: cikis barinin acilisindan 24 saat
-# once girer (donem basindan once olamaz), donem sonunda cikar. 24 saat en uzun
-# odeme araligindan (8 saat) uzundur; boylece son odemeler zincirin icindedir.
-# Sure iki izgarada da aynidir (4 saatlik izgarada 6 bar, 1 gunlukte 1 bar);
-# boylece olcum cikis anina odaklanir, giris penceresinin uzunluguna degil.
-TEMSILI_GIRIS_SURE = pd.Timedelta(hours=24)
+# D kurali tamlik olcumunde temsili pozisyon: cikis barinin acilisindan
+# `config.DENETIM_TEMSILI_GIRIS_SURE` once girer (donem basindan once olamaz),
+# donem sonunda cikar. Sure iki izgarada da aynidir; boylece olcum cikis anina
+# odaklanir, giris penceresinin uzunluguna degil.
+TEMSILI_GIRIS_SURE = pd.Timedelta(config.DENETIM_TEMSILI_GIRIS_SURE)
 
 SON_TURLERI = ("delist_SETTLING", "delist_exchangeInfo_disi", "dolgu_kosusu", "uzun_bosluk",
                "diger_son_donem", "veri_sonu")

@@ -5,6 +5,15 @@ sutunlarina hicbir yolda erismez ve hicbir bayrak bu yolu geri acmaz. Bu degerle
 yeniden uretmek bilincli bir kod degisikligi ister. Testler onu sabitler:
 kaynak kodda oran sutunu adi gecmez, betigin secenegi yoktur, varsayilan kosu
 yalnizca zaman ve aralik sutunlari yazar. Aga cikmaz.
+
+Sinir (denetci bulgusu D-C1): bu testler bugunku durumu sabitler, butun yollari
+kapatmaz. Kaynak taramasi yalnizca sutun ADINI arar: dizge sabiti olarak
+"oran"/"oran_8h" ve `.oran`/`.oran_8h` ozniteligi. Sutun adini yazmadan degere
+ulasan yollari yakalamaz: konumla erisim (`iloc[:, k]`, `itertuples()` demetinin
+indeksi), butun cercevenin `to_numpy()`/`values` ile alinmasi, adin calisma
+aninda kurulmasi (`"or" + "an"`, `getattr(r, ad)`) ya da veri katmanindaki bir
+fonksiyonun degeri hesaplayip dondurmesi. Uctan uca kosu da yalnizca calisan
+yollar icin gecerlidir ve yalnizca sutunun CIKTIYA yazilmadigini dogrular.
 """
 
 from __future__ import annotations

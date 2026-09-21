@@ -26,6 +26,7 @@ import logging
 import os
 import subprocess
 import sys
+import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -89,10 +90,21 @@ def csv_yaz(tablo: pd.DataFrame, yol: Path) -> None:
 
     Yarida kesilen bir yazma onceki kosunun dosyasini yarim birakmaz: ya eski
     dosya oldugu gibi kalir ya da yeni dosya tam haliyle yerine gecer.
+
+    Gecici dosyanin adi her cagrida benzersizdir (denetci bulgusu D-C4): ayni
+    hedefe eszamanli iki yazma birbirinin gecici dosyasini ezmez. Hata olursa
+    gecici dosya silinir; geride kalan bir `.tmp` sonraki kosunun ortam kaydini
+    "kirli" gostermez.
     """
-    gecici = yol.with_name(yol.name + ".tmp")
-    tablo.to_csv(gecici, index=False, lineterminator="\n")
-    os.replace(gecici, yol)
+    tanitici, ad = tempfile.mkstemp(prefix=yol.name + ".", suffix=".tmp", dir=yol.parent)
+    os.close(tanitici)
+    gecici = Path(ad)
+    try:
+        tablo.to_csv(gecici, index=False, lineterminator="\n")
+        os.replace(gecici, yol)
+    except BaseException:
+        gecici.unlink(missing_ok=True)
+        raise
 
 
 # --- Sembol basina olcum -----------------------------------------------------
