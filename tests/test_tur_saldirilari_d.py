@@ -130,10 +130,11 @@ def test_teslimden_sonra_funding_kayit_bos_zaman_dizisinde_sifir(monkeypatch):
 
 
 @pytest.mark.xfail(
-    strict=True,
-    reason="Eszamanli kosu desteklenmez: Windows'ta ayni hedefe eszamanli os.replace "
-           "PermissionError verir. Koruma csv_yaz'da degil, kosu kilidindedir "
-           "(calistir.kosu_kilidi; tests/test_kosu_kilidi.py).",
+    strict=False,
+    reason="Eszamanli kosu desteklenmez: koruma csv_yaz'da degil, kosu kilidindedir "
+           "(calistir.kosu_kilidi; tests/test_kosu_kilidi.py). Sonuc platforma bagli: "
+           "Windows'ta ayni hedefe eszamanli os.replace PermissionError verir, POSIX'te "
+           "os.replace atomiktir ve test gecebilir (denetci bulgusu D-B2).",
 )
 def test_csv_yaz_gercek_es_zamanli_yazmalar_dosyayi_bozmaz(tmp_path):
     """SALDIRI: iki thread ayni hedefe farkli icerik yazarsa dosya YARIM/BOZUK
