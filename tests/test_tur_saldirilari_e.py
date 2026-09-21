@@ -208,7 +208,7 @@ def test_delist_sinifi_deliverydate_ve_nat_karisimi_tz_tutarli():
 
 
 # ==============================================================================
-# a1_olcumu.d_kurali_olc — funding_var_mevcut / funding_var_d (D-A2)
+# a1_olcumu.d_kurali_olc — funding_var (D-A2; rev.8'de gercek donemde_funding_var)
 # ==============================================================================
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -235,11 +235,11 @@ def _tek_kayit(z, aralik=4):
     (DONEM_E.bitis + TOL - pd.Timedelta(milliseconds=1), True),  # ust sinirdan hemen once
 ])
 def test_funding_var_d_penceresi_uclari(z, beklenen):
-    """`funding_var_d`: `[baslangic - 1 dk, bitis + 1 dk)`. Alt uc dahil, ust uc
-    haric olmali (docstring'in ve D kuralinin tanimladigi gibi)."""
+    """`funding_var` (rev.8 §2, [bas, B], zaman toleransiyla): ust uc haric olmali.
+    Rev.8 oncesi sutun adi `funding_var_d` idi."""
     fund = _tek_kayit(z)
     satir = a1.d_kurali_olc("XUSDT", [DONEM_E], ["delist_SETTLING"], fund, config.BAR_4H)[0]
-    assert satir["funding_var_d"] is beklenen
+    assert satir["funding_var"] is beklenen
 
 
 def test_funding_var_mevcut_pencere_var_d_penceresinden_genistir():
@@ -254,8 +254,7 @@ def test_funding_var_mevcut_pencere_var_d_penceresinden_genistir():
     assert DONEM_E.bitis + TOL <= z < DONEM_E.bitis + ADIM + TOL
     fund = _tek_kayit(z)
     satir = a1.d_kurali_olc("XUSDT", [DONEM_E], ["delist_SETTLING"], fund, config.BAR_4H)[0]
-    assert satir["funding_var_mevcut"] is False  # rev.7'de True
-    assert satir["funding_var_d"] is False
+    assert satir["funding_var"] is False  # rev.7 veri katmaninda True
 
 
 def test_funding_var_d_ic_donemde_diger_donemin_kaydini_saymaz():
@@ -267,8 +266,8 @@ def test_funding_var_d_ic_donemde_diger_donemin_kaydini_saymaz():
     ara_kayit = T("2025-01-20 00:00")  # iki donem arasinda, her ikisinden de uzak
     fund = _tek_kayit(ara_kayit)
     satirlar = a1.d_kurali_olc("XUSDT", [d0, d1], ["dolgu_kosusu", "delist_SETTLING"], fund, config.BAR_4H)
-    assert satirlar[0]["funding_var_d"] is False
-    assert satirlar[1]["funding_var_d"] is False
+    assert satirlar[0]["funding_var"] is False
+    assert satirlar[1]["funding_var"] is False
 
 
 # ==============================================================================

@@ -10,8 +10,8 @@ Hedefler:
    (`main`), coklu tekrarli satir sayimi.
 4. `data/donem.py` `_gun_bar_sayilari` (calistir.py icinde): gun sinirinin
    nanosaniye duzeyinde tam kapanmasi.
-5. `a1_olcumu.d_kurali_olc`: 1 gunluk izgarada `giris_aday`in donem basindan
-   once kaymasi (kisa donem).
+5. `a1_olcumu.d_kurali_olc`: temsili girisin donem basindan once kaymasi (kisa
+   donem; rev.8'de gercek plan olusmaz, rev.7'de `giris_aday` kirpmasi).
 6. `calistir.gunluk_sinir_tablosu`: delist tablosunda olmayan (sinif bilinmeyen)
    sembol ve tek gunluk donem (bas_gunu == bitis_gunu) rapor_sayilari kalemi.
 
@@ -251,17 +251,19 @@ def test_gun_bar_sayilari_gun_sinirinda_nanosaniye_duzeyinde_ayrilir():
 # ============================================================================
 
 
-def test_d_kurali_olc_1d_giris_aday_donem_basindan_once_kayamaz():
-    """SALDIRI: cok kisa (tek barlik) bir donemde 1 gunluk aday kuralin girisi
-    `cikis_ani_aday.floor('1D') - adim` hesabiyla donem basindan ONCEYE
-    dusebilir; kod bunu `max(donem.baslangic, ...)` ile kirpmali. Kirpma
-    calismazsa giris donem disina tasar ve temsili pozisyon donem oncesi
-    funding'i sizdirabilir."""
+@pytest.mark.parametrize("bar", [config.BAR_1D, config.BAR_4H])
+def test_d_kurali_olc_1d_giris_aday_donem_basindan_once_kayamaz(bar):
+    """SALDIRI: cok kisa (tek barlik) bir donemde temsili giris donem basindan ONCEYE
+    dusebilir; o zaman temsili pozisyon donem oncesi funding'i sizdirabilir.
+    Rev.8 (madde 8): temsili pozisyon gercek `pozisyon_plani`dan gelir; giris bari
+    donem ici olmayan plan kurulmaz (rev.7'deki `giris_aday` kirpmasi yerine
+    sinyal donem disi ya da giris bari yok). Donem disi bir giris hicbir satira
+    yazilmaz."""
     donem = Donem(T("2025-04-14 20:00"), T("2025-04-14 20:00"), 1, 1)
     fund = pd.DataFrame({"odeme_zamani": pd.DatetimeIndex([]), "aralik_saat": pd.Series([], dtype=float)})
-    satir = a1.d_kurali_olc("X", [donem], ["delist_SETTLING"], fund, config.BAR_1D)[0]
-    assert satir["giris_aday"] >= donem.baslangic
-    assert satir["giris_aday"] == donem.baslangic
+    satir = a1.d_kurali_olc("X", [donem], ["delist_SETTLING"], fund, bar)[0]
+    assert pd.isna(satir["giris"]) and satir["ret_gerekcesi"] is not None
+    assert satir["tamlik"] is False
 
 
 # ============================================================================

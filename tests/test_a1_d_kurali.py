@@ -1,9 +1,12 @@
-"""A1 D kurali olcumu (a1_olcumu.py: donem_sonu_turleri, d_kurali_olc).
+"""A1 donem sonu funding tamligi olcumu (a1_olcumu.py: donem_sonu_turleri, d_kurali_olc).
 
-D kurali henuz on-kayit revizyonu bekliyor ve veri katmaninda YOKTUR; betik
-yalnizca sayar. Bu testler sayimin sinirlarini sabitler: disarida kalan kayit
-`bitis + 1 dk <= p < bitis + 4h + 1 dk`, tamlik mevcut kuralda son bar
-kapanisina, D kuralinda son bar acilisina gore aranir. Aga cikmaz.
+Rev.8 ile D kurali veri katmanina gecti (on-kayit §4 "Donem sonu istisnasi");
+betik kuralin kopyasini tasimaz, gercek `pencere.pozisyon_plani` ve
+`funding.funding_tamlik_ayrintisi`yi cagirir (tests/test_a1_gercek_kod.py). Bu
+testler sayimin sinirlarini sabitler: disarida kalan kayit B'den sonra ve K ile
+ayni an ya da once; tamlik son odemeyi B'ye gore arar. Rev.8 oncesi `tamlik_mevcut`
+(son bar kapanisina gore) ve `tamlik_d` sutunlari tek `tamlik` sutununa indi:
+rev.8 "mevcut" kurali kaldirdi (RESULTS degisiklik kaydi, madde 8). Aga cikmaz.
 """
 
 from __future__ import annotations
@@ -65,19 +68,19 @@ def test_veri_sonu_doneminde_kural_uygulanmaz():
 # --- tamlik ------------------------------------------------------------------------
 
 
-def test_duzenli_4h_ritimde_iki_kuralda_da_tam():
+def test_duzenli_4h_ritimde_tam():
     # 08:00 (son bar acilisi) ve 12:00 (kapanis) kayitlari var.
     fund = _fund(_ritim("2025-04-12 00:00", "2025-04-14 12:00", 4))
     satir = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund)[0]
-    assert satir["tamlik_mevcut"] and satir["tamlik_d"]
+    assert satir["tamlik"] and satir["cikis_turu"] == "donem_sonu"
 
 
-def test_kapanis_kaydi_yoksa_mevcut_kural_bozuk_d_kurali_tam():
-    # 08:00'dan sonra kayit yok: mevcut kural 12:00 odemesini arar, bulamaz.
+def test_kapanis_kaydi_yoksa_tam():
+    # 08:00'dan sonra kayit yok. Rev.8 "Donem sonu istisnasi": son odeme B'ye gore
+    # aranir; K'daki (12:00) odeme aranmaz. (Rev.7 kurali bozuk sayardi.)
     fund = _fund(_ritim("2025-04-12 00:00", "2025-04-14 08:00", 4))
     satir = a1.d_kurali_olc("X", [DONEM], ["delist_exchangeInfo_disi"], fund)[0]
-    assert not satir["tamlik_mevcut"]
-    assert satir["tamlik_d"]
+    assert satir["tamlik"] and satir["son_tam"]
 
 
 def test_8h_aralikta_son_odeme_acilistan_once_d_kurali_tam():
@@ -86,22 +89,21 @@ def test_8h_aralikta_son_odeme_acilistan_once_d_kurali_tam():
     fund = _fund(_ritim("2022-11-12 00:00", "2022-11-14 08:00", 8), aralik=8)
     satir = a1.d_kurali_olc("X", [donem], ["delist_SETTLING"], fund)[0]
     assert satir["disarida_kalan"] == 1
-    assert satir["tamlik_mevcut"] and satir["tamlik_d"]
+    assert satir["tamlik"]
 
 
-def test_odemeler_erken_biterse_iki_kuralda_da_bozuk():
+def test_odemeler_erken_biterse_bozuk():
     fund = _fund(_ritim("2025-04-10 00:00", "2025-04-12 00:00", 4))
     satir = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund)[0]
-    assert not satir["tamlik_mevcut"] and not satir["tamlik_d"]
+    assert not satir["tamlik"] and not satir["kayit_var"]
 
 
 def test_donem_sonrasi_kayit_tamligi_d_kuralinda_kurtarmaz():
-    # 04:00 ve 08:00 eksik; yalniz kapanistaki 12:00 var. Mevcut kural 00:00 -> 12:00
-    # boslugunu (12 saat > 4 saat) gorur: bozuk. D kurali 12:00'yi okumaz; 00:00 + 4h
-    # < 08:01: yine bozuk.
+    # 04:00 ve 08:00 eksik; yalniz kapanistaki 12:00 var. Rev.8 donem sonu penceresi
+    # B'de kapanir, 12:00'yi okumaz; 00:00 + 4h, B'den once: son odeme eksik.
     fund = _fund(_ritim("2025-04-12 00:00", "2025-04-14 00:00", 4) + [T("2025-04-14 12:00")])
     satir = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund)[0]
-    assert not satir["tamlik_mevcut"] and not satir["tamlik_d"]
+    assert not satir["tamlik"] and not satir["son_tam"]
 
 
 def test_donem_basindan_onceki_kayit_okunmaz():
@@ -109,13 +111,14 @@ def test_donem_basindan_onceki_kayit_okunmaz():
     donem = Donem(T("2025-04-14 04:00"), BITIS, 2, 2)
     fund = _fund([T("2025-04-14 00:00")], aralik=8)
     satir = a1.d_kurali_olc("X", [donem], ["delist_SETTLING"], fund)[0]
-    assert not satir["tamlik_d"]
+    assert satir["giris"] >= donem.baslangic
+    assert not satir["tamlik"] and not satir["kayit_var"]
 
 
 def test_funding_yoksa_tamlik_bozuk():
     satir = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund([]))[0]
     assert satir["disarida_kalan"] == 0
-    assert not satir["tamlik_mevcut"] and not satir["tamlik_d"]
+    assert not satir["tamlik"] and not satir["kayit_var"]
 
 
 # --- donem sonu turleri -----------------------------------------------------------
@@ -170,38 +173,40 @@ def test_ic_donem_sonu_uzun_bosluk():
 # --- Cikis izgarasi (4h / 1d) ve yeni sutunlar ------------------------------------
 
 
-def test_donem_sonu_cikisi_4h_son_barin_kapanisi():
-    assert a1.donem_sonu_cikisi(DONEM, config.BAR_4H) == (BITIS, T("2025-04-14 12:00"))
+def test_temsili_plan_4h_son_barin_kapanisi():
+    plan = a1.temsili_plan(DONEM, config.BAR_4H)
+    assert plan.cikis_turu == "donem_sonu"
+    assert (plan.cikis.zaman, plan.cikis_ani) == (BITIS, T("2025-04-14 12:00"))
 
 
-def test_donem_sonu_cikisi_1d_gunun_kapanisi():
-    """H3: donem bitisini iceren 1 gunluk barin acilisi o gunun 00:00'i, cikis
-    ertesi gun 00:00."""
-    assert a1.donem_sonu_cikisi(DONEM, config.BAR_1D) == (T("2025-04-14 00:00"), T("2025-04-15 00:00"))
+def test_temsili_plan_1d_kismi_son_gunde_k():
+    """H3, rev.8 §4 "Donem sonu ve cikis": 1d izgarada da fiyat tabani 4h; cikis B
+    barinin kapanisi, K = 12:00 (rev.7'de gunun kapanisi, ertesi gun 00:00 idi)."""
+    plan = a1.temsili_plan(DONEM, config.BAR_1D)
+    assert plan.cikis_turu == "donem_sonu"
+    assert (plan.cikis.zaman, plan.cikis_ani) == (BITIS, T("2025-04-14 12:00"))
 
 
 def test_1d_cikisinda_disarida_kalan_4h_ile_ayni_tabandan():
-    """1 gunluk cikista pencere donem bitisinden ertesi gun 00:00'a kadar uzar,
-    ama 16:00 ve 20:00 kayitlarini veri katmani (`donem_sonrasi_kayitlari_at`)
-    zaten atar. Sayim ayni kayit tabanindan yapilir; D kuralinin disarida
-    biraktigi yalnizca 12:00'dir (denetci bulgusu D-A4). Onceki surum bu testte
-    ham kayitlari sayip 3 bekliyordu; o davranis kaldirildi."""
+    """16:00 ve 20:00 kayitlarini veri katmani (`donem_sonrasi_kayitlari_at`) atar.
+    Sayim ayni kayit tabanindan yapilir; donem sonu istisnasinin disarida biraktigi
+    yalnizca 12:00'dir (denetci bulgusu D-A4). Rev.8: 1d cikisi da K'dadir (12:00);
+    rev.7'de ertesi gun 00:00 idi ve kapanista odeme yoktu."""
     fund = _fund(_ritim("2025-04-13 00:00", "2025-04-14 20:00", 4))
     dort = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund, config.BAR_4H)[0]
     gun = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund, config.BAR_1D)[0]
     assert dort["disarida_kalan"] == 1        # yalnizca 12:00
     assert gun["disarida_kalan"] == 1         # ayni taban: 16:00 ve 20:00 zaten atilmis
-    assert gun["cikis_ani"] == T("2025-04-15 00:00")
-    assert not gun["kapanista_odeme"]         # ertesi gun 00:00 kaydi yok (atilmis)
+    assert gun["cikis_ani"] == dort["cikis_ani"] == T("2025-04-14 12:00")
+    assert gun["kapanista_odeme"] and dort["kapanista_odeme"]
 
 
-def test_1d_cikisinda_tamlik_mevcut_bozuk_d_kurali_tam():
-    """Uzlasmadan sonra odeme kesilince 1 gunluk cikisin kapanisinda (ertesi gun
-    00:00) kayit yoktur; mevcut kural bozulur, D kurali donem bitisinde arar."""
+def test_1d_cikisinda_kapanis_kaydi_yoksa_tam():
+    """Uzlasmadan sonra odeme kesilince K'da kayit yoktur; rev.8 donem sonu istisnasi
+    son odemeyi B'ye gore arar, 1d izgarada da."""
     fund = _fund(_ritim("2025-04-12 00:00", "2025-04-14 08:00", 4))
     gun = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund, config.BAR_1D)[0]
-    assert not gun["tamlik_mevcut"]
-    assert gun["tamlik_d"]
+    assert gun["tamlik"] and gun["son_tam"]
 
 
 def test_kapanista_odeme_sutunu():

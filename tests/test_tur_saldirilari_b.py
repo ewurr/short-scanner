@@ -327,8 +327,8 @@ def _ritim(bas, son, saat):
 
 def test_d_kurali_olc_ikinci_donem_kayitlari_birinci_donemin_hesabina_sizmaz():
     """SALDIRI: iki donemli bir sembolde, ikinci (cok sonraki) donemin funding
-    kayitlari birinci donemin `disarida_kalan`/`tamlik_mevcut`/`tamlik_d`
-    hesabini DEGISTIRMEMELI. Degistirirse `donem_sonrasi_kayitlari_at` sonrasi
+    kayitlari birinci donemin `disarida_kalan`/tamlik (rev.8: `tamlik` ve kosullari;
+    rev.7'de `tamlik_mevcut`/`tamlik_d`) hesabini DEGISTIRMEMELI. Degistirirse `donem_sonrasi_kayitlari_at` sonrasi
     'seri' butun donemleri tek bir zaman dizisinde tuttugu icin ikinci donemin
     kayitlari birinci donemin tamlik zincirine sessizce eklenmis demektir."""
     bitis0 = T("2025-04-14 08:00")
@@ -347,8 +347,8 @@ def test_d_kurali_olc_ikinci_donem_kayitlari_birinci_donemin_hesabina_sizmaz():
     satir_iki = a1.d_kurali_olc("X", [donem0, donem1], ["uzun_bosluk", "delist_SETTLING"], fund_iki)[0]
 
     assert satir_tek["disarida_kalan"] == satir_iki["disarida_kalan"]
-    assert satir_tek["tamlik_mevcut"] == satir_iki["tamlik_mevcut"]
-    assert satir_tek["tamlik_d"] == satir_iki["tamlik_d"]
+    for anahtar in ("tamlik", "kayit_var", "aralik_gecerli", "baslangic_tam", "ic_tam", "son_tam"):
+        assert satir_tek[anahtar] == satir_iki[anahtar], anahtar
 
 
 def test_d_kurali_olc_oran_sutunu_olmadan_sayim_degismez():
@@ -369,7 +369,8 @@ def test_d_kurali_olc_oran_sutunu_olmadan_sayim_degismez():
     satir_oransiz = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"], fund_oransiz)[0]
     satir_nan = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"], fund_nan_oran)[0]
 
-    for anahtar in ("disarida_kalan", "tamlik_mevcut", "tamlik_d"):
+    for anahtar in ("disarida_kalan", "tamlik", "kayit_var", "aralik_gecerli", "baslangic_tam", "ic_tam",
+                    "son_tam"):
         assert satir_normal[anahtar] == satir_oransiz[anahtar] == satir_nan[anahtar], anahtar
 
 

@@ -100,7 +100,7 @@ def test_gunluk_sinir_tablosu_fiyat_ve_hacim_degerinden_bagimsiz():
 @pytest.mark.parametrize("modul,ad", [
     ("calistir", "gunluk_sinir_satirlari"), ("calistir", "_gun_bar_sayilari"),
     ("calistir", "gunluk_sinir_tablosu"), ("calistir", "donem_sonu_turleri"),
-    ("a1", "d_kurali_olc"), ("a1", "donem_sonu_cikisi"),
+    ("a1", "d_kurali_olc"), ("a1", "temsili_plan"),
 ])
 def test_kaynakta_fiyat_ya_da_oran_sutunu_yok(modul, ad):
     """Sayim fonksiyonlarinin kaynaginda (belge metni haric) fiyat ya da oran

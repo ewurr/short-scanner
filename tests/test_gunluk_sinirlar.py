@@ -140,38 +140,44 @@ DONEM = Donem(T("2025-04-01 00:00"), T("2025-04-14 08:00"), 80, 80)
 
 
 def test_1d_satiri_veri_katmaninin_attigi_kaydi_saymaz():
-    """Son barin kapanisindan (12:00) sonraki kayitlari veri katmani atar. 1 gunluk
-    cikis ani ertesi gun 00:00 olsa da o kayit ne disarida kalan ne de kapanista
-    odeme sayilir."""
+    """Son barin kapanisindan (12:00) sonraki kayitlari veri katmani atar; ertesi gun
+    00:00 kaydi ne disarida kalan ne de kapanista odeme sayilir. Rev.8: 1d cikis ani
+    da K'dir (12:00), iki izgarada kapanista odeme aynidir (rev.7'de 1d'de False)."""
     z = list(pd.date_range(T("2025-04-12 00:00"), T("2025-04-15 00:00"), freq="4h"))
     gun = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund(z), config.BAR_1D)[0]
     dort = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund(z), config.BAR_4H)[0]
     assert gun["disarida_kalan"] == dort["disarida_kalan"] == 1
-    assert dort["kapanista_odeme"] and not gun["kapanista_odeme"]
+    assert gun["cikis_ani"] == dort["cikis_ani"] == DONEM.kapanis
+    assert dort["kapanista_odeme"] and gun["kapanista_odeme"]
 
 
-def test_aday_kural_1d_cikisi_son_4h_barin_kapanisi():
-    """Aday kural: 1 gunluk izgarada da cikis ani son donem ici 4 saatlik barin
-    kapanisi, funding penceresi D kurali. Temsili giris donemin tamamen icinde
-    kalan son UTC gunu (bitis 08:00 -> onceki gun; bitis 20:00 -> ayni gun)."""
+def test_1d_cikisi_son_4h_barin_kapanisi():
+    """Rev.8 (aday kural on-kayda girdi): 1 gunluk izgarada da cikis ani son donem
+    ici 4 saatlik barin kapanisi (K), funding penceresi B'de kapanir. Temsili giris
+    (t kapanisi) B'yi iceren gunun 00:00 bari; sinyal onceki tam gun."""
     z = list(pd.date_range(T("2025-04-12 00:00"), T("2025-04-14 08:00"), freq="4h"))
     gun = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund(z), config.BAR_1D)[0]
-    assert gun["cikis_ani_aday"] == T("2025-04-14 12:00")
-    assert gun["giris_aday"] == T("2025-04-13 00:00")
-    assert not gun["tamlik_mevcut"] and gun["tamlik_d"] and gun["tamlik_aday"]
+    assert gun["cikis_ani"] == T("2025-04-14 12:00") and gun["cikis_turu"] == "donem_sonu"
+    assert gun["temsili_sinyal"] == T("2025-04-13 00:00")
+    assert gun["giris"] == T("2025-04-14 00:00")
+    assert gun["tamlik"]
 
     d20 = Donem(T("2025-04-01 00:00"), T("2025-04-14 20:00"), 80, 80)
     gun20 = a1.d_kurali_olc("X", [d20], ["delist_SETTLING"], _fund(z), config.BAR_1D)[0]
-    assert gun20["giris_aday"] == T("2025-04-14 00:00")
-    assert gun20["cikis_ani_aday"] == T("2025-04-15 00:00")
+    assert gun20["giris"] == T("2025-04-14 00:00")
+    assert gun20["cikis_ani"] == T("2025-04-15 00:00")
 
 
-def test_aday_kural_4h_izgarada_d_kuraliyla_ayni():
-    for son in ("2025-04-14 00:00", "2025-04-14 08:00", "2025-04-14 12:00"):
-        z = list(pd.date_range(T("2025-04-12 00:00"), T(son), freq="4h"))
-        s = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund(z), config.BAR_4H)[0]
-        assert s["tamlik_aday"] == s["tamlik_d"]
-        assert s["giris_aday"] == T("2025-04-13 08:00")
+@pytest.mark.parametrize("son,tam", [
+    ("2025-04-14 00:00", False),  # son odeme 00:00, siradaki 04:00 B'den once
+    ("2025-04-14 08:00", True),   # B'deki odeme var
+    ("2025-04-14 12:00", True),   # K'daki odeme donem sonu penceresinin disinda, etkisiz
+])
+def test_4h_izgarada_tamlik_ve_giris(son, tam):
+    z = list(pd.date_range(T("2025-04-12 00:00"), T(son), freq="4h"))
+    s = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund(z), config.BAR_4H)[0]
+    assert s["tamlik"] is tam
+    assert s["giris"] == T("2025-04-13 08:00")
 
 
 def test_donem_sonu_turleri_tek_kaynak():
@@ -189,7 +195,7 @@ def test_funding_sinifi_yalniz_kapanis_kaydi_varsa_d_penceresinde_fundingsiz():
     kullanir; donem funding'sizdir (rev.7'de veri katmani funding'li sayiyordu)."""
     z = [T("2025-04-14 12:00")]
     s = a1.d_kurali_olc("X", [DONEM], ["uzun_bosluk"], _fund(z), config.BAR_4H)[0]
-    assert not s["funding_var_mevcut"] and not s["funding_var_d"]
+    assert not s["funding_var"]
 
 
 @pytest.mark.parametrize("kayma,beklenen", [
@@ -197,12 +203,12 @@ def test_funding_sinifi_yalniz_kapanis_kaydi_varsa_d_penceresinde_fundingsiz():
 ])
 def test_funding_sinifi_d_penceresinin_ust_ucu(kayma, beklenen):
     s = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund([DONEM.bitis + kayma]), config.BAR_4H)[0]
-    # rev.8: veri katmaninin penceresi de B'de biter (rev.7'de mevcut hep True'ydu).
-    assert s["funding_var_mevcut"] is beklenen and s["funding_var_d"] is beklenen
+    # rev.8: veri katmaninin penceresi B'de biter (rev.7'de hep True'ydu).
+    assert s["funding_var"] is beklenen
 
 
 def test_funding_sinifi_izgaradan_bagimsiz():
     z = list(pd.date_range(T("2025-04-12 00:00"), T("2025-04-14 12:00"), freq="4h"))
     dort = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund(z), config.BAR_4H)[0]
     gun = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund(z), config.BAR_1D)[0]
-    assert (dort["funding_var_mevcut"], dort["funding_var_d"]) == (gun["funding_var_mevcut"], gun["funding_var_d"])
+    assert dort["funding_var"] is gun["funding_var"] is True

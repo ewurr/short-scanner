@@ -5,8 +5,9 @@
    yorumu, donem.py docstring).
 2. `analysis/00_veri_denetimi/calistir.py` `csv_yaz`: atomik yazma
    (denetci bulgusu D-C3).
-3. `analysis/00_veri_denetimi/a1_olcumu.py`: `donem_sonu_cikisi`,
-   `d_kurali_olc` sinir durumlari (D kurali olcumu, on-kayit revizyonu bekliyor).
+3. `analysis/00_veri_denetimi/a1_olcumu.py`: `temsili_plan` (rev.8: gercek
+   `pozisyon_plani`; rev.7'de betikteki `donem_sonu_cikisi` kopyasi) ve
+   `d_kurali_olc` sinir durumlari.
 4. `a1_olcumu.main([])` bos evrende cokmemeli.
 5. `a1_olcumu` deger yolu: main([]) `oran`/`oran_8h` sutunu hic olmayan bir
    funding cercevesiyle de uctan uca calismali (D-B1).
@@ -146,35 +147,35 @@ def test_csv_yaz_satir_sonu_crlf_sizdirmaz(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 3) a1_olcumu.py: donem_sonu_cikisi sinir durumlari
+# 3) a1_olcumu.py: temsili_plan (gercek pozisyon_plani) sinir durumlari
 # ---------------------------------------------------------------------------
 
 
-def test_donem_sonu_cikisi_1d_tam_gun_basinda():
-    """Donem bitisi tam gun basindaysa (00:00) taban 'floor' islemi barin
-    acilisini DEGISTIRMEMELI; cikis ertesi gun 00:00 olmali."""
+def test_temsili_plan_1d_tam_gun_basinda():
+    """Donem bitisi tam gun basindaysa (00:00): rev.8 §4 "Donem sonu ve cikis" geregi
+    cikis B barinin kapanisi, K = 04:00 (rev.7'de 1d cikisi ertesi gun 00:00 idi)."""
     donem = Donem(T("2025-04-01 00:00"), T("2025-04-14 00:00"), 80, 80)
-    acilis, cikis = a1.donem_sonu_cikisi(donem, config.BAR_1D)
-    assert acilis == T("2025-04-14 00:00")
-    assert cikis == T("2025-04-15 00:00")
+    plan = a1.temsili_plan(donem, config.BAR_1D)
+    assert plan.cikis.zaman == T("2025-04-14 00:00")
+    assert plan.cikis_ani == T("2025-04-14 04:00")
 
 
-def test_donem_sonu_cikisi_1d_gun_sonunda():
-    """Donem bitisi gun sonuna yakinsa (20:00) 1 gunluk izgarada barin acilisi
-    yine o gunun 00:00'i olmali (gunun SONUNA degil)."""
+def test_temsili_plan_1d_gun_sonunda():
+    """Donem bitisi gun sonundaysa (20:00): fiyat tabani 4h (rev.8), cikis bari B'nin
+    kendisi (20:00; rev.7'de 1d barin acilisi 00:00 idi), cikis ani K = ertesi 00:00."""
     donem = Donem(T("2025-04-01 00:00"), T("2025-04-14 20:00"), 80, 80)
-    acilis, cikis = a1.donem_sonu_cikisi(donem, config.BAR_1D)
-    assert acilis == T("2025-04-14 00:00")
-    assert cikis == T("2025-04-15 00:00")
+    plan = a1.temsili_plan(donem, config.BAR_1D)
+    assert plan.cikis.zaman == T("2025-04-14 20:00")
+    assert plan.cikis_ani == T("2025-04-15 00:00")
 
 
-def test_donem_sonu_cikisi_4h_izgarada_floor_uygulanmaz():
+def test_temsili_plan_4h_izgarada_floor_uygulanmaz():
     """4 saatlik izgarada (H1/H2) cikis barin acilisi donem.bitis'in KENDISI
     olmali; 1 gunluk floor 4h barina sizmamali."""
     donem = Donem(T("2025-04-01 00:00"), T("2025-04-14 20:00"), 80, 80)
-    acilis, cikis = a1.donem_sonu_cikisi(donem, config.BAR_4H)
-    assert acilis == T("2025-04-14 20:00")
-    assert cikis == T("2025-04-15 00:00")
+    plan = a1.temsili_plan(donem, config.BAR_4H)
+    assert plan.cikis.zaman == T("2025-04-14 20:00")
+    assert plan.cikis_ani == T("2025-04-15 00:00")
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +203,7 @@ def test_1d_disarida_kalan_gun_kapanisi_siniri(kayma, beklenen):
     gun kapanisi son barin kapanisiyla ayni andir; testin olctugu tolerans siniri
     ve beklenen sayilar degismedi."""
     donem = Donem(T("2025-04-01 00:00"), T("2025-04-14 20:00"), 80, 80)
-    _, cikis_ani = a1.donem_sonu_cikisi(donem, config.BAR_1D)
+    cikis_ani = a1.temsili_plan(donem, config.BAR_1D).cikis_ani
     fund = _fund([cikis_ani + kayma])
     satir = a1.d_kurali_olc("X", [donem], ["delist_SETTLING"], fund, config.BAR_1D)[0]
     assert satir["disarida_kalan"] == beklenen
@@ -219,7 +220,7 @@ DONEM_KISA = Donem(T("2025-04-14 04:00"), T("2025-04-14 08:00"), 2, 2)
 def test_kapanista_odeme_59_saniye_icinde_true():
     """Cikis anindan 59 sn sonraki kayit hala 'kapanista odeme' sayilmali
     (1 dk toleransin ICINDE)."""
-    _, cikis_ani = a1.donem_sonu_cikisi(DONEM_KISA, config.BAR_4H)
+    cikis_ani = a1.temsili_plan(DONEM_KISA, config.BAR_4H).cikis_ani
     fund = _fund([cikis_ani + 59 * SN])
     satir = a1.d_kurali_olc("X", [DONEM_KISA], ["delist_SETTLING"], fund, config.BAR_4H)[0]
     assert satir["kapanista_odeme"] is True
@@ -228,7 +229,7 @@ def test_kapanista_odeme_59_saniye_icinde_true():
 def test_kapanista_odeme_61_saniye_disinda_false():
     """Cikis anindan 61 sn sonraki kayit tolerans DISINA cikmali, 'kapanista
     odeme' False donmeli (sinirin siki uygulanmasi)."""
-    _, cikis_ani = a1.donem_sonu_cikisi(DONEM_KISA, config.BAR_4H)
+    cikis_ani = a1.temsili_plan(DONEM_KISA, config.BAR_4H).cikis_ani
     fund = _fund([cikis_ani + 61 * SN])
     satir = a1.d_kurali_olc("X", [DONEM_KISA], ["delist_SETTLING"], fund, config.BAR_4H)[0]
     assert satir["kapanista_odeme"] is False
@@ -276,15 +277,20 @@ def test_temsili_giris_donem_basindan_once_kayamaz():
     SABITLENMELI. Donem basindan ONCEKI bir kayit (varsayimsal kirpilmamis
     giris penceresine duserdi) tamlik hesabini ETKILEMEMELI: kirpma dogru
     calisiyorsa bu kayit tamamen yok sayilir ve tamlik degismez."""
-    donem = Donem(T("2025-04-13 20:00"), T("2025-04-14 00:00"), 2, 2)
-    cikis_acilis, cikis_ani = a1.donem_sonu_cikisi(donem, config.BAR_4H)
-    assert cikis_acilis == donem.bitis
+    # Kurgu degisikligi (madde 8): rev.8'de giris ani t kapanisidir ve donem sonu
+    # penceresi (giris, B] araligidir. Iki barlik donemde giris B'ye duser, pencere bos
+    # kalir ve tamlik yemden bagimsiz olarak False olurdu; test sizintiyi olcemezdi.
+    # Donem dort bar (24 saatten kisa): giris donem basindan sonraki ilk bara sabitlenir.
+    donem = Donem(T("2025-04-13 12:00"), T("2025-04-14 00:00"), 4, 4)
+    plan = a1.temsili_plan(donem, config.BAR_4H)
+    assert plan.cikis.zaman == donem.bitis
+    assert plan.giris == donem.baslangic + pd.Timedelta(hours=4)
 
     # Donem icini TAM kaplayan gecerli zincir (basi = donem.baslangic).
-    taban_zincir = [donem.baslangic, donem.baslangic + pd.Timedelta(hours=4), cikis_ani]
+    taban_zincir = list(pd.date_range(donem.baslangic, plan.cikis_ani, freq="4h"))
     fund_taban = _fund(taban_zincir, aralik=4)
     satir_taban = a1.d_kurali_olc("X", [donem], ["delist_SETTLING"], fund_taban, config.BAR_4H)[0]
-    assert satir_taban["tamlik_d"] is True
+    assert satir_taban["tamlik"] is True
 
     # Ayni zincire, donem basindan 12 saat ONCE (ama kirpilmamis 24h'lik
     # pencerenin icinde kalacak sekilde), zincirle UYUMSUZ (kocaman aralikli)
@@ -294,7 +300,7 @@ def test_temsili_giris_donem_basindan_once_kayamaz():
                         "aralik_saat": [999], "oran": [0.0], "oran_8h": [0.0]})
     fund_yemli = pd.concat([yem, fund_taban], ignore_index=True).sort_values("odeme_zamani", ignore_index=True)
     satir_yemli = a1.d_kurali_olc("X", [donem], ["delist_SETTLING"], fund_yemli, config.BAR_4H)[0]
-    assert satir_yemli["tamlik_d"] is True, (
+    assert satir_yemli["tamlik"] is True, (
         "donem basindan onceki bir kayit tamlik sonucunu degistirdi; "
         "temsili giris donem basina kirpilmiyor olabilir (sizinti)"
     )

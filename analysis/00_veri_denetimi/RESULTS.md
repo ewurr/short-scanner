@@ -1029,3 +1029,46 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   H, açılışı giriş anından önce olmayan ve kapanışı çıkış anından sonra olmayan dönem içi 4h
   barların en yüksek high değeri. Yalnızca `OnaylanmisPozisyon` alır; hiçbir veride
   çalıştırılmadı, sonuç raporlanmadı. Mevcut test değişmedi.
+- 2026-09-22 (Rev.8 uygulaması, madde 6 düzeltmesi: rev.8 §4 "Funding aralığı geçişleri").
+  `funding_tamlik_ayrintisi`, giriş anı son funding kaydından sonra olduğunda (penceresinde
+  kayıt yok) indeks taşmasıyla çöküyordu; rev.8 gereği "tam değil" döner. Madde 8 sırasında
+  bulundu. Yeni test: `test_rev8_funding.py::test_giris_son_kayittan_sonraysa_tam_degil_cokmez`.
+  Mevcut test değişmedi.
+- 2026-09-22 (Rev.8 uygulaması, madde 8: denetçi bulguları D-B3, D-B4; rev.8 §4 "Dönem sonu
+  istisnası", "Dönem sonu ve çıkış"). A1 ölçümündeki çıkış ve funding kuralı kopyası
+  (`donem_sonu_cikisi`, elle kurulan tamlık pencereleri, `_odemeler_tam_mi` çağrıları)
+  silindi. Temsili pozisyon gerçek `pencere.pozisyon_plani` ile kurulur (`temsili_plan`),
+  tamlık gerçek `funding.funding_tamlik_ayrintisi` ile, funding sınıfı gerçek
+  `funding.donemde_funding_var` ile ölçülür. Birincil ufuk `config.BIRINCIL_UFUK`'a taşındı
+  (ön-kayıt §4 tablosu: 18 bar, 14 gün). Sütunlar: `tamlik_mevcut`, `tamlik_d`,
+  `tamlik_aday`, `giris_aday`, `cikis_ani_aday`, `funding_var_mevcut`, `funding_var_d`
+  yerine `temsili_sinyal`, `giris`, `cikis_turu`, `cikis_ani`, `ret_gerekcesi`, beş tamlık
+  koşulu, `tamlik`, `funding_var` (ve `main`'de karşılaştırma için evren tablosundaki
+  `funding_yok_evren`). Temsili giriş: 4h ızgarada B − 24 saat (dönem başından sonraki ilk
+  bardan önce olamaz), 1d ızgarada B'yi içeren günün 00:00 barı. Küme toplam dönem;
+  veri sonu dönemleri küme ölçütüyle reddedilir. Yeni test: `tests/test_a1_gercek_kod.py`
+  (kaynak taraması, gerçek fonksiyonlara casus, config parametreleri).
+  **Bilerek güncellenen mevcut testler** (hepsi rev.7'deki kopyayı ya da rev.8'in kaldırdığı
+  "mevcut" kuralı sabitliyordu; kopya silindiği için aynı sınır gerçek kod yolunda sınanır):
+  - `test_a1_d_kurali.py`: `tamlik_mevcut`/`tamlik_d` → `tamlik` ve koşul sütunları; iki
+    kuralı karşılaştıran test adları tek kurala indi. `donem_sonu_cikisi` testleri
+    `temsili_plan` testlerine çevrildi; 1d çıkış anı ertesi gün 00:00 → K (rev.8: 1d kısmi
+    son günde de çıkış B barının kapanışı), bu yüzden 1d'de K'daki kayıt artık kapanışta
+    ödeme sayılır.
+  - `test_gunluk_sinirlar.py`: aday kural testleri gerçek plana çevrildi (1d temsili giriş
+    rev.8 tanımıyla t kapanışı: 04-14 00:00; rev.7 sayımında `giris_aday` 04-13 00:00 idi).
+    4h tamlık testi parametreli oldu, beklenen değer her son kayıt için açık yazıldı.
+    Funding sınıfı testleri `funding_var` sütununa geçti.
+  - `test_tamlik_sayimi_deger_icermez.py`: kaynak taraması `donem_sonu_cikisi` yerine
+    `temsili_plan`'ı tarar.
+  - `test_tur_saldirilari_b.py` (2 test): karşılaştırılan anahtarlar `tamlik` ve beş koşul.
+  - `test_tur_saldirilari_c.py`: `donem_sonu_cikisi` testleri `temsili_plan` testleri oldu;
+    1d beklentileri rev.8'e göre (çıkış barı B, çıkış anı K). Temsili girişin dönem başına
+    sabitlenmesi testinde kurgu değişti: rev.8'de giriş t kapanışıdır ve dönem sonu penceresi
+    (giriş, B] aralığıdır; iki barlık dönemde giriş B'ye düşer, pencere boş kalır ve test
+    sızıntıyı ölçemezdi. Dört barlık dönem kullanıldı; ölçtüğü şey (dönem başından önceki
+    kaydın sonucu değiştirmemesi) değişmedi.
+  - `test_tur_saldirilari_d.py`: tek barlık dönemde temsili giriş rev.8'de oluşmaz (sinyal
+    dönem dışı ya da giriş barı yok); test plan oluşmadığını ve dönem dışı girişin yazılmadığını
+    sınar, 4h ızgara da eklendi.
+  - `test_tur_saldirilari_e.py` (3 test): `funding_var_d`/`funding_var_mevcut` → `funding_var`.

@@ -132,6 +132,11 @@ DENETIM_TEMSILI_GIRIS_SURE = dt.timedelta(hours=24)
 # (on-kayit §4 rev.8 "Zaman toleransi"). Betige gomuluydu (8 + 1/60).
 DENETIM_ILK_GECIKME_SAAT = 8
 
+# Hipotezlerin birincil ufku, izgaraya gore bar sayisi (on-kayit §4 tablo: H1, H2
+# 18 bar (3 gun); H3 14 gun). Ileri kaymanin ust siniri da budur (§4 rev.8).
+# A1 olcumu ve rev.8 etki sayimlari kullanir; F2 hipotez kodu da buradan okur.
+BIRINCIL_UFUK = {BAR_4H: 18, BAR_1D: 14}
+
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 
 # Listeleme yasi >= 30 gun
