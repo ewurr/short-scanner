@@ -605,6 +605,24 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
    **F2'ye geçiş.** Bu açık nokta kapanmadan F2'ye geçilmez.
 
+9. **Tamlık sayımlarının denetim sınırı (denetçi bulgusu D-B4).** D kuralı ve 1 günlük
+   tamlık sayımları B grubunu ve C2 dönemini de kapsar. Bu sayımlar yalnızca funding
+   kaydının varlığını ve zaman damgasını kullanır; fiyat, getiri ya da funding değeri
+   içermez. Bu yüzden CLAUDE.md §3.1'deki veri bütünlüğü denetimi kapsamındadır.
+
+   Tam liste: funding tarafında kaydın zaman damgasının yanında aralık alanı
+   (`aralik_saat`, bir sonraki ödemeye kalan süre) da okunur; bu kaydın zamanlama
+   bilgisidir, oran değeri değildir. Dönem sonu türünün ayrımı ve 1 günlük sınır günleri
+   (§14.8) mumların zaman damgasını ve hacmin sıfır olup olmadığını kullanır; fiyat
+   sütunlarına ve hacim miktarına bakılmaz.
+
+   Kodda: `tests/test_tamlik_sayimi_deger_icermez.py`. `d_kurali_olc` oran sütunu hiç
+   yokken de çalışır ve oran değerleri ne olursa olsun aynı satırları üretir;
+   `gunluk_sinir_tablosu` fiyatlar NaN ya da sıfır olmayan hacimler rastgele olduğunda
+   da aynı tabloyu üretir; bu fonksiyonların kaynağında fiyat ya da oran sütununun adı
+   geçmez. Kaynak taramasının sınırı `tests/test_a1_deger_yolu_yok.py` açıklamasında
+   (D-C1).
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
