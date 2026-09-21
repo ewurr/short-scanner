@@ -243,13 +243,18 @@ def test_tarama_kapi_disi_cikis_erisimini_yakalar(tmp_path):
         "analysis/01_h1/calistir.py": "c = pencere.CikisSonucu(0, z, 'close', False, False)\n",
         "analysis/02_h2/calistir.py": "p = pencere.PozisyonPlani(*alanlar)\n",
         "events/h3.py": "an = pencere.cikis_ani(c, bar)\n",
+        # rev.8 tek karar noktasi: plan ve funding adimlari da dogrudan cagrilamaz
+        "events/h4.py": "plan = pencere.pozisyon_plani(z, t, 18, bar, birincil_ufuk=18, **sinirlar)\n",
+        "study/k3.py": "f = funding.pozisyon_fundingi(fr, plan)\n",
+        "study/k4.py": "p = pozisyon.OnaylanmisPozisyon(plan, 1.0, 1.0, 0.0)\n",
     }
     for ad, metin in ornekler.items():
         yol = tmp_path / ad
         yol.parent.mkdir(parents=True, exist_ok=True)
         yol.write_text(metin, encoding="utf-8")
     temiz = tmp_path / "events" / "h2.py"
-    temiz.write_text("plan = pencere.pozisyon_plani(z, t, 18, bar, birincil_ufuk=18, **sinirlar)\n", encoding="utf-8")
+    # Rev.8: temiz yol tek karar noktasidir (rev.7'de pozisyon_plani idi).
+    temiz.write_text("p = pozisyon.olay_karari(m, fr, t, 18, bar, birincil_ufuk=18, **sinirlar)\n", encoding="utf-8")
     izinli = tmp_path / "data" / "pencere.py"
     izinli.parent.mkdir()
     izinli.write_text("def cikis_bari(): ...\n", encoding="utf-8")
@@ -258,4 +263,4 @@ def test_tarama_kapi_disi_cikis_erisimini_yakalar(tmp_path):
 
 
 def test_depoda_kapi_disi_cikis_erisimi_yok():
-    assert ihlaller(CIKIS_KAPI_DISI_DESENI) == [], "analiz kodu tek kapiyi (pozisyon_plani) atliyor"
+    assert ihlaller(CIKIS_KAPI_DISI_DESENI) == [], "analiz kodu tek karar noktasini (olay_karari) atliyor"

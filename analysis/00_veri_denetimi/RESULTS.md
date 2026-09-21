@@ -1016,3 +1016,12 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   - `test_gunluk_sinirlar.py` (2 test) ve `test_tur_saldirilari_e.py` (1 test): A1'in
     `funding_var_mevcut` sütunu gerçek kodu çağırır; gerçek kod artık B penceresini
     kullandığı için K'daki kayıt için False.
+- 2026-09-22 (Rev.8 uygulaması, madde 7: rev.8 §4 "Olayın kümede oluşma ölçütü"). Tek
+  karar noktası `data/pozisyon.py:olay_karari`: sinyal penceresi tamlığı, giriş barı,
+  çıkış ve ileri kayma sınırı, gerçek çıkış anı + tolerans ≤ küme sonu, funding tamlığı.
+  Çıktı imzalı `OnaylanmisPozisyon` (plan, P0, P1, funding toplamı); brüt ve net girdisi
+  (`pozisyon_fiyatlari`) yalnızca onu kabul eder. **Bilerek güncellenen mevcut testler:**
+  `tests/tarama_yardimcisi.py` kapı dışı deseni `pozisyon_plani`, `pozisyon_fundingi`,
+  `pozisyon_funding_tam_mi`, `funding_tamlik_ayrintisi` ve `OnaylanmisPozisyon` kurulumunu
+  da yakalar; `test_pozisyon_plani.py` tarama testinde "temiz" örnek `olay_karari` oldu
+  (rev.7'de tek kapı `pozisyon_plani` idi) ve üç yeni ihlal örneği eklendi.
