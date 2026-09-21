@@ -51,6 +51,8 @@ KILITLI = (
     "PREREGISTRATION.md",
     "data/split.csv",
     "data/universe.csv",
+    # Evren kurulumunun girdisi; universe.csv ile ayni statude (bir kez uretilir).
+    "data/exchange_info_anlik.json",
     "ONAY_KAYDI.md",
     "CLAUDE.md",
 )

@@ -94,7 +94,7 @@ F4'e geçmez; bu geçerli ve değerli bir sonuçtur.
 ### Koruma katmanı
 
 **Kilitli dosyalar.** `PREREGISTRATION.md`, `data/split.csv`, `data/universe.csv`,
-`ONAY_KAYDI.md` ve bu dosya (`CLAUDE.md`) kilitlidir.
+`data/exchange_info_anlik.json`, `ONAY_KAYDI.md` ve bu dosya (`CLAUDE.md`) kilitlidir.
 `.claude/hooks/kilitli_dosya_korumasi.py` adlı `PreToolUse` hook'u bu dosyalara
 yapılan yazma ve düzenleme araç çağrılarını reddeder. Kilit yalnızca kullanıcının
 açık izniyle, `SHORT_LAB_KILIT_ACIK=1` ortam değişkeni ayarlanarak açılır.

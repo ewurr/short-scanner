@@ -243,3 +243,55 @@ def test_surec_kilit_acikken_her_seye_izin_verir():
 def test_surec_ayristirilamayan_girdide_sessizce_gecmez():
     cikti = _hook_calistir("bozuk-json ONAY_KAYDI.md")
     assert json.loads(cikti)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# --- data/exchange_info_anlik.json: universe.csv ile ayni koruma ---------------
+
+EXCHANGE_INFO = "data/exchange_info_anlik.json"
+
+EXCHANGE_INFO_YAZMALARI = [
+    f"echo x >> {EXCHANGE_INFO}",
+    "curl -s https://fapi.binance.com/fapi/v1/exchangeInfo > data/exchange_info_anlik.json",
+    f"sed -i 's/a/b/' {EXCHANGE_INFO}",
+    f"mv {EXCHANGE_INFO} eski.json",
+    f"cp yeni.json {EXCHANGE_INFO}",
+    f"rm {EXCHANGE_INFO}",
+    f"truncate -s 0 {EXCHANGE_INFO}",
+    f"tee {EXCHANGE_INFO}",
+    f"git checkout -- {EXCHANGE_INFO}",
+    f"git rm {EXCHANGE_INFO}",
+    "rm data/*.json",
+]
+
+
+@pytest.mark.parametrize("komut", EXCHANGE_INFO_YAZMALARI)
+def test_exchange_info_yazma_niyeti_reddedilir(komut):
+    karar = hook.bash_degerlendir(komut)
+    assert not karar.izin, komut
+    assert karar.kalip == EXCHANGE_INFO, f"{komut} -> {karar.kalip}"
+
+
+EXCHANGE_INFO_OKUMALARI = [
+    f"cat {EXCHANGE_INFO}",
+    f"jq '.symbols | length' {EXCHANGE_INFO}",
+    f"git log --oneline -- {EXCHANGE_INFO}",
+    f"cp {EXCHANGE_INFO} /tmp/yedek.json",
+]
+
+
+@pytest.mark.parametrize("komut", EXCHANGE_INFO_OKUMALARI)
+def test_exchange_info_salt_okuma_gecer(komut):
+    karar = hook.bash_degerlendir(komut)
+    assert karar.izin, f"{komut} -> {karar.neden}"
+
+
+def test_exchange_info_yolu_kilitli_taninir():
+    assert hook.kilitli_mi(str(KOK / "data" / "exchange_info_anlik.json")) == EXCHANGE_INFO
+    assert hook.kilitli_mi("/d/Projeler/short_scanner/data/exchange_info_anlik.json") == EXCHANGE_INFO
+
+
+def test_surec_write_exchange_info_reddeder():
+    cikti = _hook_calistir({"tool_name": "Write", "tool_input": {"file_path": str(KOK / "data" / "exchange_info_anlik.json")}})
+    cevap = json.loads(cikti)["hookSpecificOutput"]
+    assert cevap["permissionDecision"] == "deny"
+    assert EXCHANGE_INFO in cevap["permissionDecisionReason"]
