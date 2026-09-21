@@ -311,6 +311,128 @@ def delist_tablosu(evren: pd.DataFrame, detaylar: list[dict]) -> pd.DataFrame:
     return tablo.reset_index(drop=True)
 
 
+def donem_sonu_turleri(donemler, sinif: str | None, veri_sonu_bari: pd.Timestamp,
+                       zamanlar: pd.DatetimeIndex | None = None, hacim=None) -> list[str]:
+    """Her donemin sonu ne ile bitiyor. Saf.
+
+    Son donem: delist sinifi (SETTLING / exchangeInfo disi), veri sonu
+    (`bitis == veri_sonu_bari`) ya da diger. Ic donem sonu: iki donem arasinda
+    6+ barlik sifir hacim kosusu varsa `dolgu_kosusu`, yoksa `uzun_bosluk`
+    (on-kayit §2 rev.7: donemi bolen yalnizca bu ikisidir). Ic donem icin mumlar
+    (`zamanlar`, `hacim`) gerekir. Hacimden yalnizca sifir olup olmadigi okunur.
+
+    A1 olcumu (`a1_olcumu.py`) ayni fonksiyonu buradan alir; iki olcumun donem
+    sonu turu ayni tanimdan gelir.
+    """
+    turler = []
+    dolgular = []
+    if len(donemler) > 1:
+        dolgular = donem_modulu.dolgu_kosulari(zamanlar, hacim, config.BAR_4H)
+    for i, d in enumerate(donemler):
+        if i == len(donemler) - 1:
+            if sinif == universe_modulu.SETTLING_DURUMU:
+                turler.append("delist_SETTLING")
+            elif sinif == "exchangeInfo_disi":
+                turler.append("delist_exchangeInfo_disi")
+            elif d.bitis == veri_sonu_bari:
+                turler.append("veri_sonu")
+            else:
+                turler.append("diger_son_donem")
+        else:
+            sonraki = donemler[i + 1].baslangic
+            dolgu = any(d.bitis < k.baslangic < sonraki for k in dolgular)
+            turler.append("dolgu_kosusu" if dolgu else "uzun_bosluk")
+    return turler
+
+
+# --- 1 gunluk barlarin donem sinirlari (denetci bulgusu D-A1) ------------------
+
+GUN = pd.Timedelta(days=1)
+
+
+def _gun_bar_sayilari(zamanlar: pd.DatetimeIndex, gun: pd.Timestamp, donem) -> tuple[int, int]:
+    """Bir UTC gunundeki 4 saatlik barlardan donem ici ve donem disi olanlarin sayisi. Saf."""
+    gunde = zamanlar[(zamanlar >= gun) & (zamanlar < gun + GUN)]
+    ici = int(((gunde >= donem.baslangic) & (gunde <= donem.bitis)).sum())
+    return ici, len(gunde) - ici
+
+
+def gunluk_sinir_satirlari(sembol: str, zamanlar: pd.DatetimeIndex, gun_acilislari: pd.DatetimeIndex,
+                           donemler, turler: list[str]) -> list[dict]:
+    """Her donemin basinda ve sonunda 1 gunluk seriye giren gunler. Saf.
+
+    Yalnizca ZAMAN DAMGASI kullanir: 4 saatlik barlarin acilislari (`zamanlar`),
+    bugunku 1 gunluk serinin gun acilislari (`gun_acilislari`,
+    `klines.gunluge_cevir` ciktisi; 6 barin tamami olan gunler) ve donem
+    sinirlari. Fiyat, hacim ya da funding okumaz.
+
+    Bugunku kod 1 gunluk seriyi TUM 4 saatlik seriden kurar; donem sinirini
+    bilmez. Bir satirda:
+      - `bas_gunu` / `bitis_gunu`: donem baslangicini / bitisini iceren UTC gunu;
+        `*_1d_serisinde` o gun bugunku 1 gunluk seride var mi (6 bar mevcut mu),
+        `*_donem_ici_bar` / `*_donem_disi_bar` o gunun 4 saatlik barlarindan
+        donem icinde / disinda kalanlar.
+      - `ilk_gun`: donemle kesisen ilk 1 gunluk bar (acilisi `bas_gunu` ya da
+        sonrasi, bitisten once).
+      - `son_gun`: donem sonunda cikisin okundugu 1 gunluk bar. `pencere.cikis_bari`
+        donem sonunda "sinirdan (donem bitisi) onceki son bar"i secer; 1 gunluk
+        seride bu, acilisi donem bitisine esit ya da ondan once olan son gundur.
+      - `*_donem_disi_bar`: o 1 gunluk bara giren donem disi 4 saatlik bar sayisi.
+    Donem sinirlari bar duzeyindedir (on-kayit §2 rev.7). `bas_turu`: ilk donemin
+    basi `donem_basi`, digerleri `ic_sinir`. `son_turu`: `donem_sonu_turleri`.
+    """
+    satirlar = []
+    for i, (d, tur) in enumerate(zip(donemler, turler)):
+        bas_gunu, bitis_gunu = d.baslangic.floor("D"), d.bitis.floor("D")
+        kesisen = gun_acilislari[(gun_acilislari >= bas_gunu) & (gun_acilislari <= d.bitis)]
+        ilk_gun = kesisen[0] if len(kesisen) else pd.NaT
+        son_gun = kesisen[-1] if len(kesisen) else pd.NaT
+        bas_ici, bas_disi = _gun_bar_sayilari(zamanlar, bas_gunu, d)
+        bit_ici, bit_disi = _gun_bar_sayilari(zamanlar, bitis_gunu, d)
+        satirlar.append({
+            "sembol": sembol, "donem_sira": i, "donem_baslangic": d.baslangic, "donem_bitis": d.bitis,
+            "bas_turu": "donem_basi" if i == 0 else "ic_sinir", "son_turu": tur,
+            "bas_gunu": bas_gunu, "bas_gunu_1d_serisinde": bool(bas_gunu in gun_acilislari),
+            "bas_gunu_donem_ici_bar": bas_ici, "bas_gunu_donem_disi_bar": bas_disi,
+            "bitis_gunu": bitis_gunu, "bitis_gunu_1d_serisinde": bool(bitis_gunu in gun_acilislari),
+            "bitis_gunu_donem_ici_bar": bit_ici, "bitis_gunu_donem_disi_bar": bit_disi,
+            "ilk_gun": ilk_gun,
+            "ilk_gun_donem_disi_bar": _gun_bar_sayilari(zamanlar, ilk_gun, d)[1] if len(kesisen) else 0,
+            "son_gun": son_gun,
+            "son_gun_donem_disi_bar": _gun_bar_sayilari(zamanlar, son_gun, d)[1] if len(kesisen) else 0,
+        })
+    return satirlar
+
+
+GUNLUK_SINIR_SUTUNLARI = [
+    "sembol", "donem_sira", "donem_baslangic", "donem_bitis", "bas_turu", "son_turu",
+    "bas_gunu", "bas_gunu_1d_serisinde", "bas_gunu_donem_ici_bar", "bas_gunu_donem_disi_bar",
+    "bitis_gunu", "bitis_gunu_1d_serisinde", "bitis_gunu_donem_ici_bar", "bitis_gunu_donem_disi_bar",
+    "ilk_gun", "ilk_gun_donem_disi_bar", "son_gun", "son_gun_donem_disi_bar",
+]
+
+
+def gunluk_sinir_tablosu(detaylar: list[dict], delist: pd.DataFrame) -> pd.DataFrame:
+    """Tum dahil sembollerde `gunluk_sinir_satirlari` (denetci bulgusu D-A1).
+
+    Veri sonu bari tum donem bitislerinin en gecidir (A1 olcumuyle ayni tanim).
+    """
+    bitisler = [x.bitis for d in detaylar for x in d["_donemler"]]
+    veri_sonu_bari = max(bitisler) if bitisler else pd.Timestamp.min.tz_localize("UTC")
+    sinif = delist.set_index("sembol")["sinif"].to_dict()
+    satirlar = []
+    for d in detaylar:
+        donemler = d["_donemler"]
+        if not donemler:
+            continue
+        zamanlar = pd.DatetimeIndex(d["_mumlar"]["open_time"])
+        turler = donem_sonu_turleri(donemler, sinif.get(d["sembol"]), veri_sonu_bari,
+                                    zamanlar, d["_mumlar"]["quote_volume"])
+        gunler = pd.DatetimeIndex(d["_gunluk"]["open_time"]) if len(d["_gunluk"]) else pd.DatetimeIndex([], tz="UTC")
+        satirlar += gunluk_sinir_satirlari(d["sembol"], zamanlar, gunler, donemler, turler)
+    return pd.DataFrame(satirlar, columns=GUNLUK_SINIR_SUTUNLARI)
+
+
 def funding_siz_donemler(evren: pd.DataFrame) -> pd.DataFrame:
     """Hic funding kaydi olmayan listeleme donemleri (on-kayit §2 rev.7: hic kullanilmaz)."""
     d = evren.loc[(~evren["haric"]) & (evren["donem_id"] >= 0) & evren["donem_funding_yok"]]
@@ -921,6 +1043,30 @@ def rapor_sayilari(t: dict[str, pd.DataFrame], evren: pd.DataFrame, bolme: pd.Da
     ekle("rev8", "uzlasma_sonrasi_funding_yayinlanan_sembol (on-kayit: 38)",
          int((ozet["funding_son_donem_sonrasi_atilan"] > 0).sum()))
 
+    # §14.8 1 gunluk barlarin donem sinirlari (denetci bulgusu D-A1). Yalnizca
+    # zaman damgasi sayimi; fiyat, hacim degeri ya da getiri yok.
+    gs = t.get("gunluk_sinirlar")
+    if gs is not None and len(gs):
+        ic_turler = ("dolgu_kosusu", "uzun_bosluk")
+        for tur, g in gs.groupby("son_turu"):
+            ekle("14.8", f"donem_sonu_{tur}", len(g))
+            ekle("14.8", f"son_gun_donem_disi_bar_iceren_{tur}", int((g["son_gun_donem_disi_bar"] > 0).sum()))
+            ekle("14.8", f"son_gun_donem_disi_bar_toplam_{tur}", int(g["son_gun_donem_disi_bar"].sum()))
+            ekle("14.8", f"bitis_gunu_1d_serisinde_yok_{tur}", int((~g["bitis_gunu_1d_serisinde"]).sum()))
+        for tur, g in gs.groupby("bas_turu"):
+            ekle("14.8", f"donem_basi_{tur}", len(g))
+            ekle("14.8", f"ilk_gun_donem_disi_bar_iceren_{tur}", int((g["ilk_gun_donem_disi_bar"] > 0).sum()))
+        # Bugunku 1 gunluk seride olup 6'dan az donem ici 4 saatlik bar iceren gunler.
+        bas_kismi = gs["bas_gunu_1d_serisinde"] & (gs["bas_gunu_donem_ici_bar"] < 6)
+        son_kismi = gs["bitis_gunu_1d_serisinde"] & (gs["bitis_gunu_donem_ici_bar"] < 6)
+        ic_son = gs["son_turu"].isin(ic_turler)
+        ekle("14.8", "kismi_gun_donem_basi", int((bas_kismi & (gs["bas_turu"] == "donem_basi")).sum()))
+        ekle("14.8", "kismi_gun_ic_sinir_bas", int((bas_kismi & (gs["bas_turu"] == "ic_sinir")).sum()))
+        ekle("14.8", "kismi_gun_ic_sinir_son", int((son_kismi & ic_son).sum()))
+        ekle("14.8", "kismi_gun_donem_sonu", int((son_kismi & ~ic_son).sum()))
+        # Ayni gunde baslayip biten donem varsa o gun iki kez sayilmis olur.
+        ekle("14.8", "ayni_gunde_baslayan_ve_biten_donem", int((gs["bas_gunu"] == gs["bitis_gunu"]).sum()))
+
     # §12 capraz
     cr = t["cross_dogrulama"]
     for anahtar in ("toplam_gun", "fiyat_gun", "hacim_gun"):
@@ -1015,6 +1161,8 @@ def main() -> None:
 
     delist = delist_tablosu(evren, detaylar)
     yaz(delist, "delist_siniflandirmasi")
+    gunluk_sinir = gunluk_sinir_tablosu(detaylar, delist)
+    yaz(gunluk_sinir, "gunluk_sinirlar")
     dolgu = dolgu_tablosu(detaylar)
     yaz(dolgu, "dolgu_kosulari")
     kisa_sifir = kisa_sifir_tablosu(detaylar)
@@ -1053,6 +1201,7 @@ def main() -> None:
         "donem_sonu_degisimleri": degisim, "settled_aylari": settled, "settled_icerik": settled_ic,
         "butunluk_sicramalari": sicramalar, "bosluklar": bosluklar, "bosluk_olaylari": bosluk_olaylari,
         "cross_dogrulama": capraz, "kisa_donemler": kisa, "donem_aralari": aralar,
+        "gunluk_sinirlar": gunluk_sinir,
     }
     yaz(rapor_sayilari(tablolar, evren, split_modulu.split_oku()), "rapor_sayilari")
     yaz(ortam_kaydi(git, baslangic, pd.Timestamp.now(tz="UTC")), "ortam")

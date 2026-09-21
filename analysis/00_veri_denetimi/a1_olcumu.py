@@ -15,8 +15,9 @@ barin icine duser (RESULTS §2). Bu betik yalnizca KAYIT SAYAR ve ZAMAN KONUMU y
 4. D kurali (on-kayit revizyonu bekliyor, KODA GECMEDI): donem sonu cikislarinda
    funding penceresi son barin acilisinda (dahil) biter, veri sonu donemi haric;
    tamlik kontrolu son odemeyi buna gore arar. Donem sonu turune gore disarida
-   kalacak kayit sayisi ve tamlik kontrolunun mevcut kural ile D kuralinda
-   gecip gecmedigi (`a1_d_kurali_tam.csv`).
+   kalacak kayit sayisi ve tamlik kontrolunun mevcut kural, D kurali ve aday
+   kuralda (RESULTS §14.8) gecip gecmedigi (`a1_d_kurali_tam.csv`). Butun
+   sutunlar veri katmaninin gordugu kayit tabanindan sayilir (D-A4).
 
 DEGER OKUMAZ (denetci bulgusu D-B1, CLAUDE.md §3.1). Betik funding oran
 sutunlarina (`oran`, `oran_8h`) hicbir yolda erismez; yalnizca odeme ZAMANI ve
@@ -48,7 +49,7 @@ sys.path.insert(0, str(KOK))
 sys.path.insert(0, str(BU_DIZIN))
 
 import config  # noqa: E402
-from calistir import csv_yaz, git_durumu, ortam_kaydi  # noqa: E402
+from calistir import csv_yaz, donem_sonu_turleri, git_durumu, ortam_kaydi  # noqa: E402
 from data import donem as donem_modulu  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
 from data import klines as klines_modulu  # noqa: E402
@@ -120,37 +121,6 @@ def konum(z: pd.Timestamp, acilis: pd.Timestamp, kapanis: pd.Timestamp,
 # --- D kurali olcumu (sayim; kod degismez) ------------------------------------
 
 
-def donem_sonu_turleri(donemler, sinif: str | None, veri_sonu_bari: pd.Timestamp,
-                       zamanlar: pd.DatetimeIndex | None = None, hacim=None) -> list[str]:
-    """Her donemin sonu ne ile bitiyor. Saf.
-
-    Son donem: delist sinifi (SETTLING / exchangeInfo disi), veri sonu
-    (`bitis == veri_sonu_bari`) ya da diger. Ic donem sonu: iki donem arasinda
-    6+ barlik sifir hacim kosusu varsa `dolgu_kosusu`, yoksa `uzun_bosluk`
-    (on-kayit §2 rev.7: donemi bolen yalnizca bu ikisidir). Ic donem icin mumlar
-    (`zamanlar`, `hacim`) gerekir.
-    """
-    turler = []
-    dolgular = []
-    if len(donemler) > 1:
-        dolgular = donem_modulu.dolgu_kosulari(zamanlar, hacim, config.BAR_4H)
-    for i, d in enumerate(donemler):
-        if i == len(donemler) - 1:
-            if sinif == universe_modulu.SETTLING_DURUMU:
-                turler.append("delist_SETTLING")
-            elif sinif == "exchangeInfo_disi":
-                turler.append("delist_exchangeInfo_disi")
-            elif d.bitis == veri_sonu_bari:
-                turler.append("veri_sonu")
-            else:
-                turler.append("diger_son_donem")
-        else:
-            sonraki = donemler[i + 1].baslangic
-            dolgu = any(d.bitis < k.baslangic < sonraki for k in dolgular)
-            turler.append("dolgu_kosusu" if dolgu else "uzun_bosluk")
-    return turler
-
-
 def donem_sonu_cikisi(donem, bar: str) -> tuple[pd.Timestamp, pd.Timestamp]:
     """Donem sonunda cikilan barin acilisi ve cikis ani (= o barin kapanisi). Saf.
 
@@ -171,6 +141,10 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
 
     Oran sutunlarina BAKMAZ; yalnizca odeme zamani ve araligi okunur.
 
+    - Kayit tabani (denetci bulgusu D-A4): butun sutunlar veri katmaninin
+      gordugu seriden (`donem_sonrasi_kayitlari_at`, ust sinir son 4 saatlik
+      barin kapanisi + 1 dk) sayilir; 4 saatlik ve 1 gunluk satirlar ayni
+      tabandandir. Mevcut kuralin zaten attigi kayitlar hicbir sutuna girmez.
     - `disarida_kalan`: `donem_bitis + 1 dk <= p < cikis_ani + 1 dk`. Mevcut ust
       sinir cikis ani + 1 dk; D kurali donem bitisini (son gercek 4 saatlik barin
       acilisi, dahil) ust sinir yapar. Veri sonu doneminde kural uygulanmaz (sayi
@@ -184,22 +158,35 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
     - `bar`: cikis izgarasi. 4h = H1/H2, 1d = H3.
     - `kapanista_odeme`: cikis aninda (1 dk tolerans) odeme kaydi var mi. Mevcut
       kuralin tamlik kontrolu bu kaydi arar.
+    - Aday kural (RESULTS §14.8; on-kayit revizyonu bekliyor, KODA GECMEDI):
+      1 gunluk bar yalnizca donem ici 4 saatlik barlardan kurulur; donem sonuna
+      ulasan pozisyon her izgarada son donem ici 4 saatlik barin kapanisindan
+      cikar (`cikis_ani_aday = donem_bitis + 4h`) ve funding penceresi D
+      kuralidir. `tamlik_aday` bunun sonucudur. 4 saatlik izgarada aday kural D
+      kuraliyla aynidir. 1 gunluk izgarada temsili pozisyon, donemin tamamen
+      icinde kalan son UTC gununun acilisinda girer (`giris_aday`; donem
+      basindan once olamaz).
     - `son_odeme_aralik_saat`: donem bitisine kadarki son odemenin aralik saati;
       tamligin neden gectigini ya da kaldigini bu sutun acikliyor (8 saatlik bir
       ritim cikis anina yetisir, 2 ya da 4 saatlik ritim yetismez).
     """
     adim_b = pencere_modulu.adim(bar)
     satirlar = []
-    zam_ham = pd.DatetimeIndex(fund["odeme_zamani"]) if len(fund) else pd.DatetimeIndex([], tz="UTC")
     seri = funding_modulu.donem_sonrasi_kayitlari_at(fund, donemler, config.BAR_4H) if len(fund) else fund
     zam = pd.DatetimeIndex(seri["odeme_zamani"]) if len(seri) else pd.DatetimeIndex([], tz="UTC")
     araliklar = (pd.to_numeric(seri["aralik_saat"], errors="coerce").to_numpy(dtype=float)
                  if len(seri) else np.empty(0))
     for i, (d, tur) in enumerate(zip(donemler, turler)):
         cikis_acilis, cikis_ani = donem_sonu_cikisi(d, bar)
-        disarida = int(((zam_ham >= d.bitis + TOL) & (zam_ham < cikis_ani + TOL)).sum())
+        disarida = int(((zam >= d.bitis + TOL) & (zam < cikis_ani + TOL)).sum())
         giris = max(d.baslangic, cikis_acilis - TEMSILI_GIRIS_SURE)
         alt = giris + TOL
+        cikis_ani_aday = d.bitis + ADIM
+        if bar == config.BAR_4H:
+            giris_aday = giris
+        else:
+            giris_aday = max(d.baslangic, cikis_ani_aday.floor("1D") - adim_b)
+        alt_aday = giris_aday + TOL
         son_aralik = float("nan")
         if len(seri):
             oncekiler = np.flatnonzero(np.asarray(zam <= d.bitis + TOL, dtype=bool))
@@ -211,14 +198,18 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
             maske_d = np.asarray((zam >= alt) & (zam < ust_d), dtype=bool)
             tam_m = funding_modulu._odemeler_tam_mi(seri, zam, maske_m, alt, ust_m, d.baslangic)
             tam_d = funding_modulu._odemeler_tam_mi(seri, zam, maske_d, alt, ust_d, d.baslangic)
+            maske_a = np.asarray((zam >= alt_aday) & (zam < ust_d), dtype=bool)
+            tam_a = funding_modulu._odemeler_tam_mi(seri, zam, maske_a, alt_aday, ust_d, d.baslangic)
         else:
-            tam_m = tam_d = False
+            tam_m = tam_d = tam_a = False
         satirlar.append({"sembol": sembol, "bar": bar, "donem_sira": i, "donem_bitis": d.bitis,
                          "cikis_ani": cikis_ani, "tur": tur,
                          "kural_uygulanir": tur != "veri_sonu", "disarida_kalan": disarida,
-                         "kapanista_odeme": bool((abs(zam_ham - cikis_ani) <= TOL).any()) if len(zam_ham) else False,
+                         "kapanista_odeme": bool((abs(zam - cikis_ani) <= TOL).any()) if len(zam) else False,
                          "son_odeme_aralik_saat": son_aralik,
-                         "tamlik_mevcut": bool(tam_m), "tamlik_d": bool(tam_d)})
+                         "tamlik_mevcut": bool(tam_m), "tamlik_d": bool(tam_d),
+                         "giris_aday": giris_aday, "cikis_ani_aday": cikis_ani_aday,
+                         "tamlik_aday": bool(tam_a)})
     return satirlar
 
 
@@ -323,7 +314,8 @@ def main(argv: list[str] | None = None) -> None:
 
     d_tablo = pd.DataFrame(d_satirlari, columns=["sembol", "bar", "donem_sira", "donem_bitis", "cikis_ani",
                                                  "tur", "kural_uygulanir", "disarida_kalan", "kapanista_odeme",
-                                                 "son_odeme_aralik_saat", "tamlik_mevcut", "tamlik_d"])
+                                                 "son_odeme_aralik_saat", "tamlik_mevcut", "tamlik_d",
+                                                 "giris_aday", "cikis_ani_aday", "tamlik_aday"])
     csv_yaz(d_tablo, CIKTI_D)
     for bar in (config.BAR_4H, config.BAR_1D):
         print(f"\n--- D kurali, cikis izgarasi {bar} (sayim; kod degismedi) ---")
@@ -335,7 +327,8 @@ def main(argv: list[str] | None = None) -> None:
             print(f"{tur:26s} donem sonu {len(g):4d} | disarida kalan kayit {int(g['disarida_kalan'].sum()):4d} "
                   f"({int((g['disarida_kalan'] > 0).sum())} donem sonu) | kapanista odeme "
                   f"{int(g['kapanista_odeme'].sum()):4d} | tamlik bozuk: mevcut "
-                  f"{int((~g['tamlik_mevcut']).sum())}, D {int((~g['tamlik_d']).sum())} | "
+                  f"{int((~g['tamlik_mevcut']).sum())}, D {int((~g['tamlik_d']).sum())}, "
+                  f"aday {int((~g['tamlik_aday']).sum())} | "
                   f"mevcutta tam D'de bozuk {int((g['tamlik_mevcut'] & ~g['tamlik_d']).sum())}, "
                   f"mevcutta bozuk D'de tam {int((~g['tamlik_mevcut'] & g['tamlik_d']).sum())}")
     # Kapanista odemesi olmayip mevcut kuralda yine de gecen donem sonlari: son

@@ -192,10 +192,19 @@ DONEM_UZUN = Donem(T("2025-04-01 00:00"), T("2025-04-14 08:00"), 80, 80)
 ])
 def test_1d_disarida_kalan_gun_kapanisi_siniri(kayma, beklenen):
     """1 gunluk cikis izgarasinda ust sinir tam gun kapanisi + 1 dk tolerans
-    olmali; 61. saniyede kayit disariya (sinirin da disina) dusmeli."""
-    _, cikis_ani = a1.donem_sonu_cikisi(DONEM_UZUN, config.BAR_1D)
+    olmali; 61. saniyede kayit disariya (sinirin da disina) dusmeli.
+
+    Kurgu degisikligi (Madde 1, denetci bulgusu D-A4): sayim artik veri
+    katmaninin gordugu kayit tabanindan yapilir; bu taban son 4 saatlik barin
+    kapanisindan + 1 dk sonrasini zaten atar. Bitisi 08:00 olan `DONEM_UZUN`da
+    gun kapanisi (ertesi gun 00:00) o sinirin disinda kaldigi icin kayit her
+    kaymada atilir ve test sinirin kendisini olcemezdi. Bitisi 20:00 olan donemde
+    gun kapanisi son barin kapanisiyla ayni andir; testin olctugu tolerans siniri
+    ve beklenen sayilar degismedi."""
+    donem = Donem(T("2025-04-01 00:00"), T("2025-04-14 20:00"), 80, 80)
+    _, cikis_ani = a1.donem_sonu_cikisi(donem, config.BAR_1D)
     fund = _fund([cikis_ani + kayma])
-    satir = a1.d_kurali_olc("X", [DONEM_UZUN], ["delist_SETTLING"], fund, config.BAR_1D)[0]
+    satir = a1.d_kurali_olc("X", [donem], ["delist_SETTLING"], fund, config.BAR_1D)[0]
     assert satir["disarida_kalan"] == beklenen
 
 

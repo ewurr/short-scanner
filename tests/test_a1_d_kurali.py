@@ -180,15 +180,19 @@ def test_donem_sonu_cikisi_1d_gunun_kapanisi():
     assert a1.donem_sonu_cikisi(DONEM, config.BAR_1D) == (T("2025-04-14 00:00"), T("2025-04-15 00:00"))
 
 
-def test_1d_cikisinda_disarida_kalan_gun_sonuna_kadar_sayar():
-    """1 gunluk cikista pencere donem bitisinden ertesi gun 00:00'a kadar uzar;
-    4 saatlik olcumde sayilmayan 16:00 ve 20:00 kayitlari da girer."""
+def test_1d_cikisinda_disarida_kalan_4h_ile_ayni_tabandan():
+    """1 gunluk cikista pencere donem bitisinden ertesi gun 00:00'a kadar uzar,
+    ama 16:00 ve 20:00 kayitlarini veri katmani (`donem_sonrasi_kayitlari_at`)
+    zaten atar. Sayim ayni kayit tabanindan yapilir; D kuralinin disarida
+    biraktigi yalnizca 12:00'dir (denetci bulgusu D-A4). Onceki surum bu testte
+    ham kayitlari sayip 3 bekliyordu; o davranis kaldirildi."""
     fund = _fund(_ritim("2025-04-13 00:00", "2025-04-14 20:00", 4))
     dort = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund, config.BAR_4H)[0]
     gun = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund, config.BAR_1D)[0]
     assert dort["disarida_kalan"] == 1        # yalnizca 12:00
-    assert gun["disarida_kalan"] == 3         # 12:00, 16:00, 20:00
+    assert gun["disarida_kalan"] == 1         # ayni taban: 16:00 ve 20:00 zaten atilmis
     assert gun["cikis_ani"] == T("2025-04-15 00:00")
+    assert not gun["kapanista_odeme"]         # ertesi gun 00:00 kaydi yok (atilmis)
 
 
 def test_1d_cikisinda_tamlik_mevcut_bozuk_d_kurali_tam():
