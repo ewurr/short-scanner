@@ -850,3 +850,24 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 - 2026-09-21: §14.7'deki "yalnızca bu iki sütun değişti" cümlesi `karsilastir.py`'nin yeni
   `degisen_sutunlar` sütununa (`karsilastirma_02effeb_tam.csv`) bağlandı; satırların 1 günlük
   olduğu kısmı betik dışı diye işaretlendi (D-B3).
+- 2026-09-21: **Bilerek güncellenen mevcut testler** (bu ve önceki tur; yalnızca test
+  ekleyen commit'ler listede yok):
+  - `dd55012` — `tests/test_a1_d_kurali.py`: `test_1d_cikisinda_disarida_kalan_gun_sonuna_kadar_sayar`
+    → `test_1d_cikisinda_disarida_kalan_4h_ile_ayni_tabandan`; 1 günlük `disarida_kalan`
+    beklentisi **3 → 1**. Gerekçe: D-A4 kararıyla sayım veri katmanının kayıt tabanına
+    geçti; 16:00 ve 20:00 kayıtlarını veri katmanı zaten atar. Eski test, bulgunun
+    eleştirdiği davranışı sabitliyordu.
+  - `dd55012` — `tests/test_tur_saldirilari_c.py` (sızıntı testçisi):
+    `test_1d_disarida_kalan_gun_kapanisi_siniri` kurgusu değişti; dönem bitişi 08:00 yerine
+    20:00. Gerekçe: aynı D-A4 değişikliğiyle 08:00 bitişli dönemde gün kapanışı veri
+    katmanının sınırı dışında kalır ve test tolerans sınırını ölçemezdi. Beklenen sayılar
+    (1, 1, 0) değişmedi.
+  - `d19a013` — `tests/test_tur_saldirilari_c.py`: `test_son_odeme_aralik_saat_donem_sonrasi_kaydi_almaz`
+    kurgu hatası (tz-aware uç ile `tz="UTC"` birlikte); ölçülen şey değişmedi. Kullanıcı
+    talimatıyla.
+  - `d6fad05` — yalnızca açıklama: `tests/test_tur_saldirilari_b.py` gerileme testinin
+    açıklaması (D-C2) ve `tests/test_a1_deger_yolu_yok.py` modül açıklaması (D-C1).
+  - `25d5bb5` — `tests/test_tur_saldirilari_d.py` (sızıntı testçisi):
+    `test_csv_yaz_gercek_es_zamanli_yazmalar_dosyayi_bozmaz` `xfail(strict=True)` ile
+    işaretlendi; test gövdesi değişmedi. Gerekçe: eşzamanlı koşu desteklenmez, koruma koşu
+    kilidindedir (`calistir.kosu_kilidi`). Kullanıcı talimatıyla.
