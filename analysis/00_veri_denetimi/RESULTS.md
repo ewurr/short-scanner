@@ -623,8 +623,11 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
    4 saatlik barın kapanışı + 1 dk). Önceki sürüm "dışarıda kalacak kayıt" ve "kapanışta
    ödeme" sütunlarını ham kayıtlardan, yani mevcut kuralın zaten attığı kayıtları da
    sayarak hesaplıyordu (denetçi bulgusu D-A4; eski değerler 203 (68) ve 67 idi). Tamlık
-   sütunları zaten bu tabandan sayılıyordu ve değişmedi (`karsilastirma_tam.csv`:
-   `a1_d_kurali_tam.csv`'de değişen yalnızca 1 günlük 65 satırın bu iki sütunu).
+   sütunları zaten bu tabandan sayılıyordu ve değişmedi: `karsilastirma_02effeb_tam.csv`
+   (`karsilastir.py --onceki 02effeb --ad karsilastirma_02effeb`) `a1_d_kurali_tam.csv` için `degisen_sutunlar` =
+   `disarida_kalan:65;kapanista_odeme:65` (denetçi bulgusu D-B3). Bu 65 satırın hepsinin
+   1 günlük satır olduğu betik dışıdır (iki dosyanın sembol, ızgara ve dönem sırasına göre
+   elle birleştirilmesinden).
    "Aday" sütunu §14.8'deki aday kuraldır.
 
    | Dönem sonu türü | Dönem sonu | Dışarıda kalacak kayıt (dönem sonu) | Kapanışta ödeme | Tamlık bozuk: mevcut | Tamlık bozuk: D | Tamlık bozuk: aday |
@@ -844,3 +847,6 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   `karsilastir.py` çıktısına bağlandı; §1, §3, §9, §10, §14.5'teki eski ölçümlerle
   karşılaştırmalar ve 18/5 işaret sayımı betik dışı diye işaretlendi. §14.7'ye A1
   betiğindeki çıkış kuralı kopyasının akıbeti yazıldı (D-B3).
+- 2026-09-21: §14.7'deki "yalnızca bu iki sütun değişti" cümlesi `karsilastir.py`'nin yeni
+  `degisen_sutunlar` sütununa (`karsilastirma_02effeb_tam.csv`) bağlandı; satırların 1 günlük
+  olduğu kısmı betik dışı diye işaretlendi (D-B3).

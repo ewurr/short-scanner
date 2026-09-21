@@ -10,9 +10,14 @@ yorumlamaz. Calisma agacindaki dosya ile `<ref>:<yol>` arasinda:
 - `yalniz_onceki_satir`, `yalniz_yeni_satir`: ORTAK sutunlar uzerinden, satirlarin
   coklu kume farki. Sutun eklenmis ama ortak sutunlarda hicbir satir degismemisse
   ikisi de 0'dir.
+- `degisen_sutunlar`: satir sayisi iki tarafta esitse, ortak sutunlarin her biri
+  icin AYNI SIRADAKI satirlarda degeri farkli olan satir sayisi (`sutun:n`, `;` ile).
+  Ciktilar deterministik sirada yazildigi icin sira karsilastirmasi anlamlidir;
+  satir sayisi farkliysa bos birakilir (denetci bulgusu D-B3).
 
 Kullanim:
     python analysis/00_veri_denetimi/karsilastir.py --onceki 02effeb
+    python analysis/00_veri_denetimi/karsilastir.py --onceki 02effeb --ad karsilastirma_02effeb
 """
 
 from __future__ import annotations
@@ -34,7 +39,7 @@ from calistir import csv_yaz  # noqa: E402
 
 CIKTI = BU_DIZIN / "karsilastirma_tam.csv"
 SUTUNLAR = ["dosya", "onceki_ref", "durum", "onceki_satir", "yeni_satir", "eklenen_sutunlar",
-            "cikan_sutunlar", "yalniz_onceki_satir", "yalniz_yeni_satir"]
+            "cikan_sutunlar", "yalniz_onceki_satir", "yalniz_yeni_satir", "degisen_sutunlar"]
 
 
 def _oku(metin: str) -> pd.DataFrame:
@@ -53,6 +58,10 @@ def tablo_karsilastir(onceki: str | None, yeni: str | None) -> dict:
     ortak = [s for s in a.columns if s in b.columns]
     satirlar_a = collections.Counter(map(tuple, a[ortak].itertuples(index=False, name=None)))
     satirlar_b = collections.Counter(map(tuple, b[ortak].itertuples(index=False, name=None)))
+    degisen = ""
+    if len(a) == len(b):
+        farklar = [(s, int((a[s].to_numpy() != b[s].to_numpy()).sum())) for s in ortak]
+        degisen = ";".join(f"{s}:{n}" for s, n in farklar if n)
     return {
         "durum": "ayni" if onceki == yeni else "farkli",
         "onceki_satir": len(a), "yeni_satir": len(b),
@@ -60,6 +69,7 @@ def tablo_karsilastir(onceki: str | None, yeni: str | None) -> dict:
         "cikan_sutunlar": ",".join(s for s in a.columns if s not in b.columns),
         "yalniz_onceki_satir": sum((satirlar_a - satirlar_b).values()),
         "yalniz_yeni_satir": sum((satirlar_b - satirlar_a).values()),
+        "degisen_sutunlar": degisen,
     }
 
 
@@ -79,10 +89,15 @@ def _git_listesi(ref: str, dizin: str) -> list[str]:
 def main(argv: list[str] | None = None) -> None:
     ayristirici = argparse.ArgumentParser()
     ayristirici.add_argument("--onceki", required=True, help="onceki kosunun ciktilarini iceren commit")
+    ayristirici.add_argument("--ad", default="karsilastirma",
+                             help="cikti adi (<ad>_tam.csv); 'karsilastirma' ile baslamali")
     argumanlar = ayristirici.parse_args(argv)
+    if not argumanlar.ad.startswith("karsilastirma"):
+        ayristirici.error("--ad 'karsilastirma' ile baslamali (karsilastirma ciktilari karsilastirilmaz)")
+    cikti = BU_DIZIN / f"{argumanlar.ad}_tam.csv"
     dizin = BU_DIZIN.relative_to(KOK).as_posix()
-    adlar = sorted((set(_git_listesi(argumanlar.onceki, dizin)) | {p.name for p in BU_DIZIN.glob("*_tam.csv")})
-                   - {CIKTI.name})
+    adlar = sorted(a for a in set(_git_listesi(argumanlar.onceki, dizin)) | {p.name for p in BU_DIZIN.glob("*_tam.csv")}
+                   if not a.startswith("karsilastirma"))
     satirlar = []
     for ad in adlar:
         yerel = BU_DIZIN / ad
@@ -90,7 +105,7 @@ def main(argv: list[str] | None = None) -> None:
         onceki = _git_dosyasi(argumanlar.onceki, f"{dizin}/{ad}")
         satirlar.append({"dosya": ad, "onceki_ref": argumanlar.onceki, **tablo_karsilastir(onceki, yeni)})
     tablo = pd.DataFrame(satirlar, columns=SUTUNLAR)
-    csv_yaz(tablo, CIKTI)
+    csv_yaz(tablo, cikti)
     print(tablo.to_string(index=False))
 
 

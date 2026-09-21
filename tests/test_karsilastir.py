@@ -44,3 +44,14 @@ def test_yeni_ve_kaldirilan():
     assert k.tablo_karsilastir("a\n1\n", None)["durum"] == "kaldirildi"
     with pytest.raises(ValueError):
         k.tablo_karsilastir(None, None)
+
+
+def test_degisen_sutunlar_sirali_satirlarda_sayilir():
+    """D-B3: hangi sutunun kac satirda degistigi ciktidan okunabilmeli."""
+    s = k.tablo_karsilastir("a,b,c\n1,2,3\n4,5,6\n", "a,b,c,d\n1,9,3,x\n4,9,7,y\n")
+    assert s["degisen_sutunlar"] == "b:2;c:1"
+    assert k.tablo_karsilastir("a\n1\n", "a\n1\n")["degisen_sutunlar"] == ""
+
+
+def test_degisen_sutunlar_satir_sayisi_farkliysa_bos():
+    assert k.tablo_karsilastir("a\n1\n", "a\n1\n2\n")["degisen_sutunlar"] == ""
