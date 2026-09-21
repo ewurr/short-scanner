@@ -33,18 +33,21 @@ yazılmamıştır (CLAUDE.md §3.1). Bilinçli istisna, ön-kayıt §2'nin isted
 kayıtlarının oran değerlerini ve işaretlerini raporladı. Bu, yukarıdaki kapsamın
 dışındaydı ve bir sınır aşımıdır. **Değer düzeyindeki analiz rapordan çıkarıldı; 18
 pozitif / 5 negatif işaret sayımı bilerek bırakıldı** ve bu sayım da aşımın parçasıdır
-(gerekçesi §14.5'teki notta).
+(gerekçesi §14.5'teki notta). 18/5 betik dışıdır: `1093e69` içindeki iz dosyasından
+gelir, bu koşunun hiçbir çıktısından türetilemez.
 
 Ham çıktılar (`*_tam.csv`), `calistir.py`: `sembol_ozeti`, `delist_siniflandirmasi`,
 `dolgu_kosulari`, `kisa_sifir_kosulari`, `funding_siz_donemler`, `donem_sonu_degisimleri`,
 `settled_aylari`, `yillik_kapsama`, `butunluk_sicramalari`, `bosluklar`, `bosluk_olaylari`,
 `funding_araliklari`, `cross_dogrulama`, `cross_yogun_tarihler`,
-`fiyat_farki_listeleme_yasi`, `kisa_donemler`, `settled_icerik`, `donem_aralari`, `ortam`.
+`fiyat_farki_listeleme_yasi`, `kisa_donemler`, `settled_icerik`, `donem_aralari`,
+`gunluk_sinirlar` (§14.8), `ortam`. `karsilastir.py`: `karsilastirma` (önceki koşuyla fark).
 `rapor_sayilari_tam.csv` bu rapordaki sayıların kaynağıdır (bölüm, kalem, değer).
 Ölçüm sayılarının tamamı bu dosyadan ya da ham `*_tam.csv` çıktılarından gelir
-(denetçi bulgusu D-A5). **Betikten türetilmeyen sayılar** üçtür ve bulundukları yerde
-"betik dışı" diye işaretlidir: (a) başlıktaki test takımı sonucu, (b) §10'daki "önceki
-koşu" ve "rev.7 öncesi rapor" karşılaştırma sütunları, (c) §15'teki tarihsel not.
+(denetçi bulgusu D-A5). Betikten türetilmeyen her sayı bulunduğu yerde **"betik dışı"**
+diye işaretlidir (denetçi bulgusu D-B1). "Önceki koşuyla aynı / değişmedi" cümleleri
+`karsilastir.py` çıktısına (`karsilastirma_tam.csv`) bağlıdır; bağlanamayanlar betik
+dışı diye işaretlidir.
 Rev.7 ile anlamını yitiren `karantina_kaybi_tam.csv` kaldırıldı.
 
 A1 ölçümü (`a1_olcumu.py`):
@@ -494,8 +497,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
      Üçünde de son bar 08:00–12:00, deliveryDate 09:00. Bunlar pozisyonun tutulduğu
      sürede ödenir.
 
-   **İşaret** (1093e69 koşusu, `a1_uzlasma_sonrasi_oranlar_tam.csv`): 23 kaydın 18'i
-   pozitif, 5'i negatif.
+   **İşaret** (betik dışı: 1093e69 koşusu, `a1_uzlasma_sonrasi_oranlar_tam.csv`; bu
+   koşunun hiçbir çıktısından türetilemez): 23 kaydın 18'i pozitif, 5'i negatif.
 
    **deliveryDate'i olmayan 28 sembol.** Hepsinde funding kaydı var. 27'sinin son barında
    (açılış ve kapanış dahil) toplam 28 kayıt var, ANCUSDT'de yok. 23 kayıt son barın
@@ -560,25 +563,40 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
    Çıkış ızgarası **4 saat** (H1, H2):
 
-   | Dönem sonu türü | Dönem sonu | Dışarıda kalacak kayıt (dönem sonu) | Kapanışta ödeme | Tamlık bozuk: mevcut | Tamlık bozuk: D |
-   |---|---|---|---|---|---|
-   | Delist, SETTLING | 128 | 24 (19) | 19 | **78** | 1 |
-   | Delist, exchangeInfo dışı | 28 | 5 (5) | 5 | 3 | 0 |
-   | Dolgu koşusu (iç) | 11 | 4 (4) | 4 | 3 | 2 |
-   | Uzun boşluk (iç) | 1 | 1 (1) | 1 | 1 | 1 |
-   | **Kural uygulanan toplam** | **168** | **34 (29)** | **29** | **85** | **4** |
-   | Veri sonu (kural uygulanmaz) | 522 | 9 (3) | 0 | 522 | 0 |
+   | Dönem sonu türü | Dönem sonu | Dışarıda kalacak kayıt (dönem sonu) | Kapanışta ödeme | Tamlık bozuk: mevcut | Tamlık bozuk: D | Tamlık bozuk: aday |
+   |---|---|---|---|---|---|---|
+   | Delist, SETTLING | 128 | 24 (19) | 19 | **78** | 1 | 1 |
+   | Delist, exchangeInfo dışı | 28 | 5 (5) | 5 | 3 | 0 | 0 |
+   | Dolgu koşusu (iç) | 11 | 4 (4) | 4 | 3 | 2 | 2 |
+   | Uzun boşluk (iç) | 1 | 1 (1) | 1 | 1 | 1 | 1 |
+   | **Kural uygulanan toplam** | **168** | **34 (29)** | **29** | **85** | **4** | **4** |
+   | Veri sonu (kural uygulanmaz) | 522 | 9 (3) | 0 | 522 | 0 | 0 |
 
-   Çıkış ızgarası **1 gün** (H3):
+   Çıkış ızgarası **1 gün** (H3). Bu tablo 4 saatlik tabloyla **aynı kayıt tabanından**
+   sayılır: veri katmanının gördüğü seri (`donem_sonrasi_kayitlari_at`, üst sınır son
+   4 saatlik barın kapanışı + 1 dk). Önceki sürüm "dışarıda kalacak kayıt" ve "kapanışta
+   ödeme" sütunlarını ham kayıtlardan, yani mevcut kuralın zaten attığı kayıtları da
+   sayarak hesaplıyordu (denetçi bulgusu D-A4; eski değerler 203 (68) ve 67 idi). Tamlık
+   sütunları zaten bu tabandan sayılıyordu ve değişmedi (`karsilastirma_tam.csv`:
+   `a1_d_kurali_tam.csv`'de değişen yalnızca 1 günlük 65 satırın bu iki sütunu).
+   "Aday" sütunu §14.8'deki aday kuraldır.
 
-   | Dönem sonu türü | Dönem sonu | Dışarıda kalacak kayıt (dönem sonu) | Kapanışta ödeme | Tamlık bozuk: mevcut | Tamlık bozuk: D |
-   |---|---|---|---|---|---|
-   | Delist, SETTLING | 128 | 132 (38) | 38 | **128** | 1 |
-   | Delist, exchangeInfo dışı | 28 | 46 (21) | 20 | 27 | 0 |
-   | Dolgu koşusu (iç) | 11 | 24 (8) | 8 | 11 | 2 |
-   | Uzun boşluk (iç) | 1 | 1 (1) | 1 | 1 | 1 |
-   | **Kural uygulanan toplam** | **168** | **203 (68)** | **67** | **167** | **4** |
-   | Veri sonu (kural uygulanmaz) | 522 | 9 (3) | 0 | 522 | 1 |
+   | Dönem sonu türü | Dönem sonu | Dışarıda kalacak kayıt (dönem sonu) | Kapanışta ödeme | Tamlık bozuk: mevcut | Tamlık bozuk: D | Tamlık bozuk: aday |
+   |---|---|---|---|---|---|---|
+   | Delist, SETTLING | 128 | 24 (19) | 0 | **128** | 1 | 1 |
+   | Delist, exchangeInfo dışı | 28 | 5 (5) | 1 | 27 | 0 | 0 |
+   | Dolgu koşusu (iç) | 11 | 4 (4) | 0 | 11 | 2 | 2 |
+   | Uzun boşluk (iç) | 1 | 1 (1) | 1 | 1 | 1 | 1 |
+   | **Kural uygulanan toplam** | **168** | **34 (29)** | **2** | **167** | **4** | **4** |
+   | Veri sonu (kural uygulanmaz) | 522 | 9 (3) | 0 | 522 | 1 | 0 |
+
+   Aynı tabanla 1 günlük "dışarıda kalacak kayıt" 4 saatlikle birebir aynıdır: 1 günlük
+   çıkış anına kadarki fazladan kayıtları veri katmanı zaten atıyor. "Kapanışta ödeme"
+   yalnızca dönem bitişi 20:00 olan iki dönem sonunda var (1 günlük kapanış son 4 saatlik
+   barın kapanışıyla aynı an). Veri sonu satırında D ile aday arasındaki tek fark
+   牛来USDT'dir: dönemi 2026-08-30 08:00'de başlıyor ve D sütununun temsili girişi (dönem
+   başı) ile aday sütununun girişi (2026-08-31 00:00) farklı; bu temsili girişin bir
+   sonucudur, kural farkı değildir.
 
    **D kuralı bunu 78'den (H3'te 167'den) 4'e indiriyor.** Kural henüz koda geçmedi;
    ön-kayıt revizyonu bekliyor. Her iki ızgarada da bozuk kalan aynı dört dönem sonu:
@@ -603,7 +621,111 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
    garanti etmez. D kuralı koda geçtiğinde bu sayılar gerçek kod yoluyla yeniden
    üretilip buradakilerle karşılaştırılacaktır.
 
+   **Çıkış kuralının betikteki kopyası (denetçi bulgusu D-B3).** `a1_olcumu.py` dönem
+   sonu çıkışını ve funding penceresini kendi içinde yeniden kurar
+   (`donem_sonu_cikisi`, `d_kurali_olc`); bu kopya `tests/tarama_yardimcisi.py`'deki
+   tek kapı taramalarının dışındadır ve hiçbir otomatik kontrol onu
+   `pencere.pozisyon_plani` / `funding.pozisyon_fundingi`'ye bağlamaz. Şimdilik kalıyor.
+   D kuralı veri katmanına geçtiğinde A1 betiği gerçek kodu çağıracak, kopya silinecek
+   ve betiğin sayılarının gerçek kod yoluyla aynı olduğunu doğrulayan bir test
+   eklenecek.
+
    **F2'ye geçiş.** Bu açık nokta kapanmadan F2'ye geçilmez.
+
+8. **1 günlük barlar ve dönem sınırları (denetçi bulgusu D-A1, ölçüldü, kod
+   değişmedi).**
+
+   **Ön-kayıttaki cümleler (aynen).**
+   - §2 "1 günlük barlar": "1d barlar 4h barlardan türetilir: UTC günü; open ilk, high en
+     yüksek, low en düşük, close son değer; volume ve quote_volume toplam. 6 adet 4h barı
+     tam olmayan gün eksik (NaN) sayılır. Uygunluktaki günlük hacim bu seriden hesaplanır."
+   - §2 "Listeleme dönemi" (rev.7): "Dönem, sıfır olmayan hacimli ilk barda başlar ve
+     sıfır olmayan hacimli son barda biter. Sınır bar düzeyindedir, ay düzeyinde değil."
+     · "6 veya daha fazla ardışık sıfır hacimli bar (bir gün) dönemi böler. Bu barlar
+     delist edilmiş ya da henüz yeniden listelenmemiş bir sözleşmenin dolgu verisidir ve
+     hiçbir hesaba girmez." · "7 günden uzun eksik bar boşluğu dönemi böler. …" ·
+     "Tüm geriye bakış pencereleri dönem başlangıcını aşamaz; aşıyorsa değer hesaplanmaz
+     ve o barda olay oluşmaz." · "Ufuk dönem sonunu aşarsa çıkış fiyatı dönemin son
+     barının kapanışıdır."
+   - §2 "Veri boşlukları": "Hedef çıkış barı eksikse çıkış, sonraki ilk mevcut barın
+     **açılış** fiyatındandır. Dönem sonu ve delist kuralları önceliklidir." · "1 günlük
+     seride bir gün yalnızca 6 adet 4 saatlik barın tamamı varsa oluşur; eksik gün zaten
+     NaN'dir ve pencerelerde eksik sayılır."
+   - §4: "Ufuk içinde sözleşme delist olursa çıkış, son mevcut barın kapanışıdır." ·
+     "**Dönem sonu ve çıkış.** Ufuk dönem sonunu aşarsa çıkış, dönemin son barının
+     kapanışıdır. Dönem sonu ve delist kuralları ileri kayma kuralından önceliklidir."
+   - Revizyon Günlüğü, rev.7: "… dönem sınırları bar düzeyine indi …"
+
+   **Bugünkü kod.** `klines.gunluge_cevir` 1 günlük seriyi sembolün **bütün** 4 saatlik
+   serisinden kurar (`ham_mumlari_yukle(…, "1d")`, kümeye kesilmeden önce); dönem sınırını
+   bilmez. Bir gün, 6 barın tamamı **mevcutsa** seriye girer; barların dönem içinde olup
+   olmadığına bakılmaz.
+   - *Dönem sonu.* `pencere.cikis_bari` dönem sonunda "sınırdan (dönem bitişi) önceki son
+     barın kapanışı"nı seçer; 1 günlük seride bu, açılışı dönem bitişine eşit ya da ondan
+     önce olan son gündür. Bitiş günü tamsa (sonrasında dolgu barları varsa) çıkış o
+     günün barıdır: kapanışı günün son 4 saatlik barından, en yüksek değeri günün bütün
+     barlarından gelir. Bitiş 08:00 ise 12:00, 16:00, 20:00 dönem dışı barlardır. Bitiş
+     günü eksikse (seri gün ortasında bitiyorsa) çıkış bir önceki günün kapanışıdır, yani
+     dönemin son barının kapanışından en az 4 saat önce (bu ölçümde 4–12 saat).
+   - *Dönem başı ve iç sınır başı.* Başlangıç gününde dönem öncesi bar varsa gün 1 günlük
+     seride durur, ama hiçbir hesaba girmez: pencere kapısı açılışı dönem başından önce
+     olan günü reddeder (`pencere_dilimi`), sinyal dönem başından önce olamaz, listeleme
+     yaşı 30 gündür. Bu ölçümde böyle bir gün **hiç yok** (aşağıda).
+   - *Evet, dönem dışı bar giriyor:* dönem sonunda, 1 günlük çıkış barına.
+
+   **Sayılar** (`gunluk_sinirlar_tam.csv`, `rapor_sayilari` §14.8; yalnızca zaman
+   damgası, değer yok). "Son 1d bar" = bugünkü kodun dönem sonunda çıkışı okuduğu gün.
+
+   | Dönem sonu türü | Dönem sonu | Son 1d barı dönem dışı bar içeren | Bu barların toplamı | Bitiş günü 1d serisinde yok (çıkış bir önceki gün) |
+   |---|---|---|---|---|
+   | Delist, SETTLING | 128 | **128** | 387 | 0 |
+   | Delist, exchangeInfo dışı | 28 | **17** | 55 | 9 |
+   | Dolgu koşusu (iç) | 11 | **11** | 32 | 0 |
+   | Uzun boşluk (iç, BNXUSDT) | 1 | 0 | 0 | 0 |
+   | Veri sonu | 522 | 0 | 0 | 0 |
+
+   - İlk 1d barı dönem dışı 4 saatlik bar içeren dönem başı: **0** (678 ilk dönem başı
+     ve 12 iç sınır başı). 12 iç sınır başının 11'inde başlangıç günü 1d serisinde
+     yok (o günün dönem öncesi barlarından en az biri seride eksik); ICPUSDT'de dönem
+     00:00'da başlıyor ve gün tamamen dönem içinde.
+   - Altıdan az dönem içi 4 saatlik bar içeren ve bugünkü 1 günlük seride **bulunan**
+     gün: dönem başı **0**, dönem sonu **145** (128 SETTLING + 17 exchangeInfo dışı), iç
+     sınır **11** (11 iç dolgu koşusunun başladığı gün; iç sınır başlarında 0). Aynı günde
+     başlayıp biten dönem yok, çift sayım yok.
+   - exchangeInfo dışı 28'in dökümü: 17'sinde son 1d barı dönem dışı bar içeriyor (16'sı
+     dolgu barı; LUNAUSDT'nin 2 barı dolgu eşiğinin altındaki sondaki sıfır barlar, §2);
+     9'unda bitiş günü eksik (seri gün ortasında bitiyor: BZRX, KEEP, NU 00:00; AKRO, ANC
+     04:00; 1000BTTC, DODO, EOS, YFII 08:00); 2'sinde (AERGO, LEND) bitiş 20:00, gün
+     tamamen dönem içi. LENDUSDT'nin dolgusu ertesi gün başlıyor.
+
+   **Aday kural (koda geçmedi, yalnızca sayım).** 1d barı yalnızca dönem içi 4 saatlik
+   barlardan kurulur; altı barın tamamı dönem içinde değilse o gün 1d serisine girmez.
+   Dönem sonuna ulaşan pozisyon her ızgarada son dönem içi 4 saatlik barın kapanışından
+   çıkar; funding penceresi D kuralıyla, 4 saatlik zaman damgalarına göre uygulanır.
+   - 1d serisinden çıkacak gün: **156** (145 dönem sonu + 11 iç sınır); dönem başında 0.
+   - Çıkış anı değişecek dönem sonu: 168'in **165**'i (yukarıdaki 156 ve bitiş günü eksik
+     9). Değişmeyen 3'ü bitişi 20:00 olan AERGOUSDT, LENDUSDT ve BNXUSDT'nin ilk dönemi.
+   - 1 günlük tamlık (§14.7'deki tablo, aynı kayıt tabanı): mevcut kod **167** / D **4** /
+     aday **4** bozuk dönem sonu (kural uygulanan 168'den). 4 saatlikte 85 / 4 / 4. Aday
+     ile D arasında kural uygulanan dönem sonlarında fark yok; bozuk kalan dört dönem sonu
+     §14.7'dekilerle aynı.
+
+   **Ölçümün sınırı.** §14.7'deki 1 günlük "mevcut" sütunu çıkışın bitiş gününün barından
+   (ertesi gün 00:00) olduğunu varsayar. Bitiş günü eksik 9 exchangeInfo dışı dönem
+   sonunda gerçek kod bir önceki günün kapanışından (bitiş günü 00:00) çıkar; bu 9'un
+   "mevcut" tamlığı o ana göre ölçülmedi (D-B3'teki kopya sorununun bir örneği).
+
+   **Değerlendirme.** Rev.7'nin 1d türetme cümlesi kısmi gün konusunda sessiz: "6 adet 4h
+   barı tam olmayan gün" bar sayısını anar, barların dönem içinde olmasını değil; bugünkü
+   kod bu cümleyi harfiyen uygular. Ama sonuç rev.7'nin iki başka cümlesini deliyor:
+   (1) dolgu barları "hiçbir hesaba girmez" — 128 SETTLING ve 11 iç dolgu dönem sonunda
+   1d çıkış barının kapanışı ve en yüksek değeri dolgu barlarını içeriyor (exchangeInfo
+   dışında 16 dönem sonunda dolgu, 1'inde eşik altı sıfır barlar); (2) "çıkış, dönemin son barının
+   kapanışıdır" ve "sınır bar düzeyindedir" — 1d çıkışı 156 dönem sonunda dönemin son
+   barından sonraki, 9 dönem sonunda ondan önceki bir anda. Yani türetme cümlesi sessiz,
+   dönem ve çıkış cümleleri açık; bugünkü davranış dönem sonunda rev.7'yi deliyor. Dönem
+   başında delme yok (0 gün; pencere kapısı zaten koruyor). Karar ve revizyon sizin;
+   aday kural koda geçmedi.
 
 9. **Tamlık sayımlarının denetim sınırı (denetçi bulgusu D-B4).** D kuralı ve 1 günlük
    tamlık sayımları B grubunu ve C2 dönemini de kapsar. Bu sayımlar yalnızca funding
@@ -661,3 +783,9 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   içermez; "5 C1 kaydı" ile "5 negatif kayıt" arasındaki ilişki bilerek raporlanmaz;
   sayımı tutmanın gerekçesi nötr değil, yön bilgisidir. Birinci paragraftaki "bir kısmı
   C1 grubuna ve C2 dönemine ait" ifadesi bütün aşım için doğru olduğundan kaldı.
+- 2026-09-21: §14.8 açıldı (D-A1): ön-kayıttaki 1d türetme, dönem ve dönem sonu çıkışı
+  cümleleri, bugünkü kodun 1d barını dönem sınırlarında hangi 4 saatlik barlardan
+  kurduğu, sayılar (`gunluk_sinirlar_tam.csv`) ve aday kuralın sayımı. §14.7'deki 1 günlük
+  tablo 4 saatlik tabloyla aynı kayıt tabanından yeniden sayıldı (D-A4; "dışarıda kalacak
+  kayıt" 203 (68) → 34 (29), "kapanışta ödeme" 67 → 2; tamlık sütunları değişmedi) ve iki
+  tabloya aday kural sütunu eklendi.
