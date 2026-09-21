@@ -36,7 +36,9 @@ from data import funding, pencere
 
 DORT_SAAT = pd.Timedelta(hours=4)
 BIR_DK = pd.Timedelta(minutes=1)
-SINIRSIZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None)
+# Rev.8 (RESULTS degisiklik kaydi): donem sinirlari zorunlu; varsayilan donem serinin
+# ilk ve son bari. Seri her izgarada 4h (on-kayit §4 rev.8 "Fiyat okuma tabani").
+SINIRSIZ = dict(kume_baslangic=None, kume_bitis=None)
 
 
 def _ts(metin) -> pd.Timestamp:
@@ -61,9 +63,11 @@ def _plan(giris, cikis_bari, bar=config.BAR_4H, **sinirlar) -> pencere.PozisyonP
     """Kapanistan cikisli plan: giris `giris`, cikis bari `cikis_bari`."""
     g, c = _ts(giris), _ts(cikis_bari)
     a = pencere.adim(bar)
-    zamanlar = pd.date_range(g - 5 * a, c + 40 * a, freq=a)
+    zamanlar = pd.date_range(g - 5 * a, c + 40 * a, freq="4h")
     ufuk = int((c - g) / a) + 1
-    return pencere.pozisyon_plani(zamanlar, g - a, ufuk, bar, birincil_ufuk=max(ufuk, 18), **{**SINIRSIZ, **sinirlar})
+    donem = dict(donem_baslangic=zamanlar[0], donem_bitis=zamanlar[-1])
+    return pencere.pozisyon_plani(zamanlar, g - a, ufuk, bar, birincil_ufuk=max(ufuk, 18),
+                                  **{**SINIRSIZ, **donem, **sinirlar})
 
 
 def _fon(fund, giris, cikis_bari, bar=config.BAR_4H, **sinirlar):
@@ -231,11 +235,13 @@ def test_cikis_ani_bilinmeyen_fiyat_alani_reddedilir():
     Beklenen: `cikis_ani` bunu acikca reddetmeli (ValueError). Rev.7:
     `pozisyon_fundingi` yalnizca plan alir; cikis nesnesi verilirse TypeError.
     """
+    # Rev.8 alanlari (tur, hedef_cikis_ani, ileri_kayma); cikis_ani izgara adimi almaz.
     bozuk = pencere.CikisSonucu(
-        indeks=0, zaman=_ts("2021-01-05 20:00"), fiyat_alani="vwap", kaydi=False, kirpildi=False
+        indeks=0, zaman=_ts("2021-01-05 20:00"), fiyat_alani="vwap", cikis_ani=_ts("2021-01-06 00:00"),
+        tur="olagan", hedef_cikis_ani=_ts("2021-01-06 00:00"), ileri_kayma=pd.Timedelta(0),
     )
     with pytest.raises(ValueError):
-        pencere.cikis_ani(bozuk, config.BAR_4H)
+        pencere.cikis_ani(bozuk)
 
     fund = _funding("2021-01-01", "2021-01-10")
     with pytest.raises(TypeError):
@@ -256,16 +262,18 @@ def test_kume_ve_ileri_kayma_siniri_ayni_anda_asilinca_kume_hatasi_once_gelir():
     """
     zamanlar = pd.date_range("2021-01-01", periods=120, freq="4h", tz="UTC")
     giris = zamanlar[5]
-    hedef = pencere.cikis_hedefi(giris, 18, config.BAR_4H)
+    # Rev.8: cikis_hedefi T'yi verir; hedef barin acilisi T - 4 saat.
+    hedef = pencere.cikis_hedefi(giris, 18, config.BAR_4H) - DORT_SAAT
     silinecek = pd.date_range(hedef, periods=25, freq="4h", tz="UTC")
     eksik = zamanlar.drop(silinecek)
     kume_son = hedef + 2 * DORT_SAAT  # sonraki mevcut bardan (hedef+25x4h) once
+    donem = dict(donem_baslangic=eksik[0], donem_bitis=eksik[-1])
 
     with pytest.raises(pencere.KumeSiniriHatasi):
-        pencere.cikis_bari(eksik, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=None, kume_bitis=kume_son)
+        pencere.cikis_bari(eksik, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=eksik[-1], kume_bitis=kume_son)
     with pytest.raises(pencere.KumeSiniriHatasi):
         pencere.pozisyon_plani(eksik, giris - DORT_SAAT, 18, config.BAR_4H, birincil_ufuk=18,
-                               **{**SINIRSIZ, "kume_bitis": kume_son})
+                               **{**SINIRSIZ, **donem, "kume_bitis": kume_son})
 
 
 # --- 6) `birincil_ufuk` numpy tamsayisi ----------------------------------------
@@ -279,10 +287,12 @@ def test_birincil_ufuk_numpy_tamsayi_kabul_edilir():
     """
     zamanlar = pd.date_range("2021-01-01", periods=60, freq="4h", tz="UTC")
     giris = zamanlar[5]
-    sonuc_np = pencere.cikis_bari(zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=np.int64(18), donem_bitis=None, kume_bitis=None)
-    sonuc_py = pencere.cikis_bari(zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=None, kume_bitis=None)
+    b = zamanlar[-1]  # rev.8: donem bitisi zorunlu
+    sonuc_np = pencere.cikis_bari(zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=np.int64(18), donem_bitis=b, kume_bitis=None)
+    sonuc_py = pencere.cikis_bari(zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=b, kume_bitis=None)
     assert sonuc_np == sonuc_py
-    plan_np = pencere.pozisyon_plani(zamanlar, zamanlar[4], 18, config.BAR_4H, birincil_ufuk=np.int64(18), **SINIRSIZ)
+    plan_np = pencere.pozisyon_plani(zamanlar, zamanlar[4], 18, config.BAR_4H, birincil_ufuk=np.int64(18), **SINIRSIZ,
+                                     donem_baslangic=zamanlar[0], donem_bitis=b)
     assert plan_np.cikis == sonuc_py
 
 
@@ -297,14 +307,18 @@ def test_gunluk_barda_ileri_kaymali_cikiste_funding_dogru_toplanir():
     funding, giris anindan (haric) bu acilis anina (dahil) kadarki TUM gercek
     8 saatlik odemeleri toplamalidir.
     """
-    zamanlar = pd.date_range("2021-05-01", periods=40, freq="1D", tz="UTC")
-    giris = zamanlar[5]  # 2021-05-06
-    hedef = pencere.cikis_hedefi(giris, 14, config.BAR_1D)  # 2021-05-19
-    eksik = zamanlar.drop([hedef])
+    # Rev.8 §4 "Fiyat okuma tabani": 1d izgarasinda da seri 4h'tir; hedef bar kapanisi
+    # T = giris + 14 gun olan 4h bardir (acilisi T - 4h). Onu silmek, rev.7'deki gunluk
+    # hedef barin eksikligiyle ayni cikisi (05-20 00:00 acilisi) verir.
+    zamanlar = pd.date_range("2021-05-01", periods=40 * 6, freq="4h", tz="UTC")
+    giris = pd.Timestamp("2021-05-06", tz="UTC")
+    hedef = pencere.cikis_hedefi(giris, 14, config.BAR_1D)  # T = 2021-05-20 00:00
+    eksik = zamanlar.drop([hedef - DORT_SAAT])
 
-    plan = pencere.pozisyon_plani(eksik, giris - pd.Timedelta(days=1), 14, config.BAR_1D, birincil_ufuk=14, **SINIRSIZ)
+    plan = pencere.pozisyon_plani(eksik, giris - pd.Timedelta(days=1), 14, config.BAR_1D, birincil_ufuk=14, **SINIRSIZ,
+                                  donem_baslangic=eksik[0], donem_bitis=eksik[-1])
     assert plan.cikis.fiyat_alani == "open" and plan.cikis.kaydi is True
-    assert plan.cikis.zaman == hedef + pd.Timedelta(days=1)  # 2021-05-20
+    assert plan.cikis.zaman == hedef  # 2021-05-20 00:00
 
     fund = _funding("2021-05-01", "2021-06-01", aralik_saat=8, oran=1e-4)
     deger = funding.pozisyon_fundingi(fund, plan)

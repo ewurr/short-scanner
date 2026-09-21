@@ -128,7 +128,7 @@ def test_t_arti_bir_eksikse_olay_olusmaz():
 
 def test_normal_cikis_kapanistan():
     seri = _seri("2021-01-01", 60)
-    sonuc = pencere.cikis_bari(seri.index, seri.index[5], 18, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(seri.index, seri.index[5], 18, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
 
     assert sonuc.zaman == seri.index[22]  # t=4, cikis t+18 (on-kayit §4)
     assert sonuc.fiyat_alani == "close"
@@ -144,7 +144,7 @@ def test_cikis_bari_eksikse_sonraki_mevcut_barin_acilisi():
     hedef = seri.index[22]  # t+18
 
     eksik = seri.drop([hedef, seri.index[23]])
-    sonuc = pencere.cikis_bari(eksik.index, giris, 18, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(eksik.index, giris, 18, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
 
     assert sonuc.zaman == seri.index[24]  # sonraki ilk MEVCUT bar
     assert sonuc.fiyat_alani == "open"
@@ -168,9 +168,11 @@ def test_donem_sonu_ileri_kaymaya_gore_onceliklidir():
 
 
 def test_delist_serinin_sonuna_kirpar():
-    """Ufuk serinin sonunu asarsa cikis son barin kapanisidir."""
+    """Ufuk serinin sonunu asarsa cikis son barin kapanisidir. Rev.8 §4: "Ufuk
+    icinde sozlesme delist olursa bu bir donem sonudur"; seri donemin son bariyla
+    biter (donem_bitis = son bar; rev.7'de donem_bitis=None ile seri sonu kirpmasiydi)."""
     seri = _seri("2021-01-01", 20)
-    sonuc = pencere.cikis_bari(seri.index, seri.index[10], 18, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(seri.index, seri.index[10], 18, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
 
     assert sonuc.zaman == seri.index[-1]
     assert sonuc.fiyat_alani == "close"
@@ -180,7 +182,7 @@ def test_delist_serinin_sonuna_kirpar():
 def test_giris_bari_seride_yoksa_hata():
     seri = _seri("2021-01-01", 20)
     with pytest.raises(KeyError):
-        pencere.cikis_bari(seri.index, pd.Timestamp("2021-01-01 02:00", tz="UTC"), 5, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+        pencere.cikis_bari(seri.index, pd.Timestamp("2021-01-01 02:00", tz="UTC"), 5, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
 
 
 # --- Gercek veri: 2022-02-26..28 kesintisi -----------------------------------
@@ -259,7 +261,7 @@ def test_kesintiyi_asan_ufuk_ileri_kayar():
 
     # Kesintiden hemen once giren bir pozisyonun 6 barlik ufku kesintiye duser.
     giris = pd.Timestamp("2022-02-25 20:00", tz="UTC")
-    sonuc = pencere.cikis_bari(seri.index, giris, 6, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(seri.index, giris, 6, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
 
     assert sonuc.zaman == pd.Timestamp("2022-03-01 00:00", tz="UTC")
     assert sonuc.fiyat_alani == "open"
@@ -334,9 +336,13 @@ def test_h1_dip_penceresi_t_barinin_dibini_icermez():
 
 
 def test_seri_sonu_kirpmasinin_nedeni_seri_sonu():
+    """Rev.8 §4: delist bir donem sonudur ve "verinin sonu donem sonu degildir";
+    ayri bir "seri_sonu" kirpmasi yoktur. Beklenti "seri_sonu" -> "donem_sonu"
+    (RESULTS degisiklik kaydi)."""
     seri = _seri("2021-01-01", 20)
-    sonuc = pencere.cikis_bari(seri.index, seri.index[10], 18, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
-    assert sonuc.kirpma_nedeni == "seri_sonu"
+    sonuc = pencere.cikis_bari(seri.index, seri.index[10], 18, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
+    assert sonuc.kirpma_nedeni == "donem_sonu" and sonuc.tur == "donem_sonu"
+    assert sonuc.cikis_ani == seri.index[-1] + pd.Timedelta(hours=4)  # K
 
 
 @pytest.mark.parametrize("eksik", ["donem_bitis", "kume_bitis", "birincil_ufuk"])
@@ -345,7 +351,7 @@ def test_cikis_bari_sinir_parametresi_unutulursa_hata(eksik):
     atlanmaz. (Eski donem.cikis_bar_indeksi sarmalayicisi kaldirildi.)
     On-kayit §4 rev.6: ileri kayma siniri da zorunludur."""
     seri = _seri("2021-05-25", 100)
-    sinirlar = {"donem_bitis": None, "kume_bitis": None, "birincil_ufuk": 18}
+    sinirlar = {"donem_bitis": seri.index[-1], "kume_bitis": None, "birincil_ufuk": 18}
     del sinirlar[eksik]
     with pytest.raises(TypeError):
         pencere.cikis_bari(seri.index, pd.Timestamp("2021-05-30 08:00", tz="UTC"), 18, config.BAR_4H, **sinirlar)
@@ -375,7 +381,7 @@ def test_ufuk_h_bar_tutar_cikis_t_arti_h_kapanisi():
     assert giris == seri.index[5]
 
     for h in (1, 6, 18, 42):
-        sonuc = pencere.cikis_bari(seri.index, giris, h, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+        sonuc = pencere.cikis_bari(seri.index, giris, h, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
         assert sonuc.zaman == t + h * pd.Timedelta(hours=4), h
         tutulan = seri.index[(seri.index >= giris) & (seri.index <= sonuc.zaman)]
         assert len(tutulan) == h, h
@@ -383,7 +389,7 @@ def test_ufuk_h_bar_tutar_cikis_t_arti_h_kapanisi():
 
 def test_ufuk_bir_ise_cikis_giris_barinin_kapanisi():
     seri = _seri("2021-01-01", 20)
-    sonuc = pencere.cikis_bari(seri.index, seri.index[5], 1, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(seri.index, seri.index[5], 1, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
     assert sonuc.zaman == seri.index[5]
     assert sonuc.fiyat_alani == "close"
 
@@ -392,5 +398,5 @@ def test_ufuk_bir_ise_cikis_giris_barinin_kapanisi():
 def test_ufuk_birden_kucukse_hata(ufuk):
     seri = _seri("2021-01-01", 20)
     with pytest.raises(ValueError):
-        pencere.cikis_bari(seri.index, seri.index[5], ufuk, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+        pencere.cikis_bari(seri.index, seri.index[5], ufuk, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
 

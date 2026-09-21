@@ -18,7 +18,9 @@ import config
 from data import funding, pencere, split
 
 DORT_SAAT = pd.Timedelta(hours=4)
-SINIRSIZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None)
+# Rev.8 (RESULTS degisiklik kaydi): donem sinirlari zorunlu; varsayilan donem serinin
+# ilk ve son bari. Seri her izgarada 4h (on-kayit §4 rev.8 "Fiyat okuma tabani").
+SINIRSIZ = dict(kume_baslangic=None, kume_bitis=None)
 
 
 def _ts(metin) -> pd.Timestamp:
@@ -45,14 +47,15 @@ def _plan(giris, cikis_bari, alan: str = "close", bar=config.BAR_4H, **sinirlar)
     """
     g, c = _ts(giris), _ts(cikis_bari)
     a = pencere.adim(bar)
-    zamanlar = pd.date_range(g - 5 * a, c + 40 * a, freq=a)
+    zamanlar = pd.date_range(g - 5 * a, c + 40 * a, freq="4h")
     hedef = c if alan == "close" else c - a
     if alan == "open":
         assert hedef > g, "ileri kaymali cikis icin hedef bar giristen sonra olmali"
-        zamanlar = zamanlar.drop(hedef)
+        zamanlar = zamanlar.drop(c - DORT_SAAT)  # kapanisi T = c olan hedef 4h bari
     ufuk = int((hedef - g) / a) + 1
+    donem = dict(donem_baslangic=zamanlar[0], donem_bitis=zamanlar[-1])
     return pencere.pozisyon_plani(
-        zamanlar, g - a, ufuk, bar, birincil_ufuk=max(ufuk, 18), **{**SINIRSIZ, **sinirlar}
+        zamanlar, g - a, ufuk, bar, birincil_ufuk=max(ufuk, 18), **{**SINIRSIZ, **donem, **sinirlar}
     )
 
 
@@ -64,13 +67,23 @@ def _fon(fund, giris, cikis_bari, alan: str = "close", bar=config.BAR_4H, **sini
 
 
 def _cikis(zaman: str, fiyat_alani: str = "close") -> pencere.CikisSonucu:
-    return pencere.CikisSonucu(0, _ts(zaman), fiyat_alani, fiyat_alani == "open", False)
+    """Elle kurulan tutarli cikis (rev.8 alanlari): kapanista olagan (T = acilis + 4h),
+    acilista 4 saatlik ileri kayma."""
+    z = _ts(zaman)
+    if fiyat_alani == "open":
+        return pencere.CikisSonucu(0, z, "open", z, "ileri_kayma", z, DORT_SAAT)
+    return pencere.CikisSonucu(0, z, "close", z + DORT_SAAT, "olagan", z + DORT_SAAT, pd.Timedelta(0))
 
 
 def test_cikis_ani_kapanista_bar_sonu_acilista_bar_basi():
-    assert pencere.cikis_ani(_cikis("2021-01-05 20:00"), config.BAR_4H) == _ts("2021-01-06 00:00")
-    assert pencere.cikis_ani(_cikis("2021-01-05 20:00", "open"), config.BAR_4H) == _ts("2021-01-05 20:00")
-    assert pencere.cikis_ani(_cikis("2021-01-05 00:00"), config.BAR_1D) == _ts("2021-01-06 00:00")
+    """Rev.8 §4 "Fiyat okuma tabani": her izgarada cikis bari 4h bardir; kapanista
+    cikis ani acilis + 4 saat, acilista (ileri kayma) acilis. Rev.7'de 1d izgarasinda
+    gunluk barin kapanisi (acilis + 24 saat) bekleniyordu; `cikis_ani` artik izgara
+    adimi almaz (§4 "Olayin kumede olusma olcutu": cikis ani izgaranin adimindan
+    turetilmez)."""
+    assert pencere.cikis_ani(_cikis("2021-01-05 20:00")) == _ts("2021-01-06 00:00")
+    assert pencere.cikis_ani(_cikis("2021-01-05 20:00", "open")) == _ts("2021-01-05 20:00")
+    assert pencere.cikis_ani(_cikis("2021-01-05 00:00")) == _ts("2021-01-05 04:00")
 
 
 def test_cikis_ani_zaman_damgasi_kabul_etmez():
@@ -81,7 +94,7 @@ def test_cikis_ani_zaman_damgasi_kabul_etmez():
 def test_plan_cikis_ani_ile_ayni():
     plan = _plan("2021-01-05 00:00", "2021-01-05 20:00", "open")
     assert plan.cikis.fiyat_alani == "open" and plan.cikis_ani == _ts("2021-01-05 20:00")
-    assert pencere.cikis_ani(plan.cikis, config.BAR_4H) == plan.cikis_ani
+    assert pencere.cikis_ani(plan.cikis) == plan.cikis_ani
 
 
 # --- Temel hesap ve giris/cikis sinirlari ------------------------------------
@@ -290,8 +303,9 @@ def test_donem_sonuna_kirpilmis_cikista_funding_hesaplanir():
 
 
 def test_donem_sonunu_asan_ufuk_planda_kirpilir():
-    """Rev.7 tek kapi: kirpilmamis bir cikis artik uretilemez; plan donem sonunda kirpar."""
-    donem_bitis = _ts("2021-05-31 23:59:59.999999999")
+    """Rev.7 tek kapi: kirpilmamis bir cikis artik uretilemez; plan donem sonunda kirpar.
+    Rev.8: B donemin son mevcut baridir (rev.7 testi B'yi bar olmayan bir ana koyuyordu)."""
+    donem_bitis = _ts("2021-05-31 20:00")
     plan = _plan("2021-05-30 00:00", "2021-06-01 00:00", donem_bitis=donem_bitis)
     assert plan.cikis.kirpildi and plan.cikis.kirpma_nedeni == "donem_sonu"
     assert plan.cikis.zaman == _ts("2021-05-31 20:00")
@@ -310,16 +324,22 @@ def test_sinyal_donem_basindan_onceyse_hata():
 
 
 def test_cikis_bari_kabul_etse_de_plan_kume_sonunda_reddeder():
-    """cikis_bari (ic adim) kumenin son barini verir, ama o barin kapanisindaki
-    odeme C2'ye duser; tek kapi olayi reddeder."""
+    """Kumenin son barindan cikis: o barin kapanisindaki odeme C2'ye duser; olay
+    olusmaz. Rev.8: kume olcutu gercek cikis anina `cikis_bari` ic adiminda da ayni
+    fonksiyonla uygulanir (rev.7'de ic adim kabul ediyor, yalnizca plan
+    reddediyordu). Kume sinirsiz ic adim son bari verir."""
     son_bar = KESIF_SON.floor("4h")
     zamanlar = pd.date_range(end=son_bar, periods=60, freq="4h")
     giris = son_bar - 17 * DORT_SAAT
-    cikis = pencere.cikis_bari(zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=None, kume_bitis=KESIF_SON)
+    donem_bitis = _ts("2026-08-31 20:00")  # donem kumeden sonra suruyor
+    cikis = pencere.cikis_bari(zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=donem_bitis, kume_bitis=None)
     assert cikis.zaman == son_bar and not cikis.kirpildi
     with pytest.raises(pencere.KumeSiniriHatasi):
+        pencere.cikis_bari(zamanlar, giris, 18, config.BAR_4H, birincil_ufuk=18, donem_bitis=donem_bitis, kume_bitis=KESIF_SON)
+    with pytest.raises(pencere.KumeSiniriHatasi):
         pencere.pozisyon_plani(zamanlar, giris - DORT_SAAT, 18, config.BAR_4H, birincil_ufuk=18,
-                               kume_baslangic=KESIF_BAS, kume_bitis=KESIF_SON, donem_baslangic=None, donem_bitis=None)
+                               kume_baslangic=KESIF_BAS, kume_bitis=KESIF_SON, donem_baslangic=zamanlar[0],
+                               donem_bitis=donem_bitis)
 
 
 # --- Yalnizca plan -----------------------------------------------------------

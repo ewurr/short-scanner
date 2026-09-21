@@ -73,11 +73,14 @@ def test_karantina_yardimcilari_yok():
     assert not hasattr(pencere, "karantina_dogrula")
     assert not hasattr(pencere, "_karantina_siniri")
     assert not hasattr(donem, "karantinada_mi")
-    assert "karantina" not in pencere.KIRPMA_NEDENLERI
+    # Rev.8: cikis turleri olagan / ileri kayma / donem sonu (eski KIRPMA_NEDENLERI yok).
+    assert "karantina" not in pencere.CIKIS_TURLERI
 
 
 def test_karantina_nedenli_cikis_gecersizdir():
     """Eski kodun urettigi "karantina" kirpma nedeni artik tutarsiz bir cikistir."""
-    eski = pencere.CikisSonucu(0, pd.Timestamp("2021-05-31 20:00", tz="UTC"), "close", False, True, "karantina")
+    z = pd.Timestamp("2021-05-31 20:00", tz="UTC")
+    an = z + pd.Timedelta(hours=4)
+    eski = pencere.CikisSonucu(0, z, "close", an, "karantina", an, pd.Timedelta(0))  # rev.8 alanlari
     with pytest.raises(ValueError):
-        pencere.cikis_ani(eski, config.BAR_4H)
+        pencere.cikis_ani(eski)

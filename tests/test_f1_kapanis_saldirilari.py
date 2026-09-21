@@ -71,9 +71,10 @@ def test_donem_cikis_bar_indeksi_kume_sinirini_kontrol_etmiyor():
     giris = seri.index[20]
     ufuk = 15  # hedef = giris + 14 adim = index 34 > kume_son(30): kume disina tasar
 
+    # Rev.8: donem bitisi zorunlu; donem kumeden sonra suruyor (B = serinin son bari).
     with pytest.raises(pencere.KumeSiniriHatasi):
         pencere.cikis_bari(
-            seri.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18
+            seri.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=seri.index[-1], birincil_ufuk=18
         )
 
     assert not hasattr(donem_modulu, "cikis_bar_indeksi"), "kume korumasiz sarmalayici hala duruyor"
@@ -333,8 +334,11 @@ def test_kume_kirpilmis_seri_kume_bitis_verilmezse_delist_gibi_kirpilir():
     giris = kirpilmis.index[10]
     ufuk = 20  # hedef = index[29] (asil izgarada), kume_son'u (index24) asar
 
+    # Rev.8: donem bitisi zorunlu; sembolun donemi kumeden sonra suruyor (B asil izgaranin
+    # son bari); kesilmis seri bir delist (donem sonu) degildir.
     with pytest.raises(pencere.KumeSiniriHatasi):
-        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
+        pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, kume_bitis=kume_son,
+                           donem_bitis=seri.index[-1], birincil_ufuk=18)
 
     with pytest.raises(TypeError):
         pencere.cikis_bari(kirpilmis.index, giris, ufuk, config.BAR_4H, donem_bitis=None, birincil_ufuk=18)
@@ -342,4 +346,5 @@ def test_kume_kirpilmis_seri_kume_bitis_verilmezse_delist_gibi_kirpilir():
     # Hedef kume icinde (index 24) ama son iki bar eksik: seri index 22'de bitiyor.
     eksik_sonlu = kirpilmis.drop(kirpilmis.index[-2:])
     with pytest.raises(pencere.KumeSiniriHatasi):
-        pencere.cikis_bari(eksik_sonlu.index, giris, 15, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
+        pencere.cikis_bari(eksik_sonlu.index, giris, 15, config.BAR_4H, kume_bitis=kume_son,
+                           donem_bitis=seri.index[-1], birincil_ufuk=18)

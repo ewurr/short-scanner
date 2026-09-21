@@ -45,8 +45,10 @@ def _ortalama(fr, t, **sinirlar):
 def _poz(fr, giris, **sinirlar):
     """18 barlik pozisyon; plan tek kapidan (pencere.pozisyon_plani) gecer."""
     zamanlar = pd.date_range(giris - 5 * DORT_SAAT, giris + 40 * DORT_SAAT, freq="4h")
+    # Rev.8: donem sinirlari zorunlu; varsayilan donem serinin ilk ve son bari.
+    donem = dict(donem_baslangic=zamanlar[0], donem_bitis=zamanlar[-1])
     plan = pencere.pozisyon_plani(
-        zamanlar, giris - DORT_SAAT, 18, config.BAR_4H, birincil_ufuk=18, **{**SINIRSIZ_POZ, **sinirlar}
+        zamanlar, giris - DORT_SAAT, 18, config.BAR_4H, birincil_ufuk=18, **{**SINIRSIZ_POZ, **donem, **sinirlar}
     )
     return funding.pozisyon_fundingi(fr, plan)
 

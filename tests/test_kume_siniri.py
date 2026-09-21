@@ -6,6 +6,13 @@ Ikincil ufuklar raporlanirken ayni kural kendi ufuk uzunluklariyla uygulanir.
 Kumeler arasi veri odunc alinmaz."
 
 Kume sinirlari testlerde de elle yazilmaz; `split.kume_araligi` uzerinden gelir.
+
+Rev.8 guncellemesi (RESULTS degisiklik kaydi): T'ye dayali on eleme
+(`split.ufuk_kumeye_sigar_mi`) kaldirildi; kume karari gercek cikis anina gore
+`pozisyon_plani`nda verilir (§4 "Olayin kumede olusma olcutu"). "Sigar mi"
+sorulari `_sigar` ile ayni senaryoda gercek plana sorulur (donem kumeden sonra
+suruyor, bar eksik yok: cikis ani T'dir). `cikis_bari`de donem bitisi zorunludur,
+B mevcut bir bardir ve delist bir donem sonudur ("seri_sonu" kirpmasi yok).
 """
 
 from __future__ import annotations
@@ -21,6 +28,20 @@ DORT_SAAT = pd.Timedelta(hours=4)
 
 def _izgara(bas: str, son: str) -> pd.DatetimeIndex:
     return pd.date_range(bas, son, freq="4h", tz="UTC")
+
+
+def _sigar(t, ufuk: int, bar: str, kume: str) -> bool:
+    """Olay kumede olusur mu? Gercek `pozisyon_plani`; donem ve seri kumeden sonra
+    suruyor, eksik bar yok (cikis ani T). Kume sinirlari `split.kume_araligi`ndan."""
+    bas, son = split.kume_araligi(kume)
+    t = pd.Timestamp(t)
+    z = pd.date_range(t.floor("D") - pd.Timedelta(days=2), t + (ufuk + 3) * pencere.adim(bar), freq="4h")
+    try:
+        pencere.pozisyon_plani(z, t, ufuk, bar, birincil_ufuk=ufuk, kume_baslangic=bas, kume_bitis=son,
+                               donem_baslangic=z[0], donem_bitis=z[-1])
+    except pencere.KumeSiniriHatasi:
+        return False
+    return True
 
 
 # --- Kume araligi tek kaynaktan gelir ----------------------------------------
@@ -40,19 +61,19 @@ def test_kume_araligi_kume_tanimindan_turetilir(monkeypatch):
 
     assert split.kume_araligi("KESIF") == (sahte_bas, sahte_son)
     t = pd.Timestamp("2021-06-30 16:00", tz="UTC") - 18 * DORT_SAAT  # cikis kapanisi 20:00
-    assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "KESIF") is True
-    assert split.ufuk_kumeye_sigar_mi(t + DORT_SAAT, 18, config.BAR_4H, "KESIF") is False
+    assert _sigar(t, 18, config.BAR_4H, "KESIF") is True
+    assert _sigar(t + DORT_SAAT, 18, config.BAR_4H, "KESIF") is False
 
 
 def test_bilinmeyen_kume_reddedilir():
     with pytest.raises(ValueError):
-        split.ufuk_kumeye_sigar_mi(pd.Timestamp("2021-01-01", tz="UTC"), 18, config.BAR_4H, "C3")
+        _sigar(pd.Timestamp("2021-01-01", tz="UTC"), 18, config.BAR_4H, "C3")
 
 
 @pytest.mark.parametrize("ufuk", [0, -1])
 def test_ufuk_birden_kucukse_hata(ufuk):
     with pytest.raises(ValueError):
-        split.ufuk_kumeye_sigar_mi(pd.Timestamp("2021-01-01", tz="UTC"), ufuk, config.BAR_4H, "KESIF")
+        _sigar(pd.Timestamp("2021-01-01", tz="UTC"), ufuk, config.BAR_4H, "KESIF")
 
 
 def test_hata_sinifi_tek():
@@ -71,29 +92,29 @@ def test_kesif_son_barinda_biten_ufuk_sigmaz_bir_once_sigar():
     _, son = split.kume_araligi("KESIF")
     son_bar = son.floor("4h")  # 2025-08-31 20:00, kumenin son 4h bari
     t = son_bar - 18 * DORT_SAAT
-    assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "KESIF") is False
-    assert split.ufuk_kumeye_sigar_mi(t - DORT_SAAT, 18, config.BAR_4H, "KESIF") is True
+    assert _sigar(t, 18, config.BAR_4H, "KESIF") is False
+    assert _sigar(t - DORT_SAAT, 18, config.BAR_4H, "KESIF") is True
 
 
 def test_kesif_sinirini_bir_bar_asan_ufuk_sigmaz():
     _, son = split.kume_araligi("KESIF")
     t = son.floor("4h") - 18 * DORT_SAAT + DORT_SAAT
-    assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "KESIF") is False
+    assert _sigar(t, 18, config.BAR_4H, "KESIF") is False
 
 
 def test_denetci_b1_ornegi_sigmaz():
     """2025-08-29 12:00'de olusan H1 olayi: 18 barlik ufuk 2025-09-01'e uzanir."""
     t = pd.Timestamp("2025-08-29 12:00", tz="UTC")
-    assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "KESIF") is False
-    assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "C1") is False
+    assert _sigar(t, 18, config.BAR_4H, "KESIF") is False
+    assert _sigar(t, 18, config.BAR_4H, "C1") is False
 
 
 def test_ikincil_ufuklar_kendi_uzunluklariyla_degerlendirilir():
     """Ayni olay 6 barlik ikincil ufka sigar, 18 ve 42 barlik ufuklara sigmaz."""
     t = pd.Timestamp("2025-08-29 12:00", tz="UTC")
-    assert split.ufuk_kumeye_sigar_mi(t, 6, config.BAR_4H, "KESIF") is True
-    assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "KESIF") is False
-    assert split.ufuk_kumeye_sigar_mi(t, 42, config.BAR_4H, "KESIF") is False
+    assert _sigar(t, 6, config.BAR_4H, "KESIF") is True
+    assert _sigar(t, 18, config.BAR_4H, "KESIF") is False
+    assert _sigar(t, 42, config.BAR_4H, "KESIF") is False
 
 
 def test_gunluk_seride_h3_ufku():
@@ -101,23 +122,23 @@ def test_gunluk_seride_h3_ufku():
     _, son = split.kume_araligi("KESIF")
     son_gun = son.floor("D")  # 2025-08-31
     # Son gunun (08-31) kapanisi 09-01 00:00: o gunde biten ufuk sigmaz (rev.7).
-    assert split.ufuk_kumeye_sigar_mi(son_gun - pd.Timedelta(days=15), 14, config.BAR_1D, "KESIF") is True
-    assert split.ufuk_kumeye_sigar_mi(son_gun - pd.Timedelta(days=14), 14, config.BAR_1D, "KESIF") is False
+    assert _sigar(son_gun - pd.Timedelta(days=15), 14, config.BAR_1D, "KESIF") is True
+    assert _sigar(son_gun - pd.Timedelta(days=14), 14, config.BAR_1D, "KESIF") is False
 
 
 def test_olayin_kumesi_sinyal_barinin_kumesidir():
     """C2 baslangicindan once tespit edilen olay C2'ye ait degildir."""
     c2_bas, _ = split.kume_araligi("C2")
     once = c2_bas - DORT_SAAT  # 2025-08-31 20:00
-    assert split.ufuk_kumeye_sigar_mi(once, 6, config.BAR_4H, "C2") is False
-    assert split.ufuk_kumeye_sigar_mi(c2_bas, 6, config.BAR_4H, "C2") is True
+    assert _sigar(once, 6, config.BAR_4H, "C2") is False
+    assert _sigar(c2_bas, 6, config.BAR_4H, "C2") is True
 
 
 def test_c2_sonunu_asan_ufuk_sigmaz():
     _, son = split.kume_araligi("C2")
     t = son.floor("4h") - 19 * DORT_SAAT  # cikis bari son bardan bir once
-    assert split.ufuk_kumeye_sigar_mi(t, 18, config.BAR_4H, "C2") is True
-    assert split.ufuk_kumeye_sigar_mi(t + DORT_SAAT, 18, config.BAR_4H, "C2") is False
+    assert _sigar(t, 18, config.BAR_4H, "C2") is True
+    assert _sigar(t + DORT_SAAT, 18, config.BAR_4H, "C2") is False
 
 
 # --- cikis_bari kume korumasi ------------------------------------------------
@@ -131,12 +152,15 @@ def test_kume_disina_tasan_ufuk_kirpilmaz_hata_verir():
     t = pd.Timestamp("2025-08-29 12:00", tz="UTC")
     giris = t + DORT_SAAT
 
-    # Kume bilgisi olmadan kod bunu delist sanip sessizce kirpardi (B1).
-    korumasiz = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
-    assert korumasiz.kirpildi and korumasiz.kirpma_nedeni == "seri_sonu"
+    # Kume bilgisi olmadan ve donem kesik serinin sonunda biter sanilirsa kod bunu
+    # delist (rev.8'de donem sonu) sayip kirpardi (B1).
+    korumasiz = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, donem_bitis=kesik[-1], kume_bitis=None, birincil_ufuk=18)
+    assert korumasiz.kirpildi and korumasiz.kirpma_nedeni == "donem_sonu"
 
+    # Gercek donem kumeden sonra suruyor: kume sinirinda kirpma yok, olay olusmaz.
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
+        pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son,
+                           donem_bitis=pd.Timestamp("2026-08-31 20:00", tz="UTC"), birincil_ufuk=18)
 
 
 def test_kume_disina_tasan_ufuk_sonraki_kumenin_verisini_okumaz():
@@ -146,7 +170,7 @@ def test_kume_disina_tasan_ufuk_sonraki_kumenin_verisini_okumaz():
     giris = pd.Timestamp("2025-08-29 16:00", tz="UTC")
 
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(tam, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
+        pencere.cikis_bari(tam, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=tam[-1], birincil_ufuk=18)
 
 
 def test_ileri_kayma_kume_sinirini_asamaz():
@@ -158,12 +182,12 @@ def test_ileri_kayma_kume_sinirini_asamaz():
     giris = son_bar - 17 * DORT_SAAT  # t+18 = son_bar
 
     with pytest.raises(split.KumeSiniriHatasi):
-        pencere.cikis_bari(eksik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
+        pencere.cikis_bari(eksik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=tam[-1], birincil_ufuk=18)
 
 
 @pytest.mark.parametrize(
     "donem_bitis",
-    [None, pd.Timestamp("2026-08-31 23:59:59", tz="UTC")],
+    [None, pd.Timestamp("2026-08-31 20:00", tz="UTC")],
     ids=["donem_bilinmiyor", "donem_kumeden_sonra_suruyor"],
 )
 def test_kesik_seride_kume_sonuna_yakin_eksik_bar_kirpilmaz_hata_verir(donem_bitis):
@@ -173,6 +197,9 @@ def test_kesik_seride_kume_sonuna_yakin_eksik_bar_kirpilmaz_hata_verir(donem_bit
     16:00'da biter. Hedef tam 20:00 oldugu icin `hedef <= kume_son` saglanir ve
     eskiden kod serinin sonunu delist sanip `seri_sonu` kirpmasi donduruyordu.
     Oysa bir sonraki mevcut bar kumenin disindadir: olay olusmaz.
+
+    Rev.8: donem bitisi bilinmiyorsa (None) cikis kurulamaz (TypeError; donem sonu
+    kurali B'ye dayanir). Donem kumeden sonra suruyorsa KumeSiniriHatasi.
     """
     _, kume_son = split.kume_araligi("KESIF")
     son_bar = kume_son.floor("4h")
@@ -180,32 +207,41 @@ def test_kesik_seride_kume_sonuna_yakin_eksik_bar_kirpilmaz_hata_verir(donem_bit
     giris = son_bar - 17 * DORT_SAAT  # t+18 = son_bar
     assert kesik[-1] == son_bar - DORT_SAAT
 
-    with pytest.raises(split.KumeSiniriHatasi):
+    beklenen = TypeError if donem_bitis is None else split.KumeSiniriHatasi
+    with pytest.raises(beklenen):
         pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=donem_bitis, birincil_ufuk=18)
 
 
 def test_kesik_seride_kume_icinde_biten_donem_delist_olarak_kirpilir():
-    """Ayni kesik seri, ama sembolun donemi kume icinde bitiyor (delist): kirpma gecerli."""
+    """Ayni kesik seri, ama sembolun donemi kume icinde bitiyor (delist): donem sonu.
+    Rev.8: B donemin son mevcut barindadir (rev.7 testi B'yi kume sonuna, bar
+    olmayan bir ana koyuyordu); delist bir donem sonudur (beklenti seri_sonu ->
+    donem_sonu)."""
     _, kume_son = split.kume_araligi("KESIF")
     son_bar = kume_son.floor("4h")
     kesik = _izgara("2025-08-20", "2025-08-31 20:00").drop(son_bar)
     giris = son_bar - 17 * DORT_SAAT
 
-    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=kume_son, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=kesik[-1], birincil_ufuk=18)
 
-    assert sonuc.kirpildi and sonuc.kirpma_nedeni == "seri_sonu"
+    assert sonuc.kirpildi and sonuc.kirpma_nedeni == "donem_sonu"
     assert sonuc.zaman == son_bar - DORT_SAAT
 
 
 def test_kumeye_sigan_ufuk_normal_cikar():
+    """Rev.8: kume olcutu cikis_bari'de de gercek cikis anina uygulanir; son barin
+    kapanisi (09-01 00:00) kume disidir. Kumeye sigan en gec olagan cikis bir bar
+    oncedir (rev.7 testi giris = son_bar - 17 bar ile son barda cikisi bekliyordu;
+    rev.7'de de ayni olay pozisyon_plani'nda reddediliyordu)."""
     _, kume_son = split.kume_araligi("KESIF")
     son_bar = kume_son.floor("4h")
     kesik = _izgara("2025-08-20", "2025-08-31 20:00")
-    giris = son_bar - 17 * DORT_SAAT
+    giris = son_bar - 18 * DORT_SAAT
 
-    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=None, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(kesik, giris, 18, config.BAR_4H, kume_bitis=kume_son,
+                               donem_bitis=pd.Timestamp("2026-08-31 20:00", tz="UTC"), birincil_ufuk=18)
 
-    assert sonuc.zaman == son_bar
+    assert sonuc.zaman == son_bar - DORT_SAAT and sonuc.cikis_ani == son_bar
     assert sonuc.fiyat_alani == "close"
     assert sonuc.kirpildi is False
 
@@ -213,14 +249,14 @@ def test_kumeye_sigan_ufuk_normal_cikar():
 def test_kume_icinde_gercek_delist_kirpmasi_korunur():
     """Kume icinde veri gercekten biterse (delist) §4 kurali gecerli kalir.
 
-    Delist, sembolun donem sonunun kumenin icinde olmasiyla anlasilir (bulgu 5).
+    Rev.8 §4: delist bir donem sonudur; B donemin son mevcut baridir (rev.7 testi
+    B'yi ay sonuna koyuyor ve "seri_sonu" bekliyordu).
     """
     _, kume_son = split.kume_araligi("KESIF")
     delist = _izgara("2023-05-01", "2023-05-10 12:00")
     giris = pd.Timestamp("2023-05-09 00:00", tz="UTC")
-    donem_bitis = pd.Timestamp("2023-05-31 23:59:59.999999999", tz="UTC")
 
-    sonuc = pencere.cikis_bari(delist, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=donem_bitis, birincil_ufuk=18)
+    sonuc = pencere.cikis_bari(delist, giris, 18, config.BAR_4H, kume_bitis=kume_son, donem_bitis=delist[-1], birincil_ufuk=18)
 
-    assert sonuc.kirpildi and sonuc.kirpma_nedeni == "seri_sonu"
+    assert sonuc.kirpildi and sonuc.kirpma_nedeni == "donem_sonu"
     assert sonuc.zaman == delist[-1]

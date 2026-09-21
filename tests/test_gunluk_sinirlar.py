@@ -113,16 +113,20 @@ def test_ic_sinir_ikinci_donemin_ilk_gunu_dolgu_barlari_icerir():
     ("2025-04-14 20:00", "2025-04-20 20:00", "2025-04-15 00:00"),
 ])
 def test_son_gun_gercek_cikis_bariyla_ayni(bitis, seri_son, sifir):
-    """`son_gun`, `pencere.cikis_bari`nin 1 gunluk seride donem sonunda sectigi
-    bardir; sayim cikis kuralinin kopyasini yazmaz, gercek fonksiyonla ayni sonucu
-    verir."""
+    """Rev.8 §4 "Donem sonu ve cikis": donem sonuna ulasan pozisyon, izgara ne olursa
+    olsun B'de acilan 4h barin kapanisindan (K) cikar. Rev.7'de 1d cikisi `son_gun`
+    (1d serisinin B'den onceki son gunu) barindan okunuyordu; bu test o esitligi
+    sabitliyordu (RESULTS degisiklik kaydi). Artik: 1d izgarasinda gercek cikis bari
+    B'deki 4h bar, cikis ani K; `son_gun`un kapanisi K'dan sonra degildir."""
     m = _mumlar("2025-04-01 00:00", seri_son, sifir_bas=sifir)
     donem = Donem(T("2025-04-01 00:00"), T(bitis), 80, 80)
     s = _satir(m, [donem], ["delist_SETTLING"])[0]
-    gunler = pd.DatetimeIndex(klines.gunluge_cevir(m, donemler=[donem])["open_time"])
-    cikis = pencere.cikis_bari(gunler, T("2025-04-05 00:00"), 30, config.BAR_1D, birincil_ufuk=30,
+    z4 = pd.DatetimeIndex(m["open_time"])
+    z4 = z4[z4 <= donem.bitis]  # donem ici 4h barlar
+    cikis = pencere.cikis_bari(z4, T("2025-04-05 00:00"), 30, config.BAR_1D, birincil_ufuk=30,
                                donem_bitis=donem.bitis, kume_bitis=None)
-    assert cikis.kirpildi and cikis.zaman == s["son_gun"]
+    assert cikis.tur == "donem_sonu" and cikis.zaman == donem.bitis and cikis.cikis_ani == donem.kapanis
+    assert s["son_gun"] + pd.Timedelta(days=1) <= donem.kapanis
 
 
 # --- D-A4: 1 gunluk satirlar 4 saatlik satirlarla ayni kayit tabanindan ----------

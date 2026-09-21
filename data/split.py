@@ -183,17 +183,6 @@ def kume_araligi(kume: str) -> tuple[pd.Timestamp, pd.Timestamp]:
     return pd.Timestamp(bas), pd.Timestamp(son)
 
 
-def ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk: int, bar: str, kume: str) -> bool:
-    """Olayin ufku ait oldugu kumenin tarih araligina tam olarak sigiyor mu?
-
-    On-kayit §3 rev.4. Kural burada TEKRAR YAZILMAZ: kume adindan sinirlar
-    `kume_araligi` ile alinir ve `pencere.ufuk_kumeye_sigar_mi`ya verilir;
-    o da `pencere.cikis_bari` ile ayni hedef ve sinir fonksiyonunu kullanir.
-    """
-    bas, son = kume_araligi(kume)
-    return pencere.ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk, bar, kume_baslangic=bas, kume_bitis=son)
-
-
 # --- Onay kaydi --------------------------------------------------------------
 
 

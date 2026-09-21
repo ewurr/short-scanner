@@ -948,3 +948,41 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     `test_ic_sinir_ikinci_donemin_ilk_gunu_dolgu_barlari_icerir` kısmi günlerin 1d
     serisinde olduğunu (D-A1) sabitliyordu; rev.8'de kısmi ilk ve son günler seride yok
     (son gün 04-14 → 04-13, dönem dışı bar 3 → 0; ilk gün 04-20 → 04-21, 2 → 0).
+- 2026-09-22 (Rev.8 uygulaması, madde 4: rev.8 §4 "Fiyat okuma tabanı", "Dönem sonu ve
+  çıkış", delist cümlesi, "Olayın kümede oluşma ölçütü"; §2 "Ufuk", "İleri kaymanın
+  ölçüsü"). `pencere.cikis_bari` ve `pozisyon_plani` yeniden yazıldı: fiyat her ızgarada
+  dönem içi 4h barlardan; giriş anı t'nin kapanışı; T = giriş + h × adım; önce T > K
+  (dönem sonu, çıkış anı K), sonra kapanışı T olan bar (olağan), sonra açılışı T'ye eşit ya
+  da sonra olan ilk bar (ileri kayma, sınır dahil). Her çıkış bir tür taşır
+  (`CikisSonucu.tur`: olağan / ileri kayma / dönem sonu), reddedilen her olay bir gerekçe
+  (`OlayOlusmaz.gerekce`). Dönem sınırları zorunlu; "seri sonu" kırpması kaldırıldı (delist
+  bir dönem sonudur); T'ye dayalı küme ön elemesi (`pencere.ufuk_kumeye_sigar_mi`,
+  `split.ufuk_kumeye_sigar_mi`) kaldırıldı, küme ölçütü gerçek çıkış anına uygulanır. Bar
+  aramaları zaman toleransıyla (`pencere.ayni_andaki_bar`). Rev.8'in sessiz kaldığı bir sıra
+  korundu: ileri kaymada küme ölçütü ileri kayma sınırından önce uygulanır (rev.4'ten beri
+  mevcut test kararı). **Bilerek güncellenen mevcut testler** (davranışı rev.8 değiştirdi;
+  senaryolar korundu):
+  - `test_pozisyon_plani.py`: yardımcı dönemi serinin başı/sonu olarak verir (dönem
+    zorunlu); ileri kayma testinde hedef bar T − 4 saat (`cikis_hedefi` artık T verir);
+    küme son barı testinde 1d çıkış barı 4h bar; parametre testi dönem sınırlarını içerir;
+    ön eleme özellik testi, küme kararının gerçek çıkış anına göre verildiğini doğrulayan
+    özellik testiyle değiştirildi (dönem sonu senaryosunda T küme dışında, K küme içinde
+    olan olay oluşur).
+  - `test_pencere.py`: `cikis_bari` çağrılarına `donem_bitis` (serinin son barı);
+    `seri_sonu` → `donem_sonu`.
+  - `test_ileri_kayma_siniri.py`: hedef bar T − 4 saat; 1d testi 4h seriyle; boşluğun
+    içindeki B (rev.8'de B her zaman mevcut bir bar) boşluktan önceki son bara alındı;
+    delist `seri_sonu` → `donem_sonu`.
+  - `test_kume_siniri.py`: `split.ufuk_kumeye_sigar_mi` soruları gerçek plana (`_sigar`);
+    `cikis_bari` dönem bitişi zorunlu; bar olmayan B'ler gerçek bara; `seri_sonu` →
+    `donem_sonu`; "kümeye sığan ufuk" testi bir bar erken (son barın kapanışı küme dışı).
+  - `test_pozisyon_fundingi.py`, `test_rev6_saldirilari.py`, `test_funding_aralik_gecisi.py`:
+    yardımcılar 4h seri ve dönem sınırlarıyla; elle kurulan `CikisSonucu` rev.8 alanlarıyla;
+    `cikis_ani` ızgara adımı almaz (1d'de de 4h bar kapanışı); B gerçek bar; `cikis_bari`
+    küme ölçütünü de uygular; hedef bar T − 4 saat; 1d ileri kayma 4h seriyle.
+  - `test_f1_kapanis_saldirilari.py` (2 test): `donem_bitis=None` yerine kümeden sonra süren
+    gerçek bir B.
+  - `test_karantina_kaldirildi.py` (2 test): `KIRPMA_NEDENLERI` → `CIKIS_TURLERI`;
+    `CikisSonucu` rev.8 alanları.
+  - `test_gunluk_sinirlar.py::test_son_gun_gercek_cikis_bariyla_ayni`: 1d dönem sonu çıkışı
+    artık B'deki 4h barın kapanışı (K); `son_gun` eşitliği yerine bu.
