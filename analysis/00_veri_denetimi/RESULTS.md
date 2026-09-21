@@ -1,23 +1,28 @@
 # F1 Veri Denetimi — TAM EVREN (678 sembol), ön-kayıt rev.7
 
 **Durum:** Tam koşu, 678/678 sembol, **hata yok**.
-**Koşu:** 2026-09-20 20:43:09 → 21:02:05 UTC, 8 iş parçacığı, önbellekten,
+**Koşu:** 2026-09-21 07:42:38 → 08:00:28 UTC, 8 iş parçacığı, önbellekten,
 `--eski-evren` (rev.7 öncesi tabloyla karşılaştırma, §5) açık.
-**Kod:** `6aa73a4`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
-hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor (betik dışı sayı:
-`pytest -q` çıktısından). Bu commit'ten sonraki commit'ler yalnızca bu raporun metnini
-değiştirir; hiçbir çıktıyı etkilemez.
-**A1 ölçümü:** aynı commit, aynı temiz ağaç, 2026-09-20 20:43:11 → 20:51:22 UTC
-(`a1_ortam_tam.csv`). A1'in referans koşusu budur; daha eski A1 çıktılarının zamanı
-dosya tarihinden türetilmişti ve artık kullanılmıyor (denetçi bulgusu D-B2).
-**Önceki temiz koşudan (`16b012c` / `209f115`) farklar:**
-- `sembol_ozeti`: `funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat` sütunu eklendi.
-- `rapor_sayilari`: 8 saat sayımı iki referansa ayrıldı, `rev8` bölümü eklendi.
-- `a1_d_kurali`: 1 günlük çıkış ızgarası (H3) satırları ve `cikis_ani`,
-  `kapanista_odeme`, `son_odeme_aralik_saat` sütunları eklendi.
-- `a1_uzlasma_sonrasi_oranlar` ve `a1_teslimsiz_son_bar_funding`: çalışma ağacından
-  kaldırıldı (D-B1).
-- Diğer tüm `*_tam.csv` dosyaları birebir aynı.
+**Kod:** `d3a6fc4`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
+hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor: 741 geçti, 1 xfail
+(betik dışı sayı: `pytest -q` çıktısından). Bu koşunun çıktılarını commit eden
+commit'ten sonrakiler yalnızca bu raporun metnini değiştirir.
+**A1 ölçümü:** aynı commit, aynı temiz ağaç, 2026-09-21 07:42:45 → 07:50:04 UTC
+(`a1_ortam_tam.csv`). A1'in referans koşusu budur.
+**Önceki temiz koşudan (`6aa73a4` kodu, çıktıları `02effeb`) farklar**
+(`karsilastirma_tam.csv`, `karsilastir.py --onceki 02effeb`):
+- `gunluk_sinirlar`: yeni (690 satır, §14.8).
+- `rapor_sayilari`: 142 → 179 satır; §14.8 bölümü ve yeni `rev8` kalemleri eklendi,
+  38'in kalemi `…_kapanistan_sonra` adını aldı (ortak sütunlarda yalnızca eskide 1 satır).
+- `a1_d_kurali`: `giris_aday`, `cikis_ani_aday`, `tamlik_aday` sütunları eklendi;
+  ortak sütunlarda 65 satır değişti (D-A4 kayıt tabanı, §14.7).
+- `delist_siniflandirmasi`: `teslimden_sonra_funding_kayit` sütunu eklendi; ortak
+  sütunlarda satır farkı yok.
+- `ortam`, `a1_ortam`: koşu kaydı (commit, zaman).
+- Diğer 20 `*_tam.csv` dosyası bayt düzeyinde aynı.
+- Bu koşudan önce `2eaa5fc` üzerinde temiz bir ara koşu yapıldı (§14.1, §14.7, §14.8
+  metinleri onun sayılarıyla yazıldı); son koşunun ortam dışındaki bütün çıktıları ara
+  koşuyla bayt düzeyinde aynı (betik dışı: elle `cmp`, ara koşu çıktıları depoda yok).
 **Evren:** commit edilmiş `data/universe.csv` (rev.7, bar düzeyinde dönemler).
 **exchangeInfo:** depodaki görüntü `data/exchange_info_anlik.json`
 (alınma 2026-09-18 11:31:55 UTC, ham yanıt SHA256 `41244d4d…58c6a`), canlı uç nokta değil.

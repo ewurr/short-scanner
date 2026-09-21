@@ -135,9 +135,46 @@ bolum,kalem,deger
 8,sicrama_donem_basi,8
 8,sicrama_donem_ici_bosluk_sonrasi,2
 9,kisa_donem,5
+rev8,settled_ay (on-kayit: 34),34
 rev8,settled_ayinda_dolgu_kosusu_yok (on-kayit: 14),18
+rev8,settled_ayinda_dolgu_yok_donem_siniri_var,5
+rev8,settled_ayinda_dolgu_yok_donem_siniri_var_aylar,"BNXUSDT:2022-04,BNXUSDT:2023-02,ICPUSDT:2022-09,MINAUSDT:2023-02,TLMUSDT:2023-03"
 rev8,uzlasma_sonrasi_dolgusu_olan_sembol (on-kayit: 131),145
-rev8,uzlasma_sonrasi_funding_yayinlanan_sembol (on-kayit: 38),57
+rev8,uzlasma_sonrasi_dolgusu_en_az_1_yil_olan_sembol,45
+rev8,uzlasma_sonrasi_dolgusu_en_az_2_yil_olan_sembol,15
+rev8,uzlasma_sonrasi_funding_yayinlanan_sembol_kapanistan_sonra (on-kayit: 38),57
+rev8,uzlasma_sonrasi_funding_yayinlanan_sembol_kapanistan_sonra_SETTLING,38
+rev8,uzlasma_sonrasi_funding_yayinlanan_sembol_kapanistan_sonra_exchangeInfo_disi,19
+rev8,SETTLING_teslimden_sonra_funding_kaydi_olan_sembol,38
+14.8,donem_sonu_delist_SETTLING,128
+14.8,son_gun_donem_disi_bar_iceren_delist_SETTLING,128
+14.8,son_gun_donem_disi_bar_toplam_delist_SETTLING,387
+14.8,bitis_gunu_1d_serisinde_yok_delist_SETTLING,0
+14.8,donem_sonu_delist_exchangeInfo_disi,28
+14.8,son_gun_donem_disi_bar_iceren_delist_exchangeInfo_disi,17
+14.8,son_gun_donem_disi_bar_toplam_delist_exchangeInfo_disi,55
+14.8,bitis_gunu_1d_serisinde_yok_delist_exchangeInfo_disi,9
+14.8,donem_sonu_dolgu_kosusu,11
+14.8,son_gun_donem_disi_bar_iceren_dolgu_kosusu,11
+14.8,son_gun_donem_disi_bar_toplam_dolgu_kosusu,32
+14.8,bitis_gunu_1d_serisinde_yok_dolgu_kosusu,0
+14.8,donem_sonu_uzun_bosluk,1
+14.8,son_gun_donem_disi_bar_iceren_uzun_bosluk,0
+14.8,son_gun_donem_disi_bar_toplam_uzun_bosluk,0
+14.8,bitis_gunu_1d_serisinde_yok_uzun_bosluk,0
+14.8,donem_sonu_veri_sonu,522
+14.8,son_gun_donem_disi_bar_iceren_veri_sonu,0
+14.8,son_gun_donem_disi_bar_toplam_veri_sonu,0
+14.8,bitis_gunu_1d_serisinde_yok_veri_sonu,0
+14.8,donem_basi_donem_basi,678
+14.8,ilk_gun_donem_disi_bar_iceren_donem_basi,0
+14.8,donem_basi_ic_sinir,12
+14.8,ilk_gun_donem_disi_bar_iceren_ic_sinir,0
+14.8,kismi_gun_donem_basi,0
+14.8,kismi_gun_ic_sinir_bas,0
+14.8,kismi_gun_ic_sinir_son,11
+14.8,kismi_gun_donem_sonu,145
+14.8,ayni_gunde_baslayan_ve_biten_donem,0
 12,capraz_toplam_gun,615043
 12,capraz_fiyat_gun,7
 12,capraz_hacim_gun,261
