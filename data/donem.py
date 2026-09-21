@@ -195,8 +195,12 @@ def ay_toplam_donemde(ay: str) -> bool:
     Karsilastirma metin uzerinden degil YIL-AY DEGERI uzerinden yapilir: metin
     karsilastirmasi sifir dolgusuz "2026-8" gibi bir ayi sozluk sirasina gore
     "2026-08"den buyuk sayar ve donemin son ayini sessizce disarida birakirdi
-    (sizinti testcisi bulgusu). Gecersiz ay ifadesi `ValueError` verir.
+    (sizinti testcisi bulgusu). Gecersiz ay ifadesi `ValueError` verir; bos dize
+    de gecersizdir (`pd.Period("")` hata vermeden NaT doner ve her karsilastirma
+    sessizce False olurdu).
     """
     p = pd.Period(ay, freq="M")
+    if pd.isna(p):
+        raise ValueError(f"Gecersiz ay ifadesi: {ay!r}")
     return (pd.Period(config.DONEM_BASI.strftime("%Y-%m"), freq="M") <= p
             <= pd.Period(config.DONEM_SONU.strftime("%Y-%m"), freq="M"))
