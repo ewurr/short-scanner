@@ -1025,3 +1025,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   `pozisyon_funding_tam_mi`, `funding_tamlik_ayrintisi` ve `OnaylanmisPozisyon` kurulumunu
   da yakalar; `test_pozisyon_plani.py` tarama testinde "temiz" örnek `olay_karari` oldu
   (rev.7'de tek kapı `pozisyon_plani` idi) ve üç yeni ihlal örneği eklendi.
+- 2026-09-22 (Rev.8 uygulaması, madde 5: rev.8 §4 "MAE"). `pozisyon.mae`: `max(H, P1) / P0 − 1`;
+  H, açılışı giriş anından önce olmayan ve kapanışı çıkış anından sonra olmayan dönem içi 4h
+  barların en yüksek high değeri. Yalnızca `OnaylanmisPozisyon` alır; hiçbir veride
+  çalıştırılmadı, sonuç raporlanmadı. Mevcut test değişmedi.

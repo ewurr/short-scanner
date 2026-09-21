@@ -142,3 +142,28 @@ def pozisyon_fiyatlari(pozisyon) -> tuple[float, float]:
     """(P0, P1): brut getirinin tek girdisi. Yalnizca `olay_karari` ciktisini kabul eder."""
     onay_dogrula(pozisyon)
     return pozisyon.p0, pozisyon.p1
+
+
+def mae(mumlar_4h: pd.DataFrame, pozisyon) -> float:
+    """En kotu ara zarar (on-kayit §4 rev.8 "MAE"): `max(H, P1) / P0 - 1`.
+
+    "H, acilisi giris anindan once olmayan ve kapanisi cikis anindan sonra olmayan
+    butun donem ici 4h barlarin en yuksek high degeridir; boyle bar yoksa yalnizca P1
+    kullanilir. Izgaradan bagimsiz olarak 4h barlardan hesaplanir." Zaman
+    karsilastirmalari "Zaman toleransi"na gore. Eksik barlar MAE'yi hesaplanamaz
+    yapmaz (bosluk suresince ara zarar gozlenemez; rapor bu siniri yazar).
+    Yalnizca `olay_karari` ciktisini kabul eder; `mumlar_4h` kararla ayni seri
+    olmalidir. Saf; raporlanir, esik degildir.
+    """
+    onay_dogrula(pozisyon)
+    plan = pozisyon.plan
+    zamanlar = _mum_zamanlari(mumlar_4h)
+    kapanislar = zamanlar + pencere_modulu.ADIM_4H
+    secim = (np.asarray(pencere_modulu.ayni_ya_da_sonra(zamanlar, plan.giris), dtype=bool)
+             & np.asarray(pencere_modulu.ayni_ya_da_once(kapanislar, plan.cikis_ani), dtype=bool)
+             & np.asarray(pencere_modulu.donem_ici_4h_maskesi(
+                 zamanlar, donem_baslangic=plan.donem_baslangic, donem_bitis=plan.donem_bitis), dtype=bool))
+    tepe = pozisyon.p1
+    if secim.any():
+        tepe = max(float(np.max(mumlar_4h["high"].to_numpy(dtype=float)[secim])), pozisyon.p1)
+    return tepe / pozisyon.p0 - 1
