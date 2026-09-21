@@ -252,6 +252,7 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
         "capraz_hacim_farkli_gun": capraz.get("hacim_farkli_gun"),
         "_mumlar": mumlar,
         "_gunluk": gunluk,
+        "_funding_zamanlari": pd.DatetimeIndex(fund["odeme_zamani"]) if len(fund) else pd.DatetimeIndex([], tz="UTC"),
         "_donemler": donemler,
         "_aralar": aralar,
         "_dolgu": dolgu,
@@ -306,6 +307,18 @@ def delist_tablosu(evren: pd.DataFrame, detaylar: list[dict]) -> pd.DataFrame:
         (tablo["son_donem_bitis"] <= tablo["deliveryDate"])
         & (tablo["deliveryDate"] < tablo["son_donem_bitis"] + ADIM_4H)
     )
+    # deliveryDate'ten (+1 dk) sonra gelen funding kaydi sayisi; yalnizca kaydin
+    # varligi ve zamani. deliveryDate'i olmayan sembolde tanimsiz (NaN).
+    tol = funding_modulu.ODEME_TOLERANSI
+    zamanlar = {d["sembol"]: d.get("_funding_zamanlari") for d in detaylar}
+
+    def _teslimden_sonra(r) -> float:
+        z = zamanlar.get(r.sembol)
+        if z is None or pd.isna(r.deliveryDate):
+            return float("nan")
+        return float((z > r.deliveryDate + tol).sum())
+
+    tablo["teslimden_sonra_funding_kayit"] = [_teslimden_sonra(r) for r in tablo.itertuples()]
     tablo.attrs["alinma_zamani_utc"] = anlik.attrs["alinma_zamani_utc"]
     tablo.attrs["durum_sayimi"] = sinif["sinif"].value_counts().to_dict()
     return tablo.reset_index(drop=True)
@@ -1034,14 +1047,40 @@ def rapor_sayilari(t: dict[str, pd.DataFrame], evren: pd.DataFrame, bolme: pd.Da
         ekle("8", f"sicrama_{sinif}", int(n))
     ekle("9", "kisa_donem", len(t["kisa_donemler"]))
 
-    # Rev.8'de duzeltilecek uc sayi (tanimlar RESULTS §14'te)
+    # Rev.8'de duzeltilecek uc sayi. Her kalem on-kayittaki cumlenin harfiyen
+    # tanimindan uretilir; cumleler RESULTS §14.1'de alintili (D-A3, D-B2).
     st_r = t["settled_aylari"]
+    # "34 karantina ayinin 14'unde ... dolgu kosusu bulunmayan" (§2 rev.7)
+    ekle("rev8", "settled_ay (on-kayit: 34)", len(st_r))
     ekle("rev8", "settled_ayinda_dolgu_kosusu_yok (on-kayit: 14)",
          int((~st_r["dolgu_kosusu_var"]).sum()))
+    # §6'daki 13 dolgu VE donem siniri yoklugudur; aradaki fark bu aylardir.
+    fark = st_r.loc[~st_r["dolgu_kosusu_var"] & st_r["donem_siniri_var"]]
+    ekle("rev8", "settled_ayinda_dolgu_yok_donem_siniri_var", len(fark))
+    ekle("rev8", "settled_ayinda_dolgu_yok_donem_siniri_var_aylar",
+         ",".join(f"{r.sembol}:{r.ay}" for r in fark.sort_values(["sembol", "ay"]).itertuples()))
+    # "131 sembolde uzlasma sonrasi dolgu barlarin donem sonunu yillarca
+    # uzattigi" (Revizyon Gunlugu, rev.7). Cekirdek tanim: donem sonundan sonra
+    # dolgu barlari olan delist sembol. "Yillarca" ayrica 1 ve 2 yil esigiyle.
     ekle("rev8", "uzlasma_sonrasi_dolgusu_olan_sembol (on-kayit: 131)",
          int((delist["sonraki_dolgu_bar"] > 0).sum()))
-    ekle("rev8", "uzlasma_sonrasi_funding_yayinlanan_sembol (on-kayit: 38)",
+    son_dolgu = t["dolgu_kosulari"].loc[t["dolgu_kosulari"]["konum"] == "son"]
+    for yil in (1, 2):
+        ekle("rev8", f"uzlasma_sonrasi_dolgusu_en_az_{yil}_yil_olan_sembol",
+             son_dolgu.loc[son_dolgu["gun"] >= 365 * yil, "sembol"].nunique())
+    # "38 sembolde uzlasma sonrasinda da funding kaydi yayinlandigini" (§2 rev.7).
+    # Tanim kapanis referanslidir: son donemin KAPANISINDAN (son barin kapanisi
+    # + 1 dk) sonra en az bir kaydi olan sembol. exchangeInfo disi sembollerde
+    # uzlasma ani (deliveryDate) yoktur; kapanis tum delist sembollerde tanimli
+    # tek referanstir.
+    ekle("rev8", "uzlasma_sonrasi_funding_yayinlanan_sembol_kapanistan_sonra (on-kayit: 38)",
          int((ozet["funding_son_donem_sonrasi_atilan"] > 0).sum()))
+    for sinif, n in son_s["sembol"].map(sinif_haritasi).fillna("delist_degil").value_counts().sort_index().items():
+        ekle("rev8", f"uzlasma_sonrasi_funding_yayinlanan_sembol_kapanistan_sonra_{sinif}", int(n))
+    stl = delist.loc[delist["sinif"] == universe_modulu.SETTLING_DURUMU]
+    if "teslimden_sonra_funding_kayit" in stl:
+        ekle("rev8", "SETTLING_teslimden_sonra_funding_kaydi_olan_sembol",
+             int((stl["teslimden_sonra_funding_kayit"] > 0).sum()))
 
     # §14.8 1 gunluk barlarin donem sinirlari (denetci bulgusu D-A1). Yalnizca
     # zaman damgasi sayimi; fiyat, hacim degeri ya da getiri yok.
