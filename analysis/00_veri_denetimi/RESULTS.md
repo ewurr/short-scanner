@@ -895,3 +895,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     kilidindedir (`calistir.kosu_kilidi`). Kullanıcı talimatıyla.
 - 2026-09-21: §14.10 açıldı (D-A2): funding sınıflaması D penceresiyle belirlenseydi sınıfı
   değişecek dönem sayısı dönem sonu türüne göre; yalnızca BNXUSDT dönem 0 (uzun boşluk).
+- 2026-09-21: `4110f43` — `tests/test_tur_saldirilari_d.py`: eşzamanlı `csv_yaz` testinin
+  işareti `xfail(strict=True)` → `xfail(strict=False)`; test gövdesi değişmedi. Gerekçe:
+  eşzamanlı koşu koşu kilidiyle desteklenmiyor ve sonuç platforma bağlı (Windows'ta
+  PermissionError, POSIX'te `os.replace` atomik; strict POSIX'te XPASS ile takımı kırardı;
+  denetçi bulgusu D-B2).
