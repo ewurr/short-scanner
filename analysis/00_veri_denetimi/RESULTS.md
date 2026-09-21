@@ -1,28 +1,28 @@
 # F1 Veri Denetimi — TAM EVREN (678 sembol), ön-kayıt rev.7
 
 **Durum:** Tam koşu, 678/678 sembol, **hata yok**.
-**Koşu:** 2026-09-21 07:42:38 → 08:00:28 UTC, 8 iş parçacığı, önbellekten,
+**Koşu:** 2026-09-21 08:21:24 → 08:40:21 UTC, 8 iş parçacığı, önbellekten,
 `--eski-evren` (rev.7 öncesi tabloyla karşılaştırma, §5) açık.
-**Kod:** `d3a6fc4`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
-hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor: 741 geçti, 1 xfail
+**Kod:** `2ce0bac`, çalışma ağacı **temiz** (`ortam_tam.csv`; durum koşunun başında,
+hiçbir çıktı yazılmadan alındı). Bu commit'te tam test takımı geçiyor: 767 geçti, 2 xfail
 (betik dışı sayı: `pytest -q` çıktısından). Bu koşunun çıktılarını commit eden
 commit'ten sonrakiler yalnızca bu raporun metnini değiştirir.
-**A1 ölçümü:** aynı commit, aynı temiz ağaç, 2026-09-21 07:42:45 → 07:50:04 UTC
-(`a1_ortam_tam.csv`). A1'in referans koşusu budur.
-**Önceki temiz koşudan (`6aa73a4` kodu, çıktıları `02effeb`) farklar**
-(`karsilastirma_tam.csv`, `karsilastir.py --onceki 02effeb`):
-- `gunluk_sinirlar`: yeni (690 satır, §14.8).
-- `rapor_sayilari`: 142 → 179 satır; §14.8 bölümü ve yeni `rev8` kalemleri eklendi,
-  38'in kalemi `…_kapanistan_sonra` adını aldı (ortak sütunlarda yalnızca eskide 1 satır).
-- `a1_d_kurali`: `giris_aday`, `cikis_ani_aday`, `tamlik_aday` sütunları eklendi;
-  ortak sütunlarda 65 satır değişti (D-A4 kayıt tabanı, §14.7).
-- `delist_siniflandirmasi`: `teslimden_sonra_funding_kayit` sütunu eklendi; ortak
+**A1 ölçümü:** aynı commit, aynı temiz ağaç, 2026-09-21 08:21:31 → 08:28:37 UTC
+(`a1_ortam_tam.csv`). A1'in referans koşusu budur. Koşu kilidi (`calistir.kosu_kilidi`)
+iki betiğin kendi ikinci koşusunu reddeder; bu koşu sırasında ikinci bir denetim koşusu
+denendi ve hiçbir şey yazmadan reddedildi (betik dışı: elle deneme).
+**Önceki temiz koşudan (`d3a6fc4` kodu, çıktıları `4eefa5b`) farklar**
+(`karsilastirma_tam.csv`, `karsilastir.py --onceki 4eefa5b`):
+- `a1_d_kurali`: `funding_var_mevcut`, `funding_var_d` sütunları eklendi (§14.10); ortak
   sütunlarda satır farkı yok.
 - `ortam`, `a1_ortam`: koşu kaydı (commit, zaman).
-- Diğer 20 `*_tam.csv` dosyası bayt düzeyinde aynı.
-- Bu koşudan önce `2eaa5fc` üzerinde temiz bir ara koşu yapıldı (§14.1, §14.7, §14.8
-  metinleri onun sayılarıyla yazıldı); son koşunun ortam dışındaki bütün çıktıları ara
-  koşuyla bayt düzeyinde aynı (betik dışı: elle `cmp`, ara koşu çıktıları depoda yok).
+- Diğer 23 `*_tam.csv` dosyası aynı (satır sonları LF'ye çevrildikten sonra metin
+  eşitliği).
+- `karsilastirma_02effeb_tam.csv`: aynı çıktıların `02effeb` ile karşılaştırması
+  (§14.7'deki D-B3 cümlesinin kaynağı).
+- Bir önceki turun `2eaa5fc` ara koşusu ve bu turun `d506b6a` A1 ara koşusu metin için
+  kullanıldı; son koşunun ilgili sayıları onlarla aynı (§14.10 tablosu A1 çıktısıyla
+  birebir; betik dışı: elle karşılaştırma).
 **Evren:** commit edilmiş `data/universe.csv` (rev.7, bar düzeyinde dönemler).
 **exchangeInfo:** depodaki görüntü `data/exchange_info_anlik.json`
 (alınma 2026-09-18 11:31:55 UTC, ham yanıt SHA256 `41244d4d…58c6a`), canlı uç nokta değil.
@@ -46,7 +46,8 @@ Ham çıktılar (`*_tam.csv`), `calistir.py`: `sembol_ozeti`, `delist_siniflandi
 `settled_aylari`, `yillik_kapsama`, `butunluk_sicramalari`, `bosluklar`, `bosluk_olaylari`,
 `funding_araliklari`, `cross_dogrulama`, `cross_yogun_tarihler`,
 `fiyat_farki_listeleme_yasi`, `kisa_donemler`, `settled_icerik`, `donem_aralari`,
-`gunluk_sinirlar` (§14.8), `ortam`. `karsilastir.py`: `karsilastirma` (önceki koşuyla fark).
+`gunluk_sinirlar` (§14.8), `ortam`. `karsilastir.py`: `karsilastirma` (önceki koşuyla
+fark), `karsilastirma_02effeb` (`02effeb` çıktılarıyla fark).
 `rapor_sayilari_tam.csv` bu rapordaki sayıların kaynağıdır (bölüm, kalem, değer).
 Ölçüm sayılarının tamamı bu dosyadan ya da ham `*_tam.csv` çıktılarından gelir
 (denetçi bulgusu D-A5). Betikten türetilmeyen her sayı bulunduğu yerde **"betik dışı"**
