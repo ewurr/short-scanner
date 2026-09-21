@@ -519,7 +519,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
    > **Denetim sınırı aşımı.** A1 ölçümünde (1093e69) uzlaşma sonrası funding kayıtlarının oran değerleri ve işaretleri raporlandı. Bu kayıtlar dönem sonunu aşan pozisyonların net getirisine girebilecek türdendi ve bir kısmı C1 grubuna ve C2 dönemine ait. Bu, §3.1'deki veri denetimi sınırını aştı. Ölçümü bu kapsamda isteyen araştırma tarafıydı; aşımın sorumluluğu oradadır.
    >
-   > Değer düzeyindeki analiz bu bölümden çıkarıldı. Geriye kalan 18 pozitif / 5 negatif işaret sayımı da aşımın bir parçasıdır: içindeki 5 kayıt C1 grubundaki sembollere aittir (AMB, NULS, SNT, TROY×2). Bu sayım, funding üst sınırı kuralının hipotez lehine mi aleyhine mi çalıştığını gösterdiği için bilerek bırakıldı.
+   > Değer düzeyindeki analiz bu bölümden çıkarıldı. Geriye kalan 18 pozitif / 5 negatif işaret sayımı da aşımın bir parçasıdır: 23 kaydın 5'i C1 grubundaki sembollere aittir (AMB, NULS, SNT, TROY×2); C2 dönemine ait kayıt içermez. İki sayının (5 C1 kaydı, 5 negatif kayıt) birbirleriyle ilişkisi, C1'in işaret dağılımını açığa çıkaracağı için bilerek raporlanmaz. Sayım, funding üst sınırı kuralının etkisinin yönünü belgelemek için bırakıldı; bu nötr bir gerekçe değildir, yön bilgisidir ve öyle okunmalıdır.
    >
    > İz CSV'leri çalışma ağacından kaldırıldı; commit 1093e69 içinde durmaya devam ediyor. Bu aşımın funding üst sınırı kuralıyla ilişkisi ön-kayıtta yazılı hâle getirilecek; ön-kayıt henüz revize edilmedi.
 
@@ -638,3 +638,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   zamanı kaldırıldı; referans koşu artık ortam kaydı olan temiz koşudur (D-B2). §14.7
   açıldı: delist çıkışlarında funding tamlığı, H3 ölçümüyle birlikte (D-A4, D-B3).
   Betik dışı kalan üç sayı işaretlendi (D-C1).
+- 2026-09-21: §14.5 notunun ikinci paragrafı kullanıcının metniyle değiştirildi (D-A2,
+  D-B4): korunan 18/5 sayımının 23 kaydının 5'i C1'dedir ve C2 dönemine ait kayıt
+  içermez; "5 C1 kaydı" ile "5 negatif kayıt" arasındaki ilişki bilerek raporlanmaz;
+  sayımı tutmanın gerekçesi nötr değil, yön bilgisidir. Birinci paragraftaki "bir kısmı
+  C1 grubuna ve C2 dönemine ait" ifadesi bütün aşım için doğru olduğundan kaldı.
