@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import contextlib
 import io
 import logging
 import os
@@ -105,6 +106,42 @@ def csv_yaz(tablo: pd.DataFrame, yol: Path) -> None:
     except BaseException:
         gecici.unlink(missing_ok=True)
         raise
+
+
+class KosuKilidiHatasi(RuntimeError):
+    """Ayni betigin baska bir kosusu suruyor (ya da kilit birakilmadan sonlandi)."""
+
+
+@contextlib.contextmanager
+def kosu_kilidi(ad: str, dizin: Path | None = None):
+    """Kosu duzeyinde kilit: ayni betigin iki kosusu ayni anda calisamaz.
+
+    Eszamanli iki kosu ayni cikti dosyalarina yazar; Windows'ta ayni hedefe
+    eszamanli `os.replace` PermissionError verir ve iki kosunun ciktilari
+    karisabilir (sizinti testcisi bulgusu). Kilit `dizin/.<ad>.kilit` dosyasini
+    atomik olarak (O_EXCL) olusturur; dosya varsa ikinci kosu hicbir sey
+    yazmadan `KosuKilidiHatasi` ile baslamayi reddeder. Kosu hata ile bitse de
+    kilit `finally` icinde birakilir. Kilit dosyasi git'e girmez (.gitignore).
+    """
+    yol = (CIKTI_DIZINI if dizin is None else Path(dizin)) / f".{ad}.kilit"
+    try:
+        tanitici = os.open(yol, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        try:
+            sahibi = yol.read_text(encoding="utf-8").strip()
+        except OSError:
+            sahibi = "okunamadi"
+        raise KosuKilidiHatasi(
+            f"{ad} zaten calisiyor: kilit dosyasi {yol} var ({sahibi}). Eszamanli kosu "
+            "desteklenmez; iki kosu ayni cikti dosyalarina yazar. Calisan bir kosu yoksa "
+            "(onceki kosu zorla sonlandirildiysa) kilit dosyasini elle silin."
+        ) from None
+    with os.fdopen(tanitici, "w", encoding="utf-8") as dosya:
+        dosya.write(f"pid={os.getpid()} baslangic_utc={pd.Timestamp.now(tz='UTC'):%Y-%m-%d %H:%M:%S}\n")
+    try:
+        yield yol
+    finally:
+        yol.unlink(missing_ok=True)
 
 
 # --- Sembol basina olcum -----------------------------------------------------
@@ -300,6 +337,9 @@ def delist_tablosu(evren: pd.DataFrame, detaylar: list[dict]) -> pd.DataFrame:
     son_bar = {d["sembol"]: d["son_bar"] for d in detaylar}
     son_dolgu = {d["sembol"]: d["dolgu_bar_son"] for d in detaylar}
     tablo = sinif.loc[sinif["sinif"].isin([universe_modulu.SETTLING_DURUMU, "exchangeInfo_disi"])].copy()
+    # Tarih sutunlari her durumda UTC (tamami NaT olan sutun saat dilimsiz tipe duser).
+    for alan in ("deliveryDate", "son_donem_bitis"):
+        tablo[alan] = pd.to_datetime(tablo[alan], utc=True)
     tablo["seri_son_bar"] = tablo["sembol"].map(son_bar)
     tablo["sonraki_dolgu_bar"] = tablo["sembol"].map(son_dolgu)
     tablo["teslim_eksi_bitis_saat"] = (tablo["deliveryDate"] - tablo["son_donem_bitis"]) / pd.Timedelta(hours=1)
@@ -1128,7 +1168,12 @@ def main() -> None:
              f"(varsayilan ref {ESKI_EVREN_REF}); git gecmisi gerektirir",
     )
     argumanlar = ayristirici.parse_args()
+    # Kosu kilidi (sizinti testcisi bulgusu): ikinci kosu hicbir sey yazmadan reddedilir.
+    with kosu_kilidi("calistir"):
+        _kos(argumanlar)
 
+
+def _kos(argumanlar: argparse.Namespace) -> None:
     # Calisma agaci durumu ve baslangic zamani HER SEYDEN ONCE (D-B2).
     baslangic = pd.Timestamp.now(tz="UTC")
     git = git_durumu()
@@ -1285,4 +1330,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KosuKilidiHatasi as hata:
+        raise SystemExit(f"HATA: {hata}") from None

@@ -49,7 +49,8 @@ sys.path.insert(0, str(KOK))
 sys.path.insert(0, str(BU_DIZIN))
 
 import config  # noqa: E402
-from calistir import csv_yaz, donem_sonu_turleri, git_durumu, ortam_kaydi  # noqa: E402
+from calistir import (KosuKilidiHatasi, csv_yaz, donem_sonu_turleri, git_durumu,  # noqa: E402
+                      kosu_kilidi, ortam_kaydi)
 from data import donem as donem_modulu  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
 from data import klines as klines_modulu  # noqa: E402
@@ -219,7 +220,13 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
 def main(argv: list[str] | None = None) -> None:
     # Betigin secenegi yoktur: oran degeri ureten kod yolu kaldirildi (D-B1).
     argparse.ArgumentParser().parse_args(argv)
+    # Kosu kilidi cikti dizininde (sizinti testcisi bulgusu): ikinci kosu hicbir
+    # sey yazmadan reddedilir; kilit hata durumunda da birakilir.
+    with kosu_kilidi("a1_olcumu", CIKTI_D.parent):
+        _kos()
 
+
+def _kos() -> None:
     baslangic = pd.Timestamp.now(tz="UTC")
     git = git_durumu()
 
@@ -345,4 +352,7 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KosuKilidiHatasi as hata:
+        raise SystemExit(f"HATA: {hata}") from None

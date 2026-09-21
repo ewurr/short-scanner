@@ -193,7 +193,13 @@ def delist_sinifi(evren: pd.DataFrame, anlik: pd.DataFrame) -> pd.DataFrame:
             durum, teslim, sinif = None, pd.NaT, "exchangeInfo_disi"
         satirlar.append({"sembol": sembol, "sinif": sinif, "durum": durum,
                          "deliveryDate": teslim, "son_donem_bitis": son_bitis.get(sembol, pd.NaT)})
-    return pd.DataFrame(satirlar, columns=["sembol", "sinif", "durum", "deliveryDate", "son_donem_bitis"])
+    tablo = pd.DataFrame(satirlar, columns=["sembol", "sinif", "durum", "deliveryDate", "son_donem_bitis"])
+    # Tarih sutunlari her durumda UTC saat dilimli: tamami NaT olan sutun (ör.
+    # yalnizca exchangeInfo disi sembollerden olusan tablo) aksi halde saat
+    # dilimsiz tipe duser ve UTC'li bir anla karsilastirilinca TypeError verir.
+    for alan in ("deliveryDate", "son_donem_bitis"):
+        tablo[alan] = pd.to_datetime(tablo[alan], utc=True)
+    return tablo
 
 
 # --- SETTLED aylari (yalnizca denetim, on-kayit §2 rev.7) ---------------------

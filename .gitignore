@@ -6,3 +6,5 @@ __pycache__/
 logs/
 .claude/settings.local.json
 analysis/**/indirme_*.log
+# Kosu kilidi (analysis betikleri)
+analysis/**/.*.kilit
