@@ -794,6 +794,27 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
    geçmez. Kaynak taramasının sınırı `tests/test_a1_deger_yolu_yok.py` açıklamasında
    (D-C1).
 
+10. **Funding'li / funding'siz dönem sınıflaması ve D penceresi (denetçi bulgusu D-A2,
+    sayıldı, kod değişmedi).** Bugün bir dönem, `[dönem başı − 1 dk, son barın kapanışı
+    + 1 dk)` içinde en az bir funding kaydı varsa funding'li sayılır
+    (`funding.donemde_funding_var`). Üst uç D kuralındaki gibi dönem bitişi + 1 dk
+    olsaydı (`a1_d_kurali_tam.csv`, `funding_var_mevcut` / `funding_var_d`; yalnızca kaydın
+    varlığı ve zamanı):
+
+    | Dönem sonu türü | Dönem | Funding'siz: bugün | Funding'siz: D penceresi | Funding'li → funding'siz | Funding'siz → funding'li |
+    |---|---|---|---|---|---|
+    | Delist, SETTLING | 128 | 0 | 0 | 0 | 0 |
+    | Delist, exchangeInfo dışı | 28 | 0 | 0 | 0 | 0 |
+    | Dolgu koşusu (iç) | 11 | 2 | 2 | 0 | 0 |
+    | Uzun boşluk (iç) | 1 | 0 | 1 | **1** | 0 |
+    | Veri sonu | 522 | 0 | 0 | 0 | 0 |
+
+    Sınıfı değişen tek dönem BNXUSDT dönem 0: tek kaydı son barın kapanışında
+    (2023-02-01 00:00). Bugünkü iki funding'siz dönem (ICPUSDT ve TLMUSDT'nin ilk dönemleri,
+    §4) iki pencerede de funding'siz. Sayı iki ızgarada aynı (sınıf ızgaradan bağımsız).
+    Dönem içinde funding'in dönem başından çok sonra başladığı başka dönem olup olmadığı
+    ölçülmedi.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -871,3 +892,5 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     `test_csv_yaz_gercek_es_zamanli_yazmalar_dosyayi_bozmaz` `xfail(strict=True)` ile
     işaretlendi; test gövdesi değişmedi. Gerekçe: eşzamanlı koşu desteklenmez, koruma koşu
     kilidindedir (`calistir.kosu_kilidi`). Kullanıcı talimatıyla.
+- 2026-09-21: §14.10 açıldı (D-A2): funding sınıflaması D penceresiyle belirlenseydi sınıfı
+  değişecek dönem sayısı dönem sonu türüne göre; yalnızca BNXUSDT dönem 0 (uzun boşluk).
