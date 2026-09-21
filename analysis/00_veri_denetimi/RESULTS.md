@@ -80,7 +80,7 @@ A1 ölçümü (`a1_olcumu.py`):
 LITUSDT, MAVIAUSDT, PUMPUSDT, SLPUSDT, TLMUSDT. Bölen: 11'inde iç dolgu koşusu, BNXUSDT'de
 7 günden uzun eksik bar boşluğu (bkz. §3, §6).
 
-Bölme (`data/split.csv`) değişmedi: 678 sembol → 669 varlık anahtarı (A 333, B 345
+Bölme (`data/split.csv`) değişmedi (betik dışı: dosya kilitli; `git log` ile doğrulanır): 678 sembol → 669 varlık anahtarı (A 333, B 345
 sembol). Bu sayılar artık betik tarafından `split.csv`'den sayılıyor
 (`rapor_sayilari_tam.csv`, D-A5). İki dönemi ayıran şeyin türü `donem_aralari_tam.csv`'de.
 
@@ -174,7 +174,8 @@ Buradaki 5 bar ise başka iki sembolde, dönem dışında. Sayıların eşit olm
 | PUMPUSDT | 2025-06-13 12:00 | 2025-07-09 20:00 | 26,5 |
 | AERGOUSDT | 2025-03-27 12:00 | 2025-04-15 20:00 | 19,5 |
 
-**Serinin ortasındaki kısa (1–5 bar) sıfır hacim koşusu: 0.** F1 ölçümü S2 ile aynı.
+**Serinin ortasındaki kısa (1–5 bar) sıfır hacim koşusu: 0.** F1 ölçümü S2 ile aynı
+(betik dışı: S2 eski bir ölçümdür).
 `tests/test_kisa_sifir_kosusu.py` bunu önbellekteki tüm dahil sembollerde tarar ve
 böyle bir koşu çıkarsa `KisaSifirKosusuUyarisi` verir.
 
@@ -344,7 +345,8 @@ BNXUSDT 2023-02, ICPUSDT 2022-09 ve TLMUSDT 2023-03'te SETTLED barları ana seri
 | Eksik bar (kesintisiz ızgaraya göre) | 1.965 (%0,053) |
 | Türetilmiş 1d gün | 615.043 |
 
-3 bardan uzun 105 boşluk, zaman örtüşmesine göre **10 olay** (önceki raporla aynı).
+3 bardan uzun 105 boşluk, zaman örtüşmesine göre **10 olay** (önceki koşuyla aynı:
+`karsilastirma_tam.csv`, `bosluklar_tam.csv` ve `bosluk_olaylari_tam.csv` `ayni`).
 Bunların **3'ü** 7 günden uzun olduğu için dönemi böler:
 
 | Sembol | Başlangıç | Bitiş | Eksik bar | Etki |
@@ -393,7 +395,7 @@ sizin kararınız.
 | GRVTUSDT | 2026-07-31 12:00 | 2026-08-31 20:00 | 31,5 |
 | DATAIPUSDT | 2026-07-03 04:00 | 2026-08-31 20:00 | 59,8 |
 
-Önceki rapordaki üç kayıt (DOSUSDT, TLMUSDT dönem 1, 牛来USDT) ay düzeyinde "31 gün"
+Betik dışı: önceki rapordaki üç kayıt (DOSUSDT, TLMUSDT dönem 1, 牛来USDT) ay düzeyinde "31 gün"
 görünüyordu. Bar düzeyinde TLMUSDT'nin eski kısa dönemi yok, BTCSTUSDT (uzlaşma
 sonrası dolgusu kesilince 8 gün kaldı), GRVTUSDT ve DATAIPUSDT eklendi. 30 günlük
 listeleme yaşı şartı ilk üçünü tümüyle etkisiz bırakır.
@@ -428,19 +430,21 @@ dönemlerden geliyor ve sembol düzeyinde ayrıştırılmadı.
 Aynı düzeltme bar boşluğu olaylarının paydasına da uygulandı (§7,
 `bosluk_olaylari_tam.csv`, `o_aralikta_veri_olan`). Payda artık aralıkla kesişen bir
 dönemi olan sembolleri sayıyor. Boşluğu dönemleri ayıran sembol (BNXUSDT) hiçbir dönemle
-kesişmese de etkilendiği için paydaya giriyor. `borsa_geneli` sınıflaması değişmedi.
+kesişmese de etkilendiği için paydaya giriyor. `borsa_geneli` sınıflaması değişmedi
+(betik dışı: D-C1 düzeltmesinden önceki koşuyla karşılaştırma).
 Eksik bar sayımı (§7) ise ilk ve son bar arasındaki ham ızgaraya göredir. Uzlaşma
 sonrası dolgu aralığını da kapsar; bu bir ham seri kapsama ölçüsüdür, uygunluk paydası
 değildir.
 
 ## 11. Funding aralıkları
 
-Değişmedi: 8 saat 992.586 kayıt / 284 sembol · 4 saat 1.487.688 / 516 · 1 saat
+Önceki koşuyla aynı (`karsilastirma_tam.csv`, `funding_araliklari_tam.csv` `ayni`): 8 saat 992.586 kayıt / 284 sembol · 4 saat 1.487.688 / 516 · 1 saat
 78.690 / 162 · 2 saat 3.492 / 19. 678/678 sembolde funding verisi var.
 
 ## 12. 1d türetmesinin birincil 1d dosyalarıyla karşılaştırması
 
-Değişmedi: 615.043 gün karşılaştırıldı; fiyat farkı 7 gün (%0,0011), hacim farkı 261
+Önceki koşuyla aynı (`karsilastirma_tam.csv`, `cross_dogrulama_tam.csv` ve
+`cross_yogun_tarihler_tam.csv` `ayni`): 615.043 gün karşılaştırıldı; fiyat farkı 7 gün (%0,0011), hacim farkı 261
 gün (%0,042). Fiyat farklı 7 günün 4'ü dönem başından sonraki ilk 30 gün içinde
 (9,7–10,7. gün), 3'ü 2023-08-16'da (INJ, SFP, UNFI). 2023-08-16 hacim tarafında
 192 sembolle baskın aykırı gün.
@@ -552,7 +556,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
      her birinde 1 kayıt.
 
    D-B8 düzeltmesinden sonra (funding iki uçtan toplam döneme kesildi) yukarıdaki
-   sayıların hiçbiri değişmedi: 23 / 19, konumlar, 28 kayıt ve 43 kayıt dökümü aynı.
+   sayıların hiçbiri değişmedi (betik dışı: D-B8 öncesi koşuyla karşılaştırma): 23 / 19, konumlar, 28 kayıt ve 43 kayıt dökümü aynı.
 
    **D kuralının kapsamı ve delist çıkışlarındaki tamlık sorunu §14.7'de.** Oradaki
    ölçüm, bu bölümün A1 sayılarıyla aynı koşudan gelir (`a1_d_kurali_tam.csv`).
@@ -830,3 +834,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   aynen alıntılandı; üç sayı harfiyen tanımla betikten (18, 145 ve "yıllarca" için 45 /
   15, 57); 13 ile 18 farkı cümleye göre çözüldü (18) ve §6 buna göre düzeltildi; 57'nin
   tanımı kapanış referansıyla yazıldı.
+- 2026-09-21: Betik dışı sayı cümleleri (D-B1): "betik dışı sayılar üçtür" sayımı
+  kaldırıldı; §7, §11, §12'deki "değişmedi / önceki raporla aynı" cümleleri
+  `karsilastir.py` çıktısına bağlandı; §1, §3, §9, §10, §14.5'teki eski ölçümlerle
+  karşılaştırmalar ve 18/5 işaret sayımı betik dışı diye işaretlendi. §14.7'ye A1
+  betiğindeki çıkış kuralı kopyasının akıbeti yazıldı (D-B3).
