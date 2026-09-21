@@ -32,6 +32,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 KOK = Path(__file__).resolve().parents[2]
@@ -43,6 +44,7 @@ from data import donem as donem_modulu  # noqa: E402
 from data import eligibility as uyg  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
 from data import klines as klines_modulu  # noqa: E402
+from data import pencere as pencere_modulu  # noqa: E402
 from data import universe as universe_modulu  # noqa: E402
 
 CIKTI_DIZINI = Path(__file__).resolve().parent
@@ -183,16 +185,17 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
     ilk_gecikme_saat = ilk_gecikme_bitisten_saat = float("nan")
     aralar = []
     if donemler and not fund.empty:
-        tol = funding_modulu.ODEME_TOLERANSI
-        ilk_oncesi = int((fund["odeme_zamani"] < donemler[0].baslangic - tol).sum())
+        P = pencere_modulu  # on-kayit §4 rev.8 "Zaman toleransi"
+        ilk_oncesi = int(np.sum(P.once(pd.DatetimeIndex(fund["odeme_zamani"]), donemler[0].baslangic)))
         # Atilan kayitlarin ayrimi (denetci bulgusu D-A5): son donemden sonra ve
         # iki donem arasinda. Ust sinir `_donem_icinde` ile ayni: son bar kapanisi + 1 dk.
         atilan = fund.loc[~fund["odeme_zamani"].isin(kalan["odeme_zamani"]), "odeme_zamani"]
-        son_ust = donemler[-1].bitis + ADIM_4H + tol
-        son_sonrasi = int((atilan >= son_ust).sum())
+        son_kapanis = donemler[-1].bitis + ADIM_4H
+        son_sonra_maske = np.asarray(P.sonra(pd.DatetimeIndex(atilan), son_kapanis), dtype=bool)
+        son_sonrasi = int(son_sonra_maske.sum())
         arada = len(atilan) - son_sonrasi
         if son_sonrasi:
-            ilk = atilan.loc[atilan >= son_ust].min()
+            ilk = atilan.loc[son_sonra_maske].min()
             # Iki referans (denetci bulgusu D-A5 / "54 mu 57 mi"): donem KAPANISI
             # (son barin kapanisi, cikis ani) ve donem BITISI (son barin acilisi).
             ilk_gecikme_saat = (ilk - (donemler[-1].bitis + ADIM_4H)) / pd.Timedelta(hours=1)
@@ -202,7 +205,8 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
             aralar.append({
                 "sembol": sembol, "onceki_bitis": onceki.bitis, "sonraki_baslangic": sonraki.baslangic,
                 "ayirici": "dolgu_kosusu" if ic_dolgu else "eksik_bar_boslugu",
-                "atilan_funding": int(((atilan >= onceki.bitis + ADIM_4H + tol) & (atilan < sonraki.baslangic - tol)).sum()),
+                "atilan_funding": int(np.sum(P.sonra(pd.DatetimeIndex(atilan), onceki.bitis + ADIM_4H)
+                                             & P.once(pd.DatetimeIndex(atilan), sonraki.baslangic))),
             })
     elif donemler:
         for onceki, sonraki in zip(donemler[:-1], donemler[1:]):
@@ -349,14 +353,13 @@ def delist_tablosu(evren: pd.DataFrame, detaylar: list[dict]) -> pd.DataFrame:
     )
     # deliveryDate'ten (+1 dk) sonra gelen funding kaydi sayisi; yalnizca kaydin
     # varligi ve zamani. deliveryDate'i olmayan sembolde tanimsiz (NaN).
-    tol = funding_modulu.ODEME_TOLERANSI
     zamanlar = {d["sembol"]: d.get("_funding_zamanlari") for d in detaylar}
 
     def _teslimden_sonra(r) -> float:
         z = zamanlar.get(r.sembol)
         if z is None or pd.isna(r.deliveryDate):
             return float("nan")
-        return float((z > r.deliveryDate + tol).sum())
+        return float(np.sum(pencere_modulu.sonra(z, r.deliveryDate)))
 
     tablo["teslimden_sonra_funding_kayit"] = [_teslimden_sonra(r) for r in tablo.itertuples()]
     tablo.attrs["alinma_zamani_utc"] = anlik.attrs["alinma_zamani_utc"]
@@ -930,6 +933,14 @@ def donem_aralari_tablosu(detaylar: list[dict]) -> pd.DataFrame:
     )
 
 
+def _gecikme_esik_icinde(saat: pd.Series) -> np.ndarray:
+    """Gecikme (saat), `config.DENETIM_ILK_GECIKME_SAAT` ile ayni an ya da ondan once mi
+    (on-kayit §4 rev.8 "Zaman toleransi"). Saf."""
+    gecikme = pd.to_timedelta(pd.to_numeric(saat, errors="coerce"), unit="h")
+    return np.asarray(pencere_modulu.ayni_ya_da_once(gecikme, pd.Timedelta(hours=config.DENETIM_ILK_GECIKME_SAAT)),
+                      dtype=bool)
+
+
 def rapor_sayilari(t: dict[str, pd.DataFrame], evren: pd.DataFrame, bolme: pd.DataFrame) -> pd.DataFrame:
     """RESULTS.md'deki her sayinin betikten turetilmis kaynagi (denetci bulgusu D-A5).
 
@@ -1020,11 +1031,11 @@ def rapor_sayilari(t: dict[str, pd.DataFrame], evren: pd.DataFrame, bolme: pd.Da
     for sinif, n in son_s["sembol"].map(sinif_haritasi).fillna("delist_degil").value_counts().sort_index().items():
         ekle("4", f"atilan_son_donem_sonrasi_sembol_{sinif}", int(n))
     ekle("4", "atilan_son_donem_sonrasi_8_saat_icinde_baslayan_kapanistan",
-         int((son_s["funding_son_donem_sonrasi_ilk_gecikme_saat"] <= 8 + 1 / 60).sum()))
+         int(np.sum(_gecikme_esik_icinde(son_s["funding_son_donem_sonrasi_ilk_gecikme_saat"]))))
     ekle("4", "atilan_son_donem_sonrasi_8_saat_icinde_baslayan_bitisten",
-         int((son_s["funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat"] <= 8 + 1 / 60).sum()))
+         int(np.sum(_gecikme_esik_icinde(son_s["funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat"]))))
     ekle("4", "atilan_son_donem_sonrasi_bitisten_8_saati_asan_semboller",
-         ",".join(sorted(son_s.loc[son_s["funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat"] > 8 + 1 / 60,
+         ",".join(sorted(son_s.loc[~_gecikme_esik_icinde(son_s["funding_son_donem_sonrasi_ilk_gecikme_bitisten_saat"]),
                                    "sembol"])))
     ekle("4", "atilan_donemler_arasi_kayit", int(ozet["funding_donemler_arasi_atilan"].sum()))
     ekle("4", "atilan_donemler_arasi_sembol", int((ozet["funding_donemler_arasi_atilan"] > 0).sum()))

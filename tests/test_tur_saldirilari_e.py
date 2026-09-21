@@ -227,7 +227,9 @@ def _tek_kayit(z, aralik=4):
 
 
 @pytest.mark.parametrize("z,beklenen", [
-    (DONEM_E.baslangic - TOL, True),                        # alt sinir DAHIL
+    # rev.8 §4 "Zaman toleransi": tam 1 dakika ayni an degildir; alt sinir artik HARIC
+    # (rev.7'de dahildi; beklenti True -> False, RESULTS degisiklik kaydi).
+    (DONEM_E.baslangic - TOL, False),
     (DONEM_E.baslangic - TOL - pd.Timedelta(seconds=1), False),  # alt sinirin disi
     (DONEM_E.bitis + TOL, False),                            # ust sinir HARIC
     (DONEM_E.bitis + TOL - pd.Timedelta(milliseconds=1), True),  # ust sinirdan hemen once

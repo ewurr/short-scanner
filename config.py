@@ -127,6 +127,11 @@ DENETIM_KISA_DONEM_GUN = 60
 # icinde kalir. Iki izgarada da aynidir (4 saatlikte 6 bar, 1 gunlukte 1 bar).
 DENETIM_TEMSILI_GIRIS_SURE = dt.timedelta(hours=24)
 
+# RESULTS §4: uzlasma sonrasi ilk funding kaydinin "en gec 8 saat sonra" basladigi
+# sembol sayimi. Rev.7 metnindeki ifadeden gelir; esik ayni an ya da once
+# (on-kayit §4 rev.8 "Zaman toleransi"). Betige gomuluydu (8 + 1/60).
+DENETIM_ILK_GECIKME_SAAT = 8
+
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 
 # Listeleme yasi >= 30 gun

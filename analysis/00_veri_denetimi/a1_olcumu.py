@@ -65,6 +65,8 @@ CIKTI_ORTAM = BU_DIZIN / "a1_ortam_tam.csv"
 
 ADIM = pencere_modulu.adim(config.BAR_4H)
 TOL = funding_modulu.ODEME_TOLERANSI
+# Zaman karsilastirmalari yalnizca on-kayit §4 rev.8 "Zaman toleransi" yardimcilariyla.
+P = pencere_modulu
 # D kurali tamlik olcumunde temsili pozisyon: cikis barinin acilisindan
 # `config.DENETIM_TEMSILI_GIRIS_SURE` once girer (donem basindan once olamaz),
 # donem sonunda cikar. Sure iki izgarada da aynidir; boylece olcum cikis anina
@@ -87,13 +89,13 @@ def sembol_olc(sembol: str, teslim: pd.Timestamp, donem, fund: pd.DataFrame) -> 
         return []
     zamanlar = pd.DatetimeIndex(fund["odeme_zamani"])
     icinde = funding_modulu._donem_icinde(zamanlar, donem, config.BAR_4H)
-    sonra = icinde & (zamanlar > teslim + funding_modulu.ODEME_TOLERANSI)
+    sonra = icinde & P.sonra(zamanlar, teslim)
     cikis_ani = donem.bitis + pencere_modulu.adim(config.BAR_4H)
     return [
         {"sembol": sembol, "deliveryDate": teslim, "donem_bitis": donem.bitis, "odeme_zamani": z,
          "teslimden_sonra_saat": (z - teslim) / pd.Timedelta(hours=1),
          "aralik_saat": a,
-         "cikis_anina_denk": abs(z - cikis_ani) <= funding_modulu.ODEME_TOLERANSI}
+         "cikis_anina_denk": P.ayni_an(z, cikis_ani)}
         for z, a in zip(zamanlar[sonra], fund.loc[sonra, "aralik_saat"])
     ]
 
@@ -101,22 +103,21 @@ def sembol_olc(sembol: str, teslim: pd.Timestamp, donem, fund: pd.DataFrame) -> 
 def konum(z: pd.Timestamp, acilis: pd.Timestamp, kapanis: pd.Timestamp,
           teslim: pd.Timestamp | None) -> str:
     """Kaydin son bara ve deliveryDate'e gore yeri (1 dk tolerans). Saf."""
-    tol = funding_modulu.ODEME_TOLERANSI
-    if abs(z - acilis) <= tol:
+    if P.ayni_an(z, acilis):
         yer = "son_bar_acilisi"
-    elif abs(z - kapanis) <= tol:
+    elif P.ayni_an(z, kapanis):
         yer = "son_bar_kapanisi"
-    elif acilis < z < kapanis:
+    elif P.sonra(z, acilis) and P.once(z, kapanis):
         yer = "son_bar_ici"
-    elif z < acilis:
+    elif P.once(z, acilis):
         yer = "son_bardan_once"
     else:
         yer = "son_bardan_sonra"
     if teslim is None or pd.isna(teslim):
         return yer
-    if abs(z - teslim) <= tol:
+    if P.ayni_an(z, teslim):
         return f"{yer}|teslim_aninda"
-    return f"{yer}|teslimden_{'sonra' if z > teslim else 'once'}"
+    return f"{yer}|teslimden_{'sonra' if P.sonra(z, teslim) else 'once'}"
 
 
 # --- D kurali olcumu (sayim; kod degismez) ------------------------------------
@@ -185,40 +186,40 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
                  if len(seri) else np.empty(0))
     for i, (d, tur) in enumerate(zip(donemler, turler)):
         cikis_acilis, cikis_ani = donem_sonu_cikisi(d, bar)
-        disarida = int(((zam >= d.bitis + TOL) & (zam < cikis_ani + TOL)).sum())
+        disarida = int((P.sonra(zam, d.bitis) & P.ayni_ya_da_once(zam, cikis_ani)).sum())
         giris = max(d.baslangic, cikis_acilis - TEMSILI_GIRIS_SURE)
-        alt = giris + TOL
         cikis_ani_aday = d.bitis + ADIM
         if bar == config.BAR_4H:
             giris_aday = giris
         else:
             giris_aday = max(d.baslangic, cikis_ani_aday.floor("1D") - adim_b)
-        alt_aday = giris_aday + TOL
         son_aralik = float("nan")
         if len(seri):
-            oncekiler = np.flatnonzero(np.asarray(zam <= d.bitis + TOL, dtype=bool))
+            oncekiler = np.flatnonzero(np.asarray(P.ayni_ya_da_once(zam, d.bitis), dtype=bool))
             if len(oncekiler):
                 son_aralik = float(araliklar[oncekiler[-1]])
-            ust_m = cikis_ani + TOL
-            ust_d = d.bitis + TOL
-            maske_m = np.asarray((zam >= alt) & (zam < ust_m), dtype=bool)
-            maske_d = np.asarray((zam >= alt) & (zam < ust_d), dtype=bool)
-            tam_m = funding_modulu._odemeler_tam_mi(seri, zam, maske_m, alt, ust_m, d.baslangic)
-            tam_d = funding_modulu._odemeler_tam_mi(seri, zam, maske_d, alt, ust_d, d.baslangic)
-            maske_a = np.asarray((zam >= alt_aday) & (zam < ust_d), dtype=bool)
-            tam_a = funding_modulu._odemeler_tam_mi(seri, zam, maske_a, alt_aday, ust_d, d.baslangic)
+            maske_m = P.sonra(zam, giris) & P.ayni_ya_da_once(zam, cikis_ani)
+            maske_d = P.sonra(zam, giris) & P.ayni_ya_da_once(zam, d.bitis)
+            tam_m = funding_modulu._odemeler_tam_mi(seri, zam, maske_m, d.baslangic, bas=giris, bas_dahil=False,
+                                                    son=cikis_ani, son_dahil=True)
+            tam_d = funding_modulu._odemeler_tam_mi(seri, zam, maske_d, d.baslangic, bas=giris, bas_dahil=False,
+                                                    son=d.bitis, son_dahil=True)
+            maske_a = P.sonra(zam, giris_aday) & P.ayni_ya_da_once(zam, d.bitis)
+            tam_a = funding_modulu._odemeler_tam_mi(seri, zam, maske_a, d.baslangic, bas=giris_aday, bas_dahil=False,
+                                                    son=d.bitis, son_dahil=True)
         else:
             tam_m = tam_d = tam_a = False
         satirlar.append({"sembol": sembol, "bar": bar, "donem_sira": i, "donem_bitis": d.bitis,
                          "cikis_ani": cikis_ani, "tur": tur,
                          "kural_uygulanir": tur != "veri_sonu", "disarida_kalan": disarida,
-                         "kapanista_odeme": bool((abs(zam - cikis_ani) <= TOL).any()) if len(zam) else False,
+                         "kapanista_odeme": bool(np.any(P.ayni_an(zam, cikis_ani))) if len(zam) else False,
                          "son_odeme_aralik_saat": son_aralik,
                          "tamlik_mevcut": bool(tam_m), "tamlik_d": bool(tam_d),
                          "giris_aday": giris_aday, "cikis_ani_aday": cikis_ani_aday,
                          "tamlik_aday": bool(tam_a),
                          "funding_var_mevcut": funding_modulu.donemde_funding_var(fund, d, config.BAR_4H),
-                         "funding_var_d": bool(((zam_ham >= d.baslangic - TOL) & (zam_ham < d.bitis + TOL)).any())})
+                         "funding_var_d": bool(np.any(P.ayni_ya_da_sonra(zam_ham, d.baslangic)
+                                                      & P.ayni_ya_da_once(zam_ham, d.bitis)))})
     return satirlar
 
 
@@ -263,7 +264,7 @@ def _kos() -> None:
         acilis, kapanis = donem.bitis, donem.bitis + ADIM
         fund = funding_yukle(r.sembol)
         z = fund["odeme_zamani"]
-        secim = (z >= acilis - TOL) & (z <= kapanis + TOL)
+        secim = P.ayni_ya_da_sonra(z, acilis) & P.ayni_ya_da_once(z, kapanis)
         teslimsiz_sayim.append((r.sembol, int(secim.sum()), len(fund) > 0))
         for _, x in fund.loc[secim].iterrows():
             konumlar.append({"sembol": r.sembol, "sinif": r.sinif, "deliveryDate": pd.NaT,
@@ -293,7 +294,7 @@ def _kos() -> None:
 
     # Oneri etkisi (1093e69'daki 43 kayit dokumu, ayni sinirlarla): ust sinir son
     # barin kapanisi yerine acilisi olsaydi kac kayit donem disina cikardi.
-    # Alt uc `>` (1093e69 ile karsilastirilabilir); D kurali olcumu `>=` kullanir.
+    # Donem bitisinden SONRA (ayni an degil) ve son barin kapanisiyla ayni an ya da once.
     donem_bitisleri = [x.bitis for s_ in universe_modulu.dahil_semboller(evren)
                        for x in universe_modulu.sembol_donemleri(evren, s_)]
     # Hic donemi olmayan evrende cokmek yerine bos olcum: veri sonu bari
@@ -305,7 +306,7 @@ def _kos() -> None:
         zamanlar = pd.DatetimeIndex(fund["odeme_zamani"])
         donemler = universe_modulu.sembol_donemleri(evren, sembol)
         for i, d in enumerate(donemler):
-            n = int(((zamanlar > d.bitis + TOL) & (zamanlar < d.bitis + ADIM + TOL)).sum())
+            n = int((P.sonra(zamanlar, d.bitis) & P.ayni_ya_da_once(zamanlar, d.bitis + ADIM)).sum())
             if n:
                 etki.append((sembol, i, i == len(donemler) - 1, d.bitis, n))
         if not donemler:

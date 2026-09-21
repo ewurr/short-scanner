@@ -911,3 +911,15 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   eşzamanlı koşu koşu kilidiyle desteklenmiyor ve sonuç platforma bağlı (Windows'ta
   PermissionError, POSIX'te `os.replace` atomik; strict POSIX'te XPASS ile takımı kırardı;
   denetçi bulgusu D-B2).
+- 2026-09-22 (Rev.8 uygulaması, madde 1: rev.8 §4 "Zaman toleransı"). Tek tanım
+  `pencere.ayni_an` (fark < 1 dk) ve türevleri; `funding`, `pencere`, `a1_olcumu`,
+  `calistir` bunları kullanır. **Bilerek güncellenen mevcut testler:**
+  - `tests/test_rev6_saldirilari.py::test_giris_tarafi_tam_60_saniyede_dahil_59_999_de_haric`:
+    kurgudaki ilk kayıt 00:00 → 00:01. Gerekçe: 00:00 → 08:01 boşluğu aralıktan tam 1 dk
+    uzun; rev.8'de tam 1 dk aynı an değildir ve bu boşluk eksik ödemedir, test pencere
+    kenarını ölçemezdi. Ölçülen kenar ve beklenen değerler değişmedi.
+  - `tests/test_tur_saldirilari_d.py::test_teslimden_sonra_funding_kayit_1dk_tolerans_siniri`:
+    beklenti 1 → 2. Gerekçe: deliveryDate'ten tam 1 dk sonraki kayıt rev.8'de "sonra"dır.
+  - `tests/test_tur_saldirilari_e.py::test_funding_var_d_penceresi_uclari[z0]`: dönem
+    başından tam 1 dk önceki kayıt için beklenti True → False. Gerekçe: rev.8 §2
+    "Funding'i bulunmayan dönemler" (toleranslar §4 "Zaman toleransı"na göre).

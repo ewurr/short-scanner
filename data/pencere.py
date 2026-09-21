@@ -42,10 +42,63 @@ ADIMLAR = {
     config.BAR_1D: pd.Timedelta(days=1),
 }
 
-# Ayni odeme anina ait kayitlarin kayabilecegi en buyuk fark (on-kayit §4 rev.6:
-# "1 dakikadan kucuk zaman kaymasi ayni an sayilir"). Tek tanim; funding tamligi ve
-# olayin kumede olusma olcutu (§4 rev.7) ayni sabiti kullanir.
-ODEME_TOLERANSI = pd.Timedelta(minutes=1)
+# --- Zaman toleransi (on-kayit §4 rev.8 "Zaman toleransi") --------------------
+#
+# "Projedeki butun zaman karsilastirmalarinda iki an arasindaki fark 1 dakikadan
+# kesin olarak kucukse bu iki an ayni sayilir; tam 1 dakikalik fark ayni an
+# degildir." Tek tanim `ayni_an`dir; asagidaki iliskiler ve iki kenar ondan turer
+# ve projedeki zaman karsilastirmalari (funding kaydi, donem siniri, cikis ani)
+# yalnizca bunlari kullanir. Bar acilislari 4h izgarasinda tam hizalidir
+# (on-kayit §2 rev.8 "1 gunluk barlar", RESULTS §14.11); bar-bar karsilastirmasi
+# icin tam esitlik ile `ayni_an` ayni sonucu verir.
+ZAMAN_TOLERANSI = pd.Timedelta(minutes=1)
+# Eski ad; ayni sabit.
+ODEME_TOLERANSI = ZAMAN_TOLERANSI
+
+
+def _sonuc(deger):
+    """Skaler karsilastirmada bool, dizide numpy bool dizisi."""
+    if np.ndim(deger) == 0:
+        return bool(deger)
+    return np.asarray(deger, dtype=bool)
+
+
+def ayni_an(a, b):
+    """a ile b ayni an mi: `|a - b| < 1 dk` (kesin kucuk)."""
+    return _sonuc(abs(a - b) < ZAMAN_TOLERANSI)
+
+
+def sonra(a, b):
+    """a, b'den SONRA mi (ayni an degil): `a - b >= 1 dk`."""
+    return _sonuc((a - b) >= ZAMAN_TOLERANSI)
+
+
+def once(a, b):
+    """a, b'den ONCE mi (ayni an degil): `b - a >= 1 dk`."""
+    return _sonuc((b - a) >= ZAMAN_TOLERANSI)
+
+
+def ayni_ya_da_once(a, b):
+    """a, b ile ayni an ya da ondan once mi (`not sonra(a, b)`)."""
+    return _sonuc((a - b) < ZAMAN_TOLERANSI)
+
+
+def ayni_ya_da_sonra(a, b):
+    """a, b ile ayni an ya da ondan sonra mi (`not once(a, b)`)."""
+    return _sonuc((b - a) < ZAMAN_TOLERANSI)
+
+
+def ayni_an_sonu(x):
+    """x ile ayni sayilan anlarin ust kenari (HARIC): `an < ayni_an_sonu(x)` <=>
+    `ayni_ya_da_once(an, x)`; `an >= ayni_an_sonu(x)` <=> `sonra(an, x)`.
+    Siralanmis dizilerde `searchsorted` icin tek kenar tanimi."""
+    return x + ZAMAN_TOLERANSI
+
+
+def ayni_an_basi(x):
+    """x ile ayni sayilan anlarin alt kenari (HARIC): `an > ayni_an_basi(x)` <=>
+    `ayni_ya_da_sonra(an, x)`; `an <= ayni_an_basi(x)` <=> `once(an, x)`."""
+    return x - ZAMAN_TOLERANSI
 
 
 def adim(bar: str) -> pd.Timedelta:
@@ -449,7 +502,9 @@ def _cikis_odemesi_kume_disinda(an: pd.Timestamp, kume_son: pd.Timestamp | None)
     sonraki kismi kume disidir. Karar ZAMANLA verilir, o anda veride odeme bulunup
     bulunmamasina bakilmaz (rev.5). Fiyat ve funding icin ayri olcut yoktur.
     """
-    return kume_son is not None and an + ODEME_TOLERANSI - pd.Timedelta(1, "ns") > kume_son
+    # Cikis ani ile ayni sayilan son an `ayni_an_sonu(an) - 1 ns`dir (on-kayit §4 rev.8
+    # "Zaman toleransi"); o an kume sonunu asiyorsa odeme kume disindadir.
+    return kume_son is not None and ayni_an_sonu(an) - pd.Timedelta(1, "ns") > kume_son
 
 
 def ufuk_kumeye_sigar_mi(sinyal_zamani, ufuk: int, bar: str, *, kume_baslangic, kume_bitis) -> bool:

@@ -136,11 +136,17 @@ def test_giris_tarafi_tam_60_saniyede_dahil_59_999_de_haric():
       - fark < 60s  -> giris ile "ayni an" -> HARIC (giris anindaki odeme).
       - fark >= 60s -> ayri an -> DAHIL (giristen sonraki odeme).
     Giris ani izgarada (08:00); odeme kaydi giristen sonraya kaydirilir.
+
+    Kurgu degisikligi (on-kayit §4 rev.8 "Zaman toleransi" ve "Funding araligi
+    gecisleri"): ilk kayit 00:00'dan 00:01'e alindi. 00:00 -> 08:01 boslugu
+    araliktan tam 1 dakika uzundur; rev.8'de tam 1 dakika ayni an degildir ve bu
+    bosluk eksik odeme sayilir, test pencere kenarini olcemezdi. Olculen kenar ve
+    beklenen degerler degismedi.
     """
     giris = _ts("2021-01-05 08:00")  # cikis bari 08:00 -> cikis ani 12:00
 
     def _cerceve(t):
-        return _kayitlar([(_ts("2021-01-05 00:00"), 8.0, 1e-4), (t, 8.0, 9e-4), (_ts("2021-01-05 16:00"), 8.0, 1e-4)])
+        return _kayitlar([(_ts("2021-01-05 00:01"), 8.0, 1e-4), (t, 8.0, 9e-4), (_ts("2021-01-05 16:00"), 8.0, 1e-4)])
 
     assert _fon(_cerceve(giris + BIR_DK), giris, giris) == pytest.approx(9e-4)  # tam 60s -> DAHIL
     haric = giris + (BIR_DK - pd.Timedelta(nanoseconds=1))

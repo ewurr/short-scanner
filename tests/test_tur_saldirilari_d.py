@@ -71,8 +71,9 @@ def _anlik_sahte():
 
 
 def test_teslimden_sonra_funding_kayit_1dk_tolerans_siniri(monkeypatch):
-    """SALDIRI: deliveryDate + 1 dk TAM sinirindaki kayit sayilmamali (strict >),
-    59. saniyede sayilmamali, 61. saniyede sayilmali. Sinir kaymasi delist
+    """SALDIRI: deliveryDate'ten 59. saniyedeki kayit sayilmamali; tam 1 dk ve 61.
+    saniyedeki kayit sayilmali (rev.8 "Zaman toleransi"; rev.7'de tam 1 dk
+    sayilmiyordu). Sinir kaymasi delist
     sembolde 'uzlasma sonrasi funding' sayimini yanlislar (rev.8 kalemi)."""
     teslim = T("2025-04-14 09:00")
     bitis = T("2025-04-14 08:00")
@@ -86,9 +87,10 @@ def test_teslimden_sonra_funding_kayit_1dk_tolerans_siniri(monkeypatch):
                 "_funding_zamanlari": zamanlar}]
     tablo = calistir.delist_tablosu(pd.DataFrame(), detaylar)
     assert len(tablo) == 1
-    # yalniz 61. saniyedeki kayit (teslim + DK + 1sn) sinirin gercekten disinda;
-    # 59sn ve tam DK (60sn) sinirin ustunde/icinde sayilmamali.
-    assert tablo.iloc[0]["teslimden_sonra_funding_kayit"] == 1
+    # rev.8 §4 "Zaman toleransi": tam 1 dakika ayni an degildir. 59 sn teslimle ayni
+    # an (sayilmaz); 60 sn ve 61 sn teslimden SONRA (sayilir). Rev.7'de tam 60 sn
+    # ayni an sayiliyordu ve beklenti 1'di (RESULTS degisiklik kaydi).
+    assert tablo.iloc[0]["teslimden_sonra_funding_kayit"] == 2
 
 
 def test_teslimden_sonra_funding_kayit_deliverydate_nat_ise_nan(monkeypatch):
