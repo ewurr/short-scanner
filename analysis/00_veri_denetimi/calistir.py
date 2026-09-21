@@ -190,7 +190,7 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
         # Atilan kayitlarin ayrimi (denetci bulgusu D-A5): son donemden sonra ve
         # iki donem arasinda. Ust sinir `_donem_icinde` ile ayni: son bar kapanisi + 1 dk.
         atilan = fund.loc[~fund["odeme_zamani"].isin(kalan["odeme_zamani"]), "odeme_zamani"]
-        son_kapanis = donemler[-1].bitis + ADIM_4H
+        son_kapanis = donemler[-1].kapanis
         son_sonra_maske = np.asarray(P.sonra(pd.DatetimeIndex(atilan), son_kapanis), dtype=bool)
         son_sonrasi = int(son_sonra_maske.sum())
         arada = len(atilan) - son_sonrasi
@@ -198,14 +198,14 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
             ilk = atilan.loc[son_sonra_maske].min()
             # Iki referans (denetci bulgusu D-A5 / "54 mu 57 mi"): donem KAPANISI
             # (son barin kapanisi, cikis ani) ve donem BITISI (son barin acilisi).
-            ilk_gecikme_saat = (ilk - (donemler[-1].bitis + ADIM_4H)) / pd.Timedelta(hours=1)
+            ilk_gecikme_saat = (ilk - donemler[-1].kapanis) / pd.Timedelta(hours=1)
             ilk_gecikme_bitisten_saat = (ilk - donemler[-1].bitis) / pd.Timedelta(hours=1)
         for onceki, sonraki in zip(donemler[:-1], donemler[1:]):
             ic_dolgu = any(k.konum == "ic" and onceki.bitis < k.baslangic < sonraki.baslangic for k in dolgu)
             aralar.append({
                 "sembol": sembol, "onceki_bitis": onceki.bitis, "sonraki_baslangic": sonraki.baslangic,
                 "ayirici": "dolgu_kosusu" if ic_dolgu else "eksik_bar_boslugu",
-                "atilan_funding": int(np.sum(P.sonra(pd.DatetimeIndex(atilan), onceki.bitis + ADIM_4H)
+                "atilan_funding": int(np.sum(P.sonra(pd.DatetimeIndex(atilan), onceki.kapanis)
                                              & P.once(pd.DatetimeIndex(atilan), sonraki.baslangic))),
             })
     elif donemler:
@@ -347,10 +347,13 @@ def delist_tablosu(evren: pd.DataFrame, detaylar: list[dict]) -> pd.DataFrame:
     tablo["seri_son_bar"] = tablo["sembol"].map(son_bar)
     tablo["sonraki_dolgu_bar"] = tablo["sembol"].map(son_dolgu)
     tablo["teslim_eksi_bitis_saat"] = (tablo["deliveryDate"] - tablo["son_donem_bitis"]) / pd.Timedelta(hours=1)
-    tablo["teslim_son_bar_icinde"] = (
-        (tablo["son_donem_bitis"] <= tablo["deliveryDate"])
-        & (tablo["deliveryDate"] < tablo["son_donem_bitis"] + ADIM_4H)
-    )
+    # B ile ayni an ya da sonra, K'dan once (on-kayit §2 ve §4 rev.8). NaT satirlar False.
+    teslim = pd.DatetimeIndex(pd.to_datetime(tablo["deliveryDate"], utc=True))
+    bitis = pd.DatetimeIndex(pd.to_datetime(tablo["son_donem_bitis"], utc=True))
+    kapanis = pd.DatetimeIndex(pd.to_datetime(
+        [pencere_modulu.donem_kapanisi(b) if pd.notna(b) else pd.NaT for b in bitis], utc=True))
+    tablo["teslim_son_bar_icinde"] = (np.asarray(pencere_modulu.ayni_ya_da_sonra(teslim, bitis), dtype=bool)
+                                      & np.asarray(pencere_modulu.once(teslim, kapanis), dtype=bool))
     # deliveryDate'ten (+1 dk) sonra gelen funding kaydi sayisi; yalnizca kaydin
     # varligi ve zamani. deliveryDate'i olmayan sembolde tanimsiz (NaN).
     zamanlar = {d["sembol"]: d.get("_funding_zamanlari") for d in detaylar}
@@ -749,7 +752,7 @@ def kisa_donemler(detaylar: list[dict], asgari_gun: int = config.DENETIM_KISA_DO
     satirlar = []
     for d in detaylar:
         for i, x in enumerate(d["_donemler"]):
-            gun = (x.bitis + ADIM_4H - x.baslangic) / pd.Timedelta(days=1)
+            gun = (x.kapanis - x.baslangic) / pd.Timedelta(days=1)
             if gun < asgari_gun:
                 satirlar.append({"sembol": d["sembol"], "donem_id": i, "baslangic": x.baslangic,
                                  "bitis": x.bitis, "gun": round(gun, 2)})

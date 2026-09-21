@@ -56,6 +56,47 @@ ZAMAN_TOLERANSI = pd.Timedelta(minutes=1)
 ODEME_TOLERANSI = ZAMAN_TOLERANSI
 
 
+# --- Donem bitisi (B), donem kapanisi (K), donem uyeligi (on-kayit §2 rev.8) ------
+#
+# "Donemin son 4 saatlik barinin acilis anina donem bitisi (B), kapanis anina donem
+# kapanisi (K = B + 4 saat) denir." B, `Donem.bitis`tir; K yalnizca
+# `donem_kapanisi`ndan hesaplanir (`Donem.kapanis` onu cagirir). Baska hicbir modul
+# B + 4 saati yeniden hesaplamaz.
+
+
+def donem_kapanisi(donem_bitis) -> pd.Timestamp:
+    """K = B + 4 saat (on-kayit §2 rev.8 "Listeleme donemi")."""
+    return utc_zamani(donem_bitis, "donem_bitis") + ADIMLAR[config.BAR_4H]
+
+
+def donem_ici_mi(t, bar: str, *, donem_baslangic, donem_bitis) -> bool:
+    """TEK donem uyeligi yuklemi (on-kayit §6 rev.8 "Donem uyeligi").
+
+    "Bir bar, onu olusturan butun 4h barlar ayni donemin icindeyse donem icidir:
+    4h barda acilis [donem basi, B] araligindadir; 1d barda §2 '1 gunluk
+    barlar'daki alti barin tamami donem icidir." 1d barin `t`si UTC gun
+    acilisidir; alti bar t, t+4h, ..., t+20h'dir. Yalnizca zamana bakar; barlarin
+    mevcut olup olmadigini soylemez (o `klines.gunluge_cevir`in isidir).
+    `eligibility.uygun_mu`, `pozisyon_plani` ve K1/K2 kodu bu yuklemi kullanir.
+    """
+    zaman = utc_zamani(t, "t")
+    bas = utc_zamani(donem_baslangic, "donem_baslangic")
+    bitis = utc_zamani(donem_bitis, "donem_bitis")
+    if bar == config.BAR_4H:
+        ilk = son = zaman
+    elif bar == config.BAR_1D:
+        if zaman != zaman.floor("D"):
+            raise ValueError(f"1d bar zamani gun acilisi olmali: {zaman}")
+        ilk, son = zaman, zaman + GUNUN_SON_4H_BARI
+    else:
+        raise ValueError(f"Bilinmeyen bar: {bar!r}")
+    return bool(ayni_ya_da_sonra(ilk, bas) and ayni_ya_da_once(son, bitis))
+
+
+# 1d barin son 4h barinin acilisi gun acilisindan 20 saat sonradir (on-kayit §2 rev.8).
+GUNUN_SON_4H_BARI = pd.Timedelta(hours=20)
+
+
 def _sonuc(deger):
     """Skaler karsilastirmada bool, dizide numpy bool dizisi."""
     if np.ndim(deger) == 0:
@@ -146,6 +187,14 @@ class IleriKaymaSiniriHatasi(OlayOlusmaz):
     H3: 14 gun). Daha uzaktaki bardan cikilmaz ve kirpilmis getiri kullanilmaz;
     olay olusmaz.
     """
+
+
+class DonemDisiSinyal(ValueError):
+    """Sinyal bari donem ici degil (on-kayit §6 rev.8 "Donem uyeligi").
+
+    Programlama hatasidir, `OlayOlusmaz` degildir: uygunluk (`eligibility.uygun_mu`)
+    ayni yuklemle donem disi bari zaten reddeder; buraya gelen bir sinyal cagiran
+    kodun uygunluk filtresini atladigini gosterir."""
 
 
 class GirisBariYok(OlayOlusmaz):
@@ -797,8 +846,13 @@ def pozisyon_plani(
             f"Olay kumeye sigmiyor: sinyal {t}, ufuk {ufuk} bar, kume [{kume_bas}, {kume_son}] "
             "(on-kayit §3 rev.4, §4 rev.7: olay bu kumede olusmaz)."
         )
-    if donem_bas is not None and t < donem_bas:
-        raise ValueError(f"Sinyal {t} donem baslangicindan ({donem_bas}) once; uygunluk bunu engeller.")
+    # Sinyal bari donem ici olmali (on-kayit §6 rev.8 "Donem uyeligi"; tek yuklem).
+    if donem_bas is not None and donem_son is not None:
+        if not donem_ici_mi(t, bar, donem_baslangic=donem_bas, donem_bitis=donem_son):
+            raise DonemDisiSinyal(f"Sinyal bari {t} ({bar}) donem ici degil [{donem_bas}, {donem_son}] "
+                                  "(on-kayit §6 rev.8: olay olusmaz).")
+    elif donem_bas is not None and once(t, donem_bas):
+        raise DonemDisiSinyal(f"Sinyal {t} donem baslangicindan ({donem_bas}) once (olay olusmaz).")
     indeks = _zaman_dizisi_dogrula(zamanlar, "pozisyon_plani")
     giris = giris_bari(indeks, t, bar)
     if giris is None:

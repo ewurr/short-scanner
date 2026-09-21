@@ -90,7 +90,7 @@ def sembol_olc(sembol: str, teslim: pd.Timestamp, donem, fund: pd.DataFrame) -> 
     zamanlar = pd.DatetimeIndex(fund["odeme_zamani"])
     icinde = funding_modulu._donem_icinde(zamanlar, donem, config.BAR_4H)
     sonra = icinde & P.sonra(zamanlar, teslim)
-    cikis_ani = donem.bitis + pencere_modulu.adim(config.BAR_4H)
+    cikis_ani = P.donem_kapanisi(donem.bitis)
     return [
         {"sembol": sembol, "deliveryDate": teslim, "donem_bitis": donem.bitis, "odeme_zamani": z,
          "teslimden_sonra_saat": (z - teslim) / pd.Timedelta(hours=1),
@@ -188,7 +188,7 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
         cikis_acilis, cikis_ani = donem_sonu_cikisi(d, bar)
         disarida = int((P.sonra(zam, d.bitis) & P.ayni_ya_da_once(zam, cikis_ani)).sum())
         giris = max(d.baslangic, cikis_acilis - TEMSILI_GIRIS_SURE)
-        cikis_ani_aday = d.bitis + ADIM
+        cikis_ani_aday = d.kapanis
         if bar == config.BAR_4H:
             giris_aday = giris
         else:
@@ -253,15 +253,15 @@ def _kos() -> None:
         sayim.append((r.sembol, len(s)))
         for x in s:
             konumlar.append({"sembol": r.sembol, "sinif": r.sinif, "deliveryDate": r.deliveryDate,
-                             "son_bar_acilisi": donem.bitis, "son_bar_kapanisi": donem.bitis + ADIM,
+                             "son_bar_acilisi": donem.bitis, "son_bar_kapanisi": donem.kapanis,
                              "odeme_zamani": x["odeme_zamani"], "aralik_saat": x["aralik_saat"],
-                             "konum": konum(x["odeme_zamani"], donem.bitis, donem.bitis + ADIM, r.deliveryDate)})
+                             "konum": konum(x["odeme_zamani"], donem.bitis, donem.kapanis, r.deliveryDate)})
     # deliveryDate'i olmayan semboller: son barin acilisi ile kapanisi arasi (uclar dahil).
     disi = sinif.loc[sinif["sinif"] == "exchangeInfo_disi"].sort_values("sembol")
     teslimsiz_sayim = []
     for r in disi.itertuples():
         donem = universe_modulu.sembol_donemleri(evren, r.sembol)[-1]
-        acilis, kapanis = donem.bitis, donem.bitis + ADIM
+        acilis, kapanis = donem.bitis, donem.kapanis
         fund = funding_yukle(r.sembol)
         z = fund["odeme_zamani"]
         secim = P.ayni_ya_da_sonra(z, acilis) & P.ayni_ya_da_once(z, kapanis)
@@ -306,7 +306,7 @@ def _kos() -> None:
         zamanlar = pd.DatetimeIndex(fund["odeme_zamani"])
         donemler = universe_modulu.sembol_donemleri(evren, sembol)
         for i, d in enumerate(donemler):
-            n = int((P.sonra(zamanlar, d.bitis) & P.ayni_ya_da_once(zamanlar, d.bitis + ADIM)).sum())
+            n = int((P.sonra(zamanlar, d.bitis) & P.ayni_ya_da_once(zamanlar, d.kapanis)).sum())
             if n:
                 etki.append((sembol, i, i == len(donemler) - 1, d.bitis, n))
         if not donemler:

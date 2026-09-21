@@ -19,7 +19,8 @@ import pandas as pd
 import config
 from data import binance_vision as bv
 from data.pencere import (  # tek tanim: data/pencere.py (on-kayit §4 rev.8 "Zaman toleransi")
-    ODEME_TOLERANSI, ayni_an, ayni_an_basi, ayni_an_sonu, ayni_ya_da_once, ayni_ya_da_sonra, once, sonra,
+    ODEME_TOLERANSI, ayni_an, ayni_an_basi, ayni_an_sonu, ayni_ya_da_once, ayni_ya_da_sonra, donem_kapanisi,
+    once, sonra,
 )
 
 
@@ -135,10 +136,7 @@ def _donem_icinde(zamanlar: pd.DatetimeIndex, donem, bar: str) -> np.ndarray:
     ufuk donem sonunu asan pozisyon o anda kapanir ve `pozisyon_fundingi` cikis
     anindaki odemeyi sayar.
     """
-    from data import pencere as pencere_modulu
-
-    kapanis = donem.bitis + pencere_modulu.adim(bar)
-    return ayni_ya_da_sonra(zamanlar, donem.baslangic) & ayni_ya_da_once(zamanlar, kapanis)
+    return ayni_ya_da_sonra(zamanlar, donem.baslangic) & ayni_ya_da_once(zamanlar, donem_kapanisi(donem.bitis))
 
 
 def donem_sonrasi_kayitlari_at(funding: pd.DataFrame, donemler, bar: str) -> pd.DataFrame:

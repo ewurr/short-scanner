@@ -923,3 +923,10 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   - `tests/test_tur_saldirilari_e.py::test_funding_var_d_penceresi_uclari[z0]`: dönem
     başından tam 1 dk önceki kayıt için beklenti True → False. Gerekçe: rev.8 §2
     "Funding'i bulunmayan dönemler" (toleranslar §4 "Zaman toleransı"na göre).
+- 2026-09-22 (Rev.8 uygulaması, madde 2: rev.8 §2 "Listeleme dönemi" B/K, §6 "Dönem
+  üyeliği"). K = B + 4 saat yalnızca `pencere.donem_kapanisi`'ndan (`Donem.kapanis`);
+  tek yüklem `pencere.donem_ici_mi` (`eligibility.uygun_mu` ve `pozisyon_plani`).
+  **Bilerek güncellenen mevcut test:** `tests/test_veri_denetimi_saldirilari.py::test_teslim_son_bar_icinde_tam_sinirlar`:
+  K'dan 1 ms önceki teslim True → False, B'den 1 ms önceki teslim False → True
+  (rev.8 §4 "Zaman toleransı": 1 dakikadan küçük fark aynı an); tam 1 dk kenarları için
+  iki durum eklendi.

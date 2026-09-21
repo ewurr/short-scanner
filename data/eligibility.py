@@ -110,7 +110,8 @@ def uygun_mu(
     """t aninda sembol uygun mu? Yalnizca t'ye kadarki veriyi kullanir.
 
     On-kayit rev.2 gereklilikleri:
-      - t donem sinirlarinin disindaysa uygun degildir,
+      - t donem ici degilse uygun degildir (on-kayit §6 rev.8 "Donem uyeligi";
+        1d barda gunun alti 4h barinin tamami donem ici olmali),
       - listeleme yasi donem baslangicina gore olculur,
       - hacim penceresi donem baslangicini asamaz.
     On-kayit §3 rev.5: hacim penceresi kume baslangicini da asamaz.
@@ -124,9 +125,12 @@ def uygun_mu(
         raise TypeError("uygun_mu: donem_baslangic None olamaz; listeleme yasi donem basina gore olculur.")
     donem_son = pencere_modulu.sinir_zamani(donem_bitis, "donem_bitis")
 
-    if zaman < donem_bas:
-        return False
-    if donem_son is not None and zaman > donem_son:
+    # Donem uyeligi (on-kayit §6 rev.8): 4h barda acilis [donem basi, B]; 1d barda
+    # gunun alti 4h barinin tamami donem ici. Tek yuklem `pencere.donem_ici_mi`.
+    if donem_son is None:
+        if pencere_modulu.once(zaman, donem_bas):
+            return False
+    elif not pencere_modulu.donem_ici_mi(zaman, bar, donem_baslangic=donem_bas, donem_bitis=donem_son):
         return False
 
     if listeleme_yasi_gun(donem_bas, zaman) < config.ASGARI_LISTELEME_YASI_GUN:

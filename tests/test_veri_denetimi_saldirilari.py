@@ -289,9 +289,14 @@ def _delist_ortami(monkeypatch, calistir_modulu, deliverydate, son_donem_bitis):
     "deliverydate, beklenen",
     [
         ("2021-06-01 00:00", True),   # tam son_donem_bitis'e esit -> DAHIL
-        ("2021-06-01 03:59:59.999", True),  # ust sinirin hemen altinda -> DAHIL
+        # rev.8 §4 "Zaman toleransi": 1 dakikadan kucuk fark ayni an. K'dan 1 ms once
+        # K ile ayni an -> HARIC; B'den 1 ms once B ile ayni an -> DAHIL. Rev.7'de tam
+        # esitlikle True / False bekleniyordu (RESULTS degisiklik kaydi).
+        ("2021-06-01 03:59:59.999", False),
         ("2021-06-01 04:00", False),  # ust sinira esit -> HARIC (yari acik)
-        ("2021-05-31 23:59:59.999", False),  # alt sinirin hemen altinda -> HARIC
+        ("2021-05-31 23:59:59.999", True),
+        ("2021-06-01 03:59", True),   # K'dan tam 1 dk once: ayni an degil, DAHIL
+        ("2021-05-31 23:59", False),  # B'den tam 1 dk once: ayni an degil, HARIC
     ],
 )
 def test_teslim_son_bar_icinde_tam_sinirlar(monkeypatch, deliverydate, beklenen):

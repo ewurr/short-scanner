@@ -39,9 +39,18 @@ class Donem:
     """Bir listeleme donemi (on-kayit §2 rev.7)."""
 
     baslangic: pd.Timestamp  # sifir olmayan hacimli ilk barin acilisi
-    bitis: pd.Timestamp  # sifir olmayan hacimli son barin acilisi
+    bitis: pd.Timestamp  # donem bitisi B: sifir olmayan hacimli son 4h barin acilisi
     bar_sayisi: int  # baslangic..bitis arasindaki mevcut bar sayisi
     gercek_bar_sayisi: int  # bunlardan sifir olmayan hacimli olanlar
+
+    @property
+    def kapanis(self) -> pd.Timestamp:
+        """Donem kapanisi K = B + 4 saat (on-kayit §2 rev.8); tek tanim `pencere.donem_kapanisi`."""
+        return pencere_modulu.donem_kapanisi(self.bitis)
+
+    def ici_mi(self, t, bar: str) -> bool:
+        """Bar bu donemin icinde mi (on-kayit §6 rev.8); tek yuklem `pencere.donem_ici_mi`."""
+        return pencere_modulu.donem_ici_mi(t, bar, donem_baslangic=self.baslangic, donem_bitis=self.bitis)
 
 
 @dataclass(frozen=True)
