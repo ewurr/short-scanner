@@ -302,8 +302,9 @@ Veri sonuna yakın uzlaşanlarda da fark var: ACXUSDT, HFTUSDT, VANRYUSDT, VICUS
 | Dolgu koşusu yok | 5 | **13** |
 
 13 ayda ne dolgu ne dönem sınırı var: bu aylarda seri kesintisiz işlem görmüş.
-Rev.7'deki "34 karantina ayının 14'ünde dolgu koşusu bulunmayan" ölçümüyle aynı
-yönde (burada ölçüt dolgu **ve** dönem sınırı yokluğu olduğu için sayı 13).
+Bu 13, ön-kayıttaki "34 karantina ayının 14'ünde dolgu koşusu bulunmayan" cümlesinin
+tanımı **değildir**: cümle yalnızca dolgu yokluğunu anar ve harfiyen tanımla sayı
+**18**'dir (13 + dolgusuz ama dönem sınırlı 5 ay). Rev.8'e girecek sayı 18'dir (§14.1).
 
 ### 6a. SETTLED dosyalarının içeriği ana seriyle (denetçi bulgusu C3)
 
@@ -453,14 +454,50 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
 ## 14. Açık noktalar
 
-1. **Ön-kayıt §2 rev.7'de düzeltilecek üç sayı** (Rev.8 için). Üçü de
-   `rapor_sayilari_tam.csv`'nin `rev8` bölümünden gelir; tanımları şöyledir:
+1. **Ön-kayıtta düzeltilecek üç sayı** (Rev.8 için; denetçi bulguları D-A3, D-B2).
+   Her sayı `rapor_sayilari_tam.csv`'nin `rev8` bölümünden, ön-kayıttaki cümlenin
+   harfiyen tanımıyla üretilir. Cümleler aynen:
 
-   | Ön-kayıt | Doğrusu | Kalem ve tanım |
+   - **14** — §2 "Karantina kuralının kaldırılması": "F1 ölçümü, SETTLED aylarının
+     yeniden fiyatlandırma değil yeniden listeleme anlamına geldiğini; 34 karantina
+     ayının 14'ünde ise dolgu koşusu bulunmayan, işlem gören verinin gereksiz yere
+     dışarıda bırakıldığını; incelenen iki örnek ayda SETTLED dosyalarının ana seriyle
+     birebir aynı olduğunu göstermiştir."
+   - **131** — Revizyon Günlüğü, rev.7 gerekçesi: "F1 kapanış ölçümleri (D1, D2, D3, V1,
+     V2, S1–S3): 131 sembolde uzlaşma sonrası dolgu barların dönem sonunu yıllarca
+     uzattığı, SETTLED aylarının yeniden fiyatlandırma değil yeniden listeleme olduğu ve
+     delist sayısının eksik saptandığı belirlendi."
+   - **38** — §2 "Gerçek işlem sonrası funding kayıtları": "Dönem sonundan sonra gelen
+     funding kayıtları yok sayılır. F1 ölçümü, 38 sembolde uzlaşma sonrasında da funding
+     kaydı yayınlandığını ve bu kayıtların bir ya da birkaç sabit orandan oluştuğunu
+     göstermiştir."
+
+   | Ön-kayıt | Harfiyen tanımla | Kalem ve tanım |
    |---|---|---|
-   | 14 | **18** | `settled_ayinda_dolgu_kosusu_yok`: 34 SETTLED ayından, o ay içinde hiç dolgu koşusu (6+ ardışık sıfır hacimli bar) bulunmayanların sayısı. |
-   | 131 | **145** | `uzlasma_sonrasi_dolgusu_olan_sembol`: delist edilen 156 sembolden, dönem sonundan sonra en az bir dolgu barı olanların sayısı. |
-   | 38 | **57** | `uzlasma_sonrasi_funding_yayinlanan_sembol`: son döneminin bitişinden sonra en az bir funding kaydı atılan sembol sayısı (38 SETTLING + 19 exchangeInfo dışı). |
+   | 14 (34'ten) | **18** (34'ten) | `settled_ayinda_dolgu_kosusu_yok`: 34 SETTLED ayından, o ay içinde hiç dolgu koşusu (6+ ardışık sıfır hacimli bar) bulunmayanlar. |
+   | 131 | **145** | `uzlasma_sonrasi_dolgusu_olan_sembol`: delist edilen 156 sembolden, son dönem sonundan sonra en az bir dolgu barı olanlar. Cümledeki "yıllarca" harfiyen alınırsa: uzlaşma sonrası dolgusu en az 1 yıl olan **45**, en az 2 yıl olan **15** sembol (`…_en_az_1_yil_…`, `…_en_az_2_yil_…`). |
+   | 38 | **57** | `uzlasma_sonrasi_funding_yayinlanan_sembol_kapanistan_sonra`: son döneminin **kapanışından** (son gerçek 4 saatlik barın kapanışı + 1 dk, yani dönem sonu çıkış anı) sonra en az bir funding kaydı olan sembol. 38 SETTLING + 19 exchangeInfo dışı. |
+
+   **14: 13 mü 18 mi?** §6'daki 13, "ayda ne dolgu koşusu ne dönem sınırı var" sayımıdır.
+   Alıntılanan cümle yalnızca "dolgu koşusu bulunmayan" der; dönem sınırını anmaz. Bu
+   yüzden cümleye göre doğru sayı **18**'dir. Fark 5 ay: dolgu koşusu yok ama dönem
+   sınırı var (BNXUSDT 2022-04, BNXUSDT 2023-02, ICPUSDT 2022-09, MINAUSDT 2023-02,
+   TLMUSDT 2023-03; `settled_ayinda_dolgu_yok_donem_siniri_var_aylar`). §6'daki 13 başka
+   bir ölçüdür ve Rev.8'e girmemelidir.
+
+   **131: "yıllarca".** Çekirdek tanım (uzlaşma sonrası dolgusu olan) 145 verir; ama
+   dolguların medyanı 264,5 gündür (§3), 145'in çoğu için "yıllarca" doğru değildir.
+   Rev.8 metni ya sayıyı 145 yapıp "yıllarca"yı çıkarmalı ya da "yıllarca"yı tutup
+   sayıyı eşikle (45 / 15) vermelidir. Hangisi sizin kararınız.
+
+   **38: referans.** Önceki tanım "son döneminin bitişinden sonra" diyordu; betik ise
+   kapanıştan sonrasını sayıyor (denetçi bulgusu D-B2). Tanım kapanış referansıyla
+   düzeltildi. exchangeInfo dışı sembollerde uzlaşma anı (deliveryDate) yok; kapanış bütün
+   delist sembollerde tanımlı tek referanstır. Karşılaştırma için: SETTLING sembollerde
+   deliveryDate'ten sonra kaydı olan sembol de **38**'dir
+   (`SETTLING_teslimden_sonra_funding_kaydi_olan_sembol`; son bar içindeki 19 sembolün
+   hepsinin kapanıştan sonra da kaydı var). Ön-kayıttaki 38 yalnızca SETTLING
+   sembolleri sayıyor.
 
    Üçünde de kural aynı işliyor, etkilenen yalnızca ön-kayıt metnindeki sayılar.
    Ön-kayıt kilitli; düzeltme revizyon ister.
@@ -789,3 +826,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   tablo 4 saatlik tabloyla aynı kayıt tabanından yeniden sayıldı (D-A4; "dışarıda kalacak
   kayıt" 203 (68) → 34 (29), "kapanışta ödeme" 67 → 2; tamlık sütunları değişmedi) ve iki
   tabloya aday kural sütunu eklendi.
+- 2026-09-21: §14.1 yeniden yazıldı (D-A3, D-B2): ön-kayıttaki 14, 131 ve 38 cümleleri
+  aynen alıntılandı; üç sayı harfiyen tanımla betikten (18, 145 ve "yıllarca" için 45 /
+  15, 57); 13 ile 18 farkı cümleye göre çözüldü (18) ve §6 buna göre düzeltildi; 57'nin
+  tanımı kapanış referansıyla yazıldı.
