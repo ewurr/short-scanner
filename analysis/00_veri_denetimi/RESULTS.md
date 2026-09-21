@@ -816,6 +816,17 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     Dönem içinde funding'in dönem başından çok sonra başladığı başka dönem olup olmadığı
     ölçülmedi.
 
+11. **`gunluge_cevir` hizalaması (denetçi bulgusu D-C5, ölçüldü, kod değişmedi).**
+    `gunluge_cevir` bir günü satır sayısıyla (6) tam sayar, 4 saatlik ızgaraya hizaya
+    bakmaz. `hiza_olcumu.py` (`hiza_tam.csv`, `hiza_ortam_tam.csv`: `a511cf1`, temiz ağaç,
+    2026-09-21 20:11:18 → 20:18:18 UTC; yalnızca zaman damgası):
+    - 678 sembol, 3.692.573 4 saatlik satır: ızgara dışında (00/04/08/12/16/20 UTC dışı)
+      açılış **0**.
+    - Altı satırlı 615.043 gün: açılışları altı ızgara anı olmayan gün **0** (0 sembol).
+
+    Bugünkü veride hiza sorunu yok; kodda kontrol olmadığı bulgusu geçerli. Düzeltme
+    Rev.8 uygulanırken yapılacak.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
