@@ -1,6 +1,6 @@
 # PREREGISTRATION.md — Short Öngörü Hipotezleri
 
-**Durum:** Sürüm 7 (2026-09-13). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
+**Durum:** Sürüm 8 (2026-09-21). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
 **Kapsam:** F2 (keşif) ve F3 (onay). Taktik (F4) ve ileri-zaman testi (F5) ayrı revizyonla eklenir.
 
 Bu belge commit edildikten sonra aşağıdaki hiçbir tanım, eşik veya tarih sınırı
@@ -37,25 +37,23 @@ bulunmayan (delist edilmiş) semboller elle sınıflandırılmıştır.
 - Stablecoin tanımı: sabit bir fiyata bağlı kalacak şekilde tasarlanmış ve bağını koruyan token.
   Bu tanıma göre FRAXUSDT, USTCUSDT, STBLUSDT ve STABLEUSDT evrende kalır.
 
-**1 günlük barlar.** 1d barlar 4h barlardan türetilir: UTC günü; open ilk, high en yüksek,
-low en düşük, close son değer; volume ve quote_volume toplam. 6 adet 4h barı tam olmayan gün
-eksik (NaN) sayılır. Uygunluktaki günlük hacim bu seriden hesaplanır.
+**1 günlük barlar.** 1d barlar yalnızca dönem içi 4h barlardan türetilir: UTC günü; open ilk, high en yüksek, low en düşük, close son değer; volume ve quote_volume toplam. Bir gün, yalnızca o günün 00:00, 04:00, 08:00, 12:00, 16:00 ve 20:00 UTC açılışlı altı 4h barının tamamı mevcut ve aynı dönemin içindeyse oluşur; aksi hâlde o gün eksik (NaN) sayılır. Bu yüzden dönemin kısmi ilk ve son günleri 1d serisinde yer almaz. Bu seri tektir: H3'ün sinyal pencereleri, bütün hipotezlerin uygunluk hacmi ve K1/K2 havuzlarının 1d barları aynı seriden gelir. (rev.8)
 
 **Listeleme dönemi.** Her sembolün verisi bir veya daha fazla listeleme dönemine ayrılır.
-- Dönem, sıfır olmayan hacimli ilk barda başlar ve sıfır olmayan hacimli son barda biter. Sınır bar düzeyindedir, ay düzeyinde değil.
+- Dönem, sıfır olmayan hacimli ilk barda başlar ve sıfır olmayan hacimli son barda biter. Sınır bar düzeyindedir, ay düzeyinde değil. Dönemin son 4 saatlik barının açılış anına **dönem bitişi (B)**, kapanış anına **dönem kapanışı (K = B + 4 saat)** denir. Dönem dışındaki hiçbir bar (dolgu barı, boşluk sonrası veri, SETTLED verisi) hiçbir hesaba girmez. (rev.8)
 - 6 veya daha fazla ardışık sıfır hacimli bar (bir gün) dönemi böler. Bu barlar delist edilmiş ya da henüz yeniden listelenmemiş bir sözleşmenin dolgu verisidir ve hiçbir hesaba girmez.
 - 7 günden uzun eksik bar boşluğu dönemi böler. Bundan kısa boşluklar borsa kesintisi sayılır ve rev.3'ün veri boşluğu kurallarına tabidir.
 - Yeniden adlandırma zincirindeki her sembol ayrı bir dönemdir; fiyat serileri birleştirilmez.
 - Listeleme yaşı her dönem başında sıfırlanır.
 - Tüm geriye bakış pencereleri dönem başlangıcını aşamaz; aşıyorsa değer hesaplanmaz ve o barda olay oluşmaz.
-- Ufuk dönem sonunu aşarsa çıkış fiyatı dönemin son barının kapanışıdır.
+- Ufuk dönem sonunu aşarsa §4 "Dönem sonu ve çıkış" kuralı uygulanır. (rev.8)
 - Aynı kurallar K1 ve K2 kontrol barlarına da uygulanır.
 
-**Karantina kuralının kaldırılması.** Rev.2'de getirilen SETTLED tabanlı karantina kuralı yürürlükten kalkmıştır. F1 ölçümü, SETTLED aylarının yeniden fiyatlandırma değil yeniden listeleme anlamına geldiğini; 34 karantina ayının 14'ünde ise dolgu koşusu bulunmayan, işlem gören verinin gereksiz yere dışarıda bırakıldığını; incelenen iki örnek ayda SETTLED dosyalarının ana seriyle birebir aynı olduğunu göstermiştir. Yukarıdaki dönem bölme kuralları aynı riski daha doğru kapsar. SETTLED bilgisi yalnızca denetim amacıyla tutulur.
+**Karantina kuralının kaldırılması.** Rev.2'de getirilen SETTLED tabanlı karantina kuralı yürürlükten kalkmıştır. F1 ölçümü, SETTLED aylarının yeniden fiyatlandırma değil yeniden listeleme anlamına geldiğini; 34 karantina ayının 18'inde ise dolgu koşusu bulunmayan, işlem gören verinin gereksiz yere dışarıda bırakıldığını; dönem içine alınan 13 SETTLED ayında ortak barların ana seriyle birebir aynı olduğunu göstermiştir; bu aylarda 24 bar yalnızca SETTLED dosyasında, 30 bar yalnızca ana seride bulunur (rev.8'de düzeltildi: önceki metinde 14 ay ve iki örnek ay yazıyordu). Yukarıdaki dönem bölme kuralları aynı riski daha doğru kapsar. SETTLED bilgisi yalnızca denetim amacıyla tutulur. Fiyat ve hacim için tek kaynak ana seridir: SETTLED dosyaları hiçbir hesaba girmez ve ana serideki boşluklar SETTLED verisiyle doldurulmaz. (rev.8)
 
-**Funding'i bulunmayan dönemler.** Hiçbir funding kaydı bulunmayan listeleme dönemi, üç hipotezin hiçbirinde kullanılmaz; ne olay ne kontrol üretir. Gerekçe: net getiri funding içerir; funding'i olmayan dönem yalnızca H2'den çıkarılırsa brüt ve net olay kümeleri ayrışır ve K2 kontrol havuzu tutarsızlaşır. Funding sıfır varsayılmaz.
+**Funding'i bulunmayan dönemler.** Hiçbir funding kaydı bulunmayan listeleme dönemi, üç hipotezin hiçbirinde kullanılmaz; ne olay ne kontrol üretir. Gerekçe: net getiri funding içerir; funding'i olmayan dönem yalnızca H2'den çıkarılırsa brüt ve net olay kümeleri ayrışır ve K2 kontrol havuzu tutarsızlaşır. Funding sıfır varsayılmaz. Bir funding kaydının dönemde sayılma penceresi, dönem başından dönem bitişine (B, dahil) kadardır ve getiri hesabının dönem sonu penceresiyle aynıdır; toleranslar §4 "Zaman toleransı"na göredir. Funding'i dönemin içinde geç başlayan dönemlerde, ilk kayıttan önceki olay ve kontroller §4'teki tek karar noktasında funding tamlığını sağlamadıkları için oluşmaz. (rev.8)
 
-**Gerçek işlem sonrası funding kayıtları.** Dönem sonundan sonra gelen funding kayıtları yok sayılır. F1 ölçümü, 38 sembolde uzlaşma sonrasında da funding kaydı yayınlandığını ve bu kayıtların bir ya da birkaç sabit orandan oluştuğunu göstermiştir.
+**Gerçek işlem sonrası funding kayıtları.** Dönem kapanışından (K) sonra gelen funding kayıtları yok sayılır; B ile K arasındaki kayıtlar için §4'teki dönem sonu istisnası geçerlidir. F1 ölçümü, 57 sembolde (38 SETTLING, 19 exchangeInfo dışı) son dönemin kapanışından sonra da funding kaydı bulunduğunu göstermiştir. Rev.7'de bu kayıtların "bir ya da birkaç sabit orandan oluştuğu" yazılmıştı; A1 ölçümü bu ifadeyi desteklememiştir ve ifade geri alınmıştır. (rev.8)
 
 **Veri boşlukları.** Bar dizisinde eksik bar bulunabilir (F1 denetimi: 105 kayıt, 10 olay;
 en büyüğü 48 ve 49 sembolü aynı anda etkilemiştir). Aşağıdaki kurallar dönem kurallarına ek olarak uygulanır. 7 günden kısa boşluklar dönem bölmez; daha uzun boşluklar §2'deki listeleme dönemi kuralına göre dönemi böler.
@@ -66,11 +64,9 @@ en büyüğü 48 ve 49 sembolü aynı anda etkilemiştir). Aşağıdaki kurallar
   (NaN). O barda olay ya da kontrol oluşmaz. Bu, H1'in hacim ve yükseliş pencerelerini,
   H2'nin 30 barlık ve k barlık pencerelerini, H3'ün hacim pencerelerini ve SMA50'yi, ayrıca
   uygunluk hacmini kapsar.
-- **Ufuk.** Ufuk zamanla ölçülür: h bar = h × 4 saat. Hedef çıkış barı eksikse çıkış, sonraki
-  ilk mevcut barın **açılış** fiyatındandır. Dönem sonu ve delist kuralları önceliklidir.
+- **Ufuk.** Ufuk zamanla ölçülür: h bar = h × adım; adım 4h ızgarasında 4 saat, 1d ızgarasında 24 saattir. Hedef çıkış barı, kapanışı hedef çıkış anına (T) eşit olan dönem içi 4h bardır (§4 "Fiyat okuma tabanı"). Bu bar eksikse çıkış, açılışı T'ye eşit ya da T'den sonra olan ilk dönem içi 4h barın **açılış** fiyatındandır ve çıkış anı o barın açılışıdır. Dönem sonu ve delist kuralları önceliklidir. (rev.8)
 - **Giriş.** t+1 barı eksikse olay oluşmaz.
-- 1 günlük seride bir gün yalnızca 6 adet 4 saatlik barın tamamı varsa oluşur; eksik gün
-  zaten NaN'dir ve pencerelerde eksik sayılır.
+- 1 günlük seride bir gün yalnızca §2 "1 günlük barlar"da tanımlanan altı dönem içi 4 saatlik barın tamamı varsa oluşur; eksik gün zaten NaN'dir ve pencerelerde eksik sayılır. (rev.8)
 - Aynı kurallar K1 ve K2 kontrol barlarına da uygulanır.
 
 **Gerekçe.** F1 denetiminde açıklanamayan iki bütünlük sıçraması (WAVESUSDT +%54,1 ve
@@ -80,7 +76,7 @@ atlayan bir pencere sahte bir yükseliş, kesinti üzerinden geçen bir ufuk ise
 alınamayacak bir çıkış fiyatı üretir. Bu kural o iki kaydı zaten dışarıda bırakır.
 
 **Veri bütünlüğü kontrolü.** F1 denetim raporu, `|open[t] / close[t-1] - 1| > 0.30` olan tüm
-barları sembol ve zamanla listeler. Dönem bölme kurallarıyla açıklanamayan kayıtlar, F2 başlamadan önce ayrı bir revizyonla ele alınır.
+barları sembol ve zamanla listeler. Dönem bölme kurallarıyla açıklanamayan kayıtlar, F2 başlamadan önce ayrı bir revizyonla ele alınır. WAVESUSDT ve KNCUSDT kayıtları için bu karar Rev.8'de verilmiştir: iki kayıt dönem bölme kurallarıyla değil §2 "Tamlık şartı"yla dışarıda kalır; boşluk üzerinden geçen her pencere hesaplanamaz olduğundan ek kural gerekmez.
 
 **Uygunluk (t anında, yalnızca t'ye kadarki veriyle):**
 - Listeleme yaşı ≥ 30 gün.
@@ -90,7 +86,7 @@ barları sembol ve zamanla listeler. Dönem bölme kurallarıyla açıklanamayan
 **Uygunluk penceresi ve t günü.** Uygunluk hacmi, t barının ait olduğu UTC günü hariç,
 ondan önceki 30 tam günün medyanıdır. Kural 4 saatlik ve 1 günlük barlarda aynıdır.
 
-**İleri kaymanın ölçüsü.** İleri kayma, hedef bar ile sonraki mevcut barın açılış zamanları arasındaki fark olarak ölçülür ve sınır dahildir.
+**İleri kaymanın ölçüsü.** İleri kayma, hedef bar ile sonraki mevcut barın açılış zamanları arasındaki fark olarak ölçülür ve sınır dahildir. Hedef bar ve sonraki mevcut bar her iki ızgarada da dönem içi 4h barlardır. (rev.8)
 
 Delist edilen sözleşmelerin geçmişi elde edilemezse bu durum F1 denetim raporunda
 sayısıyla yazılır ve sonuçlar "kötümser yanlılıklı" olarak etiketlenir.
@@ -140,32 +136,32 @@ dayanılmaz.
 
 ## 4. Getiri tanımları
 
-Olay t barının kapanışında tespit edilir. Giriş fiyatı `P0 = open[t+1]`.
-Ufuk h bar sonra çıkış fiyatı `P1 = close[t+h]`.
+Olay t barının kapanışında tespit edilir. Giriş fiyatı `P0 = open[t+1]`. Ufuk h bar sonra çıkış fiyatı `P1 = close[t+h]`.
+
+**Fiyat okuma tabanı (rev.8).** Olay, sinyalin hesaplandığı ızgarada tespit edilir (H1, H2: 4h; H3: 1d). Pozisyonun bütün fiyat okumaları ise her hipotezde dönem içi 4h barlardan yapılır. Giriş anı, t barının kapanış anıdır. `P0`, açılışı giriş anına eşit olan dönem içi 4h barın açılışıdır; böyle bir bar yoksa olay oluşmaz. Hedef çıkış anı `T = giriş anı + h × adım`'dır. `P1`, kapanışı T'ye eşit olan dönem içi 4h barın kapanışıdır. Eksiksiz günlerde bu tanımlar `open[t+1]` ve `close[t+h]` ile aynı sonucu verir; fark yalnızca kısmi günlerde ve dönem sonlarında ortaya çıkar. Gerekçe: dönem sınırları 4h düzeyindedir; fiyat okumalarını da aynı düzeye bağlamak, 1d ızgarasının dönem sınırıyla her kesişiminde ayrı bir kural gerekmesini önler.
 
 - **Brüt short getirisi:** `-(P1 / P0 - 1)`
 - **Funding katkısı:** giriş ile çıkış arasındaki her funding anında `+oran`
   (pozitif oran short'a ödeme demektir, negatif oran short'tan kesinti).
 
-  **Funding ödemesinin sınırları.** Pozisyon, giriş anından sonra ve çıkış anına kadar
-  gerçekleşen funding ödemelerini alır ya da öder: giriş anındaki ödeme hariç, çıkış
-  anındaki dahildir. 1 dakikadan küçük zaman kayması aynı an sayılır. Çıkış anındaki
-  ödeme kümenin tarih aralığı dışına düşüyorsa olay o kümede oluşmaz.
+  **Funding ödemesinin sınırları.** Pozisyon, giriş anından sonra ve çıkış anına kadar gerçekleşen funding ödemelerini alır ya da öder: giriş anındaki ödeme hariç, çıkış anındaki dahildir. Aynı an ölçütü §4 "Zaman toleransı"nda tanımlıdır. Çıkış anındaki ödeme kümenin tarih aralığı dışına düşüyorsa olay o kümede oluşmaz.
+- **Dönem sonu istisnası (rev.8).** Dönem sonuna ulaşan pozisyonda funding penceresi dönem bitişinde (B, dahil) kapanır. B'den sonraki ödemeler, çıkış anındaki (K) ödeme dahil, hesaba girmez; tamlık kontrolü bu pozisyonlarda son ödemeyi B'ye göre arar. Gerekçe: dönem sonunda işlem durmuştur; uzlaşmadan sonra pozisyon, dolayısıyla funding yoktur. Çıkış fiyatı yine K'daki kapanıştır, çünkü o bar uzlaşma fiyatını taşır. Bu istisnanın bu revizyona hangi bilgiyle girdiği Revizyon Günlüğü 8'de yazılıdır.
+- **Zaman toleransı (rev.8).** Projedeki bütün zaman karşılaştırmalarında iki an arasındaki fark 1 dakikadan kesin olarak küçükse bu iki an aynı sayılır; tam 1 dakikalık fark aynı an değildir. Ön-kayıttaki "tolerans payı" ve "funding tolerans payı" ifadeleri bu tanıma dayanır.
 - **Maliyet:** gidiş-dönüş `0.20%`.
 - **Net short getirisi:** `brüt + funding - 0.0020`
-- **MAE (en kötü ara zarar):** `max(high[t+1..t+h]) / P0 - 1`. Raporlanır, eşik değildir.
+- **MAE (en kötü ara zarar):** `max(H, P1) / P0 - 1`. H, açılışı giriş anından önce olmayan ve kapanışı çıkış anından sonra olmayan bütün dönem içi 4h barların en yüksek high değeridir; böyle bar yoksa yalnızca P1 kullanılır. Izgaradan bağımsız olarak 4h barlardan hesaplanır; eksiksiz günlerde 1d tanımıyla aynı sonucu verir. P1'in dahil edilmesi, ileri kaymada boşluk üzerinden gelen çıkış fiyatının ara zarar olarak kaybolmasını önler. Eksik barlar MAE'yi hesaplanamaz yapmaz, ancak boşluk süresince ara zarar gözlenemez; bu sınırlama raporda yazılır. Raporlanır, eşik değildir. (rev.8)
 
-Ufuk içinde sözleşme delist olursa çıkış, son mevcut barın kapanışıdır.
+Ufuk içinde sözleşme delist olursa bu bir dönem sonudur; çıkış §4 "Dönem sonu ve çıkış" kuralına göre dönemin son 4h barının kapanışıdır. (rev.8)
 
-**Dönem sonu ve çıkış.** Ufuk dönem sonunu aşarsa çıkış, dönemin son barının kapanışıdır. Dönem sonu ve delist kuralları ileri kayma kuralından önceliklidir.
+**Dönem sonu ve çıkış.** Hedef çıkış anı T, dönem kapanışından (K) sonraysa pozisyon dönem sonuna ulaşmış sayılır; karşılaştırma kapanış anlarıyla yapılır. Dönem sonuna ulaşan pozisyon, hangi ızgarada olursa olsun, dönemin son 4h barının kapanışından çıkar: `P1` o barın kapanışıdır, çıkış anı K'dır. Dönem sonu ve delist kuralları ileri kayma kuralından önceliklidir: önce T > K denetlenir; ileri kayma kuralı yalnızca T ≤ K ise uygulanır. T ≤ K iken hedef bar eksikse, sonraki mevcut dönem içi 4h bar her zaman B'de ya da B'den önce açılır; ileri kayma dönem dışına taşmaz. Verinin sonu dönem sonu değildir ve bu kural o sınıra uygulanmaz. Son veri barı C2 kümesinin sonundan (2026-08-31 23:59:59 UTC) önce açılır ve 1 saniye sonra kapanır; bu yüzden verinin sonuna uzanan her ufuk C2 küme sonunu da aşar ve §4 "Olayın kümede oluşma ölçütü"yle oluşmaz. (rev.8)
 
 **İleri kaymanın üst sınırı.** Hedef çıkış barı eksikse ileri kayma, olayın birincil
 ufku kadar süre ile sınırlıdır (H1 ve H2 için 18 bar, H3 için 14 gün). Sonraki mevcut
 bar bu sınırdan uzaksa olay oluşmaz; kırpılmış getiri kullanılmaz.
 
-**Olayın kümede oluşma ölçütü.** Bir olayın kümede oluşup oluşmadığına tek bir karar noktası hükmeder ve ölçüt çıkış anına göre uygulanır: çıkış anı ile funding tolerans payı birlikte küme sonunu aşmamalıdır. Fiyat ve funding için ayrı ölçüt kullanılmaz.
+**Olayın kümede oluşma ölçütü.** Bir olayın kümede oluşup oluşmadığına tek bir karar noktası hükmeder ve ölçüt çıkış anına göre uygulanır: çıkış anı ile funding tolerans payı birlikte küme sonunu aşmamalıdır. Çıkış anı, ızgaranın adımından türetilmez; §4'teki tanımlarla belirlenen gerçek çıkış anıdır: olağan çıkışta T, ileri kaymada sonraki barın açılışı, dönem sonunda K. Aynı karar noktasında pozisyonun funding tamlığı da sağlanmalıdır (§4 "Funding aralığı geçişleri"): funding'i tam olmayan olay ya da kontrol, brüt getiri dahil hiçbir hesapta oluşmaz. Böylece brüt ve net olay kümeleri her zaman aynıdır. Fiyat ve funding için ayrı ölçüt kullanılmaz. Bu tanım olay kümesini değiştirebilir (örneğin keşif kümesinin sonuna yakın biten dönemlerde); değişiklik getiri görülmeden, tanım gereği yapılmıştır. (rev.8)
 
-**Funding aralığı geçişleri.** Funding kayıtlarındaki aralık alanı bir sonraki ödemeye kalan süreyi gösterir. Tamlık kontrolü buna göre yapılır: iki ödeme arasındaki boşluk, iki kaydın aralıklarından büyüğünü ve tolerans payını aşarsa ödeme eksik sayılır. Bilinen sınır: aralık 1 saate düşüp yeniden 4 saate hizalanırken pencere kapanışına denk gelen kayıt hesaba giremez ve değer hesaplanmaz; bunu ayırt etmek geleceğe bakış gerektirir. F1 ölçümünde bu durum, 4 saatten 1 saate geçişleri kapsayan 888 funding penceresinin 6'sında görülmüştür.
+**Funding aralığı geçişleri.** Funding kayıtlarındaki aralık alanı bir sonraki ödemeye kalan süreyi gösterir. Tamlık kontrolü buna göre yapılır: iki ödeme arasındaki boşluk, iki kaydın aralıklarından büyüğünü ve tolerans payını aşarsa ödeme eksik sayılır. Pencerenin başı için de aynı kural geçerlidir: giriş anı ile penceredeki ilk ödeme arasındaki boşluk, ilk kaydın aralığını ve tolerans payını aşarsa ödeme eksik sayılır. Penceresinde hiç funding kaydı bulunmayan pozisyonun funding'i tam değildir. (rev.8) Bilinen sınır: aralık 1 saate düşüp yeniden 4 saate hizalanırken pencere kapanışına denk gelen kayıt hesaba giremez ve değer hesaplanmaz; bunu ayırt etmek geleceğe bakış gerektirir. F1 ölçümünde bu durum, 4 saatten 1 saate geçişleri kapsayan 888 funding penceresinin 6'sında görülmüştür.
 
 | Hipotez | Birincil ufuk | İkincil ufuklar (yalnızca rapor) |
 |---|---|---|
@@ -241,8 +237,8 @@ filtresinden geçmek zorundadır.
 - **K1 — aynı coin, rastgele zaman.** Aynı coinden, aynı küme ve dönem içinden,
   o hipotezin herhangi bir olayına birincil ufuk mesafesinden yakın olmayan
   10 rastgele bar.
-- **K2 — aynı zaman, rastgele coin.** Aynı t barında uygun olan ve o anda olay
-  üretmemiş diğer coinlerden 10 rastgele coin.
+- **K2 — aynı zaman, rastgele coin.** Aynı t barında uygun olan ve o anda olay üretmemiş diğer coinlerden 10 rastgele coin.
+- **Dönem üyeliği (rev.8).** Bir bar, onu oluşturan bütün 4h barlar aynı dönemin içindeyse dönem içidir: 4h barda açılış [dönem başı, B] aralığındadır; 1d barda §2 "1 günlük barlar"daki altı barın tamamı dönem içidir. Olay barı t, K1'in "aynı küme ve dönem içinden" koşulu ve K2'nin "aynı t barında uygun" koşulu bu ölçütü kullanır. Kontrol barları, olaylarla aynı fiyat okuma tabanına, dönem sonu kuralına ve tek karar noktasına tabidir.
 
 K2 piyasa yönünü ayıklar ve bu projede **en önemli kontroldür**.
 
@@ -302,3 +298,14 @@ Başarısız bir hipotez için onay yeniden koşulamaz.
 | 5 | 2026-09-13 | Geriye bakış pencerelerinin küme sınırını aşamayacağı açıkça yazıldı | F2 öncesi sızıntı testleri: kural yalnızca verinin kesilmiş olmasıyla sağlanıyordu, kod düzeyinde garanti edilmiyordu. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
 | 6 | 2026-09-13 | Funding ödemesinin giriş/çıkış sınırları; ileri kaymanın üst sınırı; uygunluk penceresinin t gününü dışlaması; H1 hacim medyanının kayan pencere okuması; revizyon 4-5 tarih düzeltmesi | F1 kapanış denetimi: ön-kayıtta tanımsız kalan ve F2'de ilk getiri hesabında devreye girecek dört nokta. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
 | 7 | 2026-09-13 | Karantina kuralı kaldırıldı, yerine dolgu koşusu ve uzun boşluk temelli dönem bölme geldi; dönem sınırları bar düzeyine indi; funding'siz dönemler tüm hipotezlerden çıkarıldı; uzlaşma sonrası funding kayıtları yok sayıldı; delist sayısı ve hayatta kalma yanlılığı hükmü düzeltildi; olayın kümede oluşma ölçütü tek kapıya bağlandı; funding aralığı geçişlerinde tamlık tanımı; ileri kaymanın ölçüsü; H1 pencere sınırları | F1 kapanış ölçümleri (D1, D2, D3, V1, V2, S1–S3): 131 sembolde uzlaşma sonrası dolgu barların dönem sonunu yıllarca uzattığı, SETTLED aylarının yeniden fiyatlandırma değil yeniden listeleme olduğu ve delist sayısının eksik saptandığı belirlendi. Hiçbir getiri hesaplanmadan yapıldı. | Yok (henüz sonuç yok) |
+| 8 | 2026-09-21 | 4h fiyat okuma tabanı, dönem sonu funding istisnası, 1d kısmi gün kuralı, tek karar noktasında funding tamlığı, sayı düzeltmeleri, denetim sınırı aşımı kaydı | ayrıntı tablonun altında | — |
+
+### Revizyon 8 — ayrıntı
+
+**8.** Tarih: 2026-09-21. Değişiklikler: 4h fiyat okuma tabanı (giriş, çıkış, MAE ve çıkış anı her ızgarada dönem içi 4h barlardan); dönem bitişi (B) ve dönem kapanışı (K) tanımları; "ufuk dönem sonunu aşar" ölçütünün kapanış anlarına bağlanması ve ileri kaymayla sıralaması; delistin dönem sonu olarak tanımlanması; 1d barların yalnızca dönem içi, hizalı altı 4h bardan kurulması ve bu serinin sinyal, uygunluk ve kontrollerde tek olması; MAE'nin 4h barlardan ve çıkış fiyatını da içerecek şekilde tanımlanması; dönem sonu funding istisnası; tek zaman toleransı tanımı; funding tamlığının başlangıç boşluğunu da kapsaması ve tek karar noktasına eklenmesi; funding'siz dönem sayım penceresi; dönem üyeliği tanımı; SETTLED için tek kaynak kuralı; WAVESUSDT/KNCUSDT kararı; sayı düzeltmeleri.
+
+**Gerekçe.** F1 denetiminin son turları, bugünkü kodun 1d ızgarasında dönem sonunda dolgu barlarından fiyat okuduğunu (rev.7'nin "dolgu barları hiçbir hesaba girmez" ve bar düzeyinde sınır kurallarının ihlali) ve dönem sonunu aşan pozisyonların 128 SETTLING sembolün 78'inde, 1d ızgarasında 168 dönem sonunun 167'sinde funding tamlığı bozulduğu için sessizce düştüğünü gösterdi (RESULTS §14.7, §14.8). Metodoloji denetçisi, aday kuralın sekiz tanımsız noktasını listeledi; bu revizyon hepsini tanımlar. 4h fiyat okuma tabanı ayrıca t+1 günü kısmi son gün olan H3 olaylarının kaybını önler; bu olaylar delistten hemen önceki dönemlere düşer ve düşürülmeleri hayatta kalma yanlılığı yaratırdı.
+
+**Rev.7 düzeltme notu (errata).** Rev.7 gerekçesindeki "131 sembolde uzlaşma sonrası dolgu barların dönem sonunu yıllarca uzattığı" ifadesi düzeltilir: uzlaşma sonrası dolgusu olan sembol sayısı 145'tir; bunların 45'inde uzatma en az bir yıl, 15'inde en az iki yıldır. Rev.7 kaydının kendisi değiştirilmemiştir. §2'deki 14 → 18 ve 38 → 57 düzeltmeleri yürürlükteki metinde yapılmıştır. Üç sayı da `rapor_sayilari` betiğinden üretilmiştir (RESULTS §14.1).
+
+**Denetim sınırı aşımı ve bu revizyonla ilişkisi.** A1 ölçümünde (commit 1093e69) uzlaşma sonrası 23 funding kaydının oran değerleri ve işaretleri raporlandı. Bu, §3.1'deki veri denetimi sınırını aştı. Kayıtların 5'i C1 grubundaki sembollere aittir; C2 dönemine ait kayıt içermez. Ayrıntılar RESULTS §14.5'tedir. Bu revizyondaki dönem sonu funding istisnası, bu bilgi görüldükten sonra ön-kayda yazılmıştır. Yön bilgisi açıkça beyan edilir: istisnanın dışarıda bıraktığı bu 23 kaydın 18'i pozitiftir, yani short lehine ödemedir; istisna, dönem sonuna ulaşan short pozisyonların net getirisini düşürür. İstisna görülen 23 kaydın tamamını hesaptan çıkarır; görülen hiçbir oran değeri getiri hesabına girmez. Aynı koşu, exchangeInfo'da bulunmayan sembollerin son barlarındaki 28 funding kaydının oran değerlerini de iz dosyasına yazmıştır; bunların bir kısmı C2 dönemine aittir. Bu 28 kaydın 23'ü dönem bitişindedir (B), istisnanın kapsamı dışında kalır ve getiri hesabına girer. İstisnanın dayandığı eğilim (funding penceresinin son barın açılışında bitmesi) araştırma tarafının çalışma notlarında oran değerleri ölçülmeden önce yazılmıştır, ancak bu depoda doğrulanabilir değildir. İstisnanın gerekçesi yöne değil ilkeye dayanır: uzlaşmadan sonra pozisyon yoktur. Bu revizyon hiçbir getiri hesaplanmadan yazılmıştır.
