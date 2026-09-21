@@ -129,6 +129,24 @@ def test_penceresinde_kayit_yoksa_tam_degil():
     assert pd.isna(funding.pozisyon_fundingi(fr, plan))
 
 
+@pytest.mark.parametrize("kayitlar", [
+    [T("2025-01-04 00:00")],                                     # tek kayit, giristen once
+    [T("2025-01-04 00:00"), T("2025-01-05 00:00")],              # butun kayitlar giristen once
+    [T("2025-01-04 00:00"), T("2025-01-05 08:00")],              # son kayit giris aninda (haric)
+])
+def test_giris_son_kayittan_sonraysa_tam_degil_cokmez(kayitlar):
+    """Pencerede kayit yok ve giris butun kayitlardan sonra (lo = hi = kayit sayisi):
+    tamlik False doner, indeks hatasi vermez. Vektorel yolda karisik girislerle de."""
+    plan = _plan(T("2025-01-05 04:00"), 1, BAS, B)  # giris 08:00
+    fr = _kayit(kayitlar)
+    assert not funding.pozisyon_funding_tam_mi(fr, plan)
+    assert pd.isna(funding.pozisyon_fundingi(fr, plan))
+    erken = _plan(T("2025-01-03 20:00"), 1, BAS, B)  # giris 01-04 00:00, kayit anda: haric
+    ayrinti = funding.funding_tamlik_ayrintisi(
+        fr, [erken.giris, plan.giris], [funding.funding_penceresi_sonu(erken), funding.funding_penceresi_sonu(plan)])
+    assert not ayrinti["kayit_var"].iloc[1] and not ayrinti["tam"].iloc[1]
+
+
 # --- Donem pencereleri -------------------------------------------------------------------
 
 D = Donem(BAS, B, 100, 100)

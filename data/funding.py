@@ -417,8 +417,12 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari) -
     else:
         kotu_bosluk = np.zeros(0, dtype=bool)
     p_bosluk = np.r_[0, np.cumsum(kotu_bosluk)]
-    ust = np.maximum(hi - 1, lo)  # ciftler [lo, hi-2] -> p_bosluk[hi-1] - p_bosluk[lo]
-    ic_tam = kayit_var & ((p_bosluk[ust] - p_bosluk[lo]) == 0)
+    # ciftler [lo, hi-2] -> p_bosluk[hi-1] - p_bosluk[lo]. Kaydi olmayan pencerede
+    # (giris son kayittan sonra: lo = hi = kayit sayisi) indeks dizinin disina
+    # tasar; sonuc zaten kayit_var ile maskelenir, indeks kirpilir.
+    sinir = len(p_bosluk) - 1
+    ust = np.minimum(np.maximum(hi - 1, lo), sinir)
+    ic_tam = kayit_var & ((p_bosluk[ust] - p_bosluk[np.minimum(lo, sinir)]) == 0)
 
     ilk = np.where(kayit_var, lo, 0)
     son = np.where(kayit_var, hi - 1, 0)
