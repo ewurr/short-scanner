@@ -125,28 +125,41 @@ def ham_funding_yukle(sembol: str, yenile: bool = False) -> pd.DataFrame:
     return tum
 
 
-# --- Donem ve funding (on-kayit §2 rev.7) -------------------------------------
+# --- Donem ve funding (on-kayit §2 rev.8) -------------------------------------
+#
+# Iki pencere (B, K: `pencere.donem_kapanisi`, 4h duzeyinde; `bar` yalnizca
+# dogrulanir):
+#   - Kayit donemde KALIR: [donem basi, K] (ayni an kurallariyla). "Donem
+#     kapanisindan (K) sonra gelen funding kayitlari yok sayilir; B ile K arasindaki
+#     kayitlar icin §4'teki donem sonu istisnasi gecerlidir."
+#   - Donem funding'li SAYILIR: [donem basi, B]. "Bir funding kaydinin donemde
+#     sayilma penceresi, donem basindan donem bitisine (B, dahil) kadardir ve getiri
+#     hesabinin donem sonu penceresiyle aynidir."
 
 
 def _donem_icinde(zamanlar: pd.DatetimeIndex, donem, bar: str) -> np.ndarray:
-    """Odeme donem icinde mi: donem basi ile ayni an ya da sonra, son barin
-    kapanisi ile ayni an ya da once (on-kayit §4 rev.8 "Zaman toleransi").
+    """Kayit donemde kalir mi: donem basi ile ayni an ya da sonra, K ile ayni an ya
+    da once (on-kayit §2 rev.8 "Gercek islem sonrasi funding kayitlari")."""
+    from data import pencere as pencere_modulu
 
-    Ust sinir donemin son gercek barinin KAPANISIDIR ve o andaki odeme dahildir;
-    ufuk donem sonunu asan pozisyon o anda kapanir ve `pozisyon_fundingi` cikis
-    anindaki odemeyi sayar.
-    """
+    pencere_modulu.adim(bar)
     return ayni_ya_da_sonra(zamanlar, donem.baslangic) & ayni_ya_da_once(zamanlar, donem_kapanisi(donem.bitis))
 
 
-def donem_sonrasi_kayitlari_at(funding: pd.DataFrame, donemler, bar: str) -> pd.DataFrame:
-    """Donem sonundan sonra gelen funding kayitlarini atar (on-kayit §2 rev.7). Saf.
+def _donemde_sayilir(zamanlar: pd.DatetimeIndex, donem) -> np.ndarray:
+    """Kayit donemin funding'li sayilmasina katilir mi: [donem basi, B] (on-kayit §2
+    rev.8 "Funding'i bulunmayan donemler"; §4 "Donem sonu istisnasi" ile ayni ust uc)."""
+    return ayni_ya_da_sonra(zamanlar, donem.baslangic) & ayni_ya_da_once(zamanlar, donem.bitis)
 
-    Bir kayit, bir donemin sonundan sonra gelip sonraki bir donemin icine
-    dusmuyorsa atilir: son donemden sonrakiler (uzlasma sonrasi sabit oranlar)
-    ve iki donem arasindaki dolgu suresine dusenler. Ilk donem baslangicindan
-    onceki kayitlar kurala girmez ve korunur (tamlik kurali donem basindan
-    onceki kaydi zaten okumaz). Donem yoksa hicbir kayit kalmaz.
+
+def donem_sonrasi_kayitlari_at(funding: pd.DataFrame, donemler, bar: str) -> pd.DataFrame:
+    """Donem kapanisindan (K) sonra gelen funding kayitlarini atar (on-kayit §2 rev.8). Saf.
+
+    Bir kayit, bir donemin kapanisindan sonra gelip sonraki bir donemin icine
+    dusmuyorsa atilir: son donemden sonrakiler ve iki donem arasindaki dolgu
+    suresine dusenler. B ile K arasindaki kayitlar korunur; onlara pozisyon
+    funding'inde donem sonu istisnasi uygulanir. Ilk donem baslangicindan onceki
+    kayitlar korunur. Donem yoksa hicbir kayit kalmaz.
     """
     if funding.empty:
         return funding.reset_index(drop=True)
@@ -160,14 +173,18 @@ def donem_sonrasi_kayitlari_at(funding: pd.DataFrame, donemler, bar: str) -> pd.
 
 
 def donemde_funding_var(funding: pd.DataFrame, donem, bar: str) -> bool:
-    """Donemin icinde (uzlasma sonrasi kayitlar haric) en az bir funding kaydi var mi? Saf.
+    """Donemde, donem basindan B'ye (dahil) kadar en az bir funding kaydi var mi? Saf.
 
-    On-kayit §2 rev.7: hic funding kaydi bulunmayan donem uc hipotezde de
-    kullanilmaz. Evren tablosundaki `donem_funding_yok` sutunu bununla uretilir.
+    On-kayit §2 rev.8: hic funding kaydi bulunmayan donem uc hipotezde de
+    kullanilmaz; sayim penceresi donem basindan donem bitisine (B, dahil) kadardir.
+    `bar` yalnizca dogrulanir (B 4h duzeyindedir).
     """
+    from data import pencere as pencere_modulu
+
+    pencere_modulu.adim(bar)
     if funding.empty:
         return False
-    return bool(_donem_icinde(pd.DatetimeIndex(funding["odeme_zamani"]), donem, bar).any())
+    return bool(np.any(_donemde_sayilir(pd.DatetimeIndex(funding["odeme_zamani"]), donem)))
 
 
 # --- Funding penceresi (H2.1) ------------------------------------------------
@@ -317,7 +334,115 @@ def funding_ortalamasi(
     return float(oran.mean())
 
 
-# --- Pozisyon funding'i (on-kayit §4 rev.6) ----------------------------------
+# --- Pozisyon funding'i (on-kayit §4 rev.8) ----------------------------------
+
+TAMLIK_KOSULLARI = ("kayit_var", "aralik_gecerli", "baslangic_tam", "ic_tam", "son_tam")
+
+
+def funding_penceresi_sonu(plan) -> pd.Timestamp:
+    """Pozisyonun funding penceresinin ust ucu (dahil). On-kayit §4 rev.8: olagan
+    cikista ve ileri kaymada cikis ani ("cikis anindaki dahil"); donem sonuna ulasan
+    pozisyonda donem bitisi B ("Donem sonu istisnasi": B'den sonraki odemeler, K
+    dahil, hesaba girmez; tamlik son odemeyi B'ye gore arar)."""
+    from data import pencere as pencere_modulu
+
+    pencere_modulu.plan_dogrula(plan)
+    return plan.donem_bitis if plan.donem_sonu_mu else plan.cikis_ani
+
+
+def _zaman_dizisi(funding: pd.DataFrame, yer: str) -> pd.DatetimeIndex:
+    """Sirali, tekrarsiz ve ardisik iki kaydi ayni an olmayan odeme zamanlari (bozuk veri ->
+    ZamanDizisiHatasi)."""
+    from data import pencere as pencere_modulu
+
+    zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], yer)
+    if len(zamanlar) > 1:
+        yakin = np.asarray(ayni_an(zamanlar[1:], zamanlar[:-1]), dtype=bool)
+        if yakin.any():
+            ilk = int(yakin.argmax())
+            raise pencere_modulu.ZamanDizisiHatasi(
+                f"{yer}: {zamanlar[ilk]} ve {zamanlar[ilk + 1]} ayni an ({ODEME_TOLERANSI}'dan yakin); "
+                "ayni odeme iki kez yazilmis olabilir (bozuk veri)."
+            )
+    return zamanlar
+
+
+def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari) -> pd.DataFrame:
+    """Pozisyon funding tamliginin TEK uygulamasi, kosul kosul (on-kayit §4 rev.8
+    "Funding araligi gecisleri", "Funding odemesinin sinirlari", "Donem sonu
+    istisnasi"). Vektorel: `girisler[i]` ve `pencere_sonlari[i]` bir pozisyondur.
+    Yalnizca odeme ZAMANI ve ARALIGI okunur; oran okunmaz.
+
+    Pencere: giris anindan SONRA (giris anindaki odeme haric) ve pencere sonu ile
+    ayni an ya da once (cikis anindaki dahil; donem sonunda B). Kosullar:
+      - `kayit_var`: pencerede en az bir odeme ("Penceresinde hic funding kaydi
+        bulunmayan pozisyonun funding'i tam degildir").
+      - `aralik_gecerli`: penceredeki kayitlarin araligi NaN degil ve > 0.
+      - `baslangic_tam`: ilk odeme, giris ani + ilk kaydin araligindan SONRA degil
+        ("giris ani ile penceredeki ilk odeme arasindaki bosluk, ilk kaydin
+        araligini ve tolerans payini asarsa odeme eksik sayilir").
+      - `ic_tam`: ardisik her iki odemede sonraki, onceki + iki kaydin araliklarinin
+        buyugunden SONRA degil.
+      - `son_tam`: son odeme + araligi pencere sonundan SONRA (siradaki odeme
+        pencerenin disinda).
+    `tam` bes kosulun birlesimidir. Saf.
+    """
+    from data import pencere as pencere_modulu
+
+    girisler = pd.DatetimeIndex(girisler)
+    sonlar = pd.DatetimeIndex(pencere_sonlari)
+    if len(girisler) != len(sonlar):
+        raise ValueError("girisler ve pencere_sonlari ayni uzunlukta olmali.")
+    n = len(girisler)
+    sonuc = pd.DataFrame({k: np.zeros(n, dtype=bool) for k in (*TAMLIK_KOSULLARI, "tam")})
+    if n == 0 or funding.empty:
+        return sonuc
+    zamanlar = _zaman_dizisi(funding, "funding_tamlik_ayrintisi")
+    aralik = pd.to_numeric(funding["aralik_saat"], errors="coerce").to_numpy(dtype=float)
+    aralik_td = pd.to_timedelta(np.where(np.isfinite(aralik) & (aralik > 0), aralik, 0.0), unit="h")
+
+    # Pencere sinirlari tek kenar tanimiyla (`ayni_an_sonu`): sonra(z, giris) <=> z >= giris + 1 dk;
+    # ayni_ya_da_once(z, son) <=> z < son + 1 dk.
+    lo = zamanlar.searchsorted(pencere_modulu.ayni_an_sonu(girisler), side="left")
+    hi = zamanlar.searchsorted(pencere_modulu.ayni_an_sonu(sonlar), side="left")
+    kayit_var = hi > lo
+
+    kotu_aralik = ~(np.isfinite(aralik) & (aralik > 0))
+    p_aralik = np.r_[0, np.cumsum(kotu_aralik)]
+    aralik_gecerli = kayit_var & ((p_aralik[hi] - p_aralik[lo]) == 0)
+
+    if len(zamanlar) > 1:
+        beklenen = zamanlar[:-1] + pd.to_timedelta(np.maximum(aralik_td[1:].to_numpy(), aralik_td[:-1].to_numpy()))
+        kotu_bosluk = np.asarray(pencere_modulu.sonra(zamanlar[1:], beklenen), dtype=bool)
+    else:
+        kotu_bosluk = np.zeros(0, dtype=bool)
+    p_bosluk = np.r_[0, np.cumsum(kotu_bosluk)]
+    ust = np.maximum(hi - 1, lo)  # ciftler [lo, hi-2] -> p_bosluk[hi-1] - p_bosluk[lo]
+    ic_tam = kayit_var & ((p_bosluk[ust] - p_bosluk[lo]) == 0)
+
+    ilk = np.where(kayit_var, lo, 0)
+    son = np.where(kayit_var, hi - 1, 0)
+    baslangic_tam = kayit_var & ~np.asarray(
+        pencere_modulu.sonra(zamanlar[ilk], girisler + aralik_td[ilk]), dtype=bool)
+    son_tam = kayit_var & np.asarray(pencere_modulu.sonra(zamanlar[son] + aralik_td[son], sonlar), dtype=bool)
+
+    sonuc["kayit_var"] = kayit_var
+    sonuc["aralik_gecerli"] = aralik_gecerli
+    sonuc["baslangic_tam"] = baslangic_tam & aralik_gecerli
+    sonuc["ic_tam"] = ic_tam & aralik_gecerli
+    sonuc["son_tam"] = son_tam & aralik_gecerli
+    sonuc["tam"] = kayit_var & aralik_gecerli & baslangic_tam & ic_tam & son_tam
+    return sonuc
+
+
+def pozisyon_funding_tam_mi(funding: pd.DataFrame, plan) -> bool:
+    """Planin funding'i tam mi (on-kayit §4 rev.8)? Yalnizca odeme zamani ve araligi
+    okunur. Tek karar noktasi (`data.pozisyon.olay_karari`) bunu kullanir."""
+    from data import pencere as pencere_modulu
+
+    pencere_modulu.plan_dogrula(plan)
+    ayrinti = funding_tamlik_ayrintisi(funding, [plan.giris], [funding_penceresi_sonu(plan)])
+    return bool(ayrinti["tam"].iloc[0])
 
 
 def pozisyon_fundingi(funding: pd.DataFrame, plan) -> float:
@@ -326,64 +451,25 @@ def pozisyon_fundingi(funding: pd.DataFrame, plan) -> float:
     On-kayit §4: her funding aninda `+oran` (GERCEK odeme orani, `oran`;
     8 saate normallestirilmis `oran_8h` kullanilmaz). Toplam doner.
 
-    Yalnizca `pencere.pozisyon_plani`nin urettigi PLANI alir (on-kayit §4 rev.7
-    "Olayin kumede olusma olcutu", tek kapi). Olayin kumede, donemde ve ufukta
-    olusup olusmadigina plan karar vermistir; bu fonksiyon kume ya da donem
-    karari VERMEZ, yalnizca veri tamligina bakar. Elle kurulmus ya da sonradan
-    degistirilmis plan reddedilir.
+    Yalnizca `pencere.pozisyon_plani`nin urettigi PLANI alir. Sinirlar (on-kayit §4
+    rev.8): giris anindaki odeme HARIC, cikis anindaki DAHIL; donem sonuna ulasan
+    pozisyonda pencere B'de (dahil) kapanir. Tamlik `funding_tamlik_ayrintisi`dir.
 
-    Sinirlar (on-kayit §4 rev.6):
-      - Giris anindaki odeme HARIC, cikis anindaki DAHIL.
-      - 1 dakikadan kucuk kayma ayni an sayilir. Odeme p dahildir ancak ve ancak
-        `giris + 1 dk <= p < cikis_ani + 1 dk`.
-      - Tamlik `_odemeler_tam_mi` ile; kume ya da donem basindan onceki kayit okunmaz.
-
-    NaN ile hata ayrimi (F1 kapanis denetimi bulgu 11):
-      - **NaN yalnizca VERI EKSIKLIGIDIR**: aralikta beklenen bir odeme eksik,
-        oran ya da aralik NaN, aralik <= 0, odemesiz aralikta onceki kayit yok.
-      - **TypeError**: `plan` bir `PozisyonPlani` degil.
-      - **ValueError**: plan elle kurulmus ya da degistirilmis (programlama hatasi).
-      - **ZamanDizisiHatasi** (ValueError alt sinifi): bozuk veri (sirasiz,
-        tekrarli, saat dilimsiz ya da 1 dakikadan yakin kayit).
-    Kume, donem, giris ve ileri kayma kurallari `pencere.OlayOlusmaz` alt
-    siniflariyla PLAN asamasinda yuzeye cikar.
-
-    Saf fonksiyon.
+    NaN yalnizca VERI EKSIKLIGIDIR (tamlik saglanmadi ya da oran NaN). Plan olmayan
+    girdi TypeError, degistirilmis plan ValueError, bozuk zaman dizisi
+    `ZamanDizisiHatasi`. Saf fonksiyon.
     """
     from data import pencere as pencere_modulu
 
     pencere_modulu.plan_dogrula(plan)
-    ust = plan.cikis_ani
-    nan = float("nan")
-
-    zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], "pozisyon_fundingi")
-    if len(zamanlar) > 1:
-        yakin = np.asarray(ayni_an(zamanlar[1:], zamanlar[:-1]), dtype=bool)
-        if yakin.any():
-            ilk = int(yakin.argmax())
-            raise pencere_modulu.ZamanDizisiHatasi(
-                f"pozisyon_fundingi: {zamanlar[ilk]} ve {zamanlar[ilk + 1]} birbirine "
-                f"{ODEME_TOLERANSI}'dan yakin; ayni odeme iki kez yazilmis olabilir (bozuk veri)."
-            )
-
-    maske = sonra(zamanlar, plan.giris) & ayni_ya_da_once(zamanlar, ust)
-    taban = max((s for s in (plan.kume_baslangic, plan.donem_baslangic) if s is not None), default=None)
-    if not maske.any():
-        # Aralikta odeme yok: onceki son kaydin (kume/donem basi sonrasi) sonraki
-        # odemesi araliktan sonra olmali (`_odemeler_tam_mi`).
-        tam = _odemeler_tam_mi(funding, zamanlar, maske, taban, bas=plan.giris, bas_dahil=False,
-                               son=ust, son_dahil=True)
-        return 0.0 if tam else nan
-
-    secili = funding.loc[maske]
-    oran = pd.to_numeric(secili["oran"], errors="coerce")
-    aralik = pd.to_numeric(secili["aralik_saat"], errors="coerce")
-    if oran.isna().any() or aralik.isna().any() or (aralik <= 0).any():
-        return nan
-
-    if not _odemeler_tam_mi(funding, zamanlar, maske, taban, bas=plan.giris, bas_dahil=False,
-                            son=ust, son_dahil=True):
-        return nan  # eksik odeme
+    zamanlar = _zaman_dizisi(funding, "pozisyon_fundingi")
+    if not pozisyon_funding_tam_mi(funding, plan):
+        return float("nan")
+    maske = (np.asarray(sonra(zamanlar, plan.giris), dtype=bool)
+             & np.asarray(ayni_ya_da_once(zamanlar, funding_penceresi_sonu(plan)), dtype=bool))
+    oran = pd.to_numeric(funding.loc[maske, "oran"], errors="coerce")
+    if oran.isna().any():
+        return float("nan")
     return float(oran.sum())
 
 

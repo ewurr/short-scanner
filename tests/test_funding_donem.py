@@ -72,7 +72,10 @@ def test_girdi_degismez():
 def test_yalnizca_uzlasma_sonrasi_kaydi_olan_donem_funding_siz():
     f = _fund("2021-01-11 08:00", "2021-01-12 00:00")
     assert not funding.donemde_funding_var(f, D0, BAR)
-    assert funding.donemde_funding_var(_fund("2021-01-11 00:00"), D0, BAR)  # son barin kapanisi
+    # rev.8 §2: sayim penceresi [donem basi, B]; son barin kapanisindaki (K) kayit sayilmaz
+    # (rev.7'de sayiliyordu), B'deki kayit sayilir.
+    assert not funding.donemde_funding_var(_fund("2021-01-11 00:00"), D0, BAR)  # son barin kapanisi (K)
+    assert funding.donemde_funding_var(_fund("2021-01-10 20:00"), D0, BAR)  # donem bitisi (B)
     assert not funding.donemde_funding_var(_fund("2020-12-31 16:00"), D0, BAR)  # donem oncesi
     assert not funding.donemde_funding_var(_fund(), D0, BAR)
 

@@ -154,7 +154,9 @@ def test_giris_tarafi_tam_60_saniyede_dahil_59_999_de_haric():
 
     assert _fon(_cerceve(giris + BIR_DK), giris, giris) == pytest.approx(9e-4)  # tam 60s -> DAHIL
     haric = giris + (BIR_DK - pd.Timedelta(nanoseconds=1))
-    assert _fon(_cerceve(haric), giris, giris) == pytest.approx(0.0)  # 60s alti -> HARIC
+    # 60s alti -> HARIC. Pencerede baska kayit kalmaz; rev.8 §4: penceresinde kayit olmayan
+    # pozisyonun funding'i tam degildir (rev.7'de onceki kayitla 0.0 donuyordu).
+    assert pd.isna(_fon(_cerceve(haric), giris, giris))
 
 
 def test_cikis_tarafi_59_999_saniyede_dahil_tam_60_da_haric():
@@ -177,7 +179,8 @@ def test_cikis_tarafi_59_999_saniyede_dahil_tam_60_da_haric():
 
     dahil = cikis_ani + (BIR_DK - pd.Timedelta(nanoseconds=1))
     assert _fon(_cerceve(dahil), giris, giris) == pytest.approx(9e-4)
-    assert _fon(_cerceve(cikis_ani + BIR_DK), giris, giris) == pytest.approx(0.0)
+    # Tam 60 s -> HARIC; pencerede kayit kalmaz (rev.8 §4: tam degil, NaN; rev.7'de 0.0).
+    assert pd.isna(_fon(_cerceve(cikis_ani + BIR_DK), giris, giris))
 
 
 # --- 3) Bos, sirasiz, saat dilimsiz funding cercevesi --------------------------

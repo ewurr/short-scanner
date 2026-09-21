@@ -184,11 +184,12 @@ def test_donem_sonu_turleri_tek_kaynak():
 
 
 def test_funding_sinifi_yalniz_kapanis_kaydi_varsa_d_penceresinde_fundingsiz():
-    """BNXUSDT donem 0 deseni: donemin tek kaydi son barin kapanisinda. Veri
-    katmani donemi funding'li sayar; D penceresi (ust uc bitis + 1 dk) saymaz."""
+    """BNXUSDT donem 0 deseni: donemin tek kaydi son barin kapanisinda. Rev.8 §2
+    "Funding'i bulunmayan donemler": veri katmani da artik D penceresini (ust uc B)
+    kullanir; donem funding'sizdir (rev.7'de veri katmani funding'li sayiyordu)."""
     z = [T("2025-04-14 12:00")]
     s = a1.d_kurali_olc("X", [DONEM], ["uzun_bosluk"], _fund(z), config.BAR_4H)[0]
-    assert s["funding_var_mevcut"] and not s["funding_var_d"]
+    assert not s["funding_var_mevcut"] and not s["funding_var_d"]
 
 
 @pytest.mark.parametrize("kayma,beklenen", [
@@ -196,7 +197,8 @@ def test_funding_sinifi_yalniz_kapanis_kaydi_varsa_d_penceresinde_fundingsiz():
 ])
 def test_funding_sinifi_d_penceresinin_ust_ucu(kayma, beklenen):
     s = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund([DONEM.bitis + kayma]), config.BAR_4H)[0]
-    assert s["funding_var_mevcut"] and s["funding_var_d"] is beklenen
+    # rev.8: veri katmaninin penceresi de B'de biter (rev.7'de mevcut hep True'ydu).
+    assert s["funding_var_mevcut"] is beklenen and s["funding_var_d"] is beklenen
 
 
 def test_funding_sinifi_izgaradan_bagimsiz():

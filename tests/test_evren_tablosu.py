@@ -79,7 +79,10 @@ def test_funding_siz_donem_isaretlenir():
 
 def test_uzlasma_sonrasi_funding_donemi_funding_li_yapmaz():
     """Donem sonundan sonraki kayitlar sayilmaz: yalnizca uzlasma sonrasi kaydi olan
-    donem funding'siz isaretlenir. Son barin kapanisindaki odeme donem icindedir."""
+    donem funding'siz isaretlenir. Rev.8 §2 "Funding'i bulunmayan donemler": sayim
+    penceresi donem basindan B'ye (dahil) kadardir; yalnizca son barin kapanisinda
+    (K) kaydi olan donem artik funding'sizdir (rev.7'de funding'li sayiliyordu);
+    B'deki kayit donemi funding'li yapar."""
     z = pd.date_range("2021-01-01", periods=60, freq="4h", tz="UTC")
     h = np.full(len(z), 1e6)
     h[30:] = 0  # 30 bar dolgu: donem z[29]'da biter
@@ -87,7 +90,9 @@ def test_uzlasma_sonrasi_funding_donemi_funding_li_yapmaz():
     sonrasi = pd.DataFrame({"odeme_zamani": pd.date_range(kapanis + pd.Timedelta(hours=8), periods=5, freq="8h")})
     assert universe.sembol_satirlari(_ortak("XXUSDT"), z, h, sonrasi)[0]["donem_funding_yok"]
     tam_kapanista = pd.DataFrame({"odeme_zamani": pd.DatetimeIndex([kapanis])})
-    assert not universe.sembol_satirlari(_ortak("XXUSDT"), z, h, tam_kapanista)[0]["donem_funding_yok"]
+    assert universe.sembol_satirlari(_ortak("XXUSDT"), z, h, tam_kapanista)[0]["donem_funding_yok"]
+    bitiste = pd.DataFrame({"odeme_zamani": pd.DatetimeIndex([z[29]])})
+    assert not universe.sembol_satirlari(_ortak("XXUSDT"), z, h, bitiste)[0]["donem_funding_yok"]
 
 
 # --- Yazma ve okuma ----------------------------------------------------------

@@ -60,6 +60,19 @@ def _gecisi_kapsayan_ortalama_zamanlari(gecis: pd.Timestamp):
             yield kapanis - DORT_SAAT
 
 
+def _baslangic_kurali_bozar(fr: pd.DataFrame, giris: pd.Timestamp) -> bool:
+    """On-kayit §4 rev.8 "Funding araligi gecisleri": "giris ani ile penceredeki ilk
+    odeme arasindaki bosluk, ilk kaydin araligini ve tolerans payini asarsa odeme
+    eksik sayilir." Gecis kaydi yeni (kisa) araligi tasidiginda ve giris ondan once
+    bir eski-ritim araligi uzaginda kaldiginda kural tetiklenir; rev.7 onceki kaydi
+    okudugu icin bu pozisyonlar tamdi. Test kehaneti (kodun kopyasi degil)."""
+    z = pd.DatetimeIndex(fr["odeme_zamani"])
+    sonraki = z[z >= giris + funding.ODEME_TOLERANSI]
+    ilk = sonraki[0]
+    aralik = float(fr.loc[fr["odeme_zamani"] == ilk, "aralik_saat"].iloc[0])
+    return ilk - giris - pd.Timedelta(hours=aralik) >= funding.ODEME_TOLERANSI
+
+
 def _gecisi_kapsayan_girisler(gecis: pd.Timestamp):
     for k in range(-30, 13):
         giris = gecis.floor("4h") + k * DORT_SAAT
@@ -95,8 +108,15 @@ def test_eksiksiz_gecis_nan_uretmez(ad):
     gecis = _ts(GECIS[ad])
     for t in _gecisi_kapsayan_ortalama_zamanlari(gecis):
         assert not pd.isna(_ortalama(fr, t)), (ad, t)
+    # Rev.8 baslangic kurali tetiklenen girislerde NaN, digerlerinde deger (rev.7'de hepsi deger).
+    tam = 0
     for giris in _gecisi_kapsayan_girisler(gecis):
-        assert not pd.isna(_poz(fr, giris)), (ad, giris)
+        if _baslangic_kurali_bozar(fr, giris):
+            assert pd.isna(_poz(fr, giris)), (ad, giris)
+        else:
+            assert not pd.isna(_poz(fr, giris)), (ad, giris)
+            tam += 1
+    assert tam > 0
 
 
 @pytest.mark.parametrize("ad", list(DESENLER))
@@ -187,8 +207,15 @@ def test_gercek_gecis_nan_uretmez(sembol, aylar, gecis, eski, yeni):
     gecis_ani = z[i]
     for t in _gecisi_kapsayan_ortalama_zamanlari(gecis_ani):
         assert not pd.isna(_ortalama(fr, t)), t
+    # Rev.8 baslangic kurali tetiklenen girislerde NaN, digerlerinde deger (rev.7'de hepsi deger).
+    tam = 0
     for giris in _gecisi_kapsayan_girisler(gecis_ani):
-        assert not pd.isna(_poz(fr, giris)), giris
+        if _baslangic_kurali_bozar(fr, giris):
+            assert pd.isna(_poz(fr, giris)), giris
+        else:
+            assert not pd.isna(_poz(fr, giris)), giris
+            tam += 1
+    assert tam > 0
 
 
 @pytest.mark.parametrize("sembol,aylar,gecis,eski,yeni", GERCEK, ids=[g[0] for g in GERCEK])

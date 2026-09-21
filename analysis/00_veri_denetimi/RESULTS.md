@@ -986,3 +986,33 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     `CikisSonucu` rev.8 alanları.
   - `test_gunluk_sinirlar.py::test_son_gun_gercek_cikis_bariyla_ayni`: 1d dönem sonu çıkışı
     artık B'deki 4h barın kapanışı (K); `son_gun` eşitliği yerine bu.
+- 2026-09-22 (Rev.8 uygulaması, madde 6: rev.8 §4 "Funding ödemesinin sınırları",
+  "Dönem sonu istisnası", "Funding aralığı geçişleri"; §2 "Funding'i bulunmayan
+  dönemler", "Gerçek işlem sonrası funding kayıtları"). `funding.funding_tamlik_ayrintisi`
+  pozisyon tamlığının tek (vektörel) uygulaması: kayıt var, aralık geçerli, başlangıç
+  boşluğu (ilk kaydın aralığı + tolerans), ardışık boşluk, son ödeme (dönem sonunda B'ye
+  göre). `pozisyon_fundingi` giriş anındaki ödemeyi hariç, çıkış anındakini dahil tutar;
+  dönem sonunda pencere B'de (dahil) kapanır. `donemde_funding_var` [dönem başı, B];
+  `donem_sonrasi_kayitlari_at` K'dan sonrasını atar. `funding_ortalamasi` (H2 sinyal
+  penceresi) değişmedi: rev.8'in başlangıç boşluğu cümlesi "giriş anı"ndan söz eder; sinyal
+  penceresine uygulanıp uygulanmayacağı rapora belirsizlik olarak yazıldı.
+  **Bilerek güncellenen mevcut testler:**
+  - `test_evren_tablosu.py::test_uzlasma_sonrasi_funding_donemi_funding_li_yapmaz` ve
+    `test_funding_donem.py::test_yalnizca_uzlasma_sonrasi_kaydi_olan_donem_funding_siz`:
+    yalnızca K'da kaydı olan dönem artık funding'siz (sayım penceresi B'de biter); B'deki
+    kayıt için durum eklendi.
+  - `test_pozisyon_fundingi.py`: kaydı olmayan kısa pozisyon 0.0 → NaN ("Penceresinde hiç
+    funding kaydı bulunmayan pozisyonun funding'i tam değildir"); dönem sonu toplamı 6 → 5
+    ödeme (K'daki ödeme istisnayla hariç); küme öncesi kayıt testinde funding artık tam
+    (başlangıç kuralı önceki kaydı okumaz; küme öncesi kaydın okunmadığı bozma ile
+    doğrulanır); küme sonrası bozma testinde NaN = NaN eşitliği.
+  - `test_rev6_saldirilari.py` (giriş ve çıkış kenarı testleri): kenardaki ödeme hariç
+    kalınca pencerede kayıt kalmıyor; 0.0 → NaN.
+  - `test_funding_aralik_gecisi.py` (`test_eksiksiz_gecis_nan_uretmez`,
+    `test_gercek_gecis_nan_uretmez`): rev.8 başlangıç kuralının tetiklendiği girişlerde
+    (penceredeki ilk ödeme geçiş kaydı ve kısa aralığı taşıyor) NaN, diğer bütün girişlerde
+    değer beklenir. Rev.7'de hepsi değer veriyordu; kural önceki kaydı okumadığı için bu
+    pozisyonlar düşer (etki sayımı madde 9'da).
+  - `test_gunluk_sinirlar.py` (2 test) ve `test_tur_saldirilari_e.py` (1 test): A1'in
+    `funding_var_mevcut` sütunu gerçek kodu çağırır; gerçek kod artık B penceresini
+    kullandığı için K'daki kayıt için False.

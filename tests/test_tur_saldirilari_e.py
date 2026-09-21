@@ -248,11 +248,13 @@ def test_funding_var_mevcut_pencere_var_d_penceresinden_genistir():
     yakin (ama acilisindan uzak) bir kayit mevcut kuralda donemi funding'li
     sayarken D kuralinda funding'siz saymali; ikisi ayni sonucu verirse D-A2
     ayrimi koda gecmemis demektir."""
+    # Rev.8 §2 "Funding'i bulunmayan donemler": veri katmani (mevcut) da artik [bas, B]
+    # penceresini kullanir; iki sutun ayni sonucu verir (RESULTS degisiklik kaydi).
     z = DONEM_E.bitis + pd.Timedelta(hours=2)  # [bitis+TOL, bitis+ADIM+TOL) icinde
     assert DONEM_E.bitis + TOL <= z < DONEM_E.bitis + ADIM + TOL
     fund = _tek_kayit(z)
     satir = a1.d_kurali_olc("XUSDT", [DONEM_E], ["delist_SETTLING"], fund, config.BAR_4H)[0]
-    assert satir["funding_var_mevcut"] is True
+    assert satir["funding_var_mevcut"] is False  # rev.7'de True
     assert satir["funding_var_d"] is False
 
 

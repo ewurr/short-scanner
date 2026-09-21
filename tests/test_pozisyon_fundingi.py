@@ -185,9 +185,11 @@ def test_nan_oran_nan_doner():
 
 
 def test_odemesiz_kisa_pozisyon_sifir():
-    """8 saatlik aralikta 00:00 -> 04:00 tutulan pozisyona odeme dusmez."""
+    """8 saatlik aralikta 00:00 -> 04:00 tutulan pozisyona odeme dusmez. Rev.8 §4
+    "Funding araligi gecisleri": "Penceresinde hic funding kaydi bulunmayan pozisyonun
+    funding'i tam degildir" (beklenti 0.0 -> NaN)."""
     fund = _funding("2021-01-01", "2021-01-10")
-    assert _fon(fund, "2021-01-05 00:00", "2021-01-05 00:00") == 0.0
+    assert pd.isna(_fon(fund, "2021-01-05 00:00", "2021-01-05 00:00"))
 
 
 def test_odemesiz_aralikta_beklenen_odeme_eksikse_nan():
@@ -252,7 +254,10 @@ def test_kume_sonrasi_odemeleri_bozmak_kume_ici_sonucu_degistirmez():
                     sonuclar.append(_fon(veri, giris, bar_zamani, alan, **kume))
                 except pencere.KumeSiniriHatasi:
                     sonuclar.append("olusmaz")
-            assert sonuclar[0] == sonuclar[1], (bar_zamani, alan)
+            # NaN (rev.8: penceresinde kayit olmayan pozisyon) iki veride de NaN olmali.
+            ayni = (sonuclar[0] == sonuclar[1]) or all(
+                not isinstance(x, str) and pd.isna(x) for x in sonuclar)
+            assert ayni, (bar_zamani, alan)
             if sonuclar[0] != "olusmaz":
                 plan = _plan(giris, bar_zamani, alan, **kume)
                 assert plan.cikis_ani + funding.ODEME_TOLERANSI <= KESIF_SON + pd.Timedelta(1, "ns")
@@ -274,8 +279,11 @@ def test_c2_basinda_kume_oncesi_kayit_okunmadan_tamlik():
 
 
 def test_kume_oncesi_kayit_tamlik_icin_okunmaz():
-    """Araliktaki ilk odeme kume basinda degil ve onceki kayit kume oncesinde:
-    tamlik gosterilemez (NaN). Kume siniri olmadan ayni kayit okunur ve deger doner."""
+    """Araliktaki ilk odeme kume basinda degil ve onceki kayit kume oncesinde.
+    Rev.8 §4 "Funding araligi gecisleri": baslangic tamligi onceki kaydi okumaz;
+    giris ani ile ilk odeme (12:00) arasindaki bosluk (8 saat) ilk kaydin araligini
+    asmaz, funding tamdir (rev.7'de onceki kayit kume oncesinde oldugu icin NaN
+    bekleniyordu). Kume oncesi kayit hala okunmaz: bozulmasi sonucu degistirmez."""
     fund = pd.DataFrame({
         "odeme_zamani": pd.date_range(C2_BAS - pd.Timedelta(hours=4), C2_BAS + pd.Timedelta(days=3), freq="8h"),
         "aralik_saat": 8.0, "oran": 1e-4,
@@ -285,7 +293,10 @@ def test_kume_oncesi_kayit_tamlik_icin_okunmaz():
     ek = fund.iloc[[0]]  # kume oncesi 08-31 20:00
     veri = pd.concat([ek, ilk.iloc[1:]], ignore_index=True)  # 09-01 04:00 eksik -> onceki kayit kume oncesi
     giris, cikis = C2_BAS + DORT_SAAT, C2_BAS + 3 * DORT_SAAT
-    assert pd.isna(_fon(veri, giris, cikis, kume_baslangic=C2_BAS))
+    assert _fon(veri, giris, cikis, kume_baslangic=C2_BAS) == pytest.approx(1e-4)
+    bozuk = veri.copy()
+    bozuk.loc[0, ["aralik_saat", "oran"]] = [1000.0, 9.0]  # kume oncesi kayit
+    assert _fon(bozuk, giris, cikis, kume_baslangic=C2_BAS) == pytest.approx(1e-4)
 
 
 # --- Donem -------------------------------------------------------------------
@@ -310,7 +321,9 @@ def test_donem_sonunu_asan_ufuk_planda_kirpilir():
     assert plan.cikis.kirpildi and plan.cikis.kirpma_nedeni == "donem_sonu"
     assert plan.cikis.zaman == _ts("2021-05-31 20:00")
     fund = _funding("2021-05-01", "2021-06-30")
-    assert funding.pozisyon_fundingi(fund, plan) == pytest.approx(6e-4)
+    # Rev.8 §4 "Donem sonu istisnasi": pencere B'de (dahil) kapanir; K'daki (06-01 00:00)
+    # odeme hesaba girmez (rev.7'de 6 odeme, rev.8'de 5).
+    assert funding.pozisyon_fundingi(fund, plan) == pytest.approx(5e-4)
 
 
 def test_sinyal_donem_basindan_onceyse_hata():
