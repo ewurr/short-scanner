@@ -32,6 +32,20 @@ Ciktilar:
 4. `rev9_tk_tam.csv`: T = K olan pozisyonlar (her donem, her izgara ve ufuk icin tek
    sinyal): donem sonu cikisi sayilsaydi funding penceresi (giris, K] -> (giris, B].
 
+Ikinci tur (son hal, `son_hal_tamlik_ayrintisi`): ayni ciktilara `son_hal_*` sutunlari
+eklenir. Tanim:
+  - Beklenen odeme anlari, giristen onceki (giris ani dahil) son donem ici kayittan
+    baslayarak kayit dizisi boyunca uretilir; aralik gecislerinde adim iki kaydin
+    araliklarindan buyugudur.
+  - Giris anindan sonra ve pencere sonuna kadar (pencere sonu dahil) dusen her beklenen
+    anda bir kayit bulunmali; yoksa eksik. Tolerans kurali gecerlidir.
+  - Giristen once (giris ani dahil) donem icinde kayit yoksa eksik.
+  - Donem sonu cikislarinda pencere sonu B'dir; T >= K olan her pozisyon donem sonu
+    cikisi sayilir (`son_hal_pencere_sonu`).
+2026-06-24 04:00 boslugunun etkisi karsi-olgusal seriyle sayilir: kaydi eksik olan
+sembolde o ana, 00:00 kaydinin araligiyla tek bir yapay kayit (yalnizca zaman ve aralik)
+eklenir ve tamlik yeniden olculur (`bosluk_seri`). Yapay kayit hicbir baska yere girmez.
+
 Kullanim:
     python analysis/00_veri_denetimi/rev9_hazirlik.py --is-parcaci 8
 """
@@ -184,6 +198,167 @@ FARK_TURLERI = ("kayitsiz_kisa_pencere", "diger_son_esitlik", "diger_baslangic_a
                 "diger_giris_oncesi_bosluk", "diger")
 
 
+
+SON_HAL_KOSULLARI = ("onceki_var", "aralik_gecerli", "beklenen_tam")
+
+
+def _eslesen_kayit_var(zamanlar: pd.DatetimeIndex, anlar) -> np.ndarray:
+    """Her an icin onunla ayni an (`pencere.ayni_an`) bir kayit var mi. Saf, vektorel."""
+    anlar = pd.DatetimeIndex(anlar)
+    if len(zamanlar) == 0 or len(anlar) == 0:
+        return np.zeros(len(anlar), dtype=bool)
+    i = zamanlar.searchsorted(P.ayni_an_basi(anlar), side="right")
+    ic = i < len(zamanlar)
+    sonuc = np.zeros(len(anlar), dtype=bool)
+    sonuc[ic] = np.asarray(zamanlar[i[ic]] < P.ayni_an_sonu(anlar[ic]), dtype=bool)
+    return sonuc
+
+
+def son_hal_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, donem_baslari) -> pd.DataFrame:
+    """Tamlik kuralinin son hali (Rev.9 hazirligi, ikinci tur), kosul kosul. Vektorel, saf;
+    yalnizca odeme ZAMANI ve ARALIGI okunur. Pencere sonunu cagiran verir (donem sonu
+    cikislarinda ve T >= K pozisyonlarda B).
+
+    - Beklenen odeme anlari, capadan (giris ani dahil, giristen onceki son donem ici kayit)
+      baslayarak kayit dizisi boyunca uretilir: dizideki her kayit i icin beklenen an
+      `z_i + adim_i`; `adim_i`, dizide sonraki kayit varsa iki kaydin araliklarindan buyugu,
+      yoksa (dizinin son kaydi) kendi araligi. Dizi: capa ve pencere sonuyla ayni an ya da
+      once olan butun kayitlar. Dizinin son kaydinda sonraki kaydin araligi okunmaz
+      (pencere sonundan sonrasi okunmaz).
+    - `beklenen_tam`: giris anindan SONRA ve pencere sonuyla ayni an ya da ONCE olan her
+      beklenen anda, onunla ayni an bir kayit var.
+    - `onceki_var`: capa var ve donem basi ile ayni an ya da sonra.
+    - `aralik_gecerli`: dizideki araliklar sonlu ve > 0.
+    - `kopuk_giris_oncesi` (bilgi, `tam`a girmez): capanin beklenen ani giris ile ayni an
+      ya da once ve orada kayit yok. Bu durumda metin pencere icin beklenen an uretmez;
+      kosul yalnizca sayilir.
+    """
+    girisler = pd.DatetimeIndex(girisler)
+    sonlar = pd.DatetimeIndex(pencere_sonlari)
+    baslar = pd.DatetimeIndex(donem_baslari)
+    if not (len(girisler) == len(sonlar) == len(baslar)):
+        raise ValueError("girisler, pencere_sonlari ve donem_baslari ayni uzunlukta olmali.")
+    n = len(girisler)
+    sonuc = pd.DataFrame({k: np.zeros(n, dtype=bool) for k in (*SON_HAL_KOSULLARI, "kopuk_giris_oncesi", "tam")})
+    if n == 0 or funding.empty:
+        return sonuc
+    zamanlar = funding_modulu._zaman_dizisi(funding, "son_hal_tamlik_ayrintisi")
+    m = len(zamanlar)
+    aralik = pd.to_numeric(funding["aralik_saat"], errors="coerce").to_numpy(dtype=float)
+    iyi = np.isfinite(aralik) & (aralik > 0)
+    a_saat = np.where(iyi, aralik, 0.0)
+    # Kayit basina iki beklenen an: sonraki kayit dizideyse (ic) ve dizinin sonuysa (son).
+    ic_adim = np.r_[np.maximum(a_saat[:-1], a_saat[1:]), a_saat[-1:]]
+    beklenen_ic = zamanlar + pd.to_timedelta(ic_adim, unit="h")
+    beklenen_son = zamanlar + pd.to_timedelta(a_saat, unit="h")
+    esles_ic = _eslesen_kayit_var(zamanlar, beklenen_ic)
+    esles_son = _eslesen_kayit_var(zamanlar, beklenen_son)
+
+    j = zamanlar.searchsorted(P.ayni_an_sonu(girisler), side="left") - 1
+    son_i = zamanlar.searchsorted(P.ayni_an_sonu(sonlar), side="left") - 1
+    jj = np.maximum(j, 0)
+    ll = np.maximum(son_i, jj)
+    onceki_var = (j >= 0) & np.asarray(P.ayni_ya_da_sonra(zamanlar[jj], baslar), dtype=bool)
+    p_aralik = np.r_[0, np.cumsum(~iyi)]
+    aralik_gecerli = onceki_var & ((p_aralik[ll + 1] - p_aralik[jj]) == 0)
+
+    def _ihlal(an, esles):
+        gerekli = (np.asarray(P.sonra(an, girisler), dtype=bool)
+                   & np.asarray(P.ayni_ya_da_once(an, sonlar), dtype=bool))
+        return gerekli & ~esles, gerekli
+
+    # Capa: dizide sonraki kayit varsa ic adim, yoksa son adim.
+    capa_ic = ll > jj
+    capa_an = pd.DatetimeIndex(np.where(capa_ic, beklenen_ic[jj].asi8, beklenen_son[jj].asi8)).tz_localize("UTC")
+    capa_esles = np.where(capa_ic, esles_ic[jj], esles_son[jj])
+    capa_ihlal, capa_gerekli = _ihlal(capa_an, capa_esles)
+    kopuk = onceki_var & ~np.asarray(P.sonra(capa_an, girisler), dtype=bool) & ~capa_esles
+    # Son kayit (capadan farkliysa): son adim.
+    son_an = beklenen_son[ll]
+    son_ihlal, _ = _ihlal(son_an, esles_son[ll])
+    son_ihlal &= capa_ic
+    # Ara kayitlar (jj, ll): giristen sonra; ic adim. Adaylar onek toplamiyla, kesin kontrol dongude.
+    p_esles = np.r_[0, np.cumsum(~esles_ic)]
+    aday = capa_ic & ((p_esles[ll] - p_esles[np.minimum(jj + 1, ll)]) > 0)
+    ara_ihlal = np.zeros(n, dtype=bool)
+    for k in np.flatnonzero(aday):
+        i = np.arange(jj[k] + 1, ll[k])
+        i = i[~esles_ic[i]]
+        if len(i):
+            ara_ihlal[k] = bool(np.any(np.asarray(P.ayni_ya_da_once(beklenen_ic[i], sonlar[k]), dtype=bool)))
+    beklenen_tam = onceki_var & ~(capa_ihlal | son_ihlal | ara_ihlal)
+
+    sonuc["onceki_var"] = onceki_var
+    sonuc["aralik_gecerli"] = aralik_gecerli
+    sonuc["beklenen_tam"] = beklenen_tam & aralik_gecerli
+    sonuc["kopuk_giris_oncesi"] = kopuk
+    sonuc["tam"] = onceki_var & aralik_gecerli & beklenen_tam
+    return sonuc
+
+
+def son_hal_pencere_sonu(cikis_ani, cikis_turu: str, donem_bitis, donem_kapanis) -> pd.Timestamp:
+    """Son halde funding penceresinin sonu: donem sonu cikisinda ve T >= K olan pozisyonda
+    (bugun olagan cikis sayilan T = K dahil) B, aksi halde gercek cikis ani. Saf."""
+    if cikis_turu == "donem_sonu" or (cikis_turu == "olagan" and P.ayni_an(cikis_ani, donem_kapanis)):
+        return pd.Timestamp(donem_bitis)
+    return pd.Timestamp(cikis_ani)
+
+
+def son_hal_fark_turu(rev8: pd.Series, son_hal: pd.Series, t_esit_k: bool, oneri_tam: bool = False) -> str | None:
+    """Son hal ile rev.8'in hukmu farkliysa farkin turu; ayniysa None. Saf.
+
+    Son hale gore tam, rev.8'e gore degil: `t_esit_k` (pencere sonu K -> B),
+    `kayitsiz_kisa_pencere`, `baslangic_araligi` (rev.8 baslangic kosulu), `diger`.
+    Rev.8'e gore tam, son hale gore degil: `t_esit_k`, `gec_baslayan_funding` (capa yok),
+    `beklenen_an_eksik` (pencerede beklenen bir anda kayit yok),
+    `beklenen_an_eksik_gecis` (ayni, ama onceki oneri tam: ardisik kayitlar arasindaki
+    bosluk iki araligin buyugunu asmiyor; beklenen an iki kaydin arasina dusuyor, ornegin
+    1 saatten 4 saate geciste), `diger`.
+    """
+    if bool(rev8["tam"]) == bool(son_hal["tam"]):
+        return None
+    if t_esit_k:
+        return "t_esit_k"
+    if son_hal["tam"]:
+        if not rev8["kayit_var"]:
+            return "kayitsiz_kisa_pencere"
+        if not rev8["baslangic_tam"]:
+            return "baslangic_araligi"
+        return "diger"
+    if not son_hal["onceki_var"]:
+        return "gec_baslayan_funding"
+    if not son_hal["beklenen_tam"]:
+        return "beklenen_an_eksik_gecis" if oneri_tam else "beklenen_an_eksik"
+    return "diger"
+
+
+SON_HAL_FARK_TURLERI = ("t_esit_k", "kayitsiz_kisa_pencere", "baslangic_araligi", "gec_baslayan_funding",
+                        "beklenen_an_eksik", "beklenen_an_eksik_gecis", "diger")
+BOSLUK_ANI = pd.Timestamp("2026-06-24 04:00", tz="UTC")
+
+
+def bosluk_seri(seri: pd.DataFrame, donemler) -> tuple[pd.DataFrame, bool]:
+    """2026-06-24 04:00 kaydi eksikse (00:00 kaydi var, araligi <= 4 saat, 04:00 donem ici)
+    o ana 00:00 kaydinin araligiyla tek yapay kayit eklenmis seri ve eklenip eklenmedigi.
+    Yalnizca karsi-olgusal sayim icindir. Saf."""
+    if seri.empty:
+        return seri, False
+    z = pd.DatetimeIndex(seri["odeme_zamani"])
+    if np.any(np.asarray(P.ayni_an(z, BOSLUK_ANI), dtype=bool)):
+        return seri, False
+    onceki = np.flatnonzero(np.asarray(P.ayni_an(z, BOSLUK_ANI - pd.Timedelta(hours=4)), dtype=bool))
+    if not len(onceki):
+        return seri, False
+    aralik = float(pd.to_numeric(seri["aralik_saat"], errors="coerce").iloc[onceki[-1]])
+    if not (np.isfinite(aralik) and 0 < aralik <= 4):
+        return seri, False
+    if not any(P.donem_ici_mi(BOSLUK_ANI, config.BAR_4H, donem_baslangic=d.baslangic, donem_bitis=d.bitis)
+               for d in donemler):
+        return seri, False
+    ek = pd.DataFrame({"odeme_zamani": pd.DatetimeIndex([BOSLUK_ANI]), "aralik_saat": [aralik]})
+    return (pd.concat([seri, ek], ignore_index=True).sort_values("odeme_zamani", ignore_index=True), True)
+
+
 def _iki_kural(seri: pd.DataFrame, girisler, sonlar, baslar) -> pd.DataFrame:
     """Ayni pozisyonlarda rev.8 (gercek kod) ve oneri (uc okuma) kosullari, tek cerceve."""
     rev8 = funding_modulu.funding_tamlik_ayrintisi(seri, girisler, sonlar)
@@ -232,6 +407,10 @@ def donem_sonu_satirlari(sembol: str, donemler, turler, seri: pd.DataFrame) -> l
             satir.update(giris=plan.giris, pencere_sonu=son, cikis_turu=plan.cikis_turu)
             k = _iki_kural(seri, [plan.giris], [son], [d.baslangic]).iloc[0].to_dict()
             satir.update(k)
+            sh = son_hal_tamlik_ayrintisi(
+                seri, [plan.giris], [son_hal_pencere_sonu(plan.cikis_ani, plan.cikis_turu, d.bitis, d.kapanis)],
+                [d.baslangic]).iloc[0]
+            satir.update({f"son_hal_{k_}": bool(sh[k_]) for k_ in (*SON_HAL_KOSULLARI, "kopuk_giris_oncesi", "tam")})
             # Capa ve pencere icindeki ilk kayit (yalnizca zaman ve aralik).
             capa = np.flatnonzero(np.asarray(P.ayni_ya_da_once(zam, plan.giris), dtype=bool)) if len(zam) else []
             ici = (np.flatnonzero(np.asarray(P.sonra(zam, plan.giris), dtype=bool)
@@ -247,13 +426,13 @@ def donem_sonu_satirlari(sembol: str, donemler, turler, seri: pd.DataFrame) -> l
 
 
 def baslangic_ve_farklar(sembol: str, grup: str, donemler, mumlar: pd.DataFrame, seri: pd.DataFrame,
-                         kumeler) -> tuple[list[dict], list[dict]]:
+                         kumeler, seri_cf: pd.DataFrame | None = None) -> tuple[list[dict], list[dict]]:
     """rev8_etki.baslangic_etkisi ile ayni pozisyon evreni; iki kural. Saf."""
     zamanlar = pd.DatetimeIndex(mumlar["open_time"])
     satirlar, farklar = [], []
     for bar in sorted(set(config.HIPOTEZ_IZGARASI.values())):
         ufuk = config.BIRINCIL_UFUK[bar]
-        girisler, sonlar, baslar, plan_kumeleri = [], [], [], []
+        girisler, sonlar, baslar, plan_kumeleri, sh_sonlar, tk = [], [], [], [], [], []
         for d in donemler:
             maske = np.asarray(P.donem_ici_4h_maskesi(zamanlar, donem_baslangic=d.baslangic,
                                                       donem_bitis=d.bitis), dtype=bool)
@@ -276,6 +455,8 @@ def baslangic_ve_farklar(sembol: str, grup: str, donemler, mumlar: pd.DataFrame,
                 sonlar.append(funding_modulu.funding_penceresi_sonu(plan))
                 baslar.append(d.baslangic)
                 plan_kumeleri.append(kume)
+                sh_sonlar.append(son_hal_pencere_sonu(plan.cikis_ani, plan.cikis_turu, d.bitis, d.kapanis))
+                tk.append(plan.cikis_turu == "olagan" and bool(P.ayni_an(plan.cikis_ani, d.kapanis)))
         if not girisler:
             continue
         rev8 = funding_modulu.funding_tamlik_ayrintisi(seri, girisler, sonlar)
@@ -283,14 +464,37 @@ def baslangic_ve_farklar(sembol: str, grup: str, donemler, mumlar: pd.DataFrame,
         kati = oneri_tamlik_ayrintisi(seri, girisler, sonlar, baslar, kati_onceki=True)
         r8son = oneri_tamlik_ayrintisi(seri, girisler, sonlar, baslar, son_kurali="rev8")
         kume_dizi = np.array(plan_kumeleri)
-        farkli = np.flatnonzero(rev8["tam"].to_numpy() != oneri["tam"].to_numpy())
-        turler = {}
+        sh = son_hal_tamlik_ayrintisi(seri, girisler, sh_sonlar, baslar)
+        tk_dizi = np.array(tk, dtype=bool)
+        if seri_cf is not None:
+            sh_cf = son_hal_tamlik_ayrintisi(seri_cf, girisler, sh_sonlar, baslar)["tam"].to_numpy()
+            r8_cf = funding_modulu.funding_tamlik_ayrintisi(seri_cf, girisler, sonlar)["tam"].to_numpy()
+            gi, sh_s, r8_s = pd.DatetimeIndex(girisler), pd.DatetimeIndex(sh_sonlar), pd.DatetimeIndex(sonlar)
+            iceren_sh = (np.asarray(P.sonra(BOSLUK_ANI, gi), dtype=bool)
+                         & np.asarray(P.ayni_ya_da_once(BOSLUK_ANI, sh_s), dtype=bool))
+            iceren_r8 = (np.asarray(P.sonra(BOSLUK_ANI, gi), dtype=bool)
+                         & np.asarray(P.ayni_ya_da_once(BOSLUK_ANI, r8_s), dtype=bool))
+            giris_0400 = np.asarray(P.ayni_an(gi, BOSLUK_ANI), dtype=bool)
+        else:
+            sh_cf, r8_cf = sh["tam"].to_numpy(), rev8["tam"].to_numpy()
+            iceren_sh = iceren_r8 = giris_0400 = np.zeros(len(girisler), dtype=bool)
+        sh_etki = sh_cf & ~sh["tam"].to_numpy()
+        r8_etki = r8_cf & ~rev8["tam"].to_numpy()
+        farkli = np.flatnonzero((rev8["tam"].to_numpy() != oneri["tam"].to_numpy())
+                                | (rev8["tam"].to_numpy() != sh["tam"].to_numpy()))
+        turler, sh_turler = {}, {}
         for i in farkli:
             tur = fark_turu(rev8.iloc[i], oneri.iloc[i])
             turler[i] = tur
+            sh_tur = son_hal_fark_turu(rev8.iloc[i], sh.iloc[i], bool(tk_dizi[i]), bool(oneri.at[i, "tam"]))
+            sh_turler[i] = sh_tur
             farklar.append({"sembol": sembol, "bar": bar, "kume": kume_dizi[i], "giris": girisler[i],
                             "pencere_sonu": sonlar[i], "rev8_tam": bool(rev8.at[i, "tam"]),
-                            "oneri_tam": bool(oneri.at[i, "tam"]), "fark_turu": tur})
+                            "oneri_tam": bool(oneri.at[i, "tam"]), "fark_turu": tur,
+                            "son_hal_pencere_sonu": sh_sonlar[i], "t_esit_k": bool(tk_dizi[i]),
+                            "son_hal_tam": bool(sh.at[i, "tam"]), "son_hal_fark_turu": sh_tur,
+                            "son_hal_kopuk_giris_oncesi": bool(sh.at[i, "kopuk_giris_oncesi"]),
+                            "bosluk_etkisi_son_hal": bool(sh_etki[i])})
         for kume in sorted(set(plan_kumeleri)):
             m = kume_dizi == kume
             r, o = rev8.loc[m], oneri.loc[m]
@@ -307,6 +511,25 @@ def baslangic_ve_farklar(sembol: str, grup: str, donemler, mumlar: pd.DataFrame,
                      "rev8_tam_oneri_degil": int((r["tam"] & ~o["tam"]).sum())}
             for tur in FARK_TURLERI:
                 satir[f"fark_{tur}"] = sum(1 for i, t_ in turler.items() if t_ == tur and kume_dizi[i] == kume)
+            h = sh.loc[m]
+            satir.update({
+                "son_hal_tam": int(h["tam"].sum()), "son_hal_onceki_yok": int((~h["onceki_var"]).sum()),
+                "son_hal_beklenen_eksik": int((h["onceki_var"] & ~h["beklenen_tam"]).sum()),
+                "son_hal_kopuk_giris_oncesi": int(h["kopuk_giris_oncesi"].sum()),
+                "son_hal_kopuk_ve_tam": int((h["kopuk_giris_oncesi"] & h["tam"]).sum()),
+                "t_esit_k": int(tk_dizi[m].sum()),
+                "son_hal_tam_rev8_degil": int((h["tam"] & ~r["tam"]).sum()),
+                "rev8_tam_son_hal_degil": int((r["tam"] & ~h["tam"]).sum()),
+                "bosluk_etkisi_son_hal": int(sh_etki[m].sum()), "bosluk_etkisi_rev8": int(r8_etki[m].sum()),
+                "bosluk_penceresi_iceren_son_hal": int(iceren_sh[m].sum()),
+                "bosluk_etkisi_son_hal_pencere_disi": int((sh_etki & ~iceren_sh)[m].sum()),
+                "bosluk_penceresi_iceren_rev8": int(iceren_r8[m].sum()),
+                "bosluk_giris_0400": int(giris_0400[m].sum()),
+                "bosluk_giris_0400_son_hal_tam": int((giris_0400 & sh["tam"].to_numpy())[m].sum()),
+                "bosluk_giris_0400_rev8_tam": int((giris_0400 & rev8["tam"].to_numpy())[m].sum()),
+            })
+            for tur in SON_HAL_FARK_TURLERI:
+                satir[f"son_hal_fark_{tur}"] = sum(1 for i, t_ in sh_turler.items() if t_ == tur and kume_dizi[i] == kume)
             satirlar.append(satir)
     return satirlar, farklar
 
@@ -369,6 +592,8 @@ def tk_satirlari(sembol: str, grup: str, donemler, turler, mumlar: pd.DataFrame,
                 a = funding_modulu.funding_tamlik_ayrintisi(seri, [plan.giris, plan.giris], [son_k, d.bitis])
                 bk = (np.asarray(P.sonra(zam, d.bitis), dtype=bool)
                       & np.asarray(P.ayni_ya_da_once(zam, k), dtype=bool)) if len(zam) else np.zeros(0, bool)
+                sh = son_hal_tamlik_ayrintisi(seri, [plan.giris], [d.bitis], [d.baslangic]).iloc[0]
+                satir.update(son_hal_tam=bool(sh["tam"]))
                 satir.update(durum="t_esit_k", pencere_sonu_bugun=son_k,
                              bk_arasi_kayit=int(bk.sum()), k_da_kayit=bool(np.any(P.ayni_an(zam, k))) if len(zam) else False,
                              tam_bugun=bool(a.at[0, "tam"]), tam_b_ile=bool(a.at[1, "tam"]),
@@ -394,7 +619,10 @@ def sembol_olc(sembol: str, grup: str, donemler, sinif: str | None, veri_sonu_ba
     turler = donem_sonu_turleri(donemler, sinif, veri_sonu_bari, mz if len(donemler) > 1 else None, hacim)
     kumeler = kume_sinirlari()
     ds = donem_sonu_satirlari(sembol, donemler, turler, seri)
-    bs, fk = baslangic_ve_farklar(sembol, grup, donemler, mumlar, seri, kumeler)
+    seri_cf, eklendi = bosluk_seri(seri, donemler)
+    bs, fk = baslangic_ve_farklar(sembol, grup, donemler, mumlar, seri, kumeler, seri_cf if eklendi else None)
+    for satir in bs:
+        satir["bosluk_sembolu"] = eklendi
     tk = tk_satirlari(sembol, grup, donemler, turler, mumlar, seri, kumeler)
     return ds, bs, fk, tk
 
