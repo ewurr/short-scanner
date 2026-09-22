@@ -940,7 +940,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       sembolde 6, 1 sembolde 5. Betik dışı sayım: oran sütunu yerine sabit 0 verildi, yalnızca
       NaN olup olmadığı okundu, aynı karşı-olgusal kayıtla.
     - **Kural değişmedi.** Kod davranışı rev.8'e uygun. Kayıp C2'ye (onay kümesi) düşüyor;
-      olay sayısında C2'nin 2026-06-10 … 2026-06-24 dilimi eksik kalır. Rev.9 tartışmasındaki
+      398 sembolde penceresi bu anı içeren pozisyonlar (4h'de girişi 06-21 04:00 … 06-24
+      00:00, 1d'de 06-11 … 06-24 olanlar) oluşmaz; öteki 17 sembol etkilenmez. Rev.9 tartışmasındaki
       son hâl tanımıyla da aynı pozisyonlar düşer (4h 7.129, 1d 5.509), yalnızca penceresi
       04:00'ı içerenler; giriş anı 04:00 olan 398 pozisyon iki kuralda da tam.
 
