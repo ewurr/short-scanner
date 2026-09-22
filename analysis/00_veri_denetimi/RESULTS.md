@@ -906,6 +906,11 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       MADDEYİ SİL]" köşeli ayracıyla geldi; onay verilip verilmediği bu oturumda
       belirlenemedi.
 
+13. **F1 kapanış ölçütü (2026-09-22, araştırma tarafının kararı).** §14.12'deki "eklenmedi"
+    notunun yerine geçer. Metin aynen:
+
+    "F1, ağır bulguların tamamı kapandığında kapanır. Getiri hesabını etkileyebilecek bulgular önemlerinden bağımsız olarak F2'den önce kapanır. Etkilemeyen orta ve küçük bulgular §14'te açık nokta olarak kayda geçer ve F2'yi engellemez. Bir bulgunun getiriyi etkileyip etkilemediği belirsizse etkilediği varsayılır. Karar: araştırma tarafı, 2026-09-22."
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -1162,3 +1167,5 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   1d uygunluğu artık yalnızca gün açılışında sorulur (1d barın zamanı). Etkisi §10 tablosunun
   `esik_2M_gecen` sütununda karşılaştırmayla raporlanır. Yeni test:
   `tests/test_yillik_kapsama_1d.py` (eski sürümde hata veriyor). Mevcut test değişmedi.
+- 2026-09-22 (Rev.9 hazırlığı). §14.13 eklendi: F1 kapanış ölçütü, araştırma tarafının
+  metniyle aynen. Kod ve ön-kayıt değişmedi.
