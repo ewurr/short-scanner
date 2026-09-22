@@ -827,6 +827,85 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     Bugünkü veride hiza sorunu yok; kodda kontrol olmadığı bulgusu geçerli. Düzeltme
     Rev.8 uygulanırken yapılacak.
 
+12. **Rev.8 uygulaması: açık noktaların durumu (2026-09-22).** Sayılar temiz ağaçtaki
+    koşulardan: A1 `73ae679` (`a1_d_kurali_tam.csv`), tam denetim ve etki sayımları
+    `09857aa` (`rev8_etki_*_tam.csv`); önceki koşuyla farklar
+    `karsilastirma_ae8601f_tam.csv`. Yalnızca sayı; değer, işaret ya da getiri yok.
+    Yukarıdaki 5–11. maddelerin metni tarihsel kayıttır; güncel durum burasıdır.
+
+    - **§14.7, delist çıkışlarında funding tamlığı (D-A4): kapandı.** Temsili pozisyon
+      artık gerçek `pozisyon_plani` ve gerçek `funding_tamlik_ayrintisi` ile ölçülür.
+      Kural uygulanan 168 dönem sonunda bozuk: **4 saatlikte 4** (rev.7 kodunda 85; 128
+      SETTLING'de 78 → 1), **1 günlükte 13** (rev.7 kodunda 167). 4 saatlikteki dört:
+      FTTUSDT (son ödeme aralığı 2 saat, B'den önce bitiyor; `son_tam` bozuk), ICPUSDT ve
+      TLMUSDT'nin ilk dönemleri ve BNXUSDT dönem 0 (penceresinde kayıt yok). 1 günlükteki
+      fazladan 9 (AKRO, ANC, BTCST, BTT, BZRX, KEEP, NU, SRM exchangeInfo dışı; RAY
+      SETTLING): temsili 1d girişi B'yi içeren günün 00:00'ı, B'ye 0–4 saat uzak ve
+      8 saatlik ritimde (giriş, B] aralığına ödeme düşmüyor; "penceresinde hiç funding
+      kaydı bulunmayan pozisyonun funding'i tam değildir". Bu, temsili girişin seçiminin
+      ve rev.8'in harfiyen sonucudur: giriş bir gün önce olsa dokuzu da tam (betik dışı
+      kontrol). Veri sonu 522 dönem sonu artık küme ölçütüyle reddediliyor (`kume_siniri`
+      522; 1d'de 521 + 1 `donem_disi_sinyal`).
+    - **§14.5, uzlaşma sonrası funding kaydı (D-A1): kapandı** (rev.8 §4 "Dönem sonu
+      istisnası"). Dönem sonunda pencere B'de kapanır; B ile K arasındaki kayıtlar
+      pozisyona girmez: kural uygulanan dönem sonlarında 34 kayıt, 29 dönem sonu;
+      K'da ödeme 29. `donem_sonrasi_kayitlari_at` K'dan sonrasını atar.
+    - **§14.8, 1 günlük barlar ve dönem sınırları (D-A1): kapandı.** 1d serisi dönem dönem,
+      yalnızca dönem içi ve hizalı altı 4h bardan kurulur (tek yol `gunluge_cevir`).
+      Seriden çıkan gün: dönem sonu **145**, iç sınır **11**, dönem başı 0 (önceki ölçüm
+      156 = 145 + 11) ve 52.187 dönem dışı gün (uzlaşma sonrası dolgu günleri; rev.7'de de
+      hiçbir hesaba girmiyordu); eklenen gün 0. 1d gün sayısı 615.043 → 562.700. 1d çıkış
+      anı değişen dönem sonu **165 / 168** (önceki ölçümle aynı); rev.8 öncesi kuralda 1d
+      günü bulunmayan dönem sonu 0. 4 saatlikte çıkış anı değişen 0.
+    - **D-A2, funding sınıfı: kapandı, bir karar açık.** Rev.8 penceresi [dönem başı, B]:
+      funding'siz dönem 2 → 3; sınıfı değişen yalnızca **BNXUSDT dönem 0** (tek kaydı
+      K'da). Kilitli `data/universe.csv`'deki `donem_funding_yok` sütunu rev.7 penceresiyle
+      üretildi ve BNXUSDT dönem 0 için eski değeri taşır; çalışan kod sınıfı kuraldan
+      (`donemde_funding_var`) hesaplar. Tablonun yeniden üretilip üretilmeyeceği sizin
+      kararınız (kilit). Funding'in dönem içinde geç başladığı dönemlerde ilk kayıttan
+      önceki olaylar tek karar noktasında oluşmaz (`test_tek_karar_noktasi`).
+    - **D-B3, A1'deki kural kopyası: kapandı.** Kopya silindi; `tests/test_a1_gercek_kod.py`.
+    - **D-B4, sayımların tek yönlü okunması: kapandı.** Tamlık gerçek kod yolundan gelir;
+      "bozuk" ve "tam" iki yönde de gerçek kodun kararıdır.
+    - **§14.6 ve D-B7, zaman toleransı: kapandı.** Tek yardımcı (`pencere.ayni_an` ve
+      türevleri), tam 1 dakika aynı an değildir. Funding kayıtlarının tam saatten en büyük
+      sapması **47 ms** (2.562.456 kayıt; önceki not 31 ms'yi A1 alt kümesinden veriyordu),
+      4h barlarda 0 ms. Sapması 29 saniyeyi aşan kayıt 0: iki kayıt arasındaki fark 58
+      saniyeye ulaşamaz, eski uygulamalarla yenisinin ayrıldığı bölgeye hiçbir
+      karşılaştırma düşmez; toleransın değiştirdiği kayıt **0**.
+    - **Başlangıç boşluğu kuralının etkisi** (rev.8 §4 "Funding aralığı geçişleri";
+      `rev8_etki_baslangic_tam.csv`). Bütün dönem içi barlar (1d'de günler) varsayımsal
+      sinyal, birincil ufuk, gerçek plan ve tamlık; sinyal pencereleri ve uygunluk
+      uygulanmaz (olası olayların üst kümesi). "Yalnız başlangıç" = diğer koşullar tam,
+      yalnızca başlangıç koşulu bozuk (rev.7'de tam sayılırdı):
+
+      | Hipotez (ızgara, ufuk) | Küme | Plan | Funding tam | Bozuk | Kayıt yok | Yalnız başlangıç |
+      |---|---|---|---|---|---|---|
+      | H1, H2 (4h, 18) | KEŞİF | 1.109.371 | 1.103.145 | 6.226 | 6.187 | 13 |
+      | H1, H2 (4h, 18) | C1 | 1.107.539 | 1.107.436 | 103 | 74 | 25 |
+      | H1, H2 (4h, 18) | C2 | 1.142.794 | 1.135.459 | 7.335 | 92 | 398 |
+      | H3 (1d, 14) | KEŞİF | 181.948 | 180.907 | 1.041 | 1.024 | 3 |
+      | H3 (1d, 14) | C1 | 181.570 | 181.558 | 12 | 4 | 8 |
+      | H3 (1d, 14) | C2 | 184.186 | 178.623 | 5.563 | 0 | 398 |
+
+      H1 ve H2 aynı ızgara ve ufku kullandığı için sayıları aynıdır. KEŞİF'teki "kayıt yok"
+      sayısının çoğu ICPUSDT, TLMUSDT ve BNXUSDT'nin funding'siz dönemleridir.
+    - **Yeni bulgu: 2026-06-24 04:00 funding kaydı piyasa genelinde eksik (C2 dönemi,
+      yalnızca zaman damgası).** O an 4 saatlik ya da daha kısa ritimde aktif 415 sembolün
+      **398'inde** önbellekte bu kayıt yok. C2'deki bozuk pozisyonların neredeyse tamamı
+      bu tek boşluktan (sembol başına 4h'de ~18: ardışık kural ve son ödeme koşulu) ve
+      C2'deki 398 "yalnız başlangıç" da aynı olaydır (06-24 00:00 girişinde ilk ödeme
+      08:00, aralık 4). Boşluğun borsa verisinde mi yoksa indirmede mi olduğu ağa
+      çıkmadan ayırt edilemedi. Kod davranışı rev.8'e uygundur; karar ve olası yeniden
+      indirme sizin.
+    - **Rev.8 uygulamasında bulunan iki hata (düzeltildi, testli).** (1) `funding_tamlik_ayrintisi`
+      giriş son kayıttan sonraysa çöküyordu. (2) `yillik_kapsama` 1d uygunluğunu gün
+      ortası anlarda sorduğu için tam denetim koşusu duruyordu; düzeltmeden sonra 2026'da
+      2M eşiğini geçen sembol 534 → 533 (1d uygunluğu artık yalnızca gün açılışında).
+    - **F1 kapanış ölçütü:** eklenmedi. İstekteki madde "[ONAYLADIYSAN KALSIN, YOKSA BU
+      MADDEYİ SİL]" köşeli ayracıyla geldi; onay verilip verilmediği bu oturumda
+      belirlenemedi.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
