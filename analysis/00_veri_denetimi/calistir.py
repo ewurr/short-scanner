@@ -712,7 +712,11 @@ def yillik_kapsama(detaylar: list[dict], evren: pd.DataFrame) -> pd.DataFrame:
                                 donem_bitis=donemler[kimlik].bitis, kume_baslangic=None)
                 if not on_m and uyg.uygun_mu(hacim, t, config.BAR_4H, **sinirlar):
                     on_m = True
-                if not iki_m and uyg.uygun_mu(hacim, t, config.BAR_1D, **sinirlar):
+                # 1d barin zamani UTC gun acilisidir (on-kayit §6 rev.8 "Donem uyeligi");
+                # 1d uygunluk yalnizca gun acilisinda sorulur. Rev.8 oncesi her 4h anda
+                # soruluyordu; `donem_ici_mi` gun ortasi 1d zamanini reddeder.
+                if (not iki_m and t == t.floor("D")
+                        and uyg.uygun_mu(hacim, t, config.BAR_1D, **sinirlar)):
                     iki_m = True
                 if on_m and iki_m:
                     break

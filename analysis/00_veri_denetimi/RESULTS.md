@@ -1072,3 +1072,14 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     dönem dışı ya da giriş barı yok); test plan oluşmadığını ve dönem dışı girişin yazılmadığını
     sınar, 4h ızgara da eklendi.
   - `test_tur_saldirilari_e.py` (3 test): `funding_var_d`/`funding_var_mevcut` → `funding_var`.
+- 2026-09-22 (Rev.8 uygulaması, süreç notu). Kilit listesi değişikliği
+  (exchange_info_anlik.json), Rev.8'i uygulamaya çalışıp hiçbir şey yazmadan duran kilit
+  oturumunun içinde yapıldı. Planda ayrı oturum öngörülmüştü. O oturumda fiilen tek yazma
+  işi yapıldığı için bütünlük etkisi yoktur; sapma kayda geçirilmiştir.
+- 2026-09-22 (Rev.8 uygulaması, madde 2 düzeltmesi: rev.8 §6 "Dönem üyeliği").
+  `yillik_kapsama` 1d uygunluğunu her 4h anında soruyordu; madde 2'de `donem_ici_mi`
+  gün ortası 1d zamanını reddettiği için temiz ağaçtaki tam denetim koşusu (73ae679) tablo
+  aşamasında `ValueError` ile, hiçbir çıktı yazmadan durdu. Testler bu yolu kapsamıyordu.
+  1d uygunluğu artık yalnızca gün açılışında sorulur (1d barın zamanı). Etkisi §10 tablosunun
+  `esik_2M_gecen` sütununda karşılaştırmayla raporlanır. Yeni test:
+  `tests/test_yillik_kapsama_1d.py` (eski sürümde hata veriyor). Mevcut test değişmedi.
