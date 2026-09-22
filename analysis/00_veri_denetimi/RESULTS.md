@@ -911,6 +911,39 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
     "F1, ağır bulguların tamamı kapandığında kapanır. Getiri hesabını etkileyebilecek bulgular önemlerinden bağımsız olarak F2'den önce kapanır. Etkilemeyen orta ve küçük bulgular §14'te açık nokta olarak kayda geçer ve F2'yi engellemez. Bir bulgunun getiriyi etkileyip etkilemediği belirsizse etkilediği varsayılır. Karar: araştırma tarafı, 2026-09-22."
 
+14. **Bilinen veri boşluğu: 2026-06-24 04:00 funding kaydı (C2 dönemi).** Yalnızca zaman
+    damgası; değer yok.
+
+    - **Kaynak borsa.** 8 sembol seçildi (`config.TOHUM` = 20260911 ile, kaydı eksik 5 ve
+      kaydı olan 3 sembol). Bu sembollerde 2026-06-23 00:00 – 2026-06-25 00:00 aralığı iki
+      kaynaktan geçici bir klasöre yeniden indirildi: `fapi/v1/fundingRate` REST ucu ve
+      data.binance.vision 2026-06 aylık dosyası. İki kaynağın zaman damgaları önbellekle
+      birebir aynı: kaydı eksik sembollerde iki kaynakta da 04:00 yok, olanlarda var.
+      Boşluk indirmede değil, borsa verisinde. Önbelleğe yazılmadı. Seçilen semboller:
+      IDOL, ACX, BEAT, POLYX, SAFE (eksik); ORDER, ON, UAI (var).
+    - **Etkilenen sembol.** O an dönem içi olan ve 00:00 kaydının aralığı 4 saat ya da
+      daha kısa olan 415 sembolün **398**'inde kayıt yok, **17**'sinde var. 8 saatlik
+      ritimdeki 110 sembolde o an ödeme beklenmiyor. 17 sembolün ortak bir özelliği
+      bulunamadı: indirme zamanı ve aralık geçmişi ayırt etmiyor, hepsi 2025-09'dan sonra
+      listelenmiş ama aynı dönemde listelenmiş 104 sembolde de kayıt yok.
+    - **Pozisyon funding'i (rev.8 kodu).** Penceresi (giriş, çıkış] 04:00'ı içeren
+      pozisyonun tamlığı bozulur: ardışık kural (00:00 → 08:00 boşluğu 4 saati aşar),
+      pencere sonu 04:00 ise son ödeme koşulu, giriş 00:00 ise başlangıç koşulu. Giriş anı
+      tam 04:00 olan pozisyon etkilenmez; giriş anındaki ödeme pozisyona girmez. Bütün
+      dönem içi barlar varsayımsal sinyal alındığında, birincil ufukla, boşluğun tek başına
+      düşürdüğü pozisyon: H1/H2 (4h) C2 **7.146**, H3 (1d) C2 **5.548**. Sayım karşı-olgusal
+      seriyle yapıldı: o ana yapay bir kayıt eklenip tamlık yeniden ölçüldü
+      (`rev9_baslangic_tam.csv`, `bosluk_etkisi_rev8`). KEŞİF ve C1'de etki yok.
+    - **H2 sinyal penceresi (`funding_ortalamasi`, 24 saat).** Penceresi 04:00'ı içeren
+      sinyal barlarında (t = 06-24 04:00 … 06-25 00:00) değer hesaplanamaz: 00:00 kaydından
+      08:00 kaydına boşluk iki aralığın büyüğünü aşar. Etkilenen sinyal barı **2.383**: 397
+      sembolde 6, 1 sembolde 5. Betik dışı sayım: oran sütunu yerine sabit 0 verildi, yalnızca
+      NaN olup olmadığı okundu, aynı karşı-olgusal kayıtla.
+    - **Kural değişmedi.** Kod davranışı rev.8'e uygun. Kayıp C2'ye (onay kümesi) düşüyor;
+      olay sayısında C2'nin 2026-06-10 … 2026-06-24 dilimi eksik kalır. Rev.9 tartışmasındaki
+      son hâl tanımıyla da aynı pozisyonlar düşer (4h 7.129, 1d 5.509), yalnızca penceresi
+      04:00'ı içerenler; giriş anı 04:00 olan 398 pozisyon iki kuralda da tam.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -1169,3 +1202,6 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   `tests/test_yillik_kapsama_1d.py` (eski sürümde hata veriyor). Mevcut test değişmedi.
 - 2026-09-22 (Rev.9 hazırlığı). §14.13 eklendi: F1 kapanış ölçütü, araştırma tarafının
   metniyle aynen. Kod ve ön-kayıt değişmedi.
+- 2026-09-22 (Rev.9 hazırlığı, ikinci tur). §14.14 eklendi: 2026-06-24 04:00 funding
+  boşluğu bilinen veri boşluğu olarak (kaynak borsa, 398 sembol, kuralların işleyişi,
+  yalnızca sayı). Kod ve ön-kayıt değişmedi.
