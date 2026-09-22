@@ -1,9 +1,9 @@
 bilesen,surum
-git_commit,2e9fb05aac2acea9a5cbc23ac3e72a8df5e28685
-calisma_agaci,kirli
-calisma_agaci_degisiklikleri,?? analysis/00_veri_denetimi/rev9_hazirlik.py | ?? tests/test_rev9_hazirlik.py
-kosu_baslangic_utc,2026-09-22 08:08:43
-kosu_bitis_utc,2026-09-22 08:23:05
+git_commit,67e0a7600b6239e0d1a624570124ed23043e52c5
+calisma_agaci,temiz
+calisma_agaci_degisiklikleri,
+kosu_baslangic_utc,2026-09-22 08:45:27
+kosu_bitis_utc,2026-09-22 08:58:41
 python,3.13.12
 python_derleme,Feb 24 2026 16:05:56
 python_yolu,D:\Miniconda\python.exe
