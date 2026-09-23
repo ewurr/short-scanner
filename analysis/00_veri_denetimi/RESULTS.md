@@ -945,6 +945,82 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       son hâl tanımıyla da aynı pozisyonlar düşer (4h 7.129, 1d 5.509), yalnızca penceresi
       04:00'ı içerenler; giriş anı 04:00 olan 398 pozisyon iki kuralda da tam.
 
+15. **Rev.9 uygulaması: açık noktaların durumu (2026-09-23).** Kod `ce89096` (gerçek kod
+    yolu), temiz ağaç koşuları: `rev9_uygulama.py` `cf71cf8` (`rev9_uygulama_*_tam.csv`), tam
+    denetim `ce89096`, A1 `c342a69`; önceki koşuyla farklar
+    `karsilastirma_rev9_uygulama_tam.csv` (`karsilastir.py --onceki ce89096`). Yalnızca sayı;
+    değer, işaret ya da getiri yok. Yukarıdaki 1–14. maddelerin metni tarihsel kayıttır.
+
+    **Doğrulama: Rev.9 metnindeki sayılar gerçek kod yoluyla** (`rev9_uygulama_karsilastirma_tam.csv`;
+    plan `pencere.pozisyon_plani`, pencere sonu `funding.funding_penceresi_sonu`, tamlık
+    `funding.funding_tamlik_ayrintisi`; ölçüm betiğiyle aynı süzülmemiş evren ve aynı ham funding
+    serisi):
+
+    | Kalem | Ölçüm betiği | Gerçek kod | Satır farkı |
+    |---|---|---|---|
+    | Tam pozisyon | 3.887.825 | 3.887.825 | 0 |
+    | Kısmi kuyruk | 938.979 (%24,15) | 938.979 (%24,15) | 0 |
+    | Pencere sonu eşitlik affı | 435 | 435 | 0 |
+    | Çapa yok | 7.248 | 7.248 | 0 |
+    | 2026-06-24 nedeniyle eksik | 12.298 | 12.298 | 0 |
+    | Dönem sonu bozuk, 4h / 1d | 3 / 3 | 3 / 3 (BNXUSDT d0, ICPUSDT d0, TLMUSDT d0) | 0 |
+    | T = K, birincil ufuk: tam / pozisyon | 165 / 170 | 165 / 170 (hepsi dönem sonu çıkışı) | 0 |
+    | Kısmi kuyruk payı, 4h ızgara, tek ritim 8h / 4h | %49,94 / %0 | %49,94 / %0 | 0 |
+
+    Fark çıkmadı. Sonra `rev9_hazirlik.py` ve `rev9_ritim.py` gerçek kodu çağıracak biçimde
+    değiştirildi (`ce89096`) ve temiz ağaç zincirinde yeniden koşuldu: bütün veri CSV'leri önceki
+    çıktılarla bayt düzeyinde aynı (yalnızca ortam kayıtları değişti; bu iki kayıt "kirli" der,
+    çünkü ağaçtaki değişiklikler zincirdeki önceki koşunun çıktı CSV'leriydi, kod değil).
+    Kopya kalmadığı `tests/test_rev9_tek_tamlik.py` ile sabit. Tarihsel tanımlar (`rev8_tamlik`
+    donmuş Rev.8 kopyası; birinci–dördüncü tur önerileri) yürürlükte değildir ve öyle adlandırılır.
+
+    **F2 sağlamlık kontrolünün bayrakları (Rev.9 madde 7).** Tek kaynak
+    `funding.funding_tamlik_ayrintisi`: `kuyruk_kismi`, `son_esitlik_affi`, ritim etiketleri
+    `capa_aralik_saat`, `son_aralik_saat`, `tek_ritim` (ayrıca `kuyruk_sifir`). Tek karar noktası
+    `pozisyon.olay_karari` bunları `funding.pozisyon_funding_ayrintisi` ile aynı satırdan okur ve
+    `OnaylanmisPozisyon` alanlarına yazar; alanlar imzaya bağlıdır. **F2 okuma yolu:** her olay ve
+    kontrol `olay_karari` çıktısıdır; F2 raporu ritim başına payı ve dışlamalı sağlamlık
+    kontrolünü bu alanlardan hesaplar, başka kod yolu kullanmaz. Karışık ritimli pozisyonun
+    "funding ritmi" ön-kayıtta tanımlı değil (Rev.9 "F2 şartı": "funding ritmi başına (8, 4, 2, 1
+    saat)"); bu yüzden tek bir ritim alanı üretilmedi, üç etiket ham verildi. Tek ritimli
+    pozisyonlarda üçü aynı ritmi verir; karışık ritimlilerde (Rev.9 ölçümünde %0,33) hangi
+    etiketin kullanılacağı F2'den önce karar ister.
+
+    **Açık noktalar.**
+    - **D-B1 (T = K): kapandı** — `760ecd7`; `tests/test_rev9_t_esit_k.py`; doğrulama tablosu.
+    - **D-B2 (H2 funding sinyal penceresi): AÇIK, uygulanmadı.** Rev.9 §4 "Funding sinyal
+      penceresinin tamlığı" pencerenin başlangıcındaki kaydın ortalamaya girip girmediğini
+      söylemiyor: "Pencere t barının kapanışında biter ve 24 saat geriye uzanır. Çapa, pencere
+      başında ya da öncesinde kalan son kayıttır … Pencere sonuna denk gelen kayıt (tolerans
+      payıyla) pencereye dahildir … Ortalama, penceredeki kayıtların 8 saate normalleştirilmiş
+      oranlarından alınır." Pencere başına denk gelen kayıt hem çapa hem "penceredeki kayıt"
+      okunabilir; 8 saatlik ritimde ortalama 3 ya da 4 kayıttan alınır. Ön-kayda dokunulmadı;
+      `funding_ortalamasi` rev.8 dönemi davranışında kaldı. **Getiriye dokunur (H2 olay kümesi).**
+    - **D-B3 (karar noktası 4h girdisi): kapandı** — `3dbda4a`; `tests/test_rev9_fiyat_tabani_4h.py`.
+    - **D-B4 (uygunluk tek karar noktasında): kapandı** — `642def8`;
+      `tests/test_rev9_uygunluk_kapisi.py`. Tarama yalnızca `.py`; depoda başka uzantıda analiz
+      kodu yok (testli).
+    - **D-C6 (dönem sınırı `None`): kısmen.** Tarama ve karar noktasındaki ret `187bb52`
+      (`tests/test_rev9_donem_none.py`). Pencere fonksiyonları (`pencere_dilimi`,
+      `pencere_degeri`, iç içe/ofsetli, `medyan_hacim`, `uygun_mu` dönem bitişi,
+      `funding_ortalamasi`) `None`'u hâlâ kabul ediyor: hataya çevirmek 11 test dosyasında 80
+      çağrıyı bozar ve bu testler Rev.9 değişikliği sabitlemediği için güncellenmedi. Analiz kodu
+      yolu tarama ile kapalı. **Getiriye dokunur sayılır (§14.13), karar bekliyor.**
+    - **D-C7 (SETTLED taraması): kapandı** — `fc94497`, `45f2e1d`; `tests/test_rev9_settled_taramasi.py`.
+    - **D-C3 (`universe.csv` BNXUSDT d0): kapandı** — `82a0465` (Rev.9 hazırlığında). Bu turun tam
+      denetimi bu tablonun ilk koşusu: funding'siz dönem 2 → 3, 2022'de eşik geçen sembol bir az.
+    - **D-C1, D-C2, D-C4, D-C5, D-C8: açık, getiriye dokunmaz** (Rev.9 hazırlık raporu 1. tur 5.2
+      işaretlemesi değişmedi); F2'yi engellemez.
+    - **§14.14, 2026-06-24 boşluğu: kapandı** — Rev.9 §4'te bilinen veri boşluğu olarak yazılı;
+      12.298 pozisyon gerçek kodla da eksik.
+    - **§14.10 D-A2 funding sınıfı kararı: kapandı** (D-C3 ile).
+    - **§14.3 exchangeInfo görüntüsünün zamanı: açık not** (değişmedi). **§14.4: kapandı** (dosya
+      kilitli listede).
+
+    **Ağır bulgu (§14.13).** Getiriye dokunan ve kapanmamış iki nokta var: **D-B2** (uygulanmadı,
+    ön-kayıt metninde belirsizlik) ve **D-C6'nın kalan kısmı** (test kuralı ile görev çelişiyor).
+    §14.13'e göre ikisi de F2'den önce kapanmalı. F1 kapanmadı.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -1206,3 +1282,29 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 - 2026-09-22 (Rev.9 hazırlığı, ikinci tur). §14.14 eklendi: 2026-06-24 04:00 funding
   boşluğu bilinen veri boşluğu olarak (kaynak borsa, 398 sembol, kuralların işleyişi,
   yalnızca sayı). Kod ve ön-kayıt değişmedi.
+- 2026-09-23 (Rev.9 uygulaması). §14.15 eklendi. Kod: §4 "Funding tamlığı" veri katmanında
+  (`0ff7510`, çapa/zincir/ilk çift/son; bayraklar); T ≥ K (`760ecd7`); uygunluk tek karar
+  noktasında (`642def8`); 4h girdi denetimi (`3dbda4a`); dönem `None` taraması (`187bb52`);
+  SETTLED taraması (`fc94497`, düzeltme `45f2e1d`: o commit'te yeni tarama testi kırıktı, config
+  sabiti desenden çıkarıldı); F2 bayrakları `OnaylanmisPozisyon`'da (`7bd1eff`); doğrulama betiği
+  `rev9_uygulama.py` (`cf71cf8`, çıktılar `736846b`); ölçüm betikleri gerçek koda bağlandı
+  (`ce89096`). H2 funding penceresi (Rev.9 madde d) belirsizlik nedeniyle uygulanmadı (§14.15).
+  **Bilerek güncellenen mevcut testler** (hepsi Rev.9'un açıkça değiştirdiği davranışı
+  sabitliyordu; ayrıntı commit mesajlarında):
+  - Funding tamlığı (Rev.9 §4: çapa zorunlu; "hiç kayıt yok" ve başlangıç boşluğu cümleleri
+    kaldırıldı; son maddesinde eşitlik yeterli; koşul adları `capa_var`/`zincir_tam`):
+    `test_rev8_funding` (5 test), `test_pozisyon_fundingi` (3), `test_rev6_saldirilari` (2),
+    `test_funding_aralik_gecisi` (2), `test_tur_saldirilari_f` (12), `test_tur_saldirilari_b`
+    (2), `test_a1_d_kurali` (3), `test_a1_gercek_kod` (1 casus imzası). Test verisine çapa kaydı
+    eklenen yerlerde ölçülen kenar değişmedi.
+  - Rev.8 kehaneti donmuş kopyaya (`rev8_tamlik`) yönlendirildi: `test_rev8_etki`,
+    `test_rev9_hazirlik`, `test_rev9_son_adim`, `test_rev9_son_hal`, `test_rev9_tahmin_yok`.
+  - T ≥ K (Rev.9 §4 "Dönem sonu ve çıkış"): `test_rev8_cikis` (2), `test_tur_saldirilari_f` (4):
+    T = K ve K ile aynı an sayılan T artık dönem sonu.
+  - Uygunluk karar noktasında (Rev.9 §4 "Olayın kümede oluşma ölçütü"): `test_tek_karar_noktasi`,
+    `test_rev8_mae`, `test_tur_saldirilari_f` (4 çağrı): uygun 1d seri ve ön-kayıt eşikleri
+    verildi, dönem başı mum serisinden 60 gün önce.
+  Silinen, gevşetilen ya da xfail'e alınan test yok. Yeni test dosyaları:
+  `test_rev9_funding_tamligi`, `test_rev9_t_esit_k`, `test_rev9_uygunluk_kapisi`,
+  `test_rev9_fiyat_tabani_4h`, `test_rev9_donem_none`, `test_rev9_settled_taramasi`,
+  `test_rev9_f2_bayraklari`, `test_rev9_tek_tamlik`; yardımcı `uygunluk_yardimcisi`.
