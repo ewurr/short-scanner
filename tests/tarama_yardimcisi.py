@@ -45,6 +45,14 @@ FUNDING_KAPI_DISI_DESENI = (
     r"|fundingRate|[\"']funding[\"']"
 )
 
+# Kume korumasi olmayan ham yukleyiciler ve SETTLED verisi (denetci bulgusu D-C7). On-kayit §2
+# rev.8: "SETTLED dosyalari hicbir hesaba girmez"; SETTLED yalnizca veri denetimi icindir.
+# `tests/test_kume_korumasi.py`'deki eski desen (SETTLED'siz) degistirilmedi; bu desen onu kapsar.
+HAM_ERISIM_DESENI = (
+    r"\bham_(mumlari_yukle|funding_yukle|birincil_gunluk_indir|settled_mumlari_yukle)\b"
+    r"|\bsettled_(dizinleri|ay_karsilastir)\b|\bSETTLED_SONEKI\b"
+)
+
 # Bar sayisiyla calisan ve pencere kapisini (data.pencere) atlayan turetilmis seri
 # islemleri. Bunlar seride bosluk, donem ya da kume sinirini bilmez.
 # Uygunluk adlari (on-kayit §4 rev.9: uygunluk tek karar noktasinin parcasidir). `data/eligibility.py`
