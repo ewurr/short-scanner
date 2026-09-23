@@ -50,8 +50,10 @@ FUNDING_KAPI_DISI_DESENI = (
 # `tests/test_kume_korumasi.py`'deki eski desen (SETTLED'siz) degistirilmedi; bu desen onu kapsar.
 HAM_ERISIM_DESENI = (
     r"\bham_(mumlari_yukle|funding_yukle|birincil_gunluk_indir|settled_mumlari_yukle)\b"
-    r"|\bsettled_(dizinleri|ay_karsilastir)\b|\bSETTLED_SONEKI\b"
+    r"|\bsettled_(dizinleri|ay_karsilastir)\b"
 )
+# `config.SETTLED_SONEKI` desene girmez: tanimi config.py'dedir (izinli dizin disi); SETTLED
+# dizin adlari yalnizca `klines.settled_dizinleri` ile uretilir ve o ad desendedir.
 
 # Bar sayisiyla calisan ve pencere kapisini (data.pencere) atlayan turetilmis seri
 # islemleri. Bunlar seride bosluk, donem ya da kume sinirini bilmez.

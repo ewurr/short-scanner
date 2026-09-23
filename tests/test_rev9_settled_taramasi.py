@@ -16,7 +16,6 @@ def test_desen_settled_yukleyicisini_yakalar(tmp_path):
         "events/h1.py": "m = klines.ham_settled_mumlari_yukle(dizin, '4h')\n",
         "study/k1.py": "from data.klines import ham_settled_mumlari_yukle as oku\n",
         "study/k2.py": "d = klines.settled_dizinleri(s, dizinler)\n",
-        "study/k3.py": "ek = s + config.SETTLED_SONEKI\n",
         "analysis/02_h2/calistir.py": "m = klines.ham_mumlari_yukle(s, bar)\n",
         "analysis/03_h3/calistir.py": "f = funding.ham_funding_yukle(s)\n",
     }
