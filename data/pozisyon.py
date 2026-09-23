@@ -1,17 +1,20 @@
-"""Tek karar noktasi: bir olay ya da kontrol olusur mu? (on-kayit §4 rev.8)
+"""Tek karar noktasi: bir olay ya da kontrol olusur mu? (on-kayit §4 rev.8, rev.9)
 
-On-kayit §4 rev.8 "Olayin kumede olusma olcutu": "Bir olayin kumede olusup
-olusmadigina tek bir karar noktasi hukmeder ... Ayni karar noktasinda pozisyonun
-funding tamligi da saglanmalidir: funding'i tam olmayan olay ya da kontrol, brut
-getiri dahil hicbir hesapta olusmaz. Boylece brut ve net olay kumeleri her zaman
-aynidir. Fiyat ve funding icin ayri olcut kullanilmaz."
+On-kayit §4 "Olayin kumede olusma olcutu": "Bir olayin kumede olusup olusmadigina tek
+bir karar noktasi hukmeder ... Ayni karar noktasinda pozisyonun funding tamligi da
+saglanmalidir ... Uygunluk da bu karar noktasinin parcasidir (rev.9): hacim esigi ve
+listeleme yasi dahil uygunluk filtresi, olaylar ve kontroller icin ayni karar noktasinda,
+ayni cagriyla uygulanir. Uygunluk degerinin hesaplanabilmis olmasi yeterli degildir;
+esigi de gecmelidir. ... Boylece brut ve net olay kumeleri her zaman aynidir."
 
-`olay_karari` bu karar noktasidir. Sirasiyla:
+`olay_karari` bu karar noktasidir; olaylar ve kontroller (K1, K2) ayni fonksiyonu cagirir,
+ayri bir kontrol yolu yoktur. Sirasiyla:
   1. Sinyal pencerelerinin tamligi: cagiranin hesapladigi pencere degerlerinden biri
      NaN ise `SinyalPenceresiTamDegil` (on-kayit §2 "Tamlik sarti").
   2. `pencere.pozisyon_plani`: sinyal kumede ve donem ici, giris bari, cikis (donem
      sonu / olagan / ileri kayma ve siniri), gercek cikis ani + tolerans <= kume sonu.
-  3. Funding tamligi (`funding.pozisyon_funding_tam_mi`) -> `FundingTamDegil`.
+  3. Uygunluk (`eligibility.uygunluk_karari`, esikler zorunlu anahtar sozcuk) -> `UygunDegil`.
+  4. Funding tamligi (`funding.pozisyon_funding_tam_mi`) -> `FundingTamDegil`.
 Karar olumluysa `OnaylanmisPozisyon` doner: plan, P0, P1 ve funding toplami. Brut
 getiri, net getiri, MAE ve K1/K2 kontrolleri YALNIZCA bu ciktiyi kullanir;
 `pozisyon_fiyatlari` ve `mae` baska girdi kabul etmez. Ayri bir kapi yoktur.
@@ -29,6 +32,7 @@ from dataclasses import dataclass, field, replace
 import numpy as np
 import pandas as pd
 
+from data import eligibility as eligibility_modulu
 from data import funding as funding_modulu
 from data import pencere as pencere_modulu
 
@@ -37,6 +41,14 @@ class SinyalPenceresiTamDegil(pencere_modulu.OlayOlusmaz):
     """Sinyal pencerelerinden biri tam degil (NaN) (on-kayit §2 "Tamlik sarti")."""
 
     gerekce = "sinyal_penceresi_tam_degil"
+
+
+class UygunDegil(pencere_modulu.OlayOlusmaz):
+    """Sinyal (ya da kontrol) barinda sembol uygun degil: listeleme yasi ya da medyan
+    hacim esigi gecilmiyor, ya da hacim penceresi hesaplanamiyor (on-kayit §2 "Uygunluk";
+    §4 rev.9: uygunluk tek karar noktasinin parcasidir)."""
+
+    gerekce = "uygun_degil"
 
 
 class FundingTamDegil(pencere_modulu.OlayOlusmaz):
@@ -80,6 +92,22 @@ def onay_dogrula(pozisyon) -> None:
         raise ValueError("OnaylanmisPozisyon elle kurulmus ya da degistirilmis; yalnizca olay_karari uretir.")
 
 
+def _gunluk_hacim(gunluk_mumlar: pd.DataFrame) -> pd.Series:
+    """Uygunluk hacminin girdisi: sembolun 1d serisi (`klines.mumlari_yukle(s, "1d", ...)`,
+    tek 1d yolu `klines.gunluge_cevir`). 1d olmayan cerceve (ör. 4h mumlari) acik hata verir:
+    acilislar gun basi olmali ve `close_time` varsa bar suresi 4 saati asmali."""
+    if not isinstance(gunluk_mumlar, pd.DataFrame) or "open_time" not in gunluk_mumlar:
+        raise TypeError("gunluk_mumlar sembolun 1d mum cercevesi olmali (open_time, quote_volume).")
+    acilis = pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(gunluk_mumlar["open_time"]), "gunluk_mumlar")
+    if len(acilis) and not bool((acilis == acilis.floor("D")).all()):
+        raise ValueError("gunluk_mumlar 1d serisi olmali: acilislar UTC gun basi degil (4h cercevesi verilmis olabilir).")
+    if "close_time" in gunluk_mumlar and len(acilis):
+        sure = pd.DatetimeIndex(gunluk_mumlar["close_time"]) - acilis
+        if bool((sure <= pencere_modulu.ADIM_4H).any()):
+            raise ValueError("gunluk_mumlar 1d serisi olmali: bar suresi 4 saati asmiyor.")
+    return eligibility_modulu.gunluk_hacim_serisi(gunluk_mumlar)
+
+
 def _mum_zamanlari(mumlar: pd.DataFrame) -> pd.DatetimeIndex:
     return pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(mumlar["open_time"]), "olay_karari")
 
@@ -104,28 +132,44 @@ def olay_karari(
     donem_baslangic,
     donem_bitis,
     sinyal_degerleri: Mapping[str, float],
+    gunluk_mumlar: pd.DataFrame,
+    asgari_hacim,
+    asgari_listeleme_yasi_gun,
 ) -> OnaylanmisPozisyon:
-    """TEK KARAR NOKTASI (on-kayit §4 rev.8). Olay ya da kontrol olusursa
+    """TEK KARAR NOKTASI (on-kayit §4 rev.8, rev.9). Olay ya da kontrol olusursa
     `OnaylanmisPozisyon`, olusmazsa `OlayOlusmaz` alt sinifi (ret gerekcesi:
-    `pencere.ret_gerekcesi`).
+    `pencere.ret_gerekcesi`). Olaylar ve kontroller ayni cagriyi kullanir.
 
     `mumlar_4h`: sembolun donem ici 4h mumlari (her izgarada; `open_time`, `open`,
     `high`, `low`, `close`). `funding`: veri katmaninin funding cercevesi
     (`funding.funding_yukle`). `sinyal_degerleri`: sinyal barinda hesaplanan pencere
-    degerleri (ad -> deger; kontrollerde uygunluk hacmi); bos olamaz. Butun sinirlar
-    zorunlu anahtar sozcuktur.
+    degerleri (ad -> deger); bos olamaz. `gunluk_mumlar`: sembolun 1d serisi (uygunluk
+    hacmi; `klines.mumlari_yukle(s, "1d", ...)`). `asgari_hacim`, `asgari_listeleme_yasi_gun`:
+    uygunluk esikleri, on-kayit §2 degerleri olmalidir (`eligibility.esikleri_dogrula`).
+    Butun sinirlar ve esikler zorunlu anahtar sozcuktur; varsayilan yoktur.
     """
     if not isinstance(sinyal_degerleri, Mapping) or not sinyal_degerleri:
-        raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (pencere degerleri; kontrollerde uygunluk).")
+        raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (sinyal barindaki pencere degerleri).")
     eksik = [ad for ad, deger in sinyal_degerleri.items()
              if deger is None or not isinstance(deger, (int, float, np.integer, np.floating)) or not math.isfinite(deger)]
     if eksik:
         raise SinyalPenceresiTamDegil(f"Sinyal penceresi tam degil: {eksik} (on-kayit §2 'Tamlik sarti').")
+    # Uygunluk girdileri her cagrida denetlenir (programlama hatasi, ret gerekcesi degil).
+    eligibility_modulu.esikleri_dogrula(bar, asgari_hacim=asgari_hacim,
+                                        asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
+    gunluk_hacim = _gunluk_hacim(gunluk_mumlar)
 
     zamanlar = _mum_zamanlari(mumlar_4h)
     plan = pencere_modulu.pozisyon_plani(
         zamanlar, sinyal_zamani, ufuk, bar, birincil_ufuk=birincil_ufuk, kume_baslangic=kume_baslangic,
         kume_bitis=kume_bitis, donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
+    # Uygunluk (on-kayit §4 rev.9): esik gecilmeli, hesaplanabilmis olmasi yetmez.
+    if not eligibility_modulu.uygunluk_karari(
+            gunluk_hacim, plan.sinyal_zamani, bar, donem_baslangic=plan.donem_baslangic,
+            donem_bitis=plan.donem_bitis, kume_baslangic=plan.kume_baslangic, asgari_hacim=asgari_hacim,
+            asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun):
+        raise UygunDegil(f"Sinyal bari {plan.sinyal_zamani} ({bar}) uygun degil: listeleme yasi ya da medyan "
+                         "hacim esigi gecilmiyor (on-kayit §2 'Uygunluk').")
     if not funding_modulu.pozisyon_funding_tam_mi(funding, plan):
         raise FundingTamDegil(f"Pozisyonun funding'i tam degil: giris {plan.giris}, cikis {plan.cikis_ani} "
                               f"({plan.cikis_turu}); olay brut dahil hicbir hesapta olusmaz.")

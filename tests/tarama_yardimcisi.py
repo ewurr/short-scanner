@@ -41,16 +41,26 @@ FUNDING_KAPI_DISI_DESENI = (
 
 # Bar sayisiyla calisan ve pencere kapisini (data.pencere) atlayan turetilmis seri
 # islemleri. Bunlar seride bosluk, donem ya da kume sinirini bilmez.
+# Uygunluk adlari (on-kayit §4 rev.9: uygunluk tek karar noktasinin parcasidir). `data/eligibility.py`
+# icindeki butun fonksiyonlar ve modulun kendisi: modul adiyla erisim (`eligibility.x`, takma adli
+# import) de yakalanir.
+UYGUNLUK_ADLARI = ("uygun_mu", "uygunluk_serisi", "uygunluk_karari", "esikleri_dogrula", "medyan_hacim",
+                   "hacim_esigi", "listeleme_yasi_gun", "gunluk_hacim_serisi")
+
 CIKIS_KAPI_DISI_DESENI = (
     r"\b(cikis_bari|ufuk_kumeye_sigar_mi|cikis_ani|pozisyon_plani|pozisyon_fundingi|pozisyon_funding_tam_mi"
-    r"|funding_tamlik_ayrintisi)\s*\(|\b(CikisSonucu|PozisyonPlani|OnaylanmisPozisyon)\s*\("
-    r"|_PLAN_GIZLI|_plan_imzasi|_ONAY_GIZLI"
+    r"|pozisyon_funding_ayrintisi|funding_tamlik_ayrintisi"
+    r"|" + "|".join(UYGUNLUK_ADLARI) + r")\s*\(|\b(CikisSonucu|PozisyonPlani|OnaylanmisPozisyon)\s*\("
+    r"|_PLAN_GIZLI|_plan_imzasi|_ONAY_GIZLI|\beligibility\b"
 )
 """Olayin ya da kontrolun olusup olusmadigina yalnizca `pozisyon.olay_karari` karar
 verir (on-kayit §4 rev.8 "Olayin kumede olusma olcutu": tek karar noktasi, funding
-tamligi dahil). Analiz kodu plan, cikis ve funding tamligi adimlarini dogrudan
-cagirmaz; plan, cikis ya da onayli pozisyon nesnesini elle kurmaz. Rev.8 oncesi
-tek kapi `pencere.pozisyon_plani` idi."""
+tamligi dahil; rev.9: uygunluk da). Analiz kodu plan, cikis, funding tamligi ve uygunluk
+adimlarini dogrudan cagirmaz; `eligibility` modulune hic erismez; plan, cikis ya da onayli
+pozisyon nesnesini elle kurmaz. Rev.8 oncesi tek kapi `pencere.pozisyon_plani` idi.
+
+Sinir: tarama yalnizca `.py` dosyalarinin metnine bakar; kasitli bir atlatma (ör. adi
+parcalayip `importlib`/`getattr` ile cagirmak) yakalanmaz."""
 
 TURETILMIS_SERI_DESENI = (
     r"\.(rolling|expanding|ewm|shift|diff|pct_change|cumsum|cumprod|cummax|cummin|resample)\s*\("

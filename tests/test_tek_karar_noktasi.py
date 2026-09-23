@@ -15,6 +15,7 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
+from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -22,7 +23,9 @@ BAS, B = T("2025-01-01 00:00"), T("2025-02-10 08:00")
 Z = pd.date_range(BAS, B, freq="4h")
 MUM = pd.DataFrame({"open_time": Z, "open": np.arange(len(Z)) + 0.25, "high": np.arange(len(Z)) + 0.9,
                     "low": np.arange(len(Z)) + 0.0, "close": np.arange(len(Z)) + 0.5})
-SINIR = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=BAS, donem_bitis=B)
+# Rev.9 §4: uygunluk tek karar noktasinin parcasi. Donem, mum serisinden UYGUN_ONCELIK once baslar
+# (listeleme yasi >= 30 gun) ve uygunluk hacmi o gunden itibaren esigin ustundedir.
+SINIR = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=BAS - UYGUN_ONCELIK, donem_bitis=B)
 SINYAL = {"pencere": 1.0}
 
 
@@ -33,7 +36,8 @@ def _fund(bas=BAS, son=B + H4, aralik=8):
 
 def _karar(t, ufuk=18, bar=config.BAR_4H, fr=None, mum=MUM, sinyal=SINYAL, **sinir):
     return pozisyon.olay_karari(mum, _fund() if fr is None else fr, t, ufuk, bar, birincil_ufuk=18,
-                                **{**SINIR, **sinir}, sinyal_degerleri=sinyal)
+                                **{**SINIR, **sinir}, sinyal_degerleri=sinyal,
+                                **uygunluk(bar, BAS - UYGUN_ONCELIK, B))
 
 
 def test_onayli_pozisyon_plan_fiyat_ve_funding_tasir():

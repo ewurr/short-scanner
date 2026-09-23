@@ -107,18 +107,59 @@ def uygun_mu(
     donem_bitis,
     kume_baslangic,
 ) -> bool:
-    """t aninda sembol uygun mu? Yalnizca t'ye kadarki veriyi kullanir.
+    """t aninda sembol uygun mu? Yalnizca t'ye kadarki veriyi kullanir. On-kayit
+    esikleriyle `uygunluk_karari` (tek uygulama; tek karar noktasi `pozisyon.olay_karari`
+    onu esikleri acikca vererek cagirir)."""
+    return uygunluk_karari(gunluk_hacim, t, bar, donem_baslangic=donem_baslangic, donem_bitis=donem_bitis,
+                           kume_baslangic=kume_baslangic, asgari_hacim=hacim_esigi(bar),
+                           asgari_listeleme_yasi_gun=config.ASGARI_LISTELEME_YASI_GUN)
+
+
+def esikleri_dogrula(bar: str, *, asgari_hacim, asgari_listeleme_yasi_gun) -> None:
+    """Verilen uygunluk esikleri on-kayit §2'dekilerle ayni mi? Degilse ValueError.
+
+    Esikler on-kayitta sabittir (H1, H2: 10 milyon USDT; H3: 2 milyon USDT; listeleme yasi
+    30 gun); cagiranin acikca yazmasi istenir ama baska bir deger verilemez."""
+    for ad, deger in (("asgari_hacim", asgari_hacim), ("asgari_listeleme_yasi_gun", asgari_listeleme_yasi_gun)):
+        if isinstance(deger, bool) or not isinstance(deger, (int, float)):
+            raise TypeError(f"{ad} bir sayi olmali: {deger!r}")
+    if asgari_hacim != hacim_esigi(bar):
+        raise ValueError(f"asgari_hacim on-kayit §2 esigi olmali ({bar}: {hacim_esigi(bar)}); verilen {asgari_hacim}")
+    if asgari_listeleme_yasi_gun != config.ASGARI_LISTELEME_YASI_GUN:
+        raise ValueError(f"asgari_listeleme_yasi_gun on-kayit §2 esigi olmali ({config.ASGARI_LISTELEME_YASI_GUN}); "
+                         f"verilen {asgari_listeleme_yasi_gun}")
+
+
+def uygunluk_karari(
+    gunluk_hacim: pd.Series,
+    t,
+    bar: str,
+    *,
+    donem_baslangic,
+    donem_bitis,
+    kume_baslangic,
+    asgari_hacim,
+    asgari_listeleme_yasi_gun,
+) -> bool:
+    """t aninda sembol uygun mu? Uygunlugun TEK uygulamasi (on-kayit §2 "Uygunluk",
+    "Uygunluk penceresi ve t gunu"; §4 rev.9 "Olayin kumede olusma olcutu"). Yalnizca
+    t'ye kadarki veriyi kullanir.
 
     On-kayit rev.2 gereklilikleri:
       - t donem ici degilse uygun degildir (on-kayit §6 rev.8 "Donem uyeligi";
         1d barda gunun alti 4h barinin tamami donem ici olmali),
-      - listeleme yasi donem baslangicina gore olculur,
-      - hacim penceresi donem baslangicini asamaz.
+      - listeleme yasi donem baslangicina gore olculur ve `asgari_listeleme_yasi_gun`u
+        gecmeli,
+      - hacim penceresi donem baslangicini asamaz; medyan hesaplanabilmis olmali VE
+        `asgari_hacim`i gecmeli ("Uygunluk degerinin hesaplanabilmis olmasi yeterli
+        degildir; esigi de gecmelidir").
     On-kayit §3 rev.5: hacim penceresi kume baslangicini da asamaz.
 
-    Tum sinirlar zorunlu anahtar sozcuktur. `donem_baslangic` None OLAMAZ:
-    listeleme yasi onsuz hesaplanamaz. Digerleri sinir yoksa acikca None alir.
+    Esikler on-kayit degerleri olmalidir (`esikleri_dogrula`). Tum sinirlar zorunlu anahtar
+    sozcuktur. `donem_baslangic` None OLAMAZ: listeleme yasi onsuz hesaplanamaz. Digerleri
+    sinir yoksa acikca None alir.
     """
+    esikleri_dogrula(bar, asgari_hacim=asgari_hacim, asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
     zaman = pencere_modulu.utc_zamani(t, "t")
     donem_bas = pencere_modulu.sinir_zamani(donem_baslangic, "donem_baslangic")
     if donem_bas is None:
@@ -133,7 +174,7 @@ def uygun_mu(
     elif not pencere_modulu.donem_ici_mi(zaman, bar, donem_baslangic=donem_bas, donem_bitis=donem_son):
         return False
 
-    if listeleme_yasi_gun(donem_bas, zaman) < config.ASGARI_LISTELEME_YASI_GUN:
+    if listeleme_yasi_gun(donem_bas, zaman) < asgari_listeleme_yasi_gun:
         return False
 
     medyan = medyan_hacim(
@@ -145,7 +186,7 @@ def uygun_mu(
     )
     if pd.isna(medyan):
         return False
-    return medyan >= hacim_esigi(bar)
+    return bool(medyan >= asgari_hacim)
 
 
 def uygunluk_serisi(

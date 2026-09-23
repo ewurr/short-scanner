@@ -30,6 +30,7 @@ from data import klines as klines_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from data.donem import Donem  # noqa: E402
+from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 TOL = pencere_modulu.ZAMAN_TOLERANSI  # 1 dakika
@@ -577,10 +578,13 @@ def test_donem_sonu_istisnasi_1d_izgarada_da_aynidir():
 
 
 def _basit_plan():
-    donem_bas = T("2025-06-01 00:00")
-    donem_bitis = donem_bas + 200 * H4
-    zamanlar = pd.date_range(donem_bas, donem_bitis, freq="4h", tz="UTC")
-    sinyal = donem_bas + 10 * H4
+    seri_bas = T("2025-06-01 00:00")
+    # Rev.9 §4: uygunluk tek karar noktasinda; donem seriden UYGUN_ONCELIK once baslar
+    # (listeleme yasi >= 30 gun). Bar serisi degismedi.
+    donem_bas = seri_bas - UYGUN_ONCELIK
+    donem_bitis = seri_bas + 200 * H4
+    zamanlar = pd.date_range(seri_bas, donem_bitis, freq="4h", tz="UTC")
+    sinyal = seri_bas + 10 * H4
     return pencere_modulu.pozisyon_plani(
         zamanlar, sinyal, 3, config.BAR_4H, birincil_ufuk=18,
         kume_baslangic=None, kume_bitis=None, donem_baslangic=donem_bas, donem_bitis=donem_bitis,
@@ -616,6 +620,7 @@ def test_mae_dataclasses_replace_ile_degistirilmis_pozisyonu_reddeder():
         birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=plan.donem_baslangic, donem_bitis=plan.donem_bitis,
         sinyal_degerleri={"x": 1.0},
+        **uygunluk(config.BAR_4H, plan.donem_baslangic, plan.donem_bitis),  # Rev.9 §4: uygunluk karar noktasinda
     )
     sahte = replace(onayli, p0=0.0001)  # imza artik tutarsiz
     with pytest.raises(ValueError):
@@ -645,6 +650,7 @@ def test_funding_tam_olmayan_olay_brut_dahil_hicbir_hesapta_olusmaz():
             birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
             donem_baslangic=donem_bas, donem_bitis=donem_bitis,
             sinyal_degerleri={"x": 1.0},
+            **uygunluk(config.BAR_4H, donem_bas, donem_bitis),  # Rev.9 §4: uygunluk karar noktasinda
         )
 
 
@@ -660,6 +666,7 @@ def test_nan_sinyal_degeri_pozisyon_planindan_once_reddedilir():
             birincil_ufuk=18, kume_baslangic=None, kume_bitis=None,
             donem_baslangic=T("2025-06-01 00:00"), donem_bitis=T("2025-06-10 00:00"),
             sinyal_degerleri={"x": float("nan")},
+            **uygunluk(config.BAR_4H, T("2025-06-01 00:00"), T("2025-06-10 00:00")),  # Rev.9 §4
         )
 
 
@@ -674,6 +681,7 @@ def test_onaylanmis_pozisyon_replace_ile_funding_toplamini_sahteleyemez():
         birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=plan.donem_baslangic, donem_bitis=plan.donem_bitis,
         sinyal_degerleri={"x": 1.0},
+        **uygunluk(config.BAR_4H, plan.donem_baslangic, plan.donem_bitis),  # Rev.9 §4: uygunluk karar noktasinda
     )
     sahte = replace(onayli, funding_toplami=999.0)
     with pytest.raises(ValueError):

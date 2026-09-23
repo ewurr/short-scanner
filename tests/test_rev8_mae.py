@@ -12,6 +12,7 @@ import pytest
 import config
 from data import klines, pozisyon
 from data.donem import Donem
+from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -32,9 +33,11 @@ def _fund():
 
 
 def _karar(mum, t, ufuk=18, bar=config.BAR_4H, b=B):
+    # Rev.9 §4: uygunluk karar noktasinda; donem mum serisinden UYGUN_ONCELIK once baslar.
     return pozisyon.olay_karari(mum, _fund(), t, ufuk, bar, birincil_ufuk=18 if bar == config.BAR_4H else 14,
-                                kume_baslangic=None, kume_bitis=None, donem_baslangic=BAS, donem_bitis=b,
-                                sinyal_degerleri={"p": 1.0})
+                                kume_baslangic=None, kume_bitis=None, donem_baslangic=BAS - UYGUN_ONCELIK,
+                                donem_bitis=b, sinyal_degerleri={"p": 1.0},
+                                **uygunluk(bar, BAS - UYGUN_ONCELIK, b))
 
 
 def test_pencere_giris_barindan_cikis_barina():
