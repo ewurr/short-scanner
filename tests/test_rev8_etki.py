@@ -73,7 +73,8 @@ def test_yalniz_baslangic_gercek_tamlikla_ayni():
         except pencere_modulu.OlayOlusmaz:
             continue
         plan_sayisi += 1
-        a = funding_modulu.funding_tamlik_ayrintisi(fr, [plan.giris], [funding_modulu.funding_penceresi_sonu(plan)]).iloc[0]
+        # Rev.9 veri katmanindaki kurali degistirdi; betik ve kehanet Rev.8 tanimini donmus kopyadan okur.
+        a = etki.rev8_tamlik_ayrintisi(fr, [plan.giris], [etki.rev8_pencere_sonu(plan)]).iloc[0]
         beklenen_tam += bool(a["tam"])
         beklenen_yalniz += bool(a["kayit_var"] and a["aralik_gecerli"] and a["ic_tam"] and a["son_tam"]
                                 and not a["baslangic_tam"])

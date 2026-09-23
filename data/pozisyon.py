@@ -40,7 +40,7 @@ class SinyalPenceresiTamDegil(pencere_modulu.OlayOlusmaz):
 
 
 class FundingTamDegil(pencere_modulu.OlayOlusmaz):
-    """Pozisyonun funding'i tam degil (on-kayit §4 rev.8 "Funding araligi gecisleri");
+    """Pozisyonun funding'i tam degil (on-kayit §4 rev.9 "Funding tamligi");
     olay ya da kontrol brut dahil hicbir hesapta olusmaz."""
 
     gerekce = "funding_tam_degil"

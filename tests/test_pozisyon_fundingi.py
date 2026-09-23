@@ -175,6 +175,12 @@ def test_tam_bir_dakikalik_kayma_ayni_an_sayilmaz():
 def test_araliktaki_bir_odeme_eksikse_nan(eksik):
     fund = _funding("2021-01-01", "2021-01-10")
     fund = fund.loc[fund["odeme_zamani"] != _ts(eksik)].reset_index(drop=True)
+    if eksik == "2021-01-06 00:00":
+        # Rev.9 §4 "Funding tamligi", Son maddesi ve "Pencere sonundaki esitlik": son kayit
+        # (16:00) + 8h tam pencere sonuna (cikis ani) denk geliyor -> tam, esitlik affi; o
+        # anda kayit olmadigi icin odeme net getiriye girmez (rev.8'de NaN idi).
+        assert _fon(fund, "2021-01-05 00:00", "2021-01-05 20:00") == pytest.approx(2e-4)
+        return
     assert pd.isna(_fon(fund, "2021-01-05 00:00", "2021-01-05 20:00"))
 
 
@@ -185,18 +191,24 @@ def test_nan_oran_nan_doner():
 
 
 def test_odemesiz_kisa_pozisyon_sifir():
-    """8 saatlik aralikta 00:00 -> 04:00 tutulan pozisyona odeme dusmez. Rev.8 §4
-    "Funding araligi gecisleri": "Penceresinde hic funding kaydi bulunmayan pozisyonun
-    funding'i tam degildir" (beklenti 0.0 -> NaN)."""
+    """8 saatlik aralikta 00:00 -> 04:00 tutulan pozisyona odeme dusmez. Rev.9 §4 "Funding
+    tamligi" rev.8'in "Penceresinde hic funding kaydi bulunmayan pozisyonun funding'i tam
+    degildir" cumlesini kaldirdi: capa (00:00, 8h) + 8h pencere sonundan sonra, eksik odeme
+    yok -> 0.0 (rev.8'de NaN, rev.7'de 0.0)."""
     fund = _funding("2021-01-01", "2021-01-10")
-    assert pd.isna(_fon(fund, "2021-01-05 00:00", "2021-01-05 00:00"))
+    assert _fon(fund, "2021-01-05 00:00", "2021-01-05 00:00") == 0.0
 
 
 def test_odemesiz_aralikta_beklenen_odeme_eksikse_nan():
     fund = _funding("2021-01-01", "2021-01-10", aralik_saat=4)
     assert _fon(fund, "2021-01-05 00:00", "2021-01-05 00:00") == pytest.approx(1e-4)
     eksik = fund.loc[fund["odeme_zamani"] != _ts("2021-01-05 04:00")].reset_index(drop=True)
-    assert pd.isna(_fon(eksik, "2021-01-05 00:00", "2021-01-05 00:00"))
+    # Rev.9 "Pencere sonundaki esitlik": capa (00:00) + 4h tam pencere sonu (04:00); orada
+    # kayit yok -> tam sayilir, odeme net getiriye girmez (rev.8'de NaN idi).
+    assert _fon(eksik, "2021-01-05 00:00", "2021-01-05 00:00") == 0.0
+    # Pencere sonundan once dolan eksik odeme hala yakalanir: 04:00 ve 08:00 eksik, cikis 08:00.
+    iki = eksik.loc[eksik["odeme_zamani"] != _ts("2021-01-05 08:00")].reset_index(drop=True)
+    assert pd.isna(_fon(iki, "2021-01-05 00:00", "2021-01-05 04:00"))
 
 
 def test_odemesiz_aralikta_onceki_kayit_yoksa_nan():

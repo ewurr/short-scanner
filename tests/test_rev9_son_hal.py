@@ -162,5 +162,5 @@ def test_bir_saatten_dort_saate_geciste_beklenen_an_kayitlarin_arasina_duser():
     assert not sh["tam"]
     oneri = r9.oneri_tamlik_ayrintisi(seri, [T("2025-01-01 18:00")], [T("2025-01-02 04:00")], [BAS]).iloc[0]
     assert oneri["tam"]
-    rev8 = r9.funding_modulu.funding_tamlik_ayrintisi(seri, [T("2025-01-01 18:00")], [T("2025-01-02 04:00")]).iloc[0]
+    rev8 = r9.rev8_tamlik_ayrintisi(seri, [T("2025-01-01 18:00")], [T("2025-01-02 04:00")]).iloc[0]
     assert r9.son_hal_fark_turu(rev8, sh, False, bool(oneri["tam"])) == "beklenen_an_eksik_gecis"

@@ -3,9 +3,9 @@
 Getiri, fiyat farki ya da funding degeri HESAPLAMAZ ve raporlamaz. Mumlardan acilis
 zamani ve (donem sonu turu icin) hacmin sifir olup olmadigi, funding kayitlarindan
 odeme zamani ve aralik alani okunur (CLAUDE.md §3.1, RESULTS §14.9). Veri katmani
-DEGISMEZ: plan gercek `pencere.pozisyon_plani`, rev.8 tamligi gercek
-`funding.funding_tamlik_ayrintisi`, zaman karsilastirmalari gercek `pencere`
-yardimcilaridir. Onerilen kural yalnizca bu betikteki `oneri_tamlik_ayrintisi`
+DEGISMEZ: plan gercek `pencere.pozisyon_plani`, zaman karsilastirmalari gercek `pencere`
+yardimcilaridir. Rev.8 tamligi Rev.9 koda gectikten sonra `rev8_tamlik.rev8_tamlik_ayrintisi`
+(tarihsel donmus kopya, `rev8_*` sutunlari) ile olculur. Onerilen kural yalnizca bu betikteki `oneri_tamlik_ayrintisi`
 olcum fonksiyonundadir; hicbir karar yolunda kullanilmaz.
 
 Onerilen kural (rev.8 "baslangic boslugu" ve "penceresinde hic kayit yoksa tam degil"
@@ -110,6 +110,7 @@ from data import pencere as pencere_modulu  # noqa: E402
 from data import split as split_modulu  # noqa: E402
 from data import universe as universe_modulu  # noqa: E402
 from rev8_etki import kume_sinirlari, sinyal_kumesi  # noqa: E402
+from rev8_tamlik import REV8_TAMLIK_KOSULLARI, rev8_pencere_sonu, rev8_tamlik_ayrintisi  # noqa: E402
 
 P = pencere_modulu
 CIKTI_DONEM_SONU = BU_DIZIN / "rev9_donem_sonu_tam.csv"
@@ -846,7 +847,7 @@ TAHMIN_YOK_FARK_TURLERI = ("t_esit_k", "kayitsiz_kisa_pencere", "baslangic_arali
 
 def _iki_kural(seri: pd.DataFrame, girisler, sonlar, baslar) -> pd.DataFrame:
     """Ayni pozisyonlarda rev.8 (gercek kod) ve oneri (uc okuma) kosullari, tek cerceve."""
-    rev8 = funding_modulu.funding_tamlik_ayrintisi(seri, girisler, sonlar)
+    rev8 = rev8_tamlik_ayrintisi(seri, girisler, sonlar)
     oneri = oneri_tamlik_ayrintisi(seri, girisler, sonlar, baslar)
     kati = oneri_tamlik_ayrintisi(seri, girisler, sonlar, baslar, kati_onceki=True)
     r8son = oneri_tamlik_ayrintisi(seri, girisler, sonlar, baslar, son_kurali="rev8")
@@ -854,7 +855,7 @@ def _iki_kural(seri: pd.DataFrame, girisler, sonlar, baslar) -> pd.DataFrame:
     tablo["oneri_kati_tam"] = kati["tam"].to_numpy()
     tablo["oneri_rev8son_tam"] = r8son["tam"].to_numpy()
     tablo["fark_turu"] = [
-        fark_turu(pd.Series({k: tablo.at[i, f"rev8_{k}"] for k in (*funding_modulu.TAMLIK_KOSULLARI, "tam")}),
+        fark_turu(pd.Series({k: tablo.at[i, f"rev8_{k}"] for k in (*REV8_TAMLIK_KOSULLARI, "tam")}),
                   pd.Series({k: tablo.at[i, f"oneri_{k}"] for k in (*ONERI_KOSULLARI, "son_esit", "tam")}))
         if tablo.at[i, "rev8_tam"] != tablo.at[i, "oneri_tam"] else None
         for i in range(len(tablo))
@@ -888,7 +889,7 @@ def donem_sonu_satirlari(sembol: str, donemler, turler, seri: pd.DataFrame) -> l
                 satir["ret_gerekcesi"] = "donem_disi_sinyal"
                 satirlar.append(satir)
                 continue
-            son = funding_modulu.funding_penceresi_sonu(plan)
+            son = rev8_pencere_sonu(plan)
             satir.update(giris=plan.giris, pencere_sonu=son, cikis_turu=plan.cikis_turu)
             k = _iki_kural(seri, [plan.giris], [son], [d.baslangic]).iloc[0].to_dict()
             satir.update(k)
@@ -957,15 +958,15 @@ def baslangic_ve_farklar(sembol: str, grup: str, donemler, mumlar: pd.DataFrame,
                 except P.OlayOlusmaz:
                     continue
                 girisler.append(plan.giris)
-                sonlar.append(funding_modulu.funding_penceresi_sonu(plan))
+                sonlar.append(rev8_pencere_sonu(plan))
                 baslar.append(d.baslangic)
                 plan_kumeleri.append(kume)
                 sh_sonlar.append(son_hal_pencere_sonu(plan.cikis_ani, plan.cikis_turu, d.bitis, d.kapanis))
-                tk.append(plan.cikis_turu == "olagan" and bool(P.ayni_an(plan.cikis_ani, d.kapanis)))
+                tk.append(bool(P.ayni_an(plan.cikis.hedef_cikis_ani, d.kapanis)))  # T = K
                 delist.append(bool(turler is not None and turler[d_sira] in DELIST_TURLERI))
         if not girisler:
             continue
-        rev8 = funding_modulu.funding_tamlik_ayrintisi(seri, girisler, sonlar)
+        rev8 = rev8_tamlik_ayrintisi(seri, girisler, sonlar)
         oneri = oneri_tamlik_ayrintisi(seri, girisler, sonlar, baslar)
         kati = oneri_tamlik_ayrintisi(seri, girisler, sonlar, baslar, kati_onceki=True)
         r8son = oneri_tamlik_ayrintisi(seri, girisler, sonlar, baslar, son_kurali="rev8")
@@ -981,7 +982,7 @@ def baslangic_ve_farklar(sembol: str, grup: str, donemler, mumlar: pd.DataFrame,
             ty_cf = tahmin_yok_tamlik_ayrintisi(seri_cf, girisler, sh_sonlar, baslar)["tam"].to_numpy()
             cd_cf = capa_duzeltme_tamlik_ayrintisi(seri_cf, girisler, sh_sonlar, baslar)["tam"].to_numpy()
             sh_cf = son_hal_tamlik_ayrintisi(seri_cf, girisler, sh_sonlar, baslar)["tam"].to_numpy()
-            r8_cf = funding_modulu.funding_tamlik_ayrintisi(seri_cf, girisler, sonlar)["tam"].to_numpy()
+            r8_cf = rev8_tamlik_ayrintisi(seri_cf, girisler, sonlar)["tam"].to_numpy()
             gi, sh_s, r8_s = pd.DatetimeIndex(girisler), pd.DatetimeIndex(sh_sonlar), pd.DatetimeIndex(sonlar)
             iceren_sh = (np.asarray(P.sonra(BOSLUK_ANI, gi), dtype=bool)
                          & np.asarray(P.ayni_ya_da_once(BOSLUK_ANI, sh_s), dtype=bool))
@@ -1203,12 +1204,13 @@ def tk_satirlari(sembol: str, grup: str, donemler, turler, mumlar: pd.DataFrame,
                     satir["durum"] = f"ret_{P.ret_gerekcesi(hata)}"
                     satirlar.append(satir)
                     continue
-                if not (plan.cikis_turu == "olagan" and P.ayni_an(plan.cikis_ani, k)):
+                # T = K: Rev.8'de olagan cikis, Rev.9'da donem sonu; ikisinde de cikis ani K.
+                if not (P.ayni_an(plan.cikis.hedef_cikis_ani, k) and P.ayni_an(plan.cikis_ani, k)):
                     satir["durum"] = f"beklenmeyen_{plan.cikis_turu}"
                     satirlar.append(satir)
                     continue
-                son_k = funding_modulu.funding_penceresi_sonu(plan)
-                a = funding_modulu.funding_tamlik_ayrintisi(seri, [plan.giris, plan.giris], [son_k, d.bitis])
+                son_k = rev8_pencere_sonu(plan)  # Rev.8: K
+                a = rev8_tamlik_ayrintisi(seri, [plan.giris, plan.giris], [son_k, d.bitis])
                 bk = (np.asarray(P.sonra(zam, d.bitis), dtype=bool)
                       & np.asarray(P.ayni_ya_da_once(zam, k), dtype=bool)) if len(zam) else np.zeros(0, bool)
                 sh = son_hal_tamlik_ayrintisi(seri, [plan.giris], [d.bitis], [d.baslangic]).iloc[0]

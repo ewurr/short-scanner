@@ -295,7 +295,9 @@ def test_funding_cikis_anindaki_odeme_dahil_edilir():
     assert plan.donem_sonu_mu is False
     giris = plan.giris
     cikis_ani = plan.cikis_ani
-    kayitlar = []
+    # Rev.9 §4 "Funding tamligi": capa (giris aninda ya da oncesinde kayit) zorunlu; giris
+    # anindaki capa pozisyona girmez (buyuk sahte oran).
+    kayitlar = [(giris, 4, 5.0)]
     z = giris + H4
     while z <= cikis_ani:
         kayitlar.append((z, 4, 0.001))
@@ -303,7 +305,7 @@ def test_funding_cikis_anindaki_odeme_dahil_edilir():
     fund = _funding(kayitlar)
     assert funding_modulu.pozisyon_funding_tam_mi(fund, plan) is True
     toplam = funding_modulu.pozisyon_fundingi(fund, plan)
-    assert toplam == pytest.approx(0.001 * len(kayitlar))
+    assert toplam == pytest.approx(0.001 * (len(kayitlar) - 1))
     # cikis anindaki son kaydin (z == cikis_ani) toplama girdigini dogrula.
     assert kayitlar[-1][0] == cikis_ani
 
@@ -344,39 +346,49 @@ def test_donem_sonrasi_kayitlari_at_kapanis_k_siniri_tam_1_dakika(fark, beklenen
 @pytest.mark.parametrize("aralik_once,aralik_sonra", [(8, 2), (2, 8), (8, 1), (1, 8)])
 def test_aralik_gecisi_buyuk_araliga_gore_bosluk_denetlenir(aralik_once, aralik_sonra):
     """Aralik gecisinde (8h<->2h, 8h<->1h) bosluk, iki kaydin araliklarindan
-    BUYUGUNE gore denetlenir (on-kayit §4 rev.8 'Funding araligi gecisleri')."""
+    BUYUGUNE gore denetlenir (on-kayit §4 rev.9 "Funding tamligi", Zincir maddesi; rev.8'de
+    'Funding araligi gecisleri'). Rev.9: capa zorunlu (giris aninda kayit eklendi) ve kosul
+    adi `zincir_tam` (rev.8'de `ic_tam`)."""
     giris = T("2024-11-01 00:00")
+    bas = [giris - pd.Timedelta(days=1)]
     ilk = giris + pd.Timedelta(hours=aralik_once)
     buyuk = max(aralik_once, aralik_sonra)
     # Ic gecis TAM buyugun sinirindaymis gibi (ayni an, tam degil): ikinci kayit
-    # ilk + buyuk saat sonra -> ic_tam TRUE (sinir dahil degil, "sonra" degil).
+    # ilk + buyuk saat sonra -> zincir_tam TRUE (sinir dahil degil, "sonra" degil).
     ikinci_tam = ilk + pd.Timedelta(hours=buyuk)
     pencere_sonu = ikinci_tam + pd.Timedelta(hours=aralik_sonra)  # son_tam icin
     fund_tam = _funding([
+        (giris, aralik_once, 0.0),
         (ilk, aralik_once, 0.0),
         (ikinci_tam, aralik_sonra, 0.0),
     ])
-    ayrinti = funding_modulu.funding_tamlik_ayrintisi(fund_tam, [giris], [pencere_sonu])
-    assert bool(ayrinti["ic_tam"].iloc[0]) is True
+    ayrinti = funding_modulu.funding_tamlik_ayrintisi(fund_tam, [giris], [pencere_sonu], donem_baslari=bas)
+    assert bool(ayrinti["zincir_tam"].iloc[0]) is True
 
     # Bosluk buyugu 1 saniye ASARSA (once() esigi tam 1 dk oldugu icin +1 dk ekle)
     ikinci_bozuk = ilk + pd.Timedelta(hours=buyuk) + pd.Timedelta(minutes=1)
     fund_bozuk = _funding([
+        (giris, aralik_once, 0.0),
         (ilk, aralik_once, 0.0),
         (ikinci_bozuk, aralik_sonra, 0.0),
     ])
-    ayrinti2 = funding_modulu.funding_tamlik_ayrintisi(fund_bozuk, [giris], [ikinci_bozuk + pd.Timedelta(hours=aralik_sonra)])
-    assert bool(ayrinti2["ic_tam"].iloc[0]) is False
+    ayrinti2 = funding_modulu.funding_tamlik_ayrintisi(
+        fund_bozuk, [giris], [ikinci_bozuk + pd.Timedelta(hours=aralik_sonra)], donem_baslari=bas)
+    assert bool(ayrinti2["zincir_tam"].iloc[0]) is False
 
 
 def test_ilk_kayit_tam_giris_aninda_ise_pencerede_kayit_yok_sayilir():
     """Tek funding kaydi TAM giris aninda ise (giris haric kuralindan dolayi)
-    pencerede HICBIR kayit yoktur; `kayit_var` False, tamlik False olmali."""
+    pencerede HICBIR odeme yoktur. Rev.9 §4 "Funding tamligi": o kayit capadir; "hic kayit
+    yok" cumlesi kaldirildi ve son kayit + aralik tam pencere sonuna denk geldigi icin ("tam
+    pencere sonuna denk gelmesi yeterlidir") pozisyon TAM ve esitlik affi isaretli (rev.8'de
+    `kayit_var` False, tamlik False idi)."""
     giris = T("2024-11-05 00:00")
     fund = _funding([(giris, 4, 0.0)])
-    ayrinti = funding_modulu.funding_tamlik_ayrintisi(fund, [giris], [giris + H4])
-    assert bool(ayrinti["kayit_var"].iloc[0]) is False
-    assert bool(ayrinti["tam"].iloc[0]) is False
+    ayrinti = funding_modulu.funding_tamlik_ayrintisi(fund, [giris], [giris + H4], donem_baslari=[giris])
+    assert bool(ayrinti["capa_var"].iloc[0]) is True
+    assert bool(ayrinti["tam"].iloc[0]) is True
+    assert bool(ayrinti["son_esitlik_affi"].iloc[0]) is True
 
 
 @pytest.mark.parametrize("delta,beklenen_tam", [
@@ -385,15 +397,17 @@ def test_ilk_kayit_tam_giris_aninda_ise_pencerede_kayit_yok_sayilir():
     (pd.Timedelta(minutes=1), False),  # tam 1dk gec -> kesinlikle sonra, eksik
 ])
 def test_baslangic_tam_giris_arti_aralik_siniri(delta, beklenen_tam):
-    """`baslangic_tam`: ilk odeme giris+ilk_aralik'tan SONRA olamaz (on-kayit §4
-    rev.8 'Funding araligi gecisleri'); sinir tam 1 dakikadir (§4 'Zaman toleransi')."""
+    """Rev.9 §4 "Funding tamligi", Ilk cift maddesi (rev.8'in `baslangic_tam` kosulunun
+    yerine): capadan sonraki ilk odeme giris + iki araligin buyugunden SONRA olamaz; sinir tam
+    1 dakikadir (§4 'Zaman toleransi'). Capa girisin bir aralik oncesinde."""
     giris = T("2024-11-06 00:00")
     aralik = 4
     ilk_odeme = giris + pd.Timedelta(hours=aralik) + delta
     pencere_sonu = ilk_odeme + pd.Timedelta(hours=aralik)
-    fund = _funding([(ilk_odeme, aralik, 0.0)])
-    ayrinti = funding_modulu.funding_tamlik_ayrintisi(fund, [giris], [pencere_sonu])
-    assert bool(ayrinti["baslangic_tam"].iloc[0]) is beklenen_tam
+    fund = _funding([(giris - pd.Timedelta(hours=aralik), aralik, 0.0), (ilk_odeme, aralik, 0.0)])
+    ayrinti = funding_modulu.funding_tamlik_ayrintisi(fund, [giris], [pencere_sonu],
+                                                      donem_baslari=[giris - pd.Timedelta(days=1)])
+    assert bool(ayrinti["zincir_tam"].iloc[0]) is beklenen_tam
 
 
 def test_baslangic_tam_giris_arti_aralik_eksi_1ns_tamdir():
@@ -402,10 +416,12 @@ def test_baslangic_tam_giris_arti_aralik_eksi_1ns_tamdir():
     giris = T("2024-11-07 00:00")
     aralik = 4
     ilk_odeme = giris + pd.Timedelta(hours=aralik) - pd.Timedelta(nanoseconds=1)
-    fund = _funding([(ilk_odeme, aralik, 0.0)])
+    # Rev.9: capa girisin bir aralik oncesinde; kosul `zincir_tam` (Ilk cift, taban giris).
+    fund = _funding([(giris - pd.Timedelta(hours=aralik), aralik, 0.0), (ilk_odeme, aralik, 0.0)])
     pencere_sonu = ilk_odeme + pd.Timedelta(hours=aralik)
-    ayrinti = funding_modulu.funding_tamlik_ayrintisi(fund, [giris], [pencere_sonu])
-    assert bool(ayrinti["baslangic_tam"].iloc[0]) is True
+    ayrinti = funding_modulu.funding_tamlik_ayrintisi(fund, [giris], [pencere_sonu],
+                                                      donem_baslari=[giris - pd.Timedelta(days=1)])
+    assert bool(ayrinti["zincir_tam"].iloc[0]) is True
 
 
 def test_funding_tamlik_ayrintisi_vektorel_ve_tekil_yol_ayni_sonucu_verir():
@@ -416,17 +432,20 @@ def test_funding_tamlik_ayrintisi_vektorel_ve_tekil_yol_ayni_sonucu_verir():
     giris1 = T("2024-12-01 00:00")
     giris2 = T("2024-12-10 00:00")
     fund = _funding([
+        (giris1, 4, 0.001),  # Rev.9: capa
         (giris1 + H4, 4, 0.001),
         (giris1 + 2 * H4, 4, 0.001),
+        (giris2, 4, 0.002),  # Rev.9: capa
         (giris2 + H4, 4, 0.002),
         (giris2 + 2 * H4, 4, 0.002),
         (giris2 + 3 * H4, 4, 0.002),
     ])
     girisler = [giris1, giris2]
     sonlar = [giris1 + 2 * H4, giris2 + 3 * H4]
-    vektorel = funding_modulu.funding_tamlik_ayrintisi(fund, girisler, sonlar)
+    baslar = [giris1 - pd.Timedelta(days=30)] * 2
+    vektorel = funding_modulu.funding_tamlik_ayrintisi(fund, girisler, sonlar, donem_baslari=baslar)
     for i in range(2):
-        tekil = funding_modulu.funding_tamlik_ayrintisi(fund, [girisler[i]], [sonlar[i]])
+        tekil = funding_modulu.funding_tamlik_ayrintisi(fund, [girisler[i]], [sonlar[i]], donem_baslari=[baslar[i]])
         for kosul in (*funding_modulu.TAMLIK_KOSULLARI, "tam"):
             assert bool(vektorel[kosul].iloc[i]) == bool(tekil[kosul].iloc[0]), (
                 f"kosul={kosul} pozisyon={i}: vektorel={vektorel[kosul].iloc[i]} "
@@ -439,13 +458,14 @@ def test_kayitsiz_funding_cercevesinde_cokme_olmaz():
     False, funding NaN donmeli."""
     bos = pd.DataFrame(columns=["odeme_zamani", "aralik_saat", "oran", "oran_8h"])
     giris = T("2025-01-01 00:00")
-    ayrinti = funding_modulu.funding_tamlik_ayrintisi(bos, [giris], [giris + H4])
+    ayrinti = funding_modulu.funding_tamlik_ayrintisi(bos, [giris], [giris + H4], donem_baslari=[giris])
     assert bool(ayrinti["tam"].iloc[0]) is False
     assert len(ayrinti) == 1
 
     uzak = _funding([(T("2020-01-01 00:00"), 4, 0.0)])  # pencereden cok uzak tek kayit
-    ayrinti2 = funding_modulu.funding_tamlik_ayrintisi(uzak, [giris], [giris + H4])
-    assert bool(ayrinti2["kayit_var"].iloc[0]) is False
+    # Rev.9: donem basindan onceki kayit capa olamaz (rev.8'de `kayit_var` False).
+    ayrinti2 = funding_modulu.funding_tamlik_ayrintisi(uzak, [giris], [giris + H4], donem_baslari=[giris])
+    assert bool(ayrinti2["capa_var"].iloc[0]) is False
     assert bool(ayrinti2["tam"].iloc[0]) is False
 
 
@@ -475,7 +495,7 @@ def test_donem_sonu_pencere_b_dahil_b_ile_k_arasi_ve_k_haric():
     assert k == b + H4
 
     giris = plan.giris
-    kayitlar = []
+    kayitlar = [(giris, 4, 0.001)]  # Rev.9: capa (giris aninda; toplama girmez)
     z = giris + H4
     while z <= b:
         kayitlar.append((z, 4, 0.001))
@@ -485,7 +505,7 @@ def test_donem_sonu_pencere_b_dahil_b_ile_k_arasi_ve_k_haric():
     fund = _funding(kayitlar)
     assert funding_modulu.pozisyon_funding_tam_mi(fund, plan) is True
     toplam = funding_modulu.pozisyon_fundingi(fund, plan)
-    beklenen = 0.001 * sum(1 for z, *_ in kayitlar if z <= b)
+    beklenen = 0.001 * sum(1 for z, *_ in kayitlar if giris < z <= b)
     assert toplam == pytest.approx(beklenen)
     assert toplam < 500  # 999'lar HESABA GIRMEDI
 
@@ -502,8 +522,11 @@ def test_donem_sonu_son_odeme_b_ye_gore_aranir_k_ye_gore_degil():
 def test_giris_tam_b_de_olan_donem_sonu_pozisyonunun_funding_penceresi_bostur():
     """Giris ani TAM B'ye denk gelirse (son bar hem giris hem donem bitisi),
     funding penceresi (giris haric, B dahil) BOS kumedir: giris==B oldugu icin
-    (B, B] araligi bostur. Hicbir funding kaydi bu pozisyona giremez; tamlik
-    HER ZAMAN False olmalidir (funding'siz donem kurali ile tutarli)."""
+    (B, B] araligi bostur. Hicbir funding kaydi bu pozisyona giremez.
+
+    Rev.9 §4 "Funding tamligi": "penceresinde hic kayit yok" kurali kaldirildi. Giris anindaki
+    kayit (b) capadir; capa + 4 saat pencere sonundan (B) once dolmuyor, eksik odeme yok:
+    pozisyon TAM ve funding'i 0 (rev.8'de her zaman False idi). Capa yoksa tam degil."""
     donem_bas = T("2025-04-01 00:00")
     b = donem_bas + 10 * H4
     # sinyal = b - 4h -> giris = sinyal + 4h = b (TAM B'de giris)
@@ -513,7 +536,9 @@ def test_giris_tam_b_de_olan_donem_sonu_pozisyonunun_funding_penceresi_bostur():
     # Cok yogun bir funding serisi versek bile (giris=B oldugu icin) tam olamaz.
     kayitlar = [(b - pd.Timedelta(minutes=30), 4, 0.001), (b, 4, 0.001), (b + H4, 4, 0.001)]
     fund = _funding(kayitlar)
-    assert funding_modulu.pozisyon_funding_tam_mi(fund, plan) is False
+    assert funding_modulu.pozisyon_funding_tam_mi(fund, plan) is True
+    assert funding_modulu.pozisyon_fundingi(fund, plan) == 0.0
+    assert funding_modulu.pozisyon_funding_tam_mi(_funding([(b + H4, 4, 0.001)]), plan) is False
 
 
 def test_donem_sonu_istisnasi_1d_izgarada_da_aynidir():
@@ -532,7 +557,7 @@ def test_donem_sonu_istisnasi_1d_izgarada_da_aynidir():
     assert funding_modulu.funding_penceresi_sonu(plan) == b
 
     giris = plan.giris
-    kayitlar = []
+    kayitlar = [(giris, 4, 0.001)]  # Rev.9: capa
     z = giris + H4
     while z <= b:
         kayitlar.append((z, 4, 0.001))
@@ -562,7 +587,7 @@ def _basit_plan():
 
 def _tam_funding_icin(plan):
     giris = plan.giris
-    kayitlar = []
+    kayitlar = [(giris, 4, 0.0001)]  # Rev.9 §4 "Funding tamligi": capa
     z = giris + H4
     while z <= funding_modulu.funding_penceresi_sonu(plan):
         kayitlar.append((z, 4, 0.0001))

@@ -12,7 +12,7 @@ barin icine duser (RESULTS §2). Bu betik yalnizca KAYIT SAYAR ve ZAMAN KONUMU y
    kapanisi arasina dusen kayitlar (`a1_konumlar_tam.csv`).
 3. Ust siniri son bar acilisina cekmenin etkisi, tum donemlerde kayit sayisi
    (`a1_oneri_etkisi_tam.csv`; 1093e69'daki 43 kayit dokumu).
-4. Donem sonu funding tamligi (on-kayit §4 rev.8, D kurali artik veri katmaninda):
+4. Donem sonu funding tamligi (on-kayit §4 rev.8; tamlik kurali rev.9, veri katmaninda):
    donem sonuna ulasan temsili pozisyonun gercek plani (`pencere.pozisyon_plani`) ve
    gercek tamlik kosullari (`funding.funding_tamlik_ayrintisi`), donem sonu turune
    gore; istisnanin disarida biraktigi kayitlar ve donemin funding sinifi
@@ -162,7 +162,7 @@ def temsili_plan(donem, bar: str):
 
 def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
                  bar: str = config.BAR_4H) -> list[dict]:
-    """Her donem sonunda rev.8 funding kurallarinin sayimi, GERCEK kod yoluyla. Saf.
+    """Her donem sonunda funding tamliginin sayimi, GERCEK kod yoluyla (rev.9). Saf.
 
     Oran sutunlarina BAKMAZ; yalnizca odeme zamani ve araligi okunur. Kayit tabani
     veri katmaninin gordugu seridir (`funding.donem_sonrasi_kayitlari_at`, K'dan
@@ -174,7 +174,7 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
       "Donem sonu istisnasi"nin disarida biraktigi kayitlar.
     - `kapanista_odeme`: K ile ayni an bir kayit var mi.
     - `son_odeme_aralik_saat`: B ile ayni an ya da onceki son kaydin araligi.
-    - `kayit_var` ... `son_tam`, `tamlik`: `funding.funding_tamlik_ayrintisi` (gercek).
+    - `capa_var` ... `son_tam`, `tamlik`: `funding.funding_tamlik_ayrintisi` (gercek; rev.9).
       False = pozisyonun funding'i tam degil, olay tek karar noktasinda olusmaz.
     - `funding_var`: `funding.donemde_funding_var` (gercek; sayim penceresi [bas, B]).
     - `kural_uygulanir`: donem sonu turu veri sonu degil.
@@ -204,7 +204,7 @@ def d_kurali_olc(sembol: str, donemler, turler: list[str], fund: pd.DataFrame,
             satir.update(temsili_sinyal=plan.sinyal_zamani, giris=plan.giris, cikis_turu=plan.cikis_turu,
                          cikis_ani=plan.cikis_ani)
             ayrinti = funding_modulu.funding_tamlik_ayrintisi(
-                seri, [plan.giris], [funding_modulu.funding_penceresi_sonu(plan)]).iloc[0]
+                seri, [plan.giris], [funding_modulu.funding_penceresi_sonu(plan)], donem_baslari=[d.baslangic]).iloc[0]
             satir.update({k_: bool(ayrinti[k_]) for k_ in (*funding_modulu.TAMLIK_KOSULLARI, "tam")})
             satir["tamlik"] = satir.pop("tam")
         satir["funding_var"] = funding_modulu.donemde_funding_var(fund, d, config.BAR_4H)
@@ -333,7 +333,7 @@ def _kos() -> None:
             olusan = g.loc[g["ret_gerekcesi"].isna()]
             print(f"{tur:26s} donem sonu {len(g):4d} | plan olustu {len(olusan):4d} "
                   f"(ret: {g['ret_gerekcesi'].value_counts().to_dict()}) | tamlik bozuk {int((~olusan['tamlik']).sum())} "
-                  f"| yalniz baslangic {int((olusan['kayit_var'] & olusan['aralik_gecerli'] & ~olusan['baslangic_tam'] & olusan['ic_tam'] & olusan['son_tam']).sum())} "
+                  f"| capa yok {int((~olusan['capa_var']).sum())} "
                   f"| disarida kalan kayit {int(g['disarida_kalan'].sum())} ({int((g['disarida_kalan'] > 0).sum())}) "
                   f"| K'da odeme {int(g['kapanista_odeme'].sum())}")
     fs = d_tablo.loc[d_tablo["bar"] == config.BAR_4H]

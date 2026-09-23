@@ -95,7 +95,9 @@ def test_8h_aralikta_son_odeme_acilistan_once_d_kurali_tam():
 def test_odemeler_erken_biterse_bozuk():
     fund = _fund(_ritim("2025-04-10 00:00", "2025-04-12 00:00", 4))
     satir = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], fund)[0]
-    assert not satir["tamlik"] and not satir["kayit_var"]
+    # Rev.9 §4 "Funding tamligi": "kayit_var" kosulu kaldirildi; capa (04-12 00:00) var, son
+    # kayit + 4 saat B'den once doluyor -> "Son" maddesi bozuk (rev.8'de kayit_var bozuktu).
+    assert not satir["tamlik"] and satir["capa_var"] and not satir["son_tam"]
 
 
 def test_donem_sonrasi_kayit_tamligi_d_kuralinda_kurtarmaz():
@@ -112,13 +114,15 @@ def test_donem_basindan_onceki_kayit_okunmaz():
     fund = _fund([T("2025-04-14 00:00")], aralik=8)
     satir = a1.d_kurali_olc("X", [donem], ["delist_SETTLING"], fund)[0]
     assert satir["giris"] >= donem.baslangic
-    assert not satir["tamlik"] and not satir["kayit_var"]
+    # Rev.9: donem basindan onceki kayit capa olamaz (rev.8'de kayit_var sutunuyla sabitleniyordu).
+    assert not satir["tamlik"] and not satir["capa_var"]
 
 
 def test_funding_yoksa_tamlik_bozuk():
     satir = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], _fund([]))[0]
     assert satir["disarida_kalan"] == 0
-    assert not satir["tamlik"] and not satir["kayit_var"]
+    # Rev.9: kayit yoksa capa yok (rev.8'de kayit_var sutunuyla sabitleniyordu).
+    assert not satir["tamlik"] and not satir["capa_var"]
 
 
 # --- donem sonu turleri -----------------------------------------------------------

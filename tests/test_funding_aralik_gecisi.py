@@ -108,15 +108,11 @@ def test_eksiksiz_gecis_nan_uretmez(ad):
     gecis = _ts(GECIS[ad])
     for t in _gecisi_kapsayan_ortalama_zamanlari(gecis):
         assert not pd.isna(_ortalama(fr, t)), (ad, t)
-    # Rev.8 baslangic kurali tetiklenen girislerde NaN, digerlerinde deger (rev.7'de hepsi deger).
-    tam = 0
+    # Rev.9 §4 "Funding tamligi" rev.8'in baslangic boslugu kuralini kaldirdi: eksiksiz
+    # geciste her giris tam (rev.8'de `_baslangic_kurali_bozar` girislerinde NaN idi; rev.7'de
+    # hepsi deger).
     for giris in _gecisi_kapsayan_girisler(gecis):
-        if _baslangic_kurali_bozar(fr, giris):
-            assert pd.isna(_poz(fr, giris)), (ad, giris)
-        else:
-            assert not pd.isna(_poz(fr, giris)), (ad, giris)
-            tam += 1
-    assert tam > 0
+        assert not pd.isna(_poz(fr, giris)), (ad, giris)
 
 
 @pytest.mark.parametrize("ad", list(DESENLER))
@@ -207,15 +203,10 @@ def test_gercek_gecis_nan_uretmez(sembol, aylar, gecis, eski, yeni):
     gecis_ani = z[i]
     for t in _gecisi_kapsayan_ortalama_zamanlari(gecis_ani):
         assert not pd.isna(_ortalama(fr, t)), t
-    # Rev.8 baslangic kurali tetiklenen girislerde NaN, digerlerinde deger (rev.7'de hepsi deger).
-    tam = 0
+    # Rev.9: baslangic boslugu kurali kaldirildi; eksiksiz geciste her giris tam (rev.8'de
+    # `_baslangic_kurali_bozar` girislerinde NaN idi).
     for giris in _gecisi_kapsayan_girisler(gecis_ani):
-        if _baslangic_kurali_bozar(fr, giris):
-            assert pd.isna(_poz(fr, giris)), giris
-        else:
-            assert not pd.isna(_poz(fr, giris)), giris
-            tam += 1
-    assert tam > 0
+        assert not pd.isna(_poz(fr, giris)), giris
 
 
 @pytest.mark.parametrize("sembol,aylar,gecis,eski,yeni", GERCEK, ids=[g[0] for g in GERCEK])

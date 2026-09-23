@@ -72,13 +72,17 @@ def test_tamlik_sutunlari_gercek_fonksiyondan(monkeypatch):
     gercek = funding_modulu.funding_tamlik_ayrintisi
     cagri = []
 
-    def casus(funding, girisler, sonlar):
-        cagri.append((list(girisler), list(sonlar)))
-        return ~gercek(funding, girisler, sonlar)
+    def casus(funding, girisler, sonlar, **kw):
+        # Rev.9: capa tabani icin donem_baslari zorunlu; yalnizca bool sutunlar tersine cevrilir.
+        cagri.append((list(girisler), list(sonlar), list(kw["donem_baslari"])))
+        sonuc = gercek(funding, girisler, sonlar, **kw)
+        for k in (*funding_modulu.TAMLIK_KOSULLARI, "tam"):
+            sonuc[k] = ~sonuc[k]
+        return sonuc
 
     monkeypatch.setattr(funding_modulu, "funding_tamlik_ayrintisi", casus)
     sonra = a1.d_kurali_olc("X", [DONEM], ["delist_SETTLING"], FUND)[0]
-    assert cagri == [([once["giris"]], [DONEM.bitis])]  # donem sonu penceresi B'de biter
+    assert cagri == [([once["giris"]], [DONEM.bitis], [DONEM.baslangic])]  # donem sonu penceresi B'de biter
     for k in (*funding_modulu.TAMLIK_KOSULLARI, "tamlik"):
         assert sonra[k] is (not once[k]), k
 

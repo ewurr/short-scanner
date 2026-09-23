@@ -347,7 +347,9 @@ def test_d_kurali_olc_ikinci_donem_kayitlari_birinci_donemin_hesabina_sizmaz():
     satir_iki = a1.d_kurali_olc("X", [donem0, donem1], ["uzun_bosluk", "delist_SETTLING"], fund_iki)[0]
 
     assert satir_tek["disarida_kalan"] == satir_iki["disarida_kalan"]
-    for anahtar in ("tamlik", "kayit_var", "aralik_gecerli", "baslangic_tam", "ic_tam", "son_tam"):
+    # Rev.9 kosul adlari (capa_var, aralik_gecerli, zincir_tam, son_tam); rev.8'de kayit_var,
+    # baslangic_tam, ic_tam vardi.
+    for anahtar in ("tamlik", "capa_var", "aralik_gecerli", "zincir_tam", "son_tam"):
         assert satir_tek[anahtar] == satir_iki[anahtar], anahtar
 
 
@@ -369,8 +371,8 @@ def test_d_kurali_olc_oran_sutunu_olmadan_sayim_degismez():
     satir_oransiz = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"], fund_oransiz)[0]
     satir_nan = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"], fund_nan_oran)[0]
 
-    for anahtar in ("disarida_kalan", "tamlik", "kayit_var", "aralik_gecerli", "baslangic_tam", "ic_tam",
-                    "son_tam"):
+    for anahtar in ("disarida_kalan", "tamlik", "capa_var", "aralik_gecerli", "zincir_tam",
+                    "son_tam"):  # Rev.9 kosul adlari
         assert satir_normal[anahtar] == satir_oransiz[anahtar] == satir_nan[anahtar], anahtar
 
 

@@ -39,7 +39,8 @@ def _oneri(seri, giris, son, bas=BAS, **kw):
 
 
 def _rev8(seri, giris, son):
-    return funding_modulu.funding_tamlik_ayrintisi(seri, [T(giris)], [T(son)]).iloc[0]
+    # Rev.9 veri katmanindaki kurali degistirdi; Rev.8 tanimi donmus kopyadan (rev8_tamlik).
+    return r9.rev8_tamlik_ayrintisi(seri, [T(giris)], [T(son)]).iloc[0]
 
 
 SEKIZ = _seri([("2025-01-01 00:00", 8), ("2025-01-01 08:00", 8), ("2025-01-01 16:00", 8),

@@ -146,7 +146,7 @@ def test_vektorel_tekil_ile_ayni():
 def test_fark_turu():
     seri = _seri([("2025-01-01 00:00", 8), ("2025-01-01 08:00", 8), ("2025-01-01 16:00", 8)])
     ty = _ty(seri, "2025-01-01 08:00", "2025-01-01 12:00")
-    rev8 = r9.funding_modulu.funding_tamlik_ayrintisi(seri, [T("2025-01-01 08:00")],
+    rev8 = r9.rev8_tamlik_ayrintisi(seri, [T("2025-01-01 08:00")],
                                                       [T("2025-01-01 12:00")]).iloc[0]
     assert r9.tahmin_yok_fark_turu(rev8, ty, False) == "kayitsiz_kisa_pencere"
 

@@ -11,7 +11,8 @@ cagrilir; betik kopyasini tasimaz.
    barlar (1d'de butun donem ici gunler) varsayimsal sinyal; her hipotezin
    izgarasi ve birincil ufku (`config.HIPOTEZ_IZGARASI`, `config.BIRINCIL_UFUK`),
    kume kirilimi (KESIF / C1 / C2; sembolun grubu ve sinyal zamani). Plan gercek
-   `pencere.pozisyon_plani`, tamlik gercek `funding.funding_tamlik_ayrintisi`.
+   `pencere.pozisyon_plani`, tamlik Rev.8 kurali (`rev8_tamlik.rev8_tamlik_ayrintisi`, tarihsel donmus
+   kopya; Rev.9 ile veri katmanindaki kural degisti).
    Sinyal pencereleri ve uygunluk filtreleri UYGULANMAZ: sayim olasi olaylarin
    ust kumesidir. "Yalniz baslangic": diger dort kosul tam, baslangic kosulu
    bozuk (rev.7'de funding'i tam sayilan, rev.8'de dusen pozisyon).
@@ -52,6 +53,7 @@ from data import klines as klines_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import split as split_modulu  # noqa: E402
 from data import universe as universe_modulu  # noqa: E402
+from rev8_tamlik import rev8_pencere_sonu, rev8_tamlik_ayrintisi  # noqa: E402
 
 P = pencere_modulu
 CIKTI_BASLANGIC = BU_DIZIN / "rev8_etki_baslangic_tam.csv"
@@ -122,9 +124,9 @@ def baslangic_etkisi(sembol: str, grup: str, donemler, mumlar: pd.DataFrame, ser
                     continue
                 s["plan"] += 1
                 girisler.append(plan.giris)
-                sonlar.append(funding_modulu.funding_penceresi_sonu(plan))
+                sonlar.append(rev8_pencere_sonu(plan))
                 plan_kumeleri.append(kume)
-        ayrinti = funding_modulu.funding_tamlik_ayrintisi(seri, girisler, sonlar)
+        ayrinti = rev8_tamlik_ayrintisi(seri, girisler, sonlar)
         ayrinti["kume"] = plan_kumeleri
         for kume, s in sorted(sayim.items()):
             a = ayrinti.loc[ayrinti["kume"] == kume]
