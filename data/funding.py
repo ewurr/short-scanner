@@ -340,6 +340,8 @@ TAMLIK_KOSULLARI = ("capa_var", "aralik_gecerli", "zincir_tam", "son_tam")
 # Bilinen sinirlarin bayraklari ve ritim etiketleri (on-kayit §4 rev.9); `tam`a girmez.
 TAMLIK_BAYRAKLARI = ("kuyruk_kismi", "kuyruk_sifir", "son_esitlik_affi", "capa_aralik_saat", "son_aralik_saat",
                      "tek_ritim")
+# Dizinin iki ucu (yalnizca kayit zamanlari; hukme girmez): capa ve penceredeki son kayit.
+TAMLIK_ZAMANLARI = ("capa_zamani", "son_kayit_zamani")
 
 
 def funding_penceresi_sonu(plan) -> pd.Timestamp:
@@ -403,6 +405,8 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     Ritim etiketleri (F2 sarti "funding ritmi basina"; hukme girmez): `capa_aralik_saat`
     (capanin araligi), `son_aralik_saat` (dizideki son kaydin araligi), `tek_ritim`
     (capadan son kayda kadar butun araliklar ayni). Capa yoksa araliklar NaN.
+    Dizinin uclari (`capa_zamani`, `son_kayit_zamani`; capa yoksa NaT) olcum betiklerinin tani
+    sutunlari icindir; kural baska yerde yeniden kurulmasin diye buradan verilir.
     Saf.
     """
     from data import pencere as pencere_modulu
@@ -416,6 +420,8 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     sonuc = pd.DataFrame({k: np.zeros(n, dtype=bool) for k in (*TAMLIK_KOSULLARI, "tam", *TAMLIK_BAYRAKLARI)})
     sonuc["capa_aralik_saat"] = np.full(n, np.nan)
     sonuc["son_aralik_saat"] = np.full(n, np.nan)
+    for k in TAMLIK_ZAMANLARI:
+        sonuc[k] = pd.Series(pd.NaT, index=sonuc.index, dtype="datetime64[ns, UTC]")
     if n == 0 or funding.empty:
         return sonuc
     zamanlar = _zaman_dizisi(funding, "funding_tamlik_ayrintisi")
@@ -475,6 +481,8 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     sonuc["capa_aralik_saat"] = np.where(capa_var, aralik[jj], np.nan)
     sonuc["son_aralik_saat"] = np.where(capa_var, aralik[son_i], np.nan)
     sonuc["tek_ritim"] = capa_var & ((p_degisim[son_i] - p_degisim[jj]) == 0)
+    sonuc["capa_zamani"] = zamanlar[jj].where(capa_var)
+    sonuc["son_kayit_zamani"] = zamanlar[son_i].where(capa_var)
     return sonuc
 
 

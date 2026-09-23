@@ -3,9 +3,11 @@ YALNIZCA SAYI.
 
 Getiri, fiyat farki ya da funding degeri HESAPLAMAZ ve raporlamaz. Mumlardan yalnizca
 acilis zamani, funding kayitlarindan yalnizca odeme zamani ve aralik alani okunur
-(CLAUDE.md §3.1, RESULTS §14.9). Veri katmani DEGISMEZ: plan gercek
-`pencere.pozisyon_plani`, tamlik olcumu besinci turun olcum fonksiyonudur
-(`rev9_hazirlik.capa_duzeltme_tamlik_ayrintisi`); hicbir karar yolunda kullanilmaz.
+(CLAUDE.md §3.1, RESULTS §14.9). Rev.9 uygulamasindan (2026-09-23) beri plan, pencere sonu,
+tamlik ve ritim etiketleri GERCEK koddan gelir: `pencere.pozisyon_plani`,
+`funding.funding_penceresi_sonu`, `funding.funding_tamlik_ayrintisi` (`capa_aralik_saat`,
+`son_aralik_saat`, `tek_ritim`, kuyruk bayraklari). Betikte tamlik kuralinin kopyasi yoktur
+(tests/test_rev9_tek_tamlik.py).
 
 Soru: `capa_duzeltme_kuyruk_kismi` payi (tam sayilan pozisyonlarda son kayittan pencere
 sonuna kalan dilim bir tam araliktan kisa) 4h izgarada kumeler arasinda ayrisiyor
@@ -56,7 +58,6 @@ from data import pencere as pencere_modulu  # noqa: E402
 from data import split as split_modulu  # noqa: E402
 from data import universe as universe_modulu  # noqa: E402
 from rev8_etki import kume_sinirlari, sinyal_kumesi  # noqa: E402
-from rev9_hazirlik import capa_duzeltme_tamlik_ayrintisi, son_hal_pencere_sonu  # noqa: E402
 
 P = pencere_modulu
 CIKTI_KAYIT = BU_DIZIN / "rev9_ritim_kayit_tam.csv"
@@ -65,35 +66,28 @@ CIKTI_ORTAM = BU_DIZIN / "rev9_ritim_ortam_tam.csv"
 
 
 def pozisyon_ritmi(funding: pd.DataFrame, girisler, pencere_sonlari, donem_baslari) -> pd.DataFrame:
-    """Her pozisyon icin ritim etiketleri. Vektorel, saf; yalnizca odeme ZAMANI ve ARALIGI.
+    """Her pozisyon icin ritim etiketleri; GERCEK `funding.funding_tamlik_ayrintisi`dan okunur
+    (Rev.9: ritim etiketleri tamlik kodunun ciktisidir). Yalnizca odeme ZAMANI ve ARALIGI.
 
     Sutunlar: `capa_aralik` (capanin aralik alani), `son_aralik` (penceredeki son kaydin
     araligi), `tek_ritim` (capadan son kayda kadar butun araliklar ayni), `kayit_sayisi`
-    (capa dahil, dizideki kayit sayisi). Capa yoksa araliklar NaN, `tek_ritim` False,
-    `kayit_sayisi` 0. Tamlik hukmune girmez.
+    (capa dahil, dizideki kayit sayisi; capa ve son kayit zamanlarinin seri icindeki
+    siralarindan). Capa yoksa araliklar NaN, `tek_ritim` False, `kayit_sayisi` 0. Tamlik
+    hukmune girmez.
     """
-    girisler = pd.DatetimeIndex(girisler)
-    sonlar = pd.DatetimeIndex(pencere_sonlari)
-    baslar = pd.DatetimeIndex(donem_baslari)
-    if not (len(girisler) == len(sonlar) == len(baslar)):
-        raise ValueError("girisler, pencere_sonlari ve donem_baslari ayni uzunlukta olmali.")
-    n = len(girisler)
-    sonuc = pd.DataFrame({"capa_aralik": np.full(n, np.nan), "son_aralik": np.full(n, np.nan),
-                          "tek_ritim": np.zeros(n, dtype=bool), "kayit_sayisi": np.zeros(n, dtype="int64")})
+    gercek = funding_modulu.funding_tamlik_ayrintisi(funding, girisler, pencere_sonlari, donem_baslari=donem_baslari)
+    n = len(gercek)
+    sonuc = pd.DataFrame({"capa_aralik": gercek["capa_aralik_saat"].to_numpy(dtype=float),
+                          "son_aralik": gercek["son_aralik_saat"].to_numpy(dtype=float),
+                          "tek_ritim": gercek["tek_ritim"].to_numpy(dtype=bool),
+                          "kayit_sayisi": np.zeros(n, dtype="int64")})
     if n == 0 or funding.empty:
         return sonuc
     zamanlar = funding_modulu._zaman_dizisi(funding, "pozisyon_ritmi")
-    aralik = pd.to_numeric(funding["aralik_saat"], errors="coerce").to_numpy(dtype=float)
-    j = zamanlar.searchsorted(P.ayni_an_sonu(girisler), side="left") - 1  # capa
-    jj = np.maximum(j, 0)
-    son_i = np.maximum(zamanlar.searchsorted(P.ayni_an_sonu(sonlar), side="left") - 1, jj)
-    capa_var = (j >= 0) & np.asarray(P.ayni_ya_da_sonra(zamanlar[jj], baslar), dtype=bool)
-    degisim = (aralik[1:] != aralik[:-1]) if len(aralik) > 1 else np.zeros(0, dtype=bool)
-    p_degisim = np.r_[0, np.cumsum(degisim)]
-    sonuc["capa_aralik"] = np.where(capa_var, aralik[jj], np.nan)
-    sonuc["son_aralik"] = np.where(capa_var, aralik[son_i], np.nan)
-    sonuc["tek_ritim"] = capa_var & ((p_degisim[son_i] - p_degisim[jj]) == 0)
-    sonuc["kayit_sayisi"] = np.where(capa_var, son_i - jj + 1, 0)
+    capa_var = gercek["capa_var"].to_numpy(dtype=bool)
+    ilk = zamanlar.get_indexer(pd.DatetimeIndex(gercek["capa_zamani"]))
+    son = zamanlar.get_indexer(pd.DatetimeIndex(gercek["son_kayit_zamani"]))
+    sonuc["kayit_sayisi"] = np.where(capa_var, son - ilk + 1, 0)
     return sonuc
 
 
@@ -145,12 +139,12 @@ def pozisyon_satirlari(sembol: str, grup: str, donemler, mumlar: pd.DataFrame, s
                 except P.OlayOlusmaz:
                     continue
                 girisler.append(plan.giris)
-                sonlar.append(son_hal_pencere_sonu(plan.cikis_ani, plan.cikis_turu, d.bitis, d.kapanis))
+                sonlar.append(funding_modulu.funding_penceresi_sonu(plan))
                 baslar.append(d.baslangic)
                 plan_kumeleri.append(kume)
         if not girisler:
             continue
-        cd = capa_duzeltme_tamlik_ayrintisi(seri, girisler, sonlar, baslar)
+        cd = funding_modulu.funding_tamlik_ayrintisi(seri, girisler, sonlar, donem_baslari=baslar)
         rt = pozisyon_ritmi(seri, girisler, sonlar, baslar)
         tablo = pd.DataFrame({
             "kume": plan_kumeleri,
@@ -161,7 +155,7 @@ def pozisyon_satirlari(sembol: str, grup: str, donemler, mumlar: pd.DataFrame, s
             "tam": cd["tam"].to_numpy(),
             "kuyruk_kismi": cd["kuyruk_kismi"].to_numpy(),
             "kuyruk_sifir": cd["kuyruk_sifir"].to_numpy(),
-            "kuyruk_dogrulanmamis": cd["kuyruk_dogrulanmamis"].to_numpy(),
+            "kuyruk_dogrulanmamis": cd["kuyruk_kismi"].to_numpy() | cd["kuyruk_sifir"].to_numpy(),
             "son_esitlik_affi": cd["son_esitlik_affi"].to_numpy(),
         })
         sayim = tablo.groupby(["kume", "yil", "capa_aralik", "son_aralik", "tek_ritim"], dropna=False).agg(
