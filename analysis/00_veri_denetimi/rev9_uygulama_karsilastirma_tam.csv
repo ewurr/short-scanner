@@ -1,0 +1,28 @@
+kalem,olcum_betigi,gercek_kod,fark,satir_farki,not
+baslangic.plan,3907408.0,3907408.0,0.0,0.0,sembol x izgara x kume
+baslangic.tam,3887825.0,3887825.0,0.0,0.0,sembol x izgara x kume
+baslangic.capa_yok,7248.0,7248.0,0.0,0.0,sembol x izgara x kume
+baslangic.zincir_bozuk,12329.0,12329.0,0.0,0.0,sembol x izgara x kume
+baslangic.son_bozuk,6.0,6.0,0.0,0.0,sembol x izgara x kume
+baslangic.kuyruk_kismi,938979.0,938979.0,0.0,0.0,sembol x izgara x kume
+baslangic.son_esitlik_affi,435.0,435.0,0.0,0.0,sembol x izgara x kume
+baslangic.bosluk_etkisi,12298.0,12298.0,0.0,0.0,sembol x izgara x kume
+baslangic.kuyruk_kismi_payi_yuzde,24.15,24.15,0.0,,
+donem_sonu.bozuk.4h,3.0,3.0,0.0,,bozuk: BNXUSDT d0;ICPUSDT d0;TLMUSDT d0
+donem_sonu.bozuk.1d,3.0,3.0,0.0,,bozuk: BNXUSDT d0;ICPUSDT d0;TLMUSDT d0
+donem_sonu.satir_farki,0.0,0.0,0.0,0.0,sembol x izgara x donem: ret gerekcesi ve tam
+tk.birincil.pozisyon,170.0,170.0,0.0,,
+tk.birincil.tam,165.0,165.0,0.0,,
+tk.butun_ufuklar.pozisyon,511.0,511.0,0.0,,
+tk.butun_ufuklar.tam,494.0,494.0,0.0,,
+tk.satir_farki,0.0,0.0,0.0,0.0,sembol x donem x izgara x ufuk: durum ve tam
+tk.donem_sonu_cikisi,0.0,511.0,511.0,,Rev.9: T = K olan pozisyonlarin donem sonu cikisi sayisi (olcum betiginde olagan)
+ritim.satir_farki,0.0,0.0,0.0,0.0,rev9_ritim_pozisyon ile ayni gruplama
+ritim.kuyruk_kismi_payi_yuzde.4h.tek_ritim_8h,49.94,49.94,0.0,,tam pozisyon 1879669
+ritim.kuyruk_kismi_payi_yuzde.4h.tek_ritim_4h,0.0,0.0,0.0,,tam pozisyon 1442448
+ritim.kuyruk_kismi_payi_yuzde.4h.tek_ritim_2h,0.0,0.0,0.0,,tam pozisyon 698
+ritim.kuyruk_kismi_payi_yuzde.4h.tek_ritim_1h,0.0,0.0,0.0,,tam pozisyon 15997
+ritim.kuyruk_kismi_payi_yuzde.1d.tek_ritim_8h,0.03,0.03,0.0,,tam pozisyon 309382
+ritim.kuyruk_kismi_payi_yuzde.1d.tek_ritim_4h,0.0,0.0,0.0,,tam pozisyon 225371
+ritim.kuyruk_kismi_payi_yuzde.1d.tek_ritim_2h,0.0,0.0,0.0,,tam pozisyon 83
+ritim.kuyruk_kismi_payi_yuzde.1d.tek_ritim_1h,0.0,0.0,0.0,,tam pozisyon 1568
