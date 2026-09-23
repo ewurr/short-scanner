@@ -31,6 +31,12 @@ def ihlaller(desen: str, kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR) -> list[s
 
 KUME_NONE_DESENI = r"\bkume_(baslangic|bitis)\s*=\s*None\b"
 
+# Donem siniri de bilincli `None` ile kapatilamaz (denetci bulgusu D-C6; on-kayit §2 "Tum geriye
+# bakis pencereleri donem baslangicini asamaz"). Esdegerler: anahtar sozcuk (`donem_baslangic=None`),
+# eslem anahtari (`{"donem_baslangic": None}`, `**{...}`) ve ayni adli degiskene atama. Sinir:
+# degerin baska bir adla tasinmasi (`d = None; donem_baslangic=d`) yakalanmaz.
+DONEM_NONE_DESENI = r"\bdonem_(baslangic|bitis)\b[\"']?\s*[=:]\s*None\b"
+
 # Funding'e kume kapisi (`funding.funding_yukle`) disindan erisim: kume korumasiz
 # yukleyici, ic ay ayristiricisi, bucket listeleme/onek ve funding onbellek dizini
 # (F1 kapanis denetimi bulgu 10).
