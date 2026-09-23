@@ -14,7 +14,8 @@ ayri bir kontrol yolu yoktur. Sirasiyla:
   2. `pencere.pozisyon_plani`: sinyal kumede ve donem ici, giris bari, cikis (donem
      sonu / olagan / ileri kayma ve siniri), gercek cikis ani + tolerans <= kume sonu.
   3. Uygunluk (`eligibility.uygunluk_karari`, esikler zorunlu anahtar sozcuk) -> `UygunDegil`.
-  4. Funding tamligi (`funding.pozisyon_funding_tam_mi`) -> `FundingTamDegil`.
+  4. Funding tamligi (`funding.pozisyon_funding_ayrintisi`) -> `FundingTamDegil`; ayni satirdan
+     F2 saglamlik bayraklari (kismi kuyruk, esitlik affi, funding ritmi).
 Karar olumluysa `OnaylanmisPozisyon` doner: plan, P0, P1 ve funding toplami. Brut
 getiri, net getiri, MAE ve K1/K2 kontrolleri YALNIZCA bu ciktiyi kullanir;
 `pozisyon_fiyatlari` ve `mae` baska girdi kabul etmez. Ayri bir kapi yoktur.
@@ -67,12 +68,28 @@ class OnaylanmisPozisyon:
 
     `p0`: giris barinin acilisi; `p1`: cikis barinin `plan.cikis.fiyat_alani`
     alani; `funding_toplami`: pozisyonun funding'i (on-kayit §4). Degerler raporlanmaz.
+
+    F2 saglamlik kontrolunun bayraklari (on-kayit §4 rev.9 "Funding tamliginin bilinen
+    sinirlari", "F2 sarti"); hepsi gercek tamlik kodundan (`funding.pozisyon_funding_ayrintisi`)
+    ve imzaya bagli:
+      - `kuyruk_kismi`: son kayittan pencere sonuna kalan dilim bir tam araliktan kisa
+        (o dilimdeki eksik odeme gorulemez),
+      - `son_esitlik_affi`: son kayit + araligi tam pencere sonuna denk geliyor, orada kayit
+        yok; pozisyon tam sayildi,
+      - `capa_aralik_saat`, `son_aralik_saat`, `tek_ritim`: pozisyonun funding ritmi
+        etiketleri (capanin ve dizideki son kaydin araligi; capadan son kayda araliklar ayni mi).
+    Bayraklarin varsayilanlari yalnizca elle kurulan (gecersiz) nesne icindir.
     """
 
     plan: pencere_modulu.PozisyonPlani
     p0: float
     p1: float
     funding_toplami: float
+    kuyruk_kismi: bool = False
+    son_esitlik_affi: bool = False
+    capa_aralik_saat: float = float("nan")
+    son_aralik_saat: float = float("nan")
+    tek_ritim: bool = False
     _imza: int = field(default=0, repr=False, compare=False)
 
     @property
@@ -81,7 +98,8 @@ class OnaylanmisPozisyon:
 
 
 def _imza(p: OnaylanmisPozisyon) -> int:
-    return hash((_ONAY_GIZLI, p.plan, p.p0, p.p1, p.funding_toplami))
+    return hash((_ONAY_GIZLI, p.plan, p.p0, p.p1, p.funding_toplami, p.kuyruk_kismi, p.son_esitlik_affi,
+                 p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim))
 
 
 def onay_dogrula(pozisyon) -> None:
@@ -192,7 +210,8 @@ def olay_karari(
             asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun):
         raise UygunDegil(f"Sinyal bari {plan.sinyal_zamani} ({bar}) uygun degil: listeleme yasi ya da medyan "
                          "hacim esigi gecilmiyor (on-kayit §2 'Uygunluk').")
-    if not funding_modulu.pozisyon_funding_tam_mi(funding, plan):
+    ayrinti = funding_modulu.pozisyon_funding_ayrintisi(funding, plan)
+    if not bool(ayrinti["tam"]):
         raise FundingTamDegil(f"Pozisyonun funding'i tam degil: giris {plan.giris}, cikis {plan.cikis_ani} "
                               f"({plan.cikis_turu}); olay brut dahil hicbir hesapta olusmaz.")
     toplam = funding_modulu.pozisyon_fundingi(funding, plan)
@@ -200,7 +219,10 @@ def olay_karari(
         raise FundingTamDegil(f"Pozisyonun funding'i hesaplanamadi (oran NaN): giris {plan.giris}.")
     p0 = _bar_degeri(mumlar_4h, zamanlar, plan.giris, "open")
     p1 = _bar_degeri(mumlar_4h, zamanlar, plan.cikis.zaman, plan.cikis.fiyat_alani)
-    sonuc = OnaylanmisPozisyon(plan, p0, p1, toplam)
+    sonuc = OnaylanmisPozisyon(plan, p0, p1, toplam, kuyruk_kismi=bool(ayrinti["kuyruk_kismi"]),
+                               son_esitlik_affi=bool(ayrinti["son_esitlik_affi"]),
+                               capa_aralik_saat=float(ayrinti["capa_aralik_saat"]),
+                               son_aralik_saat=float(ayrinti["son_aralik_saat"]), tek_ritim=bool(ayrinti["tek_ritim"]))
     return replace(sonuc, _imza=_imza(sonuc))
 
 
