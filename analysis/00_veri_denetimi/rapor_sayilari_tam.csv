@@ -68,8 +68,8 @@ bolum,kalem,deger
 3,ne_donem_ne_dolgu_bar,5
 3,ne_donem_ne_dolgu_semboller,"AKROUSDT:1,LUNAUSDT:4"
 3,kisa_sifir_kosusu,0
-4,funding_siz_donem,2
-4,funding_siz_donem_gercek_bar,4344
+4,funding_siz_donem,3
+4,funding_siz_donem_gercek_bar,6150
 4,funding_kayit_toplam,2562456
 4,funding_kayit_sembol,678
 4,atilan_son_donem_sonrasi_kayit,63718
