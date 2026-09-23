@@ -109,7 +109,29 @@ def _gunluk_hacim(gunluk_mumlar: pd.DataFrame) -> pd.Series:
 
 
 def _mum_zamanlari(mumlar: pd.DataFrame) -> pd.DatetimeIndex:
-    return pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(mumlar["open_time"]), "olay_karari")
+    """Fiyat okuma tabaninin 4h serisi oldugunu denetler (on-kayit §4 rev.8 "Fiyat okuma
+    tabani": pozisyonun butun fiyat okumalari her hipotezde donem ici 4h barlardan; denetci
+    bulgusu D-B3). 1d cercevesi (ör. `klines.mumlari_yukle(s, "1d", ...)`) ayni sutun adlarini
+    tasidigi icin sessizce kabul edilirse her cikis ileri kaymaya duser; burada acik hata verir:
+      - acilislar 4h izgarasinda (gun basindan 0, 4, ..., 20 saat) olmali,
+      - `close_time` varsa hicbir barin suresi 4 saati asmamali,
+      - en az iki bar varsa ardisik iki acilis arasindaki en kucuk fark 4 saat olmali.
+    """
+    zamanlar = pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(mumlar["open_time"]), "olay_karari")
+    if len(zamanlar) == 0:
+        return zamanlar
+    adim = pencere_modulu.ADIM_4H
+    if bool(((zamanlar - zamanlar.floor("D")) % adim != pd.Timedelta(0)).any()):
+        raise ValueError("mumlar_4h 4h izgarasinda degil (acilislar 00/04/08/12/16/20 UTC olmali).")
+    if "close_time" in mumlar:
+        sure = pd.DatetimeIndex(mumlar["close_time"]) - zamanlar
+        if bool((sure > adim).any()):
+            raise ValueError("mumlar_4h 4h serisi olmali: bar suresi 4 saati asiyor (1d cercevesi verilmis olabilir; "
+                             "on-kayit §4 'Fiyat okuma tabani').")
+    if len(zamanlar) > 1 and (zamanlar[1:] - zamanlar[:-1]).min() != adim:
+        raise ValueError("mumlar_4h 4h serisi olmali: ardisik acilislar arasinda 4 saatlik fark yok "
+                         "(1d cercevesi verilmis olabilir; on-kayit §4 'Fiyat okuma tabani').")
+    return zamanlar
 
 
 def _bar_degeri(mumlar: pd.DataFrame, zamanlar: pd.DatetimeIndex, zaman: pd.Timestamp, alan: str) -> float:
