@@ -176,19 +176,21 @@ def test_h3_olayinin_giris_gunu_kismi_son_gun_olsa_da_giris_4h_bardan_yapilir():
 
 
 def test_hedef_tam_k_ise_olagan_cikis_donem_sonu_degil():
-    """T = K TAM esitlikte donem sonu DEGIL, olagan cikis olmalidir (§4: 'once
-    T > K denetlenir'; T == K icin sonra() False doner)."""
+    """Rev.9 §4 "Donem sonu ve cikis": T >= K, esitlik dahil; T = K TAM esitlikte donem
+    sonu cikisidir (rev.8'de "once T > K denetlenir" geregi olagan idi)."""
     g = T("2024-05-10 00:00")
     b = g  # B = giris -> K = B + 4h = giris + 4h = T (ufuk=1)
     zamanlar = pd.DatetimeIndex([g])
     sonuc = pencere_modulu.cikis_bari(zamanlar, g, 1, config.BAR_4H, birincil_ufuk=18,
                                        donem_bitis=b, kume_bitis=None)
-    assert sonuc.tur == "olagan"
+    assert sonuc.tur == "donem_sonu"
     assert sonuc.cikis_ani == pencere_modulu.donem_kapanisi(b)
 
 
 def test_hedef_k_eksi_1ns_olagan_cikis():
-    """T = K - 1ns: T < K, kesinlikle olagan (donem sonu asla tetiklenmemeli).
+    """T = K - 1ns: fark 1 dakikadan kesin kucuk, T ile K AYNI AN (§4 "Zaman toleransi").
+    Rev.9: "T < K" yalnizca T, K'dan once (ayni an degil) ise; ayni an T >= K'dir -> donem
+    sonu (rev.8'de olagan idi).
 
     T - K = g - b (ufuk=1, bar=4h); T=K-1ns istiyorsak b = g + 1ns olmali."""
     g = T("2024-05-10 00:00")
@@ -196,19 +198,19 @@ def test_hedef_k_eksi_1ns_olagan_cikis():
     zamanlar = pd.DatetimeIndex([g])
     sonuc = pencere_modulu.cikis_bari(zamanlar, g, 1, config.BAR_4H, birincil_ufuk=18,
                                        donem_bitis=b, kume_bitis=None)
-    assert sonuc.tur == "olagan"
+    assert sonuc.tur == "donem_sonu"
 
 
 def test_hedef_k_arti_1ns_tolerans_icinde_hala_olagan():
-    """T = K + 1ns: fark toleranstan (1 dk) kucuk oldugu icin AYNI AN sayilir;
-    donem sonu tetiklenmemeli (on-kayit §4 rev.8 'Zaman toleransi': tam 1 dakikalik
-    fark ayni an degildir -- 1ns fark ayni andir). T-K = g-b; T=K+1ns -> b = g-1ns."""
+    """T = K + 1ns: fark toleranstan (1 dk) kucuk oldugu icin AYNI AN sayilir (on-kayit §4
+    rev.8 'Zaman toleransi'). Rev.9: T >= K esitligi dahil eder -> donem sonu (rev.8'de
+    "tolerans icinde, donem sonu DEGIL" idi). T-K = g-b; T=K+1ns -> b = g-1ns."""
     g = T("2024-05-10 00:00")
     b = g - pd.Timedelta(nanoseconds=1)
     zamanlar = pd.DatetimeIndex([g])
     sonuc = pencere_modulu.cikis_bari(zamanlar, g, 1, config.BAR_4H, birincil_ufuk=18,
                                        donem_bitis=b, kume_bitis=None)
-    assert sonuc.tur == "olagan"  # tolerans icinde, donem sonu DEGIL
+    assert sonuc.tur == "donem_sonu"
 
 
 def test_hedef_k_arti_1dk_donem_sonu_tetiklenir():
@@ -225,15 +227,15 @@ def test_hedef_k_arti_1dk_donem_sonu_tetiklenir():
 
 
 def test_hedef_k_arti_1dk_eksi_1ns_hala_olagan():
-    """T = K + 1 dk - 1ns: tam sinirin hemen altinda; hala AYNI AN, donem sonu
-    OLMAMALI. Sinirin kesin 1 dakika oldugunu dogrular (sinir dahil degil).
-    T-K = g-b; T=K+1dk-1ns -> b = g-1dk+1ns."""
+    """T = K + 1 dk - 1ns: tam sinirin hemen altinda; hala AYNI AN. Rev.9: T >= K (esitlik
+    dahil) -> donem sonu (rev.8'de "donem sonu OLMAMALI" idi). T-K = g-b;
+    T=K+1dk-1ns -> b = g-1dk+1ns."""
     g = T("2024-05-10 00:00")
     b = g - pd.Timedelta(minutes=1) + pd.Timedelta(nanoseconds=1)
     zamanlar = pd.DatetimeIndex([g])
     sonuc = pencere_modulu.cikis_bari(zamanlar, g, 1, config.BAR_4H, birincil_ufuk=18,
                                        donem_bitis=b, kume_bitis=None)
-    assert sonuc.tur == "olagan"
+    assert sonuc.tur == "donem_sonu"
 
 
 # ==============================================================================

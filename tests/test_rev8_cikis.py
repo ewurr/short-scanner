@@ -56,21 +56,24 @@ def test_1d_t_arti_bir_kismi_son_gun_olay_olusur():
 
 
 def test_t_tam_k_ise_donem_sonu_degil_olagan():
+    """Rev.9 §4 "Donem sonu ve cikis": T >= K, esitlik dahil. T = K artik donem sonu cikisidir
+    (rev.8'de olagan). Fiyat okunan bar (B) ve cikis ani (K) ayni; funding penceresi B'de kapanir."""
     z = pd.date_range(T("2025-01-01"), periods=40, freq="4h")
     b = z[20]
     giris = b + H4 - 6 * H4  # T = giris + 24h = K
     z = z[z <= b]
     c = pencere.cikis_bari(z, giris, 6, config.BAR_4H, birincil_ufuk=18, donem_bitis=b, kume_bitis=None)
-    assert c.tur == "olagan" and c.zaman == b and c.cikis_ani == b + H4
+    assert c.tur == "donem_sonu" and c.zaman == b and c.cikis_ani == b + H4
 
 
 def test_t_k_arti_1ns_k_ile_ayni_an_olagan():
-    """T = K + 1 ns: fark 1 dakikadan kucuk, ayni an; T > K degil (olagan, hedef bar B)."""
+    """T = K + 1 ns: fark 1 dakikadan kucuk, ayni an. Rev.9: T >= K (esitlik dahil) -> donem
+    sonu (rev.8'de "T > K degil, olagan" idi); fiyat bari ve cikis ani degismez."""
     z = pd.date_range(T("2025-01-01"), periods=40, freq="4h")
     b = z[20]
     giris = b + H4 - 6 * H4 + NS  # T = giris + 24h = K + 1 ns; giris bari ayni an (1 ns)
     c = pencere.cikis_bari(z[z <= b], giris, 6, config.BAR_4H, birincil_ufuk=18, donem_bitis=b, kume_bitis=None)
-    assert c.tur == "olagan" and c.zaman == b and c.cikis_ani == b + H4
+    assert c.tur == "donem_sonu" and c.zaman == b and c.cikis_ani == b + H4
 
 
 def test_t_k_arti_1dk_donem_sonu():

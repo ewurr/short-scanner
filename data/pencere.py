@@ -169,7 +169,7 @@ class CikisSonucu:
     - `tur = "olagan"`: hedef bar (kapanisi T) mevcut; `close`, cikis ani T.
     - `tur = "ileri_kayma"`: hedef bar eksik; acilisi T'ye esit ya da sonra olan
       ilk donem ici 4h barin `open`i, cikis ani o barin acilisi.
-    - `tur = "donem_sonu"`: T > K; B'de acilan barin `close`u, cikis ani K.
+    - `tur = "donem_sonu"`: T >= K (rev.9); B'de acilan barin `close`u, cikis ani K.
     """
 
     indeks: int  # fiyatin okundugu 4h barin verilen seri icindeki sirasi
@@ -610,7 +610,7 @@ def cikis_tutarliligi_dogrula(cikis: CikisSonucu) -> None:
 
       - olagan     : close, cikis ani = bar acilisi + 4h = T, kayma 0
       - ileri_kayma: open,  cikis ani = bar acilisi, kayma = acilis - (T - 4h) > 0
-      - donem_sonu : close, cikis ani = bar acilisi + 4h = K, T > K, kayma 0
+      - donem_sonu : close, cikis ani = bar acilisi + 4h = K, T >= K (rev.9), kayma 0
     """
     if not isinstance(cikis, CikisSonucu):
         raise TypeError(f"cikis bir CikisSonucu olmali (cikis_bari ciktisi). Verilen: {cikis!r}")
@@ -632,8 +632,8 @@ def cikis_tutarliligi_dogrula(cikis: CikisSonucu) -> None:
             raise ValueError(f"Tutarsiz cikis ani: {cikis!r}")
         if cikis.tur == "olagan" and not ayni_an(hedef, an):
             raise ValueError(f"Olagan cikista cikis ani T olmali: {cikis!r}")
-        if cikis.tur == "donem_sonu" and not sonra(hedef, an):
-            raise ValueError(f"Donem sonu cikisinda T > K olmali: {cikis!r}")
+        if cikis.tur == "donem_sonu" and not ayni_ya_da_sonra(hedef, an):
+            raise ValueError(f"Donem sonu cikisinda T >= K olmali (on-kayit §4 rev.9): {cikis!r}")
 
 
 def cikis_bari(
@@ -646,17 +646,18 @@ def cikis_bari(
     donem_bitis,
     kume_bitis,
 ) -> CikisSonucu:
-    """Cikis (on-kayit §4 rev.8 "Fiyat okuma tabani", "Donem sonu ve cikis",
+    """Cikis (on-kayit §4 rev.8 "Fiyat okuma tabani", rev.9 "Donem sonu ve cikis",
     "Ileri kaymanin ust siniri"; §2 "Ufuk", "Ileri kaymanin olcusu").
 
     `zamanlar`: donem ici 4h bar acilislari (her izgarada). `giris_zamani`:
     giris ani (t barinin kapanisi; P0 barinin acilisi). Sirasiyla:
 
-      1. `T = giris + h x adim`, `K = B + 4 saat`. T > K ise (kapanis anlariyla,
-         zaman toleransiyla) donem sonu: B'de acilan barin kapanisi, cikis ani K.
-         "Donem sonu ve delist kurallari ileri kayma kuralindan onceliklidir:
-         once T > K denetlenir."
-      2. T <= K: kapanisi T olan 4h bar (acilisi T - 4h) mevcutsa olagan cikis,
+      1. `T = giris + h x adim`, `K = B + 4 saat`. T >= K ise (kapanis anlariyla,
+         zaman toleransiyla; rev.9 esitligi dahil etti) donem sonu: B'de acilan barin
+         kapanisi, cikis ani K. "Donem sonu ve delist kurallari ileri kayma kuralindan
+         onceliklidir: once T >= K denetlenir; ileri kayma kurali yalnizca T < K ise
+         uygulanir."
+      2. T < K: kapanisi T olan 4h bar (acilisi T - 4h) mevcutsa olagan cikis,
          cikis ani T.
       3. Hedef bar eksik: acilisi T'ye esit ya da sonra olan ilk donem ici 4h bar
          (B'den sonra olamaz); cikis ani o barin acilisi. Ileri kayma = bu
@@ -704,8 +705,9 @@ def cikis_bari(
                 f"({kume_son}) asiyor (on-kayit §4 rev.8: olay bu kumede olusmaz).")
         return sonuc
 
-    # 1. Donem sonu (T > K, kapanis anlariyla).
-    if sonra(hedef, k):
+    # 1. Donem sonu (T >= K, kapanis anlariyla; on-kayit §4 rev.9). T ile K ayni an
+    # sayiliyorsa (fark 1 dk'dan kesin kucuk) T >= K'dir; T < K yalnizca once(T, K).
+    if ayni_ya_da_sonra(hedef, k):
         b_bari = ayni_andaki_bar(indeks, b)
         if b_bari is None:
             _seride_yok(f"Donem bitis bari {b} seride yok")
@@ -823,7 +825,7 @@ def pozisyon_plani(
       3. Giris ani = t'nin kapanisi; giris ani kume sonundan sonraysa
          `KumeSiniriHatasi`; acilisi giris anina esit donem ici 4h bar mevcut
          olmali -> `GirisBariYok` (olay olusmaz).
-      4. `cikis_bari`: donem sonu (T > K), olagan cikis, ileri kayma ve siniri.
+      4. `cikis_bari`: donem sonu (T >= K, rev.9), olagan cikis, ileri kayma ve siniri.
       5. Gercek cikis ani + tolerans kume sonunu asmamali -> `KumeSiniriHatasi`.
 
     Kural geregi olay olusmazsa `OlayOlusmaz` alt sinifi firlatir; her alt sinif
