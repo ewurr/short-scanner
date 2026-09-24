@@ -77,7 +77,9 @@ class OnaylanmisPozisyon:
       - `son_esitlik_affi`: son kayit + araligi tam pencere sonuna denk geliyor, orada kayit
         yok; pozisyon tam sayildi,
       - `capa_aralik_saat`, `son_aralik_saat`, `tek_ritim`: pozisyonun funding ritmi
-        etiketleri (capanin ve dizideki son kaydin araligi; capadan son kayda araliklar ayni mi).
+        etiketleri (capanin ve dizideki son kaydin araligi; capadan son kayda araliklar ayni mi),
+      - `funding_ritmi_saat`: F2'nin ritim sinifi = son kaydin araligi; `karisik_ritim`: ritim
+        pencere icinde degisti (Rev.10 icin kullanici karari).
     Bayraklarin varsayilanlari yalnizca elle kurulan (gecersiz) nesne icindir.
     """
 
@@ -90,6 +92,8 @@ class OnaylanmisPozisyon:
     capa_aralik_saat: float = float("nan")
     son_aralik_saat: float = float("nan")
     tek_ritim: bool = False
+    funding_ritmi_saat: float = float("nan")
+    karisik_ritim: bool = False
     _imza: int = field(default=0, repr=False, compare=False)
 
     @property
@@ -99,7 +103,7 @@ class OnaylanmisPozisyon:
 
 def _imza(p: OnaylanmisPozisyon) -> int:
     return hash((_ONAY_GIZLI, p.plan, p.p0, p.p1, p.funding_toplami, p.kuyruk_kismi, p.son_esitlik_affi,
-                 p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim))
+                 p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim, p.funding_ritmi_saat, p.karisik_ritim))
 
 
 def onay_dogrula(pozisyon) -> None:
@@ -232,7 +236,9 @@ def olay_karari(
     sonuc = OnaylanmisPozisyon(plan, p0, p1, toplam, kuyruk_kismi=bool(ayrinti["kuyruk_kismi"]),
                                son_esitlik_affi=bool(ayrinti["son_esitlik_affi"]),
                                capa_aralik_saat=float(ayrinti["capa_aralik_saat"]),
-                               son_aralik_saat=float(ayrinti["son_aralik_saat"]), tek_ritim=bool(ayrinti["tek_ritim"]))
+                               son_aralik_saat=float(ayrinti["son_aralik_saat"]), tek_ritim=bool(ayrinti["tek_ritim"]),
+                               funding_ritmi_saat=float(ayrinti["funding_ritmi_saat"]),
+                               karisik_ritim=bool(ayrinti["karisik_ritim"]))
     return replace(sonuc, _imza=_imza(sonuc))
 
 
