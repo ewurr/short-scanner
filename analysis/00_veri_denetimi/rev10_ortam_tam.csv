@@ -1,0 +1,14 @@
+bilesen,surum
+git_commit,cab0176946197a7d1d46ed1ae498857a88fa0e15
+calisma_agaci,temiz
+calisma_agaci_degisiklikleri,
+kosu_baslangic_utc,2026-09-24 08:00:27
+kosu_bitis_utc,2026-09-24 08:12:17
+python,3.13.12
+python_derleme,Feb 24 2026 16:05:56
+python_yolu,D:\Miniconda\python.exe
+platform,Windows-10-10.0.19045-SP0
+pandas,2.3.3
+numpy,2.4.4
+pyarrow,21.0.0
+requests,2.32.5
