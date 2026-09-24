@@ -324,16 +324,9 @@ def test_onaylanmis_pozisyon_f2_bayraklari_replace_ile_sahtelenemez():
         pozisyon_modulu.mae(sahte_4h("2033-01-01 00:00", len(zamanlar)), sahte2)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SALDIRI BULGUSU: pozisyon._mum_zamanlari (data/pozisyon.py ~satir 129-152) "
-    "'mumlar_4h 4h serisi olmali' denetimini uc kontrole dayandiriyor: izgara "
-    "hizasi, close_time suresi (sutun varsa) ve ardisik acilislar arasi fark "
-    "(len>1 ise). close_time sutunu OLMAYAN ve TEK SATIRLIK bir cerceve (ör. "
-    "yanlislikla verilmis bir 1d bar, gece yarisi acilisli) ucuncu ve ikinci "
-    "kontrolu hic tetiklemez; izgara hizasi kontrolu de gece yarisi acilisinda her "
-    "zaman gecer. Sonuc: 1d cercevesi 4h fiyat okuma tabani denetiminden (on-kayit "
-    "§4 rev.8 'Fiyat okuma tabani') sessizce gecebilir."
-))
+# SALDIRI BULGUSU (Rev.9 turu, xfail idi): close_time'siz tek satirlik cerceve 4h denetiminden
+# geciyordu. Rev.10 hazirliginda kapandi (pozisyon._mum_zamanlari); xfail isareti kaldirildi,
+# test ayni beklentiyle normal test olarak kaliyor.
 def test_tek_barlik_1d_cerceve_4h_izgara_denetimini_atlatir():
     tek_gun = pd.DataFrame({"open_time": [T("2032-06-01 00:00")]})
     with pytest.raises(ValueError):

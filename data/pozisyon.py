@@ -132,7 +132,7 @@ def _mum_zamanlari(mumlar: pd.DataFrame) -> pd.DatetimeIndex:
     bulgusu D-B3). 1d cercevesi (ör. `klines.mumlari_yukle(s, "1d", ...)`) ayni sutun adlarini
     tasidigi icin sessizce kabul edilirse her cikis ileri kaymaya duser; burada acik hata verir:
       - acilislar 4h izgarasinda (gun basindan 0, 4, ..., 20 saat) olmali,
-      - `close_time` varsa hicbir barin suresi 4 saati asmamali,
+      - `close_time` varsa hicbir barin suresi 4 saati asmamali; yoksa en az iki bar olmali,
       - en az iki bar varsa ardisik iki acilis arasindaki en kucuk fark 4 saat olmali.
     """
     zamanlar = pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(mumlar["open_time"]), "olay_karari")
@@ -141,6 +141,11 @@ def _mum_zamanlari(mumlar: pd.DataFrame) -> pd.DatetimeIndex:
     adim = pencere_modulu.ADIM_4H
     if bool(((zamanlar - zamanlar.floor("D")) % adim != pd.Timedelta(0)).any()):
         raise ValueError("mumlar_4h 4h izgarasinda degil (acilislar 00/04/08/12/16/20 UTC olmali).")
+    if "close_time" not in mumlar and len(zamanlar) < 2:
+        # Tek satirlik ve close_time'siz cerceve: gece yarisi acilisli bir 1d bari izgaraya uyar
+        # ve ardisik fark olculemez; 4h serisi oldugu dogrulanamaz (sizinti testcisi bulgusu).
+        raise ValueError("mumlar_4h 4h serisi oldugu dogrulanamiyor: tek satir ve close_time yok "
+                         "(on-kayit §4 'Fiyat okuma tabani').")
     if "close_time" in mumlar:
         sure = pd.DatetimeIndex(mumlar["close_time"]) - zamanlar
         if bool((sure > adim).any()):
@@ -190,6 +195,11 @@ def olay_karari(
     """
     if not isinstance(sinyal_degerleri, Mapping) or not sinyal_degerleri:
         raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (sinyal barindaki pencere degerleri).")
+    # Bool bir pencere degeri degil kosul sonucudur; `not (x < y)` gibi olumsuzlanmis bir kosul NaN
+    # pencereyi True ile gizleyebilir (denetci bulgusu D-C1). Programlama hatasi: TypeError.
+    mantiksal = [ad for ad, deger in sinyal_degerleri.items() if isinstance(deger, (bool, np.bool_))]
+    if mantiksal:
+        raise TypeError(f"sinyal_degerleri bool kabul etmez (pencere degeri verilmeli, kosul sonucu degil): {mantiksal}")
     eksik = [ad for ad, deger in sinyal_degerleri.items()
              if deger is None or not isinstance(deger, (int, float, np.integer, np.floating)) or not math.isfinite(deger)]
     if eksik:
