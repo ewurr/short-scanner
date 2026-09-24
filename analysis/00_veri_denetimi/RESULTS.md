@@ -1021,6 +1021,67 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     ön-kayıt metninde belirsizlik) ve **D-C6'nın kalan kısmı** (test kuralı ile görev çelişiyor).
     §14.13'e göre ikisi de F2'den önce kapanmalı. F1 kapanmadı.
 
+16. **Rev.10 hazırlığı: ölçümler ve küçük kapatmalar (2026-09-24).** Ölçüm `rev10_hazirlik.py`,
+    `cab0176`, temiz ağaç (`rev10_*_tam.csv`). Yalnızca kayıt zamanı ve aralık alanı; oran okunmadı.
+
+    **H2 pencere başı** (`rev10_h2_pencere_tam.csv`). Bütün dönem içi 4h barlar (3.378.942), funding
+    `funding_yukle` gibi küme aralığına kesilmiş. A: pencere başındaki kayıt hariç, sondaki dahil;
+    B: ikisi de dahil. Hesaplanabilirlik Rev.9 çapa + zincir (gerçek tamlık kodu, taban dönem ve küme
+    başının geç olanı, son koşulu yok).
+    - Hesaplanabilen bar A ve B'de aynı: KEŞİF 1.106.178, C1 1.110.591, C2 1.147.647; fark **0**.
+    - İki okumanın kayıt sayısının ayrıştığı bar: KEŞİF 709.980, C1 701.892, C2 1.012.489.
+    - Zinciri tam barlarda A'nın kayıt sayısı, ritim başına: 8h'de 3 kayıt 1.883.513, 2 kayıt 253;
+      4h'de 6 kayıt 1.457.833, 5 kayıt 1.219; 2h'de 12 kayıt 842 (11: 10, 10: 6); 1h'de 24 kayıt
+      18.227 (23: 9, 20: 6); karışık 2.498. B'de 8h'de 3 ya da 4 (941.975 / 941.791), 4h'de 7.
+    - 8h'de her zaman 3 değil: 253 barın **252**'si küme sonundaki bar; pencere sonu kaydı bir
+      sonraki kümeye düşüyor ve küme kesimiyle görünmüyor. 4h'deki 1.219'un 738'i de böyle.
+      Son koşulu uygulanmadığı için pencere sonundaki eksik kayıt H2'de NaN üretmiyor.
+
+    **Dördüncü gevşeklik: aralık geçişine bitişik tek eksik ödeme** (`rev10_gevseklik_tam.csv`;
+    süzülmemiş evren, birincil ufuk). Kural tam saydığı hâlde, çapadan son kayda bir çiftte aralık
+    değişiyor ve sonraki kayıt "beklenen an"dan sonra geliyor. İki ölçü de **üst sınırdır**: aralık
+    alanı geçişte eskimiş olabileceği için gerçek eksiği ayırmaz.
+
+    | Izgara | Ölçü | KEŞİF | C1 | C2 | Toplam | Başlıca geçiş |
+    |---|---|---|---|---|---|---|
+    | 4h (H1, H2) | kendi (m = z + önceki kaydın aralığı) | 301 | 170 | 2.448 | 2.919 | 1→4: 2.666 |
+    | 4h (H1, H2) | küçük (m = z + küçük aralık) | 470 | 275 | 2.448 | 3.193 | 1→4: 2.666 |
+    | 1d (H3) | kendi | 227 | 106 | 1.791 | 2.124 | 1→4: 1.949 |
+    | 1d (H3) | küçük | 337 | 179 | 1.791 | 2.307 | 1→4: 1.949 |
+
+    Payda (tam pozisyon): 4h 1.103.215 / 1.107.470 / 1.136.027; 1d 180.928 / 181.562 / 178.623.
+
+    **`aralik_gecerli`** (`data/funding.py`, `funding_tamlik_ayrintisi`): çapadan dizideki son kayda
+    kadar her kaydın aralık alanı sonlu ve > 0. Bozuksa zincir ve son maddeleri ölçülemez ve
+    pozisyon tam değildir. Veride dönem içi 2.488.869 kaydın hiçbirinde aralık geçersiz değil;
+    koşul **0** pozisyon eliyor (her ızgara ve kümede). "Başka maddeyle de elenen" ayrımı bu yüzden
+    boş.
+
+    **Kapatmalar.**
+    - D-C6'nın kalanı (`7279b93`): pencere, uygunluk ve funding ortalaması fonksiyonları dönem
+      sınırını `None` ile kabul etmiyor. 12 test dosyasında 86 `None`, toplam dönem sınırlarıyla
+      değiştirildi (`tests/donem_yardimcisi.py`); beklenen sonucu değişen test yok.
+    - Tek satırlık, `close_time`'sız çerçeve 4h denetiminden geçmiyor; `sinyal_degerleri` bool kabul
+      etmiyor (`2d9b8e6`).
+    - F2 ritim sınıfı `funding_ritmi_saat` = son kaydın aralığı, `karisik_ritim` bayrağı (`602034a`).
+
+    **Tarama sınırı (belgelenmiş).** Kaynak taraması `None`'u yalnızca dönem/küme sınırının yazıldığı
+    yerde görür; değişkenle taşınan `None`'u (`d = None; donem_baslangic=d`) yakalayamaz.
+    - Dönem sınırı için artık önemi yok: `None` çalışma anında TypeError veriyor.
+    - Küme sınırı için sınır geçerli, çünkü `kume_baslangic=None` F1 denetiminde meşru.
+    - Kapatma önerisi (uygulanmadı): küme sınırını da zorunlu yapmak ve "küme yok" durumunu
+      `None` yerine yalnızca `data/` ile F1 dizininin import edebildiği bir işaret nesnesiyle
+      (ör. `pencere.KUMESIZ`) söylemek. Böylece değişkenle taşınsa da analiz kodunda çalışma anında
+      reddedilir; tarama da işaretin adını arar.
+
+    **Ufuk değerleri bugün nerede tanımlı** (ön-kayda bağlanması Rev.10'a bırakıldı):
+    - `config.BIRINCIL_UFUK = {4h: 18, 1d: 14}` (`config.py:138`). "ÖN-KAYIT DEĞİLDİR" başlıklı F1
+      bölümünün içinde (D-C4).
+    - İkincil ufuklar yalnızca ölçüm betiğinde: `rev9_hazirlik.UFUKLAR = {4h: (6, 18, 42), 1d: (7, 14,
+      30)}`; `rev9_uygulama` onu import ediyor.
+    - `pencere.cikis_bari`, `pencere.pozisyon_plani`, `pozisyon.olay_karari` `ufuk` ve
+      `birincil_ufuk`'u serbest tamsayı olarak alıyor. Denetim yalnızca tamsayı ≥ 1 (denetçi D-B1).
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -1308,3 +1369,13 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   `test_rev9_funding_tamligi`, `test_rev9_t_esit_k`, `test_rev9_uygunluk_kapisi`,
   `test_rev9_fiyat_tabani_4h`, `test_rev9_donem_none`, `test_rev9_settled_taramasi`,
   `test_rev9_f2_bayraklari`, `test_rev9_tek_tamlik`; yardımcı `uygunluk_yardimcisi`.
+- 2026-09-24 (Rev.10 hazırlığı). §14.16 eklendi. Ölçüm `rev10_hazirlik.py` (`cab0176`, çıktılar
+  `97c6070`). Kod: D-C6 kalan kısım (`7279b93`), tek satırlık çerçeve ve bool sinyal değeri
+  (`2d9b8e6`), F2 ritim sınıfı (`602034a`).
+  **Güncellenen mevcut testler:**
+  - 12 dosyada 86 `donem_*=None` çağrısı → toplam dönem sınırları (`TOPLAM_DONEM_BASI`,
+    `TOPLAM_DONEM_B`). Beklenen sonucu değişen test yok.
+  - `test_tur_saldirilari_g.py::test_tek_barlik_1d_cerceve_4h_izgara_denetimini_atlatir`:
+    `xfail(strict)` işareti kaldırıldı. Bulgu kapandı; aynı beklentiyle normal test oldu.
+  Yeni test dosyaları: `test_rev10_hazirlik`, `test_rev10_donem_none`, `test_rev10_girdi_denetimleri`,
+  `test_rev10_ritim_sinifi`.
