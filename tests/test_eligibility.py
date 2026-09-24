@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 import config
+from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import eligibility as uyg
 
 
@@ -20,11 +21,11 @@ def test_gelecege_bakmaz_t_sonrasi_degisiklik_sonucu_degistirmez():
     """t+1'deki hacim degisikligi t'deki sonucu degistirmemeli."""
     seri = _hacim_serisi("2021-01-01", 60, 20_000_000.0)
     t = pd.Timestamp("2021-02-10", tz="UTC")
-    once = uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, pencere_gun=config.HACIM_PENCERESI_GUN)
+    once = uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI, pencere_gun=config.HACIM_PENCERESI_GUN)
 
     bozuk = seri.copy()
     bozuk.loc[bozuk.index >= t] = 0.0
-    sonra = uyg.medyan_hacim(bozuk, t, kume_baslangic=None, donem_baslangic=None, pencere_gun=config.HACIM_PENCERESI_GUN)
+    sonra = uyg.medyan_hacim(bozuk, t, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI, pencere_gun=config.HACIM_PENCERESI_GUN)
 
     assert once == sonra
 
@@ -36,7 +37,7 @@ def test_t_gunu_henuz_kapanmadigi_icin_pencereye_girmez():
     bozuk = seri.copy()
     bozuk.loc[pd.Timestamp("2021-02-10", tz="UTC")] = 0.0
 
-    assert uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, pencere_gun=config.HACIM_PENCERESI_GUN) == uyg.medyan_hacim(bozuk, t, kume_baslangic=None, donem_baslangic=None, pencere_gun=config.HACIM_PENCERESI_GUN)
+    assert uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI, pencere_gun=config.HACIM_PENCERESI_GUN) == uyg.medyan_hacim(bozuk, t, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI, pencere_gun=config.HACIM_PENCERESI_GUN)
 
 
 def test_pencere_gun_varsayilansizdir():
@@ -44,7 +45,7 @@ def test_pencere_gun_varsayilansizdir():
     seri = _hacim_serisi("2021-01-01", 60, 20_000_000.0)
     t = pd.Timestamp("2021-02-10", tz="UTC")
     try:
-        uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None)
+        uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
     except TypeError:
         return
     raise AssertionError("pencere_gun verilmeden medyan_hacim calisti")
@@ -53,7 +54,7 @@ def test_pencere_gun_varsayilansizdir():
 def test_pencere_dolmadan_uygunluk_verilmez():
     seri = _hacim_serisi("2021-01-01", 10, 50_000_000.0)
     t = pd.Timestamp("2021-01-08", tz="UTC")
-    assert pd.isna(uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=None, pencere_gun=config.HACIM_PENCERESI_GUN))
+    assert pd.isna(uyg.medyan_hacim(seri, t, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI, pencere_gun=config.HACIM_PENCERESI_GUN))
 
 
 # --- Listeleme donemi (rev.2) ------------------------------------------------
@@ -97,11 +98,11 @@ def test_listeleme_yasi_donem_basinda_sifirlanir():
     assert uyg.listeleme_yasi_gun(donem_bas, t) < config.ASGARI_LISTELEME_YASI_GUN
 
     # Donem basina gore olculdugu icin uygun DEGIL
-    assert uyg.uygun_mu(seri, t, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=None) is False
+    assert uyg.uygun_mu(seri, t, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=TOPLAM_DONEM_B) is False
 
     # 31 gun sonra uygun
     gec = pd.Timestamp("2021-07-05", tz="UTC")
-    assert uyg.uygun_mu(seri, gec, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=None) is True
+    assert uyg.uygun_mu(seri, gec, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=TOPLAM_DONEM_B) is True
 
 
 def test_donem_disindaki_bar_uygun_degildir():
@@ -123,8 +124,8 @@ def test_hacim_esikleri_bar_tipine_gore_ayrisir():
     bas = pd.Timestamp("2021-01-01", tz="UTC")
     t = pd.Timestamp("2021-03-01", tz="UTC")
 
-    assert uyg.uygun_mu(seri, t, config.BAR_4H, donem_baslangic=bas, kume_baslangic=None, donem_bitis=None) is False
-    assert uyg.uygun_mu(seri, t, config.BAR_1D, donem_baslangic=bas, kume_baslangic=None, donem_bitis=None) is True
+    assert uyg.uygun_mu(seri, t, config.BAR_4H, donem_baslangic=bas, kume_baslangic=None, donem_bitis=TOPLAM_DONEM_B) is False
+    assert uyg.uygun_mu(seri, t, config.BAR_1D, donem_baslangic=bas, kume_baslangic=None, donem_bitis=TOPLAM_DONEM_B) is True
 
 
 def test_esik_degerleri_on_kayitla_ayni():

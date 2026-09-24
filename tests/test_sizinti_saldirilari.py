@@ -16,6 +16,7 @@ import pandas as pd
 import pytest
 
 import config
+from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import donem as donem_modulu
 from data import eligibility, pencere, split
 
@@ -46,7 +47,7 @@ def test_cikis_bari_tam_ters_sirali_seriyi_reddeder():
     ters = seri.index[::-1]
 
     with pytest.raises(pencere.ZamanDizisiHatasi):
-        pencere.cikis_bari(ters, giris, 5, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+        pencere.cikis_bari(ters, giris, 5, config.BAR_4H, donem_bitis=TOPLAM_DONEM_B, kume_bitis=None, birincil_ufuk=18)
 
 
 def test_cikis_bari_karisik_sirali_seriyi_reddeder():
@@ -74,7 +75,7 @@ def test_cikis_bari_karisik_sirali_seriyi_reddeder():
     assert bozuk[-1] == seri.index[-1]  # seri_sonu siniri degismedi
 
     with pytest.raises(pencere.ZamanDizisiHatasi):
-        pencere.cikis_bari(bozuk, giris, 18, config.BAR_4H, donem_bitis=None, kume_bitis=None, birincil_ufuk=18)
+        pencere.cikis_bari(bozuk, giris, 18, config.BAR_4H, donem_bitis=TOPLAM_DONEM_B, kume_bitis=None, birincil_ufuk=18)
 
 
 # --- Tekrarlanan zaman damgasi: bozuk veri NaN'a cevrilmez, hata verir --------
@@ -96,7 +97,7 @@ def test_pencere_dilimi_tekrarlanan_zaman_damgasini_reddeder():
     bozuk = pd.concat([seri, pd.Series([999.0], index=[dup_zaman])])
 
     with pytest.raises(pencere.ZamanDizisiHatasi, match="tekrarlanan"):
-        pencere.pencere_degeri(bozuk, t, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None)
+        pencere.pencere_degeri(bozuk, t, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
 
 
 # --- Gelecege bakis: t'nin kendi gununun hacmini bozmak kararini degistirmemeli
@@ -114,12 +115,12 @@ def test_uygun_mu_t_gununun_kendi_hacmini_bozmak_karari_degistirmez():
     donem_bas = gunler[0]
     t = gunler[35]  # listeleme yasi > 30 gun, hacim esigini gecer
 
-    dogru = eligibility.uygun_mu(hacim, t, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=None)
+    dogru = eligibility.uygun_mu(hacim, t, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=TOPLAM_DONEM_B)
     assert dogru is True
 
     bozuk = hacim.copy()
     bozuk.loc[t.floor("D")] = 0.0  # t'nin kendi gununu sifirla
-    bozuk_sonuc = eligibility.uygun_mu(bozuk, t, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=None)
+    bozuk_sonuc = eligibility.uygun_mu(bozuk, t, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=TOPLAM_DONEM_B)
 
     assert bozuk_sonuc == dogru, (
         "t anindaki uygunluk karari, t'nin KENDI gununun hacmine gore "
@@ -129,7 +130,7 @@ def test_uygun_mu_t_gununun_kendi_hacmini_bozmak_karari_degistirmez():
     # Ayni sekilde asiri YUKSEK bir deger de karari degistirmemeli.
     tersi = hacim.copy()
     tersi.loc[t.floor("D")] = 1e12
-    assert eligibility.uygun_mu(tersi, t, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=None) == dogru
+    assert eligibility.uygun_mu(tersi, t, config.BAR_4H, donem_baslangic=donem_bas, kume_baslangic=None, donem_bitis=TOPLAM_DONEM_B) == dogru
 
 
 def test_medyan_hacim_serinin_sonuna_eklenen_gelecek_bar_gecmisi_degistirmez():
@@ -154,10 +155,10 @@ def test_pencere_degeri_serinin_sonuna_eklenen_gelecek_bar_gecmisi_degistirmez()
     seri = _seri("2021-01-01", 40, deger=1.0)
     t = seri.index[30]
 
-    once = pencere.pencere_degeri(seri, t, 10, config.BAR_4H, t_dahil=True, islev="mean", kume_baslangic=None, donem_baslangic=None)
+    once = pencere.pencere_degeri(seri, t, 10, config.BAR_4H, t_dahil=True, islev="mean", kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
 
     genisletilmis = pd.concat([seri, _seri("2030-01-01", 5, deger=9999.0)])
-    sonra = pencere.pencere_degeri(genisletilmis, t, 10, config.BAR_4H, t_dahil=True, islev="mean", kume_baslangic=None, donem_baslangic=None)
+    sonra = pencere.pencere_degeri(genisletilmis, t, 10, config.BAR_4H, t_dahil=True, islev="mean", kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
 
     assert once == sonra
 

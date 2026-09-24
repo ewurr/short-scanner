@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 import config
+from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import funding, pencere
 from data.donem import Donem
 
@@ -117,7 +118,7 @@ def test_funding_ortalamasi_kapanis_kenari(fark, ayni):
     fr = _fund8([T("2025-01-02 00:00"), T("2025-01-02 08:00"), T("2025-01-02 16:00"),
                  T("2025-01-03 00:00"), kapanis - fark])
     fr.loc[fr.index[-1], "oran_8h"] = 9e-4
-    deger = funding.funding_ortalamasi(fr, t, config.BAR_4H, saat=24, kume_baslangic=None, donem_baslangic=None)
+    deger = funding.funding_ortalamasi(fr, t, config.BAR_4H, saat=24, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
     assert deger == pytest.approx(1e-4 if ayni else 3e-4)
 
 

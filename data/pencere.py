@@ -311,6 +311,15 @@ def sinir_zamani(deger, ad: str) -> pd.Timestamp | None:
     return utc_zamani(deger, ad)
 
 
+def donem_siniri(deger, ad: str) -> pd.Timestamp:
+    """Bir donem siniri: zaman damgasi olmali, `None` OLAMAZ (denetci bulgusu D-C6; on-kayit §2
+    "Tum geriye bakis pencereleri donem baslangicini asamaz"). Kume sinirinin aksine donem
+    siniri her zaman vardir: sembolun her bari bir listeleme donemine aittir."""
+    if deger is None:
+        raise TypeError(f"{ad} None olamaz: donem siniri her hesapta verilir (on-kayit §2 'Listeleme donemi').")
+    return sinir_zamani(deger, ad)
+
+
 def _t_dahil_dogrula(t_dahil) -> bool:
     """On-kayit §5 rev.4: pencerenin t barini icerip icermedigi acikca verilir.
 
@@ -386,13 +395,14 @@ def pencere_dilimi(
 
     Kume siniri, seride kume oncesi veri BULUNSA BILE uygulanir: kural verinin
     kume sinirinda kesilmis olmasina dayanmaz. `kume_baslangic` ve
-    `donem_baslangic` zorunludur; sinir yoksa acikca None.
+    `donem_baslangic` zorunludur; kume siniri yoksa acikca None, donem siniri None OLAMAZ
+    (`donem_siniri`; denetci bulgusu D-C6).
     """
     kume_bas = sinir_zamani(kume_baslangic, "kume_baslangic")
-    donem_bas = sinir_zamani(donem_baslangic, "donem_baslangic")
+    donem_bas = donem_siniri(donem_baslangic, "donem_baslangic")
     beklenen = beklenen_zamanlar(t, bar_sayisi, bar, t_dahil=t_dahil)
 
-    if donem_bas is not None and beklenen[0] < donem_bas:
+    if beklenen[0] < donem_bas:
         return None
 
     if kume_bas is not None and beklenen[0] < kume_bas:

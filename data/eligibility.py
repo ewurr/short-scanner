@@ -60,7 +60,7 @@ def medyan_hacim(
       - Pencere kume baslangicini asamaz (on-kayit §3 rev.5).
       - Penceredeki gunlerden biri bile eksikse NaN doner (rev.3 tamlik sarti).
         Eksik gun, 6 adet 4h barin tamami olmayan gundur.
-    `donem_baslangic` ve `kume_baslangic` zorunludur; sinir
+    `donem_baslangic` ve `kume_baslangic` zorunludur; donem siniri None olamaz (D-C6), kume
     yoksa acikca None verilir.
     """
     zaman = pencere_modulu.utc_zamani(t, "t")
@@ -156,22 +156,18 @@ def uygunluk_karari(
     On-kayit §3 rev.5: hacim penceresi kume baslangicini da asamaz.
 
     Esikler on-kayit degerleri olmalidir (`esikleri_dogrula`). Tum sinirlar zorunlu anahtar
-    sozcuktur. `donem_baslangic` None OLAMAZ: listeleme yasi onsuz hesaplanamaz. Digerleri
-    sinir yoksa acikca None alir.
+    sozcuktur. Donem sinirlari (`donem_baslangic`, `donem_bitis`) None OLAMAZ (denetci bulgusu
+    D-C6; listeleme yasi ve donem uyeligi onlara gore olculur); `kume_baslangic` sinir yoksa
+    acikca None alir.
     """
     esikleri_dogrula(bar, asgari_hacim=asgari_hacim, asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
     zaman = pencere_modulu.utc_zamani(t, "t")
-    donem_bas = pencere_modulu.sinir_zamani(donem_baslangic, "donem_baslangic")
-    if donem_bas is None:
-        raise TypeError("uygun_mu: donem_baslangic None olamaz; listeleme yasi donem basina gore olculur.")
-    donem_son = pencere_modulu.sinir_zamani(donem_bitis, "donem_bitis")
+    donem_bas = pencere_modulu.donem_siniri(donem_baslangic, "donem_baslangic")
+    donem_son = pencere_modulu.donem_siniri(donem_bitis, "donem_bitis")
 
     # Donem uyeligi (on-kayit §6 rev.8): 4h barda acilis [donem basi, B]; 1d barda
     # gunun alti 4h barinin tamami donem ici. Tek yuklem `pencere.donem_ici_mi`.
-    if donem_son is None:
-        if pencere_modulu.once(zaman, donem_bas):
-            return False
-    elif not pencere_modulu.donem_ici_mi(zaman, bar, donem_baslangic=donem_bas, donem_bitis=donem_son):
+    if not pencere_modulu.donem_ici_mi(zaman, bar, donem_baslangic=donem_bas, donem_bitis=donem_son):
         return False
 
     if listeleme_yasi_gun(donem_bas, zaman) < asgari_listeleme_yasi_gun:

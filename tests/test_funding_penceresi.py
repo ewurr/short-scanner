@@ -11,10 +11,11 @@ import pandas as pd
 import pytest
 
 import config
+from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import funding, pencere, split
 
 C2_BAS = split.kume_araligi("C2")[0]
-SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=None)
+SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
 
 
 def _funding(bas: str, bitis: str, aralik_saat: int = 8, oran: float = 1e-4) -> pd.DataFrame:

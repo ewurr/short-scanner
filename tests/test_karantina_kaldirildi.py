@@ -17,6 +17,7 @@ import pandas as pd
 import pytest
 
 import config
+from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import donem, eligibility, funding, pencere
 
 KAR = {"karantina_aylari": ["2021-06"]}
@@ -37,30 +38,30 @@ def _fund():
     "cagri",
     [
         pytest.param(lambda: pencere.pencere_degeri(_seri(), _seri().index[100], 6, config.BAR_4H, t_dahil=True,
-                                                    kume_baslangic=None, donem_baslangic=None, **KAR), id="pencere_degeri"),
+                                                    kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI, **KAR), id="pencere_degeri"),
         pytest.param(lambda: pencere.pencere_dilimi(_seri(), _seri().index[100], 6, config.BAR_4H, t_dahil=True,
-                                                    kume_baslangic=None, donem_baslangic=None, **KAR), id="pencere_dilimi"),
+                                                    kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI, **KAR), id="pencere_dilimi"),
         pytest.param(lambda: pencere.ofsetli_pencere_degeri(_seri(), _seri().index[100], 6, config.BAR_4H, bitis_ofseti=1,
-                                                            islev="sum", kume_baslangic=None, donem_baslangic=None, **KAR),
+                                                            islev="sum", kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI, **KAR),
                      id="ofsetli_pencere_degeri"),
         pytest.param(lambda: pencere.cikis_bari(_seri().index, _seri().index[100], 18, config.BAR_4H, birincil_ufuk=18,
-                                                donem_bitis=None, kume_bitis=None, **KAR), id="cikis_bari"),
+                                                donem_bitis=TOPLAM_DONEM_B, kume_bitis=None, **KAR), id="cikis_bari"),
         pytest.param(lambda: funding.funding_ortalamasi(_fund(), pd.Timestamp("2021-06-10", tz="UTC"), config.BAR_4H, saat=24,
-                                                        kume_baslangic=None, donem_baslangic=None, **KAR), id="funding_ortalamasi"),
+                                                        kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI, **KAR), id="funding_ortalamasi"),
         pytest.param(lambda: pencere.pozisyon_plani(_seri().index, _seri().index[100], 18, config.BAR_4H, birincil_ufuk=18,
-                                                    kume_baslangic=None, kume_bitis=None, donem_baslangic=None,
-                                                    donem_bitis=None, **KAR), id="pozisyon_plani"),
+                                                    kume_baslangic=None, kume_bitis=None, donem_baslangic=TOPLAM_DONEM_BASI,
+                                                    donem_bitis=TOPLAM_DONEM_B, **KAR), id="pozisyon_plani"),
         pytest.param(lambda: funding.pozisyon_fundingi(
             _fund(), pencere.pozisyon_plani(_seri().index, _seri().index[100], 18, config.BAR_4H, birincil_ufuk=18,
-                                            kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None),
+                                            kume_baslangic=None, kume_bitis=None, donem_baslangic=TOPLAM_DONEM_BASI, donem_bitis=TOPLAM_DONEM_B),
             **KAR), id="pozisyon_fundingi"),
         pytest.param(lambda: eligibility.uygun_mu(
             pd.Series(5e7, index=pd.date_range("2021-01-01", periods=200, freq="D", tz="UTC")),
             pd.Timestamp("2021-06-10", tz="UTC"), config.BAR_4H,
-            donem_baslangic=pd.Timestamp("2021-01-01", tz="UTC"), donem_bitis=None, kume_baslangic=None, **KAR), id="uygun_mu"),
+            donem_baslangic=pd.Timestamp("2021-01-01", tz="UTC"), donem_bitis=TOPLAM_DONEM_B, kume_baslangic=None, **KAR), id="uygun_mu"),
         pytest.param(lambda: eligibility.medyan_hacim(
             pd.Series(5e7, index=pd.date_range("2021-01-01", periods=200, freq="D", tz="UTC")),
-            pd.Timestamp("2021-06-10", tz="UTC"), donem_baslangic=None, kume_baslangic=None,
+            pd.Timestamp("2021-06-10", tz="UTC"), donem_baslangic=TOPLAM_DONEM_BASI, kume_baslangic=None,
             pencere_gun=config.HACIM_PENCERESI_GUN, **KAR), id="medyan_hacim"),
     ],
 )

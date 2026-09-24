@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 import config
+from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import pencere
 
 
@@ -22,10 +23,10 @@ def test_pencerede_tek_bar_eksikse_nan_doner():
     tam = _seri("2021-01-01", 40)
     bitis = tam.index[-1]
 
-    assert not pd.isna(pencere.pencere_degeri(tam, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None))
+    assert not pd.isna(pencere.pencere_degeri(tam, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI))
 
     eksik = tam.drop(tam.index[-5])  # pencerenin ortasindan bir bar
-    assert pd.isna(pencere.pencere_degeri(eksik, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None))
+    assert pd.isna(pencere.pencere_degeri(eksik, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI))
 
 
 def test_pencere_disindaki_eksik_bar_etkilemez():
@@ -33,21 +34,21 @@ def test_pencere_disindaki_eksik_bar_etkilemez():
     bitis = tam.index[-1]
     eksik = tam.drop(tam.index[2])  # pencerenin cok oncesi
 
-    assert not pd.isna(pencere.pencere_degeri(eksik, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None))
+    assert not pd.isna(pencere.pencere_degeri(eksik, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI))
 
 
 def test_nan_degerli_bar_da_pencereyi_gecersiz_kilar():
     seri = _seri("2021-01-01", 40)
     seri.iloc[-3] = float("nan")
-    assert pd.isna(pencere.pencere_degeri(seri, seri.index[-1], 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None))
+    assert pd.isna(pencere.pencere_degeri(seri, seri.index[-1], 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI))
 
 
 def test_tamlik_kontrolu_pencere_dilimi_uzerinden():
     tam = _seri("2021-01-01", 20)
-    assert pencere.pencere_dilimi(tam, tam.index[-1], 5, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None) is not None
+    assert pencere.pencere_dilimi(tam, tam.index[-1], 5, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI) is not None
 
     eksik = tam.drop(tam.index[-2])
-    assert pencere.pencere_dilimi(eksik, tam.index[-1], 5, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None) is None
+    assert pencere.pencere_dilimi(eksik, tam.index[-1], 5, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI) is None
 
 
 def test_tamlik_kontrolu_tek_basina_kapi_olarak_disari_acik_degil():
@@ -79,9 +80,9 @@ def test_pencere_zamanla_olculur_gecmise_uzamaz():
     # Pencerenin icinden bir bar silinince, bar sirasiyla sayan bir uygulama
     # gecmisten bir bar cekip 10'a tamamlardi; zamanla tanimli pencere NaN doner.
     eksik = tam.drop(beklenen[3])
-    assert pd.isna(pencere.pencere_degeri(eksik, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None))
+    assert pd.isna(pencere.pencere_degeri(eksik, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI))
 
-    dilim = pencere.pencere_dilimi(tam, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None)
+    dilim = pencere.pencere_dilimi(tam, bitis, 10, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
     assert list(dilim.index) == list(beklenen)
 
 
@@ -170,7 +171,7 @@ def test_donem_sonu_ileri_kaymaya_gore_onceliklidir():
 def test_delist_serinin_sonuna_kirpar():
     """Ufuk serinin sonunu asarsa cikis son barin kapanisidir. Rev.8 §4: "Ufuk
     icinde sozlesme delist olursa bu bir donem sonudur"; seri donemin son bariyla
-    biter (donem_bitis = son bar; rev.7'de donem_bitis=None ile seri sonu kirpmasiydi)."""
+    biter (donem_bitis = son bar; rev.7'de donem_bitis=TOPLAM_DONEM_B ile seri sonu kirpmasiydi)."""
     seri = _seri("2021-01-01", 20)
     sonuc = pencere.cikis_bari(seri.index, seri.index[10], 18, config.BAR_4H, donem_bitis=seri.index[-1], kume_bitis=None, birincil_ufuk=18)
 
@@ -233,12 +234,12 @@ def test_kesinti_sonrasi_ilk_barda_pencere_nan(sembol):
     # yukselis penceresi dahil) NaN donmeli.
     for bar_sayisi in (6, 12, 30):
         assert pd.isna(
-            pencere.pencere_degeri(seri, sahte_bar, bar_sayisi, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None)
+            pencere.pencere_degeri(seri, sahte_bar, bar_sayisi, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
         ), f"{sembol}: {bar_sayisi} barlik pencere kesintiyi asmasina ragmen deger dondu"
 
     # Kesintiden yeterince sonra pencere yeniden gecerli olmali.
     temiz = sahte_bar + pd.Timedelta(hours=4) * 30
-    assert not pd.isna(pencere.pencere_degeri(seri, temiz, 30, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=None))
+    assert not pd.isna(pencere.pencere_degeri(seri, temiz, 30, config.BAR_4H, t_dahil=True, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI))
 
 
 @pytest.mark.skipif(not _veri_var("WAVESUSDT"), reason="onbellekte WAVESUSDT verisi yok")
@@ -275,8 +276,8 @@ def test_kesintiyi_asan_ufuk_ileri_kayar():
     "cagri",
     [
         lambda s: pencere.beklenen_zamanlar(s.index[-1], 5, config.BAR_4H),
-        lambda s: pencere.pencere_dilimi(s, s.index[-1], 5, config.BAR_4H, kume_baslangic=None, donem_baslangic=None),
-        lambda s: pencere.pencere_degeri(s, s.index[-1], 5, config.BAR_4H, kume_baslangic=None, donem_baslangic=None),
+        lambda s: pencere.pencere_dilimi(s, s.index[-1], 5, config.BAR_4H, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI),
+        lambda s: pencere.pencere_degeri(s, s.index[-1], 5, config.BAR_4H, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI),
     ],
 )
 def test_t_dahil_belirtilmezse_hata_verir(cagri):
@@ -289,7 +290,7 @@ def test_t_dahil_belirtilmezse_hata_verir(cagri):
 def test_t_dahil_bool_olmayan_deger_reddedilir(deger):
     seri = _seri("2021-01-01", 20)
     with pytest.raises(TypeError):
-        pencere.pencere_degeri(seri, seri.index[-1], 5, config.BAR_4H, t_dahil=deger, kume_baslangic=None, donem_baslangic=None)
+        pencere.pencere_degeri(seri, seri.index[-1], 5, config.BAR_4H, t_dahil=deger, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
 
 
 def test_t_dahil_izgarayi_bir_bar_kaydirir():
@@ -316,8 +317,8 @@ def test_h2_kirilim_penceresi_t_barinin_dibini_icermez():
     low.loc[t] = 50.0  # t barinda sert dusus
     close_t = 60.0     # close[t] >= low[t] her zaman
 
-    haric = pencere.pencere_degeri(low, t, 6, config.BAR_4H, t_dahil=False, islev="min", kume_baslangic=None, donem_baslangic=None)
-    dahil = pencere.pencere_degeri(low, t, 6, config.BAR_4H, t_dahil=True, islev="min", kume_baslangic=None, donem_baslangic=None)
+    haric = pencere.pencere_degeri(low, t, 6, config.BAR_4H, t_dahil=False, islev="min", kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
+    dahil = pencere.pencere_degeri(low, t, 6, config.BAR_4H, t_dahil=True, islev="min", kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
 
     assert haric == 100.0 and close_t < haric    # kirilim tespit edilebilir
     assert dahil == 50.0 and not close_t < dahil  # t dahil edilseydi asla
@@ -332,7 +333,7 @@ def test_h1_dip_penceresi_t_barinin_dibini_icermez():
     t = low.index[-1]
     low.loc[t] = 70.0
 
-    assert pencere.pencere_degeri(low, t, 6, config.BAR_4H, t_dahil=False, islev="min", kume_baslangic=None, donem_baslangic=None) == 100.0
+    assert pencere.pencere_degeri(low, t, 6, config.BAR_4H, t_dahil=False, islev="min", kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI) == 100.0
 
 
 def test_seri_sonu_kirpmasinin_nedeni_seri_sonu():
@@ -360,7 +361,7 @@ def test_cikis_bari_sinir_parametresi_unutulursa_hata(eksik):
 @pytest.mark.parametrize("eksik", ["donem_baslangic", "kume_baslangic"])
 def test_pencere_sinir_parametresi_unutulursa_hata(eksik):
     seri = _seri("2021-05-25", 100)
-    sinirlar = {"donem_baslangic": None, "kume_baslangic": None}
+    sinirlar = {"donem_baslangic": TOPLAM_DONEM_BASI, "kume_baslangic": None}
     del sinirlar[eksik]
     with pytest.raises(TypeError):
         pencere.pencere_degeri(seri, seri.index[-1], 6, config.BAR_4H, t_dahil=True, **sinirlar)

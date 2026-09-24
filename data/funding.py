@@ -287,8 +287,8 @@ def funding_ortalamasi(
         Eksik odeme, NaN oran ya da NaN aralik -> NaN. Bir dakikadan yakin iki
         kayit bozuk veridir -> ZamanDizisiHatasi.
 
-    Tum sinirlar zorunlu anahtar sozcuktur; sinir yoksa acikca None.
-    Saf fonksiyon.
+    Tum sinirlar zorunlu anahtar sozcuktur. Donem basi None olamaz (denetci bulgusu D-C6);
+    kume basi sinir yoksa acikca None. Saf fonksiyon.
     """
     from data import pencere as pencere_modulu
 
@@ -296,13 +296,13 @@ def funding_ortalamasi(
         raise ValueError(f"saat pozitif bir tamsayi olmali: {saat!r}")
     zaman = pencere_modulu.utc_zamani(t, "t")
     kume_bas = pencere_modulu.sinir_zamani(kume_baslangic, "kume_baslangic")
-    donem_bas = pencere_modulu.sinir_zamani(donem_baslangic, "donem_baslangic")
+    donem_bas = pencere_modulu.donem_siniri(donem_baslangic, "donem_baslangic")
 
     kapanis = zaman + pencere_modulu.adim(bar)
     bas = kapanis - pd.Timedelta(hours=saat)
     nan = float("nan")
 
-    if donem_bas is not None and once(bas, donem_bas):
+    if once(bas, donem_bas):
         return nan
     if kume_bas is not None and once(bas, kume_bas):
         return nan

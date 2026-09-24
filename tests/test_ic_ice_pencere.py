@@ -18,13 +18,14 @@ import pandas as pd
 import pytest
 
 import config
+from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import pencere, split
 from tarama_yardimcisi import TURETILMIS_SERI_DESENI, ihlaller
 
 DORT_SAAT = pd.Timedelta(hours=4)
 GUN = pd.Timedelta(days=1)
 C2_BAS = split.kume_araligi("C2")[0]
-SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=None)
+SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
 H1 = dict(dis_bar_sayisi=180, dis_t_dahil=True, dis_islev="median", ic_bar_sayisi=6, ic_t_dahil=True, ic_islev="sum")
 
 
@@ -76,7 +77,7 @@ def test_ic_pencere_kume_basini_asarsa_nan_turetilmis_yol_ise_sizdirir():
 
     # Turetilmis seri yolu: kapi yalnizca dis damgalari gorur ve bir deger uretir.
     toplamlar = seri.rolling(6).sum()
-    sizan = pencere.pencere_degeri(toplamlar, t, 180, config.BAR_4H, t_dahil=True, islev="median", kume_baslangic=C2_BAS, donem_baslangic=None)
+    sizan = pencere.pencere_degeri(toplamlar, t, 180, config.BAR_4H, t_dahil=True, islev="median", kume_baslangic=C2_BAS, donem_baslangic=TOPLAM_DONEM_BASI)
     assert not pd.isna(sizan), "kurulum: turetilmis yol sizintiyi gostermeli"
 
     assert pd.isna(_ic_ice(seri, t, kume_baslangic=C2_BAS))

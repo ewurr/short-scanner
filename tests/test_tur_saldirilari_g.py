@@ -30,6 +30,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import config  # noqa: E402
+from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from conftest import sahte_4h  # noqa: E402
 from data import eligibility as eligibility_modulu  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
@@ -75,7 +76,7 @@ def test_t_gununun_kendi_hacmi_uygunluga_sizmiyor():
         pd.DataFrame({"open_time": gunler, "quote_volume": hacim}))
     t = gunler[t_index]
     sonuc = eligibility_modulu.uygunluk_karari(
-        seri, t, config.BAR_4H, donem_baslangic=donem_bas, donem_bitis=None, kume_baslangic=None,
+        seri, t, config.BAR_4H, donem_baslangic=donem_bas, donem_bitis=TOPLAM_DONEM_B, kume_baslangic=None,
         asgari_hacim=config.ASGARI_HACIM_4H, asgari_listeleme_yasi_gun=config.ASGARI_LISTELEME_YASI_GUN)
     assert sonuc is False
 
@@ -92,7 +93,7 @@ def test_t_sonrasi_gunlerin_hacmi_uygunluga_sizmiyor():
         pd.DataFrame({"open_time": gunler, "quote_volume": hacim}))
     t = gunler[t_index]
     sonuc = eligibility_modulu.uygunluk_karari(
-        seri, t, config.BAR_4H, donem_baslangic=donem_bas, donem_bitis=None, kume_baslangic=None,
+        seri, t, config.BAR_4H, donem_baslangic=donem_bas, donem_bitis=TOPLAM_DONEM_B, kume_baslangic=None,
         asgari_hacim=config.ASGARI_HACIM_4H, asgari_listeleme_yasi_gun=config.ASGARI_LISTELEME_YASI_GUN)
     assert sonuc is False
 
@@ -110,7 +111,7 @@ def test_kume_basindan_onceki_gunlerin_hacmi_uygunluga_sizmiyor():
         pd.DataFrame({"open_time": gunler, "quote_volume": hacim}))
     t = kume_bas + pd.Timedelta(days=5)  # pencere (t-30..t-1) kume basini asiyor
     sonuc = eligibility_modulu.uygunluk_karari(
-        seri, t, config.BAR_4H, donem_baslangic=donem_bas, donem_bitis=None, kume_baslangic=kume_bas,
+        seri, t, config.BAR_4H, donem_baslangic=donem_bas, donem_bitis=TOPLAM_DONEM_B, kume_baslangic=kume_bas,
         asgari_hacim=config.ASGARI_HACIM_4H, asgari_listeleme_yasi_gun=config.ASGARI_LISTELEME_YASI_GUN)
     assert sonuc is False
 

@@ -15,11 +15,12 @@ import pandas as pd
 import pytest
 
 import config
+from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import funding, pencere, split
 
 DORT_SAAT = pd.Timedelta(hours=4)
-SINIRSIZ_ORT = dict(kume_baslangic=None, donem_baslangic=None)
-SINIRSIZ_POZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=None, donem_bitis=None)
+SINIRSIZ_ORT = dict(kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
+SINIRSIZ_POZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=TOPLAM_DONEM_BASI, donem_bitis=TOPLAM_DONEM_B)
 
 
 def _ts(metin: str) -> pd.Timestamp:
