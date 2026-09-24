@@ -1039,8 +1039,13 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
     **Dördüncü gevşeklik: aralık geçişine bitişik tek eksik ödeme** (`rev10_gevseklik_tam.csv`;
     süzülmemiş evren, birincil ufuk). Kural tam saydığı hâlde, çapadan son kayda bir çiftte aralık
-    değişiyor ve sonraki kayıt "beklenen an"dan sonra geliyor. İki ölçü de **üst sınırdır**: aralık
-    alanı geçişte eskimiş olabileceği için gerçek eksiği ayırmaz.
+    değişiyor ve sonraki kayıt "beklenen an"dan sonra geliyor. **Düzeltme (2026-09-24, §14.17):**
+    ilk sürümde "iki ölçü de üst sınırdır" yazıyordu; bu yanlıştı. İki ölçü de alt ya da üst sınır
+    değil, yalnızca kendi tanımlarıyla sayılmış değerlerdir. Aralık alanı geçişte eskimiş olabildiği
+    için gerçek eksiği ayırmazlar. Ayrıca şunları kaçırırlar:
+    - `kendi`: aralığı küçülen geçişleri (8→4, 4→1 …).
+    - `kendi` ve `kucuk`: ilk çiftte beklenen an girişte ya da önceyse girişten sonraki eksikleri.
+    Tanımlar ve yeni `kucuk_giris` ölçüsü §14.17'de.
 
     | Izgara | Ölçü | KEŞİF | C1 | C2 | Toplam | Başlıca geçiş |
     |---|---|---|---|---|---|---|
@@ -1081,6 +1086,50 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       30)}`; `rev9_uygulama` onu import ediyor.
     - `pencere.cikis_bari`, `pencere.pozisyon_plani`, `pozisyon.olay_karari` `ufuk` ve
       `birincil_ufuk`'u serbest tamsayı olarak alıyor. Denetim yalnızca tamsayı ≥ 1 (denetçi D-B1).
+
+17. **Rev.10 hazırlığı, son tur (2026-09-24; yalnızca KEŞİF).** Ölçüm `rev10_son.py`, `d2e068f`,
+    temiz ağaç (`rev10_son_*_tam.csv`, çıktılar `3b305fe`). Yalnızca A grubu ve KEŞİF aralığı; C1/C2
+    hesaplanmadı. Oran ve H2 ortalamasının değeri okunmadı.
+
+    **H2 penceresinin küme içinde olması** (1.113.921 KEŞİF 4h barı).
+    - Pencere başı küme başından önce: 5 bar. Hepsi bugün de hesaplanamıyor (çapa tabanı); fark 0.
+    - Kapanış küme sonundan sonra:
+      - Ham karşılaştırmada 234 bar; hepsi bugün (Rev.9 çapa + zincir) hesaplanabilir. Aday kural
+        bu 234 barı düşürür.
+      - Zaman toleransıyla 0 bar: son barın kapanışı 00:00, küme sonu 23:59:59. Fark 1 saniye,
+        §4 "Zaman toleransı"na göre ikisi aynı an.
+      - Bu 234 barın pencere sonu kaydı bugün `funding_yukle`'nin ham kesimiyle zaten düşüyor.
+    - Bar tabanlı pencereler: `pencere.pencere_dilimi` yalnızca pencere başını küme başıyla (ve
+      dönem başıyla) karşılaştırıyor, toleranssız (`beklenen[0] < kume_bas`). Sızıntı testçisinin
+      Rev.10 hazırlık bulgusu; §4 "Zaman toleransı"na aykırı. Pencerenin sonu t barıdır ve t
+      kümeye açılış anıyla atanır. §3 "Küme sınırı ve geriye bakış" yalnızca başlangıç tarafını
+      yazar, son tarafı "Küme sınırı ve ufuk"a bırakır. Son bar (20:00) da 00:00'da kapanır; bar
+      tabanında bu kapanış kümenin parçası sayılıyor.
+
+    **Dördüncü gevşeklik, üç ölçü** (4h / 1d; tam pozisyon 1.103.215 / 180.928).
+    - `kendi`: 301 / 227 pozisyon.
+    - `kucuk`: 470 / 337 pozisyon.
+    - `kucuk_giris`: 473 / 337 pozisyon. Aralığı değişen her çift; ilk çiftte taban max(çapa,
+      giriş). Sonraki kayıt taban + iki aralığın küçüğü + toleranstan sonra ise şüpheli.
+    - `kucuk_giris` şu varsayımla koşullu bir üst sınırdır: gerçek ritim iki kaydın aralık
+      alanlarının küçüğünden kısa değil. Bu varsayım altında girişten sonra kurala görünmeyen her
+      eksik ödeme bu ölçüde sayılır.
+    - `kucuk_giris` şunları kaçırır:
+      - aralık alanının iki kayıtta da gerçek ritimden uzun kaldığı durumlar (alan gecikmeli
+        değişmiş);
+      - son kayıttan pencere sonuna kalan dilim (ayrı madde: kısmi kuyruk).
+    - Başlıca geçiş (4h, `kucuk_giris`): 1→4 164, 8→2 69, 4→8 68, 2→8 59, 4→2 55. Etkilenen
+      sembol 23 (4h) / 21 (1d).
+
+    **Küme kesimi.** `rev10_hazirlik.py`'nin gevşeklik ve `aralik_gecerli` bölümleri, ayrıca
+    `rev9_hazirlik.py` ve `rev9_uygulama.py`'nin bütün pozisyon sayımları (Rev.9 metnindeki sayılar
+    dahil) funding'i kümeye kesmeden okur. H2 bölümü keser.
+    - KEŞİF'te kesik ve kesiksiz seri arasında fark **0**: tam pozisyon ve üç gevşeklik ölçüsü
+      birebir aynı. Nedeni: KEŞİF başı toplam dönem başı, KEŞİF pozisyonlarının pencere sonu küme
+      sonunun gerisinde.
+    - C1 aynı tarih aralığında olduğu için aynı gerekçe geçerli; ölçülmedi.
+    - C2'nin ilk pozisyonlarında çapa 2025-09-01'den önceki bir kayıt olabilir; kesimle çapa
+      kaybolur. Etki ölçülmedi (C2 hesaplanmadı).
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
@@ -1379,3 +1428,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     `xfail(strict)` işareti kaldırıldı. Bulgu kapandı; aynı beklentiyle normal test oldu.
   Yeni test dosyaları: `test_rev10_hazirlik`, `test_rev10_donem_none`, `test_rev10_girdi_denetimleri`,
   `test_rev10_ritim_sinifi`.
+- 2026-09-24 (Rev.10 hazırlığı, son tur). §14.17 eklendi.
+  - Ölçüm `rev10_son.py` (`d2e068f`, çıktılar `3b305fe`), yalnızca KEŞİF. Yeni test
+    `test_rev10_son`.
+  - §14.16'daki "iki ölçü de üst sınırdır" cümlesi düzeltildi (denetçi bulguları D-A1, D-A2).
+  - Kod ve mevcut testler değişmedi.
