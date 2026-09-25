@@ -1170,7 +1170,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     **Rev.10 maddeleri.**
     - **H2 penceresi (§4 "Funding sinyal penceresinin tamlığı"): kapandı** — `f9a144d`;
       `funding.sinyal_penceresi_ayrintisi` (vektörel, oran okumaz) ve `funding_ortalamasi`
-      (`kume_bitis` zorunlu; seri kapanışa kesilir). Testler `test_rev10_h2_penceresi` (36).
+      (`kume_bitis` zorunlu; seri kapanışa kesilir). Testler `test_rev10_h2_penceresi` (31).
       Önceki D-B2 (Rev.9 turu) ve Rev.10 hazırlığındaki D-A3 bununla kapandı.
       - **Uygulanmayan parça (ön-kayıt belirsizliği):** veri katmanının küme kesimi
         (`funding_yukle`, ham `>=`/`<=`) değiştirilmedi. KEŞİF'in son barının (08-31 20:00)
