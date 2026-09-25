@@ -1245,6 +1245,100 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     varsayılır") F2'den önce kapanmalı. Küme sonu kaydı (D-C1) karar bekliyor ama denetçiye göre olay
     kümesini değiştirmez. **F1 kapanmadı.**
 
+19. **F1 kapanış turu (2026-09-25).** Yalnızca sayı; getiri hesaplanmadı. Ölçümler KEŞİF için; C1/C2
+    için yalnızca "var / yok" ve bar sayısı (görev bunu istedi).
+
+    **Kapatılan kural açıkları** (Rev.10 uygulama turunun denetçi bulguları):
+    - **D-B1: kapandı** — `a76f61c`. Karar noktası hipotezin bütün sinyal değerlerini ister
+      (`pozisyon.SINYAL_DEGERLERI`); eksik ya da fazla ad TypeError, NaN SinyalPenceresiTamDegil.
+      H2'nin funding penceresini kapı funding serisinden kendisi yeniden kurar; çağıranın verdiği sayı
+      sonlu olsa bile pencere hesaplanamıyorsa ne olay ne kontrol oluşur. Test `test_f1k_sinyal_kapisi`.
+    - **D-B2: kapandı (yapısal)** — `f6c2e1d`. `olay_karari` zorunlu `hipotez` alır; ızgara ve ufuklar
+      hipotezden türer (`pencere.hipotez_ufuklari`), uyumsuz eşleşme çalışma anında ValueError;
+      onaylı pozisyon hipotezi imzalı taşır. Test `test_f1k_hipotez_baglama`.
+      - Tarama ikincil savunma olarak kaldı. Açıkları:
+        - `analysis/00_veri_denetimi` bütünüyle muaf.
+        - Yalnızca `.py` metni okunur: `.ipynb` ve parçalanmış ad (`importlib` + `getattr`) görünmez.
+        - Değişkenle taşınan `None` görünmez.
+      - Depoda `.ipynb` bulunmaması ayrıca testli.
+      - İç adımlar (`pozisyon_plani`, `cikis_bari`, `cikis_hedefi`) serbest tamsayı almaya devam eder.
+        Ürettikleri plan getiri fonksiyonlarına verilemez (`pozisyon_fiyatlari`, `mae` yalnızca imzalı
+        onaylı pozisyon alır).
+    - **D-B3: kapandı** — `78e51ba`. `config.H2_FUNDING_PENCERESI_SAAT = 24`, ufuklarla aynı ön-kayıt
+      bölümünde; başka değer ValueError. Test `test_f1k_h2_saat`.
+
+    **Küme sonu kaydı** (`f1k_kume_sonu.py`, `6c32ec4`, temiz ağaç, çıktılar `7bde546`; kural
+    değiştirilmedi):
+    - **KEŞİF'te penceresi küme sonunu aşan bar:** 234 (4h, hepsi 2025-08-31 20:00, 234 sembol).
+      - Karar noktasının plan adımı, üç 4h ufkunda (6, 18, 42) **234 barın hepsini** reddediyor.
+        Gerekçe `giris_bari_yok`: giriş anı 2025-09-01 00:00'dır ve o bar KEŞİF serisinde yok.
+      - Olaylar ve kontroller (K1, K2) aynı karar noktasına gider; bir bar olay olarak da kontrol
+        olarak da aynı çağrıyla reddedilir. Olay tarafı 234 / 234, kontrol tarafı 234 / 234.
+      - Reddedilmeyen bar yok.
+      - H3'ün son günü (2025-08-31, 1d, 234 bar) da üç ufukta (7, 14, 30) `giris_bari_yok`.
+    - **Bu barlarda H2 ortalamasının kayıt sayısı** (234'ü de hesaplanabilir). Pencere sonu kaydı her
+      durumda eksik:
+
+      | Ritim | Bar | Kayıt (bugün) | Beklenen |
+      |---|---|---|---|
+      | 8h | 69 | 2 | 3 |
+      | 4h | 162 | 5 | 6 |
+      | 1h | 2 | 23 | 24 |
+      | Karışık (son kayıt 4h) | 1 | 16 | — |
+    - **Onay kümelerinde aynı durum:** C1 **var** (243 bar, 2025-08-31 20:00); C2 **var** (522 bar,
+      2026-08-31 20:00). Başka sayı raporlanmadı.
+    - **Başka pencere türlerinde aynı kesilme yok.**
+      - Bar tabanlı geriye bakış pencereleri t barında biter; t barı KEŞİF serisinde. 234 barın
+        234'ünde 6 barlık (t hariç), 233'ünde 30 barlık (t dahil) pencere hesaplanabilir.
+      - Uygunluk penceresi t gününü dışlar; 225 barda hesaplanabilir.
+      - Hesaplanamayan 1 + 9 barın hepsinde neden dönem başı: dönem 30 günden kısa (HEMIUSDT 2,7 gün;
+        AIO, CARV, CUDIS, IN, SAPIEN, TOWNS, WLFI, XPL 8,5–26,3 gün). Küme sonu kesilmesi değil.
+    - **Denetçi şüphesi (D-C1):** KEŞİF sonu ile C2 başı arasındaki bir saniyeye (23:59:59 < z <
+      00:00:00) düşen funding kaydı **0**, bütün evrende. Sınırdan bir dakika içinde 481 kayıt var;
+      hepsi C2 başında ya da sonrasında (ms kaymalı 00:00 kayıtları).
+
+    **Doğrulama.** Tam denetim (`90260fc`) ve A1 (`907e73c`) temiz ağaçta; veri CSV'leri önceki
+    çıktılarla bayt düzeyinde aynı, yalnızca ortam kayıtları farklı (`karsilastirma_f1k_{calistir,a1}_tam.csv`).
+
+    **§14'ün bütün açık noktaları, son durum:**
+
+    | Nokta | Durum | §14.13 |
+    |---|---|---|
+    | §14.1–14.2, 14.4–14.12, 14.14 | kapandı (§14.12, §14.15) | — |
+    | §14.3 exchangeInfo görüntüsünün zamanı | açık not | dokunmaz |
+    | Rev.9 D-B1…D-B4, D-C3, D-C6, D-C7 | kapandı (§14.15, §14.16) | — |
+    | Rev.9 D-C1 (küme ölçütü / ileri kayma sırası) | açık | dokunmaz (ret etiketi değişir, olay kümesi aynı) |
+    | Rev.9 D-C2 (bütün zaman karşılaştırmaları toleranslı değil: veri katmanı kesimleri) | açık | dokunmaz (bu turda ölçüldü: bir saniyelik aralığa düşen kayıt 0; küme sonu barları kapıda reddediliyor) |
+    | Rev.9 D-C4 (ön-kayıt sabitlerinin yeri) | ufuklar ve H2 penceresi kapandı (`5c688fb`, `78e51ba`); zaman toleransı `pencere.py`'de | dokunmaz |
+    | Rev.9 D-C5 (NaN / 0 P0, P1 reddedilmiyor) | açık | dokunmaz (veride 0) |
+    | Rev.9 D-C8 (imza süreçler arası taşınamaz) | açık | dokunmaz (hata ile durur) |
+    | Rev.10 H2 penceresi, tolerans, ufuk, ritim, sızıntı bulguları | kapandı (§14.18) | — |
+    | Rev.10 D-B1, D-B2, D-B3 | kapandı (bu tur) | — |
+    | Rev.10 D-C1 küme sonu kaydı (ön-kayıt belirsizliği) | açık, karar bekliyor | dokunmaz (234 / 234 bar kapıda reddediliyor; yalnızca H2 değeri etkilenir) |
+    | Rev.10 D-C2 `ILERI_KAYMA_SINIRI` iç adımda okunmuyor | açık | dokunmaz (değerler eşit, testli; `hipotez_ufuklari` okuyor) |
+    | Rev.10 D-C3 / `KUMESIZ`: küme sınırı `None`'u kapıda kabul ediliyor | açık | **dokunur sayıldı** (aşağıda) |
+    | Rev.10 D-C4 `rev10_uygulama.py` testsiz | açık | dokunmaz (ölçüm betiği) |
+    | Rev.10 D-C5, D-C7 (metinde yazılı olmayan `kayit_var`, NaN oran; tek kayıtla ortalama) | açık, ön-kayıt notu | dokunmaz (kod ön-kayda uygun) |
+    | xfail: `gunluge_cevir` NaN hacim (A6), eşzamanlı `csv_yaz`, parçalanmış ad taraması | açık | dokunmaz (veride örnek yok; kilitle korunuyor; tarama ikincil) |
+
+    **Ağır bulgu (§14.13).**
+    - Bu turda getiriye dokunan üç açık kapandı.
+    - Kalan tek aday **D-C3**: `olay_karari` küme sınırını `None` ile kabul ediyor; bu durumda küme
+      kuralları atlanıyor. Koruma yalnızca kaynak taraması ve taramanın açığı biliniyor (değişkenle
+      taşınan `None`).
+    - Bu, D-B2'nin "yalnızca taramayla korunan kural" gerekçesiyle aynı yapıda. §14.13'ün "belirsizse
+      etkilediği varsayılır" ölçütüyle **getiriye dokunur** sayıldı.
+    - Önceki turlarda (§14.16, §14.18) belgelenmiş sınır olarak ağır sayılmamıştı; bu turda
+      sınıflama tutarlılık için değiştirildi ve karar sizin.
+    - **Bu sınıflamayla F1 kapanmadı.** Kapanması için kapının `None` küme sınırını reddetmesi yeterli.
+      Testlerde kapıyı `None` küme sınırıyla çağıran yaklaşık 24 çağrı (17 dosya) gerçek sınırla değiştirilir; iç adımlar
+      F1 ölçümleri için `None` kabul etmeye devam eder.
+
+    **F1'in çıkış koşulu (not).** CLAUDE.md §4, F1'in çıkış koşulunu "split.csv commit edildi, denetim
+    raporu yazıldı" diye tanımlıyor. Bu koşul erken sağlandı; F1 fiilen §14.13 ölçütüyle kapanıyor.
+    Uzamanın nedeni, denetimin getiri hesabını etkileyen kural hataları bulması ve bunların on
+    revizyonla kapatılmasıydı. İki ölçüt arasındaki fark bilinçlidir.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -1602,3 +1696,19 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   - `test_tur_saldirilari_i` (sızıntı testçisi)
 
   Yardımcı `tarama_yardimcisi.FUNDING_ORAN_DESENI` eklendi.
+- 2026-09-25 (F1 kapanış turu). §14.19 eklendi. Kod: `78e51ba` (D-B3), `f6c2e1d` (D-B2), `a76f61c`
+  (D-B1). Ölçüm `f1k_kume_sonu.py` (`6c32ec4`, çıktılar `7bde546`). Tam denetim `90260fc`, A1
+  `907e73c`.
+  **Güncellenen mevcut testler:**
+  - `olay_karari` zorunlu `hipotez` (D-B2): 15 dosyada 21 çağrıya `hipotez` eklendi (4h "H1", 1d
+    "H3", değişken ızgarada koşullu); beklenti değişmedi.
+  - Tam sinyal kümesi (D-B1): 12 dosyada 16 çağrıdaki sabit `{"x": 1.0}` → `sinyal(hipotez)`
+    (`tests/sinyal_yardimcisi.py`).
+  - Özel sözlüklü 4 test (NaN, sayısal kabul; `test_rev10_girdi_denetimleri`, `test_rev10_kalan_bulgular`,
+    `test_tek_karar_noktasi`, `test_tur_saldirilari_f`) tam kümede tek değer bozularak aynı beklentiyle
+    yazıldı. Bool ve enum reddi testleri değişmedi (tip denetimi ad denetiminden önce).
+  - `test_tur_saldirilari_i::test_1d_barda_...`: `saat=1` yerine on-kayıt değeri 24 ile aynı yapı;
+    `saat` 1, 23 ve 25 artık ValueError (D-B3).
+
+  Silinen, gevşetilen ya da xfail'e alınan test yok. Yeni: `test_f1k_h2_saat`,
+  `test_f1k_hipotez_baglama`, `test_f1k_sinyal_kapisi`; yardımcı `sinyal_yardimcisi`.
