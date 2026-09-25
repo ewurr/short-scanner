@@ -92,13 +92,17 @@ def test_donem_icinde_alt_uc(fark, ayni):
 @pytest.mark.parametrize("fark,ayni", KENARLAR)
 def test_bosluk_kurali_kenari(fark, ayni):
     """Sonraki odeme, onceki + araligin buyugunden tam 1 dk sonra geliyorsa eksik;
-    1 dk - 1 ns sonra geliyorsa ayni an, tam."""
+    1 dk - 1 ns sonra geliyorsa ayni an, tam.
+
+    Rev.10 uygulamasi: H2 penceresinin zinciri artik tek tamlik kodundan
+    (`funding.sinyal_penceresi_ayrintisi` -> `funding_tamlik_ayrintisi`); eski ic fonksiyon
+    `_odemeler_tam_mi` kaldirildi. Ayni kenar ayni ciftle denenir: capa pencere basinda
+    (00:00), sonraki kayit 08:00 + fark (ilk ciftte taban pencere basi)."""
     z = pd.DatetimeIndex([T("2025-01-02 00:00"), T("2025-01-02 08:00") + fark])
     f = pd.DataFrame({"odeme_zamani": z, "aralik_saat": [8, 8]})
-    maske = np.array([True, True])
-    tam = funding._odemeler_tam_mi(f, z, maske, None, bas=z[0], bas_dahil=True,
-                                   son=T("2025-01-02 12:00"), son_dahil=False)
-    assert tam is ayni
+    a = funding.sinyal_penceresi_ayrintisi(f, [T("2025-01-02 20:00")], config.BAR_4H, saat=24, kume_baslangic=None,
+                                           kume_bitis=None, donem_baslangic=TOPLAM_DONEM_BASI).iloc[0]
+    assert bool(a["zincir_tam"]) is ayni
 
 
 # --- funding_ortalamasi: pencere kenarlari ------------------------------------------
@@ -111,15 +115,20 @@ def _fund8(zamanlar):
 
 @pytest.mark.parametrize("fark,ayni", KENARLAR)
 def test_funding_ortalamasi_kapanis_kenari(fark, ayni):
-    """t barinin kapanisiyla ayni an sayilan odeme ALINMAZ (on-kayit §5 H2.1);
-    kapanistan tam 1 dk once gelen odeme kapanisla ayni an degildir, alinir."""
-    t = T("2025-01-03 04:00")  # kapanis 08:00, pencere [2025-01-02 08:00, kapanis)
+    """Rev.10 (on-kayit §4 "Funding sinyal penceresinin tamligi"): pencere sonuna denk gelen kayit
+    ortalamaya GIRER, karsilastirma tolerans payiyla. Kapanistan 1 dk - 1 ns sonra gelen kayit
+    kapanisla ayni an, girer; tam 1 dk (ve sonrasi) kapanistan sonradir, okunmaz.
+
+    Rev.10 oncesi bu test tersini sabitliyordu (kapanisla ayni an sayilan odeme alinmaz, pencere
+    `[bas, kapanis)`); Rev.10 pencereyi `(bas, kapanis]` yapti."""
+    t = T("2025-01-03 04:00")  # kapanis 08:00, pencere (2025-01-02 08:00, kapanis]
     kapanis = t + pd.Timedelta(hours=4)
     fr = _fund8([T("2025-01-02 00:00"), T("2025-01-02 08:00"), T("2025-01-02 16:00"),
-                 T("2025-01-03 00:00"), kapanis - fark])
+                 T("2025-01-03 00:00"), kapanis + fark])
     fr.loc[fr.index[-1], "oran_8h"] = 9e-4
-    deger = funding.funding_ortalamasi(fr, t, config.BAR_4H, saat=24, kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
-    assert deger == pytest.approx(1e-4 if ayni else 3e-4)
+    deger = funding.funding_ortalamasi(fr, t, config.BAR_4H, saat=24, kume_baslangic=None, kume_bitis=None,
+                                       donem_baslangic=TOPLAM_DONEM_BASI)
+    assert deger == pytest.approx((1e-4 + 1e-4 + 9e-4) / 3 if ayni else 1e-4)
 
 
 # --- Kume olcutu --------------------------------------------------------------------

@@ -33,7 +33,8 @@ CAGRILAR = {
     "medyan_hacim": lambda d: eligibility.medyan_hacim(GUNLUK, T("2021-05-01"), donem_baslangic=d, kume_baslangic=None,
                                                        pencere_gun=config.HACIM_PENCERESI_GUN),
     "funding_ortalamasi": lambda d: funding.funding_ortalamasi(FUND, T("2021-02-01"), config.BAR_4H, saat=24,
-                                                               kume_baslangic=None, donem_baslangic=d),
+                                                               kume_baslangic=None, kume_bitis=None,
+                                                               donem_baslangic=d),
 }
 
 

@@ -308,6 +308,7 @@ def test_ham_funding_yukle_yakin_ms_farkli_kayitlari_saate_yuvarlamaz(tmp_path, 
             config.BAR_4H,
             saat=24,
             kume_baslangic=None,
+            kume_bitis=None,
             donem_baslangic=TOPLAM_DONEM_BASI,
         )
 

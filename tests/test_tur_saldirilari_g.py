@@ -181,18 +181,10 @@ def test_4h_cerceve_gunluk_mumlar_olarak_verilirse_reddedilir():
 # ==============================================================================
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SALDIRI BULGUSU: on-kayit §4 rev.9 'Funding sinyal penceresinin tamligi' "
-    "ilk ciftte tabanin CAPA degil PENCERE BASI olmasini ister ('taban pencere "
-    "basidir'), tipki pozisyon fonksiyonundaki 'Ilk cift' maddesinde taban giris "
-    "anidir denmesi gibi. data/funding.py _odemeler_tam_mi (funding_ortalamasi'nin "
-    "tamlik kontrolu) bu guncellemeyi almadi: capa (onceki[-1]) ile penceredeki ilk "
-    "kayit arasindaki bosluk CAPANIN KENDI zamanindan hesaplaniyor (data/funding.py "
-    "~satir 248-260: 'zincir = np.r_[onceki[-1], ici]' ve 'beklenen = z[:-1] + "
-    "max(a[1:], a[:-1])'). Capa pencere basindan cok once ise (aradaki bosluk "
-    "pencere disinda kalir, pozisyonun konusu degildir) bu kod yine de eksik odeme "
-    "sayip NaN donuyor; rev.9'a gore pozisyon TAM olmali ve ortalama hesaplanmali."
-))
+# SALDIRI BULGUSU (Rev.9 turu, xfail idi): funding_ortalamasi ilk ciftte tabani capadan aliyordu.
+# Rev.10 uygulamasi madde 1'de kapandi (funding.sinyal_penceresi_ayrintisi: taban pencere basi);
+# xfail isareti kaldirildi, test ayni beklentiyle normal test olarak kaliyor. Cagriya Rev.10'un
+# zorunlu kildigi `kume_bitis` eklendi.
 def test_funding_ortalamasi_ilk_cift_tabani_capa_degil_pencere_basi_olmali():
     bas = T("2032-01-01 00:00")
     kapanis = bas + pd.Timedelta(hours=24)
@@ -205,7 +197,8 @@ def test_funding_ortalamasi_ilk_cift_tabani_capa_degil_pencere_basi_olmali():
     fund = _funding([(capa, 8, 0.0001), (r1, 8, 0.0001), (r2, 8, 0.0001), (r3, 8, 0.0001)])
 
     sonuc = funding_modulu.funding_ortalamasi(
-        fund, t, config.BAR_4H, saat=24, kume_baslangic=None, donem_baslangic=capa - pd.Timedelta(days=5))
+        fund, t, config.BAR_4H, saat=24, kume_baslangic=None, kume_bitis=None,
+        donem_baslangic=capa - pd.Timedelta(days=5))
     assert not pd.isna(sonuc)  # rev.9 beklentisi: pencere tam, ortalama hesaplanmali
 
 

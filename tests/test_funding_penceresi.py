@@ -15,7 +15,7 @@ from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import funding, pencere, split
 
 C2_BAS = split.kume_araligi("C2")[0]
-SINIRSIZ = dict(kume_baslangic=None, donem_baslangic=TOPLAM_DONEM_BASI)
+SINIRSIZ = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=TOPLAM_DONEM_BASI)
 
 
 def _funding(bas: str, bitis: str, aralik_saat: int = 8, oran: float = 1e-4) -> pd.DataFrame:
@@ -41,15 +41,25 @@ def test_uc_odemenin_ortalamasi():
     assert _ortalama(fund, t) == pytest.approx((1e-4 + 1e-4 + 4e-4) / 3)
 
 
-def test_kapanis_anindaki_ve_sonraki_odeme_kullanilmaz():
-    """Gelecege bakis saldirisi: kapanis anindaki ve sonrasindaki odemeyi bozmak sonucu degistirmez."""
+def test_kapanistan_sonraki_odeme_kullanilmaz():
+    """Gelecege bakis saldirisi: kapanistan sonraki odemeyi bozmak sonucu degistirmez.
+
+    Rev.10 (on-kayit §4 "Funding sinyal penceresinin tamligi"): pencere sonuna (kapanis) denk
+    gelen kayit ortalamaya girer; Rev.10 oncesi bu test kapanis anindaki odemeyi de "kullanilmaz"
+    diye bozuyordu. Kapanistan (toleransla) sonraki her odeme hala bozulur ve sonuc degismez;
+    kapanis anindaki odeme artik sonucu degistirir."""
     fund = _funding("2021-01-01", "2021-01-10")
     t = pd.Timestamp("2021-01-05 04:00", tz="UTC")
+    kapanis = t + pd.Timedelta(hours=4)
     once = _ortalama(fund, t)
 
     bozuk = fund.copy()
-    bozuk.loc[bozuk["odeme_zamani"] >= t + pd.Timedelta(hours=4), "oran_8h"] = 1.0
+    bozuk.loc[bozuk["odeme_zamani"] >= kapanis + pencere.ZAMAN_TOLERANSI, "oran_8h"] = 1.0
     assert _ortalama(bozuk, t) == once
+
+    kapanista = fund.copy()
+    kapanista.loc[kapanista["odeme_zamani"] == kapanis, "oran_8h"] = 1.0
+    assert _ortalama(kapanista, t) != once
 
 
 def test_kapanis_bar_turune_gore():
@@ -78,15 +88,23 @@ def test_birer_ms_kayik_odemeler_tam_sayilir():
 
 
 @pytest.mark.parametrize(
-    "eksik",
-    ["2021-01-04 08:00", "2021-01-04 16:00", "2021-01-05 00:00"],
-    ids=["bastaki", "ortadaki", "sondaki"],
+    "eksik, nan_beklenir",
+    [("2021-01-04 08:00", False), ("2021-01-04 16:00", True), ("2021-01-05 00:00", True),
+     ("2021-01-05 08:00", False)],
+    ids=["pencere_basi", "bastaki", "ortadaki", "sondaki"],
 )
-def test_penceredeki_bir_odeme_eksikse_nan(eksik):
+def test_penceredeki_bir_odeme_eksikse_nan(eksik, nan_beklenir):
+    """Pencere (04 08:00, 05 08:00]: 04 16:00, 05 00:00, 05 08:00.
+
+    Rev.10 (on-kayit §4 "Funding sinyal penceresinin tamligi"): pencere basindaki kayit (04 08:00)
+    ortalamaya girmez; eksikse capa 04 00:00 olur ve ilk ciftte taban pencere basidir (04 16:00 <=
+    04 08:00 + 8h): deger hesaplanir. Rev.10 oncesi pencere `[04 08:00, 05 08:00)` idi ve bu kayit
+    "bastaki" olarak NaN bekleniyordu. Pencere sonundaki kaydin (05 08:00) eksikligi Rev.9 geregi
+    gorulmez ("Son kosulu sinyal penceresine uygulanmaz"). Icerdeki ilk ve ortadaki eksik NaN."""
     fund = _funding("2021-01-01", "2021-01-10")
     fund = fund.loc[fund["odeme_zamani"] != pd.Timestamp(eksik, tz="UTC")].reset_index(drop=True)
     t = pd.Timestamp("2021-01-05 04:00", tz="UTC")
-    assert pd.isna(_ortalama(fund, t))
+    assert pd.isna(_ortalama(fund, t)) is nan_beklenir
 
 
 def test_izgaraya_hizali_olmayan_pencerede_bastaki_eksik_odeme():
@@ -152,7 +170,7 @@ def test_donem_basini_asan_pencere_nan():
 # --- Zorunluluk --------------------------------------------------------------
 
 
-@pytest.mark.parametrize("eksik", ["kume_baslangic", "donem_baslangic", "saat"])
+@pytest.mark.parametrize("eksik", ["kume_baslangic", "kume_bitis", "donem_baslangic", "saat"])
 def test_sinir_ya_da_saat_unutulursa_hata(eksik):
     fund = _funding("2021-01-01", "2021-01-10")
     parametreler = {**SINIRSIZ, "saat": 24}

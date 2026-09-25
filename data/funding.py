@@ -187,77 +187,85 @@ def donemde_funding_var(funding: pd.DataFrame, donem, bar: str) -> bool:
     return bool(np.any(_donemde_sayilir(pd.DatetimeIndex(funding["odeme_zamani"]), donem)))
 
 
-# --- Funding penceresi (H2.1) ------------------------------------------------
+# --- Funding sinyal penceresi (H2.1; on-kayit §4 "Funding sinyal penceresinin tamligi") ----------
 
-# `ODEME_TOLERANSI` (1 dakika) data/pencere.py'de tanimlidir. Iki odeme arasindaki
-# en kisa gercek aralik 1 saattir; 1 dakikadan yakin iki kayit bozuk veridir.
+# Bu bolumun uyguladigi on-kayit paragrafinin son revizyonu. `tests/test_rev10_kalan_bulgular.py`
+# on-kayittaki paragrafin "(rev.N)" etiketleriyle karsilastirir: on-kayit kurali yeniden degistirirse
+# kod guncellenmeden test kirilir (Rev.10 uygulamasi madde 5; denetci bulgusu D-A3).
+SINYAL_PENCERESI_REVIZYONU = 10
+
+SINYAL_PENCERESI_SUTUNLARI = ("hesaplanabilir", "kume_icinde", "capa_var", "aralik_gecerli", "zincir_tam",
+                              "kayit_var", "ilk", "son")
 
 
-def _odemeler_tam_mi(funding: pd.DataFrame, zamanlar: pd.DatetimeIndex, maske, taban, *,
-                     bas, bas_dahil: bool, son, son_dahil: bool) -> bool:
-    """Penceredeki beklenen odemelerin tamami var mi? (on-kayit §2 rev.3 tamlik
-    sarti; `funding_ortalamasi` kurali.) Butun zaman karsilastirmalari on-kayit §4
-    rev.8 "Zaman toleransi"na gore (`data.pencere.ayni_an` ve turevleri).
+def sinyal_penceresi_ayrintisi(funding: pd.DataFrame, t_ler, bar: str, *, saat: int, kume_baslangic,
+                               kume_bitis, donem_baslangic) -> pd.DataFrame:
+    """H2 funding sinyal penceresinin kurallari, t basina (vektorel). Yalnizca odeme ZAMANI ve ARALIGI
+    okunur; oran okunmaz. `funding_ortalamasi` degeri bunun ustune kurar.
 
-    `aralik_saat` (Binance `funding_interval_hours`) bir kayittan SONRAKI odemeye
-    kadar olan sureyi gosterir. F1 kapanis olcumu D1: 559 aralik gecisinin
-    556'sinda kayittan sonraki bosluk yeni araliga esit; onceki bosluk ise 365'inde
-    yeni, 96'sinda eski araliga esit, 98'inde hicbirine esit degil. Gecis kaydi
-    bazen eski, bazen yeni ritimde gelir. Bu yuzden bir sonraki odeme, onceki
-    odeme + iki kaydin araliklarindan BUYUGUnden sonra (ayni an degil) geliyorsa
-    eksik odeme vardir.
-
-      - **Baslangic.** Pencere `bas` ile ayni an odemeyi iceriyorsa (`bas_dahil`)
-        ve penceredeki ilk odeme `bas` ile ayni an ise baslangic tamdir. Degilse
-        pencereden onceki son kayit (`bas_dahil` ise `bas`tan once, degilse `bas`
-        ile ayni an ya da once) bulunmali ve onunla ilk odeme arasindaki bosluk
-        kurala uymalidir; `taban`dan (kume ya da donem basi) onceki kayitlar
-        OKUNMAZ. Onceki kayit yoksa tamlik gosterilemez: False.
-      - **Ic.** Ardisik her iki odeme arasinda ayni kural.
-      - **Son.** Son odeme + kendi araligi, pencere `son` ile ayni an odemeyi
-        iceriyorsa (`son_dahil`) `son`dan sonra, icermiyorsa `son` ile ayni an ya
-        da sonra olmali. Sonraki kayit okunmaz.
-      - **Odemesiz pencere.** Onceki son kayit (taban sonrasi) + araligi ayni
-        kurala uymali; onceki kayit yoksa False.
-      - Ilgili kayitlardan birinin araligi NaN ya da <= 0 ise False.
-
-    Bilinen sinir: tam bir aralik gecisine denk gelen ve boslugu iki araligin
-    buyugunu asmayan tek bir eksik odeme yakalanamaz.
+    On-kayit §4 "Funding sinyal penceresinin tamligi" (rev.9, rev.10):
+      - Pencere t barinin kapanisinda biter ve `saat` saat geriye uzanir; YARI ACIKTIR: pencere
+        basina tam denk gelen kayit ortalamaya girmez, pencere sonuna denk gelen girer (ikisi de
+        tolerans payiyla, `pencere.sonra` / `pencere.ayni_ya_da_once`). `ilk`, `son`: penceredeki ilk
+        ve son kaydin sirasi (kayit yoksa `son < ilk`).
+      - `kume_icinde`: pencerenin tamami kumenin (ve donemin) icinde: pencere basi kume basindan ve
+        donem basindan once degil, kapanis kume sonundan sonra degil; karsilastirmalar toleransla
+        (kume sonu 23:59:59 ile son barin kapanisi 00:00 ayni an; son bar dusmez).
+      - `capa_var`, `aralik_gecerli`, `zincir_tam`: tek tamlik kodu `funding_tamlik_ayrintisi`, giris =
+        pencere basi, pencere sonu = kapanis, taban = donem basi ile kume basinin gec olani. Capa
+        pencere basinda ya da oncesinde kalan son kayit; zincir capadan pencere sonuna; ilk ciftte
+        taban pencere basi; dizideki her kaydin araligi sonlu ve > 0 ("Gecerli aralik", rev.10).
+        **Son kosulu uygulanmaz** (`son_tam` okunmaz).
+      - `kayit_var`: pencerede en az bir kayit (ortalama tanimli).
+    `hesaplanabilir` = hepsi. Kapanistan sonraki kayitlar karara girmez (zincir ve aralik yalnizca
+    capadan pencere sonuna); `funding_ortalamasi` seriyi ayrica kapanista keser. Sinirlar zorunlu
+    anahtar sozcuktur; donem basi None olamaz, kume siniri yoksa acikca None. Saf.
     """
-    aralik_tum = pd.to_numeric(funding["aralik_saat"], errors="coerce").to_numpy(dtype=float)
-    maske = np.asarray(maske, dtype=bool)
-    onceki_maske = np.asarray(once(zamanlar, bas) if bas_dahil else ayni_ya_da_once(zamanlar, bas), dtype=bool)
-    if taban is not None:
-        onceki_maske &= np.asarray(ayni_ya_da_sonra(zamanlar, taban), dtype=bool)
-    onceki = np.flatnonzero(onceki_maske)
-    ici = np.flatnonzero(maske)
+    from data import pencere as pencere_modulu
 
-    def _son_tam(z_son, a_son) -> bool:
-        sonraki = z_son + pd.Timedelta(hours=float(a_son))
-        return sonra(sonraki, son) if son_dahil else ayni_ya_da_sonra(sonraki, son)
+    if not isinstance(saat, int) or isinstance(saat, bool) or saat < 1:
+        raise ValueError(f"saat pozitif bir tamsayi olmali: {saat!r}")
+    kume_bas = pencere_modulu.sinir_zamani(kume_baslangic, "kume_baslangic")
+    kume_son = pencere_modulu.sinir_zamani(kume_bitis, "kume_bitis")
+    donem_bas = pencere_modulu.donem_siniri(donem_baslangic, "donem_baslangic")
+    t = pd.DatetimeIndex(t_ler)
+    if t.tz is None:
+        if len(t):
+            raise TypeError("t_ler saat dilimsiz (tz-naive); tum zaman damgalari UTC olmali.")
+        t = t.tz_localize("UTC")
+    kapanis = t + pencere_modulu.adim(bar)
+    bas = kapanis - pd.Timedelta(hours=saat)
+    n = len(t)
 
-    if len(ici) == 0:
-        if len(onceki) == 0:
-            return False
-        k = int(onceki[-1])
-        a = aralik_tum[k]
-        return bool(a > 0) and _son_tam(zamanlar[k], a)
+    kume_icinde = ~np.asarray(once(bas, donem_bas), dtype=bool)
+    if kume_bas is not None:
+        kume_icinde &= ~np.asarray(once(bas, kume_bas), dtype=bool)
+    if kume_son is not None:
+        kume_icinde &= ~np.asarray(sonra(kapanis, kume_son), dtype=bool)
 
-    if bas_dahil and ayni_an(zamanlar[ici[0]], bas):
-        zincir = ici
-    elif len(onceki):
-        zincir = np.r_[onceki[-1], ici]
+    taban = donem_bas if kume_bas is None else max(donem_bas, kume_bas)
+    tamlik = funding_tamlik_ayrintisi(funding, bas, kapanis, donem_baslari=[taban] * n)
+    if n and not funding.empty:
+        zamanlar = _zaman_dizisi(funding, "sinyal_penceresi_ayrintisi")
+        # Sirali dizide tek kenar tanimlari (`ayni_an_sonu`): sonra(z, bas) <=> z >= bas + tol;
+        # ayni_ya_da_once(z, kapanis) <=> z < kapanis + tol.
+        ilk = zamanlar.searchsorted(pencere_modulu.ayni_an_sonu(bas), side="left")
+        son = zamanlar.searchsorted(pencere_modulu.ayni_an_sonu(kapanis), side="left") - 1
     else:
-        return False
-    a = aralik_tum[zincir]
-    if np.isnan(a).any() or (a <= 0).any():
-        return False
-    z = zamanlar[zincir]
-    if len(zincir) > 1:
-        beklenen = z[:-1] + pd.to_timedelta(np.maximum(a[1:], a[:-1]), unit="h")
-        if np.asarray(sonra(z[1:], beklenen)).any():
-            return False
-    return _son_tam(z[-1], a[-1])
+        ilk = np.zeros(n, dtype=int)
+        son = np.full(n, -1, dtype=int)
+    sonuc = pd.DataFrame({
+        "kume_icinde": kume_icinde,
+        "capa_var": tamlik["capa_var"].to_numpy(dtype=bool),
+        "aralik_gecerli": tamlik["aralik_gecerli"].to_numpy(dtype=bool),
+        "zincir_tam": tamlik["zincir_tam"].to_numpy(dtype=bool),
+        "kayit_var": np.asarray(son >= ilk, dtype=bool),
+        "ilk": np.asarray(ilk, dtype=int),
+        "son": np.asarray(son, dtype=int),
+    })
+    sonuc.insert(0, "hesaplanabilir", sonuc["kume_icinde"] & sonuc["capa_var"] & sonuc["aralik_gecerli"]
+                 & sonuc["zincir_tam"] & sonuc["kayit_var"])
+    return sonuc
 
 
 def funding_ortalamasi(
@@ -267,70 +275,38 @@ def funding_ortalamasi(
     *,
     saat: int,
     kume_baslangic,
+    kume_bitis,
     donem_baslangic,
 ) -> float:
-    """t barinin kapanisina kadarki son `saat` saatteki 8 saate normallestirilmis
-    funding oranlarinin ortalamasi (on-kayit §5 H2.1); kural ihlalinde NaN.
+    """t barinin kapanisina kadarki son `saat` saatteki 8 saate normallestirilmis funding oranlarinin
+    ortalamasi (on-kayit §5 H2 madde 1); kural ihlalinde NaN.
 
-    Mum pencereleriyle (`data.pencere.pencere_dilimi`) ayni korumalar:
-      - **Gelecege bakis yok.** Sinyal t barinin KAPANISINDA hesaplanir
-        (CLAUDE.md §3.6). Pencere yari acik `[kapanis - saat, kapanis)`:
-        tam kapanis anindaki odeme ALINMAZ. Bir odeme o anda gerceklesir; ms
-        duzeyindeki kayit farklari yuzunden kapanisla ayni ana dusen odemenin
-        sinyalden once bilindigi varsayilmaz (ihtiyatli secim).
-      - **Donem ve kume.** Pencere donem ya da kume baslangicini asarsa NaN
-        (on-kayit §2 rev.2, §3 rev.5); kume oncesi odeme seride bulunsa bile.
-      - **Tamlik.** Penceredeki odemeler boslugsuz olmali (`_odemeler_tam_mi`:
-        `aralik_saat` SONRAKI odemeye kalan suredir; ardisik iki odeme arasindaki
-        bosluk iki kaydin araliklarindan buyugunu asamaz; pencere oncesindeki
-        kayit kume/donem basindan once olamaz; kapanistan sonraki kayit okunmaz).
-        Eksik odeme, NaN oran ya da NaN aralik -> NaN. Bir dakikadan yakin iki
-        kayit bozuk veridir -> ZamanDizisiHatasi.
+    Pencere kurallari `sinyal_penceresi_ayrintisi`dir (on-kayit §4 "Funding sinyal penceresinin
+    tamligi", rev.9 + rev.10): yari acik pencere (basa denk gelen kayit girmez, sona denk gelen girer),
+    capa, zincir (ilk ciftte taban pencere basi), gecerli aralik, son kosulu yok, pencerenin tamami
+    kumenin icinde. "t barinin kapanisindan sonraki hicbir kayit okunmaz": seri, hicbir denetimden
+    once kapanisla ayni an ya da once olan kayitlara kesilir. Penceredeki bir oran NaN ise NaN.
+    Bir dakikadan yakin iki kayit bozuk veridir -> `ZamanDizisiHatasi`.
 
-    Tum sinirlar zorunlu anahtar sozcuktur. Donem basi None olamaz (denetci bulgusu D-C6);
-    kume basi sinir yoksa acikca None. Saf fonksiyon.
+    Tum sinirlar zorunlu anahtar sozcuktur (kume sonu Rev.10 ile eklendi). Donem basi None olamaz;
+    kume siniri yoksa acikca None. Saf fonksiyon.
     """
     from data import pencere as pencere_modulu
 
-    if not isinstance(saat, int) or isinstance(saat, bool) or saat < 1:
-        raise ValueError(f"saat pozitif bir tamsayi olmali: {saat!r}")
     zaman = pencere_modulu.utc_zamani(t, "t")
-    kume_bas = pencere_modulu.sinir_zamani(kume_baslangic, "kume_baslangic")
-    donem_bas = pencere_modulu.donem_siniri(donem_baslangic, "donem_baslangic")
-
     kapanis = zaman + pencere_modulu.adim(bar)
-    bas = kapanis - pd.Timedelta(hours=saat)
-    nan = float("nan")
-
-    if once(bas, donem_bas):
-        return nan
-    if kume_bas is not None and once(bas, kume_bas):
-        return nan
-    zamanlar = pencere_modulu._zaman_dizisi_dogrula(funding["odeme_zamani"], "funding_ortalamasi")
-    if len(zamanlar) > 1:
-        yakin = np.asarray(ayni_an(zamanlar[1:], zamanlar[:-1]), dtype=bool)
-        if yakin.any():
-            ilk = int(yakin.argmax())
-            raise pencere_modulu.ZamanDizisiHatasi(
-                f"funding_ortalamasi: {zamanlar[ilk]} ve {zamanlar[ilk + 1]} birbirine "
-                f"{ODEME_TOLERANSI}'dan yakin; ayni odeme iki kez yazilmis olabilir (bozuk veri)."
-            )
-
-    # Pencere `[kapanis - saat, kapanis)`: baslangic ile ayni an ya da sonra, kapanistan
-    # ONCE (kapanis ile ayni an sayilan odeme alinmaz; on-kayit §4 rev.8 "Zaman toleransi").
-    maske = ayni_ya_da_sonra(zamanlar, bas) & once(zamanlar, kapanis)
-    if not maske.any():
-        return nan
-    secili = funding.loc[maske]
-    oran = pd.to_numeric(secili["oran_8h"], errors="coerce")
-    aralik = pd.to_numeric(secili["aralik_saat"], errors="coerce")
-    if oran.isna().any() or aralik.isna().any() or (aralik <= 0).any():
-        return nan
-
-    taban = max((s for s in (kume_bas, donem_bas) if s is not None), default=None)
-    if not _odemeler_tam_mi(funding, zamanlar, maske, taban, bas=bas, bas_dahil=True,
-                            son=kapanis, son_dahil=False):
-        return nan  # eksik odeme
+    ham = pd.DatetimeIndex(funding["odeme_zamani"])
+    if len(ham) and ham.tz is None:
+        raise pencere_modulu.ZamanDizisiHatasi(
+            "funding_ortalamasi: odeme zamanlari saat dilimsiz (tz-naive); tum zaman damgalari UTC olmali.")
+    gecmis = funding.loc[np.asarray(ayni_ya_da_once(ham, kapanis), dtype=bool)].reset_index(drop=True)
+    a = sinyal_penceresi_ayrintisi(gecmis, [zaman], bar, saat=saat, kume_baslangic=kume_baslangic,
+                                   kume_bitis=kume_bitis, donem_baslangic=donem_baslangic).iloc[0]
+    if not bool(a["hesaplanabilir"]):
+        return float("nan")
+    oran = pd.to_numeric(gecmis["oran_8h"].iloc[int(a["ilk"]):int(a["son"]) + 1], errors="coerce")
+    if oran.isna().any():
+        return float("nan")
     return float(oran.mean())
 
 
@@ -378,7 +354,7 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     istisnasi"). Vektorel: `girisler[i]`, `pencere_sonlari[i]` ve `donem_baslari[i]`
     bir pozisyondur. Yalnizca odeme ZAMANI ve ARALIGI okunur; oran okunmaz.
 
-    Kural odeme ani TAHMIN ETMEZ; yalnizca kayitlar arasindaki bosluklari olcer. Dort madde:
+    Kural odeme ani TAHMIN ETMEZ; yalnizca kayitlar arasindaki bosluklari olcer. Bes madde (rev.10):
       - `capa_var` (**Capa**): giris aninda ya da oncesinde kalan son donem ici kayit
         (donem basiyla ayni an ya da sonra). "Capa yoksa funding tam degildir."
       - `zincir_tam` (**Zincir**, **Ilk cift**): capadan pencere sonuna kadar art arda
@@ -388,9 +364,9 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
       - `son_tam` (**Son**): penceredeki son kayit + araligi pencere sonundan ONCE degil;
         "tam pencere sonuna denk gelmesi yeterlidir". Pencerede capadan sonra kayit
         yoksa dizinin son kaydi capadir (rev.9 "hic kayit yok" cumlesini kaldirdi).
-      - `aralik_gecerli`: capadan son kayda kadar araliklar NaN degil ve > 0; aralik
-        olmadan zincir ve son maddeleri olculemez.
-    "Beklenen odeme ani bu dort madde disinda hicbir yerde uretilmez." Butun zaman
+      - `aralik_gecerli` (**Gecerli aralik**, rev.10): capadan son kayda kadar her kaydin
+        araligi sonlu ve > 0; aralik olmadan zincir ve son maddeleri olculemez.
+    "Beklenen odeme ani yukaridaki maddeler disinda hicbir yerde uretilmez." Butun zaman
     karsilastirmalari §4 "Zaman toleransi"na gore (`pencere.ayni_an` ve turevleri):
     tolerans payi ayni an tanimidir, tam 1 dakikalik fark ayni an degildir.
 
