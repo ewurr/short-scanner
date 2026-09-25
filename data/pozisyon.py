@@ -9,8 +9,11 @@ esigi de gecmelidir. ... Boylece brut ve net olay kumeleri her zaman aynidir."
 
 `olay_karari` bu karar noktasidir; olaylar ve kontroller (K1, K2) ayni fonksiyonu cagirir,
 ayri bir kontrol yolu yoktur. Sirasiyla:
-  1. Sinyal pencerelerinin tamligi: cagiranin hesapladigi pencere degerlerinden biri
-     NaN ise `SinyalPenceresiTamDegil` (on-kayit §2 "Tamlik sarti").
+  0. Hipotez -> izgara -> ufuk bagi (`pencere.hipotez_baglamini_dogrula`; F1 kapanis turu).
+  1. Sinyal pencerelerinin tamligi: hipotezin butun sinyal degerleri (`SINYAL_DEGERLERI`) verilmeli;
+     biri NaN ise `SinyalPenceresiTamDegil` (on-kayit §2 "Tamlik sarti"). H2'nin funding penceresi
+     ayrica kapida funding serisinden yeniden kurulur (on-kayit §4 "Funding sinyal penceresinin
+     tamligi"; plan adimindan sonra, cunku kume ve donem sinirlarini plandan okur).
   2. `pencere.pozisyon_plani`: sinyal kumede ve donem ici, giris bari, cikis (donem
      sonu / olagan / ileri kayma ve siniri), gercek cikis ani + tolerans <= kume sonu.
   3. Uygunluk (`eligibility.uygunluk_karari`, esikler zorunlu anahtar sozcuk) -> `UygunDegil`.
@@ -34,9 +37,33 @@ from dataclasses import dataclass, field, replace
 import numpy as np
 import pandas as pd
 
+import config
 from data import eligibility as eligibility_modulu
 from data import funding as funding_modulu
 from data import pencere as pencere_modulu
+
+
+# Hipotez basina karar noktasina verilmesi ZORUNLU sinyal degerleri (F1 kapanis turu, denetci D-B1).
+# On-kayit §2 "Tamlik sarti": "Pencerede beklenen barlardan biri bile eksikse deger hesaplanmaz ve o
+# barda olay ya da kontrol olusmaz"; §4 "Funding sinyal penceresinin tamligi": "... o barda olay ya
+# da kontrol olusmaz". Adlar §5'teki pencere kosullaridir (fiyat ve hacim degeri t barinin kendisi
+# degil, geriye bakis penceresi):
+#   H1 (§5 H1): pump barinda dip `min(low[t-6..t-1])`, son 6 barin toplam hacmi, onceki 180 barin
+#       6'li toplam hacim medyani; pump barindan itibaren tepe `max(high)` (en fazla 12 bar).
+#   H2 (§5 H2): son 24 saatin funding ortalamasi (`funding.funding_ortalamasi`), `close[t-30]`,
+#       kirilim dibi `min(low[t-k..t-1])`.
+#   H3 (§5 H3): son 30 gunun medyan gunluk hacmi, gun -120 ile -31 arasindaki medyan gunluk hacim,
+#       `SMA50[t]`, `close[t-30]`.
+# Karar noktasi tam olarak bu adlari ister (eksik ya da fazla ad programlama hatasi: TypeError); biri
+# NaN ya da sonsuzsa olay ve kontrol olusmaz (`SinyalPenceresiTamDegil`).
+SINYAL_DEGERLERI = {
+    "H1": ("pump_dip", "pump_hacim_6", "pump_hacim_medyani_180", "tepe"),
+    "H2": ("funding_24s", "kapanis_30_once", "kirilim_dip"),
+    "H3": ("hacim_medyani_30g", "hacim_medyani_120_31", "sma50", "kapanis_30_once"),
+}
+# H2'nin funding ortalamasi. Karar noktasi bu degerin penceresini ayrica KENDISI denetler
+# (`funding.sinyal_penceresi_ayrintisi`): cagiranin verdigi sayiya guvenilmez.
+FUNDING_SINYALI = "funding_24s"
 
 
 class SinyalPenceresiTamDegil(pencere_modulu.OlayOlusmaz):
@@ -233,6 +260,13 @@ def olay_karari(
     if numaralandirma:
         raise TypeError(f"sinyal_degerleri enum uyesi kabul etmez (pencere degeri verilmeli, kosul sonucu "
                         f"degil): {numaralandirma}")
+    # Hipotezin butun sinyal degerleri verilmeli (F1 kapanis turu, denetci D-B1): eksik ya da fazla ad
+    # programlama hatasidir; boylece bir kontrol cagrisi pencere degerlerini hesaplamadan gecemez.
+    gereken = SINYAL_DEGERLERI[hipotez]
+    if set(sinyal_degerleri) != set(gereken):
+        raise TypeError(f"{hipotez} icin sinyal_degerleri tam olarak {gereken} olmali; eksik "
+                        f"{sorted(set(gereken) - set(sinyal_degerleri))}, fazla "
+                        f"{sorted(set(sinyal_degerleri) - set(gereken))} (on-kayit §2 'Tamlik sarti').")
     eksik = [ad for ad, deger in sinyal_degerleri.items()
              if deger is None or not isinstance(deger, (int, float, np.integer, np.floating)) or not math.isfinite(deger)]
     if eksik:
@@ -246,6 +280,18 @@ def olay_karari(
     plan = pencere_modulu.pozisyon_plani(
         zamanlar, sinyal_zamani, ufuk, bar, birincil_ufuk=birincil_ufuk, kume_baslangic=kume_baslangic,
         kume_bitis=kume_bitis, donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
+    # H2 funding penceresi karar noktasinda YAPISAL olarak denetlenir (on-kayit §4 "Funding sinyal
+    # penceresinin tamligi": "... o barda olay ya da kontrol olusmaz"; denetci D-B1): cagiranin verdigi
+    # sayiya guvenilmez, pencere funding serisinden yeniden kurulur (yalnizca zaman ve aralik okunur).
+    if FUNDING_SINYALI in gereken:
+        pencere_ayrintisi = funding_modulu.sinyal_penceresi_ayrintisi(
+            funding, [plan.sinyal_zamani], bar, saat=config.H2_FUNDING_PENCERESI_SAAT,
+            kume_baslangic=plan.kume_baslangic, kume_bitis=plan.kume_bitis,
+            donem_baslangic=plan.donem_baslangic).iloc[0]
+        if not bool(pencere_ayrintisi["hesaplanabilir"]):
+            raise SinyalPenceresiTamDegil(
+                f"H2 funding penceresi hesaplanamaz: sinyal {plan.sinyal_zamani} (on-kayit §4 'Funding sinyal "
+                "penceresinin tamligi'); olay ya da kontrol olusmaz.")
     # Uygunluk (on-kayit §4 rev.9): esik gecilmeli, hesaplanabilmis olmasi yetmez.
     if not eligibility_modulu.uygunluk_karari(
             gunluk_hacim, plan.sinyal_zamani, bar, donem_baslangic=plan.donem_baslangic,

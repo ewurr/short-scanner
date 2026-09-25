@@ -37,6 +37,7 @@ from data import funding as funding_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, ihlaller  # noqa: E402
+from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -306,7 +307,7 @@ def test_onaylanmis_pozisyon_f2_bayraklari_replace_ile_sahtelenemez():
         sahte_4h("2033-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=donem_bas, donem_bitis=donem_bitis,
-        sinyal_degerleri={"x": 1.0},
+        sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
     )
     sahte1 = replace(onayli, kuyruk_kismi=not onayli.kuyruk_kismi)

@@ -15,6 +15,7 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
+from sinyal_yardimcisi import sinyal as _tam_sinyal
 from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -26,7 +27,8 @@ MUM = pd.DataFrame({"open_time": Z, "open": np.arange(len(Z)) + 0.25, "high": np
 # Rev.9 §4: uygunluk tek karar noktasinin parcasi. Donem, mum serisinden UYGUN_ONCELIK once baslar
 # (listeleme yasi >= 30 gun) ve uygunluk hacmi o gunden itibaren esigin ustundedir.
 SINIR = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=BAS - UYGUN_ONCELIK, donem_bitis=B)
-SINYAL = {"pencere": 1.0}
+# F1 kapanis turu (denetci D-B1): kapi hipotezin butun sinyal degerlerini ister; varsayilan tam kume.
+SINYAL = None
 
 
 def _fund(bas=BAS, son=B + H4, aralik=8):
@@ -35,6 +37,8 @@ def _fund(bas=BAS, son=B + H4, aralik=8):
 
 
 def _karar(t, ufuk=18, bar=config.BAR_4H, fr=None, mum=MUM, sinyal=SINYAL, **sinir):
+    if sinyal is None:
+        sinyal = _tam_sinyal("H1" if bar == config.BAR_4H else "H3")
     return pozisyon.olay_karari(mum, _fund() if fr is None else fr, t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18,
                                 **{**SINIR, **sinir}, sinyal_degerleri=sinyal,
                                 **uygunluk(bar, BAS - UYGUN_ONCELIK, B))
@@ -77,7 +81,7 @@ def test_funding_siz_donem_ve_gec_baslayan_funding():
 @pytest.mark.parametrize("deger", [float("nan"), None, float("inf")])
 def test_sinyal_penceresi_tam_degilse_olusmaz(deger):
     with pytest.raises(pozisyon.SinyalPenceresiTamDegil) as hata:
-        _karar(T("2025-01-05 04:00"), sinyal={"a": 1.0, "b": deger})
+        _karar(T("2025-01-05 04:00"), sinyal=_tam_sinyal("H1", tepe=deger))
     assert pencere.ret_gerekcesi(hata.value) == "sinyal_penceresi_tam_degil"
 
 

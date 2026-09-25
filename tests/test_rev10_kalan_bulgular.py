@@ -26,6 +26,7 @@ import pytest
 import config
 from data import funding, pozisyon
 from tarama_yardimcisi import FUNDING_ORAN_DESENI, KOK, ihlaller
+from sinyal_yardimcisi import sinyal as _tam_sinyal
 from uygunluk_yardimcisi import gunluk, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -112,7 +113,8 @@ def test_enum_uyesi_reddedilir(deger):
 
 @pytest.mark.parametrize("deger", [1.0, 0, 7, np.float64(0.2), np.int64(3)])
 def test_sayisal_degerler_kabul_edilir(deger):
-    assert _karar({"x": deger}).plan.ufuk == 18
+    # F1 kapanis turu (denetci D-B1): kapi hipotezin butun sinyal degerlerini ister.
+    assert _karar(_tam_sinyal("H1", pump_dip=deger)).plan.ufuk == 18
 
 
 # --- 3. funding_ortalamasi korumasi -------------------------------------------------------------

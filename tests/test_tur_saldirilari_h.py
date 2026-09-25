@@ -36,6 +36,7 @@ import config  # noqa: E402
 from conftest import sahte_4h  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
+from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -226,7 +227,7 @@ def test_tek_funding_kaydiyla_pozisyon_tam_ve_tek_ritim_sayilir():
         sahte_4h("2036-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=donem_bas, donem_bitis=donem_bitis,
-        sinyal_degerleri={"x": 1.0},
+        sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
     )
     assert onayli.tek_ritim is True
@@ -245,7 +246,7 @@ def test_capa_ve_son_aralik_saat_replace_ile_sahtelenemez():
         sahte_4h("2037-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=donem_bas, donem_bitis=donem_bitis,
-        sinyal_degerleri={"x": 1.0},
+        sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
     )
     sahte1 = replace(onayli, capa_aralik_saat=onayli.capa_aralik_saat + 1.0)

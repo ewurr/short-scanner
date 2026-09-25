@@ -14,6 +14,7 @@ import pytest
 
 import config
 from data import pozisyon
+from sinyal_yardimcisi import sinyal as _tam_sinyal
 from uygunluk_yardimcisi import uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -67,9 +68,10 @@ def test_nan_pencere_olumsuz_kosulla_gizlenemez():
     with pytest.raises(TypeError):
         _karar({"kosul": not (x < y)})  # NaN ile True olurdu
     with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        _karar({"x": x, "y": y})  # dogru kullanim: pencere degerleri
+        # dogru kullanim: pencere degerleri. F1 kapanis turu: kapi hipotezin butun sinyal degerlerini ister.
+        _karar(_tam_sinyal("H1", pump_dip=x, tepe=y))
 
 
 @pytest.mark.parametrize("deger", [1, 1.0, np.int64(2), np.float64(0.5)])
 def test_sayisal_degerler_kabul_edilir(deger):
-    assert _karar({"x": deger}).plan.sinyal_zamani == T("2025-03-05 04:00")
+    assert _karar(_tam_sinyal("H1", pump_dip=deger)).plan.sinyal_zamani == T("2025-03-05 04:00")

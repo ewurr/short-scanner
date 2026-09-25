@@ -30,6 +30,7 @@ from data import klines as klines_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from data.donem import Donem  # noqa: E402
+from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -621,7 +622,7 @@ def test_mae_dataclasses_replace_ile_degistirilmis_pozisyonu_reddeder():
         _cerceve(zamanlar), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=plan.donem_baslangic, donem_bitis=plan.donem_bitis,
-        sinyal_degerleri={"x": 1.0},
+        sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, plan.donem_baslangic, plan.donem_bitis),  # Rev.9 §4: uygunluk karar noktasinda
     )
     sahte = replace(onayli, p0=0.0001)  # imza artik tutarsiz
@@ -651,7 +652,7 @@ def test_funding_tam_olmayan_olay_brut_dahil_hicbir_hesapta_olusmaz():
             _cerceve(zamanlar), bos_funding, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
             hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
             donem_baslangic=donem_bas, donem_bitis=donem_bitis,
-            sinyal_degerleri={"x": 1.0},
+            sinyal_degerleri=sinyal("H1"),
             **uygunluk(config.BAR_4H, donem_bas, donem_bitis),  # Rev.9 §4: uygunluk karar noktasinda
         )
 
@@ -667,7 +668,7 @@ def test_nan_sinyal_degeri_pozisyon_planindan_once_reddedilir():
             _cerceve(bozuk_zamanlar), _funding([]), T("2025-06-01 00:00"), 6, config.BAR_4H,  # Rev.10: on-kayit ufku
             hipotez="H1", birincil_ufuk=18, kume_baslangic=None, kume_bitis=None,
             donem_baslangic=T("2025-06-01 00:00"), donem_bitis=T("2025-06-10 00:00"),
-            sinyal_degerleri={"x": float("nan")},
+            sinyal_degerleri=sinyal("H1", pump_dip=float("nan")),  # F1 kapanis turu: tam sinyal kumesi
             **uygunluk(config.BAR_4H, T("2025-06-01 00:00"), T("2025-06-10 00:00")),  # Rev.9 §4
         )
 
@@ -682,7 +683,7 @@ def test_onaylanmis_pozisyon_replace_ile_funding_toplamini_sahteleyemez():
         _cerceve(zamanlar), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=plan.donem_baslangic, donem_bitis=plan.donem_bitis,
-        sinyal_degerleri={"x": 1.0},
+        sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, plan.donem_baslangic, plan.donem_bitis),  # Rev.9 §4: uygunluk karar noktasinda
     )
     sahte = replace(onayli, funding_toplami=999.0)

@@ -12,6 +12,7 @@ import pytest
 import config
 from data import klines, pozisyon
 from data.donem import Donem
+from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -36,7 +37,7 @@ def _karar(mum, t, ufuk=18, bar=config.BAR_4H, b=B):
     # Rev.9 §4: uygunluk karar noktasinda; donem mum serisinden UYGUN_ONCELIK once baslar.
     return pozisyon.olay_karari(mum, _fund(), t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
                                 kume_baslangic=None, kume_bitis=None, donem_baslangic=BAS - UYGUN_ONCELIK,
-                                donem_bitis=b, sinyal_degerleri={"p": 1.0},
+                                donem_bitis=b, sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
                                 **uygunluk(bar, BAS - UYGUN_ONCELIK, b))
 
 

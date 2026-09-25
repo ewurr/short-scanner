@@ -15,6 +15,7 @@ import pytest
 import config
 from data import klines, pozisyon, split
 from data.donem import Donem
+from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -54,7 +55,7 @@ def _karar(mumlar, bar=config.BAR_1D, t=T("2024-03-10")):
     return pozisyon.olay_karari(
         mumlar, _fund(), t, 14 if bar == config.BAR_1D else 18, bar,
         hipotez="H3" if bar == config.BAR_1D else "H1", birincil_ufuk=14 if bar == config.BAR_1D else 18, kume_baslangic=None, kume_bitis=None,
-        donem_baslangic=BAS, donem_bitis=B, sinyal_degerleri={"x": 1.0}, **uygunluk(bar, BAS, B))
+        donem_baslangic=BAS, donem_bitis=B, sinyal_degerleri=sinyal("H3" if bar == config.BAR_1D else "H1"), **uygunluk(bar, BAS, B))
 
 
 def test_mumlari_yukle_1d_ciktisi_karar_noktasinda_hata_verir(sembol):

@@ -17,6 +17,7 @@ import pytest
 import config
 from data import pencere, pozisyon
 from tarama_yardimcisi import KOK
+from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -35,7 +36,7 @@ def _karar(hipotez, bar, ufuk, birincil):
 
 
 def _sinyal(hipotez):
-    return {ad: 1.0 for ad in getattr(pozisyon, "SINYAL_DEGERLERI", {}).get(hipotez, ("x",))}
+    return sinyal(hipotez)
 
 
 def test_hipotez_ufuklari_tek_kaynaktan():
