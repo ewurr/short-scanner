@@ -315,7 +315,42 @@ def funding_ortalamasi(
 TAMLIK_KOSULLARI = ("capa_var", "aralik_gecerli", "zincir_tam", "son_tam")
 # Bilinen sinirlarin bayraklari ve ritim etiketleri (on-kayit §4 rev.9); `tam`a girmez.
 TAMLIK_BAYRAKLARI = ("kuyruk_kismi", "kuyruk_sifir", "son_esitlik_affi", "capa_aralik_saat", "son_aralik_saat",
-                     "tek_ritim", "funding_ritmi_saat", "karisik_ritim")
+                     "tek_ritim", "funding_ritmi_saat", "karisik_ritim", "ritim_sinifi")
+
+# Pozisyonun funding ritmi sinifi (on-kayit §4 "Pozisyonun funding ritmi", rev.10; "F2 sarti": "funding
+# ritmi basina (8, 4, 2, 1 saat ve siniflanmamis)"). On-kayittaki ad "siniflanmamis"; kodda ASCII.
+RITIM_SINIFLANMAMIS = "siniflanmamis"
+RITIM_SINIFLARI = ("8", "4", "2", "1", RITIM_SINIFLANMAMIS)
+_RITIM_SAATLERI = {8.0: "8", 4.0: "4", 2.0: "2", 1.0: "1"}
+
+
+def ritim_sinifi(saat) -> str | None:
+    """Funding ritmi (saat) -> sinif (on-kayit §4 "Pozisyonun funding ritmi", rev.10). "Aralik alani 8,
+    4, 2 ya da 1 saat disinda bir degerse pozisyon 'siniflanmamis' sinifinda raporlanir. Capasi olmayan
+    pozisyon olusmadigi icin siniflanmaz": NaN (capa yok) -> None. Saf."""
+    deger = float(saat)
+    if np.isnan(deger):
+        return None
+    return _RITIM_SAATLERI.get(deger, RITIM_SINIFLANMAMIS)
+
+
+def ritim_sinifi_ozeti(siniflar, karisik) -> pd.DataFrame:
+    """Ritim sinifi basina pozisyon sayisi, karisik ritimli sayisi ve payi (on-kayit §4 rev.10:
+    "karisik ritimlilerin payi her sinifta ayrica yazilir"). Satirlar `RITIM_SINIFLARI` sirasinda, bos
+    sinif da yazilir (pay NaN). Bilinmeyen sinif ya da None (capasiz) ValueError. Saf."""
+    siniflar = list(siniflar)
+    karisik = [bool(k) for k in karisik]
+    if len(siniflar) != len(karisik):
+        raise ValueError("siniflar ve karisik ayni uzunlukta olmali.")
+    bilinmeyen = sorted({repr(s) for s in siniflar if s not in RITIM_SINIFLARI})
+    if bilinmeyen:
+        raise ValueError(f"Bilinmeyen ritim sinifi: {bilinmeyen} (gecerli: {RITIM_SINIFLARI}).")
+    cerceve = pd.DataFrame({"sinif": siniflar, "karisik": karisik})
+    ozet = pd.DataFrame(index=pd.Index(RITIM_SINIFLARI, name="sinif"))
+    ozet["pozisyon"] = cerceve.groupby("sinif").size().reindex(ozet.index, fill_value=0).astype(int)
+    ozet["karisik"] = cerceve.groupby("sinif")["karisik"].sum().reindex(ozet.index, fill_value=0).astype(int)
+    ozet["karisik_payi"] = ozet["karisik"] / ozet["pozisyon"].where(ozet["pozisyon"] > 0)
+    return ozet
 # Dizinin iki ucu (yalnizca kayit zamanlari; hukme girmez): capa ve penceredeki son kayit.
 TAMLIK_ZAMANLARI = ("capa_zamani", "son_kayit_zamani")
 
@@ -381,9 +416,10 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     Ritim etiketleri (F2 sarti "funding ritmi basina"; hukme girmez): `capa_aralik_saat`
     (capanin araligi), `son_aralik_saat` (dizideki son kaydin araligi), `tek_ritim`
     (capadan son kayda kadar butun araliklar ayni). Capa yoksa araliklar NaN.
-    F2 ritim sinifi (Rev.10 icin kullanici karari, on-kayda Rev.10'da yazilacak): `funding_ritmi_saat`
+    Pozisyonun funding ritmi (on-kayit §4 "Pozisyonun funding ritmi", rev.10): `funding_ritmi_saat`
     = dizideki son kaydin araligi (kismi kuyrugun uzunlugunu belirleyen); `karisik_ritim` = capa var
-    ve capadan son kayda araliklar ayni degil.
+    ve capadan son kayda araliklar ayni degil; `ritim_sinifi` = `ritim_sinifi(funding_ritmi_saat)`:
+    "8", "4", "2", "1" ya da "siniflanmamis"; capa yoksa None.
     Dizinin uclari (`capa_zamani`, `son_kayit_zamani`; capa yoksa NaT) olcum betiklerinin tani
     sutunlari icindir; kural baska yerde yeniden kurulmasin diye buradan verilir.
     Saf.
@@ -400,6 +436,7 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     sonuc["capa_aralik_saat"] = np.full(n, np.nan)
     sonuc["son_aralik_saat"] = np.full(n, np.nan)
     sonuc["funding_ritmi_saat"] = np.full(n, np.nan)
+    sonuc["ritim_sinifi"] = pd.Series([None] * n, index=sonuc.index, dtype=object)
     for k in TAMLIK_ZAMANLARI:
         sonuc[k] = pd.Series(pd.NaT, index=sonuc.index, dtype="datetime64[ns, UTC]")
     if n == 0 or funding.empty:
@@ -463,6 +500,8 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     sonuc["tek_ritim"] = capa_var & ((p_degisim[son_i] - p_degisim[jj]) == 0)
     sonuc["funding_ritmi_saat"] = sonuc["son_aralik_saat"].to_numpy()
     sonuc["karisik_ritim"] = capa_var & ~sonuc["tek_ritim"].to_numpy(dtype=bool)
+    sonuc["ritim_sinifi"] = pd.Series([ritim_sinifi(s) for s in sonuc["funding_ritmi_saat"].to_numpy()],
+                                      index=sonuc.index, dtype=object)
     sonuc["capa_zamani"] = zamanlar[jj].where(capa_var)
     sonuc["son_kayit_zamani"] = zamanlar[son_i].where(capa_var)
     return sonuc

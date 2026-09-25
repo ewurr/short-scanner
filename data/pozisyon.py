@@ -78,8 +78,9 @@ class OnaylanmisPozisyon:
         yok; pozisyon tam sayildi,
       - `capa_aralik_saat`, `son_aralik_saat`, `tek_ritim`: pozisyonun funding ritmi
         etiketleri (capanin ve dizideki son kaydin araligi; capadan son kayda araliklar ayni mi),
-      - `funding_ritmi_saat`: F2'nin ritim sinifi = son kaydin araligi; `karisik_ritim`: ritim
-        pencere icinde degisti (Rev.10 icin kullanici karari).
+      - `funding_ritmi_saat`: pozisyonun funding ritmi = son kaydin araligi; `karisik_ritim`: ritim
+        pencere icinde degisti; `ritim_sinifi`: "8", "4", "2", "1" ya da "siniflanmamis" (on-kayit §4
+        "Pozisyonun funding ritmi", rev.10; `funding.ritim_sinifi`).
     Bayraklarin varsayilanlari yalnizca elle kurulan (gecersiz) nesne icindir.
     """
 
@@ -94,6 +95,7 @@ class OnaylanmisPozisyon:
     tek_ritim: bool = False
     funding_ritmi_saat: float = float("nan")
     karisik_ritim: bool = False
+    ritim_sinifi: str | None = None
     _imza: int = field(default=0, repr=False, compare=False)
 
     @property
@@ -103,7 +105,8 @@ class OnaylanmisPozisyon:
 
 def _imza(p: OnaylanmisPozisyon) -> int:
     return hash((_ONAY_GIZLI, p.plan, p.p0, p.p1, p.funding_toplami, p.kuyruk_kismi, p.son_esitlik_affi,
-                 p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim, p.funding_ritmi_saat, p.karisik_ritim))
+                 p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim, p.funding_ritmi_saat, p.karisik_ritim,
+                 p.ritim_sinifi))
 
 
 def onay_dogrula(pozisyon) -> None:
@@ -241,7 +244,8 @@ def olay_karari(
                                capa_aralik_saat=float(ayrinti["capa_aralik_saat"]),
                                son_aralik_saat=float(ayrinti["son_aralik_saat"]), tek_ritim=bool(ayrinti["tek_ritim"]),
                                funding_ritmi_saat=float(ayrinti["funding_ritmi_saat"]),
-                               karisik_ritim=bool(ayrinti["karisik_ritim"]))
+                               karisik_ritim=bool(ayrinti["karisik_ritim"]),
+                               ritim_sinifi=ayrinti["ritim_sinifi"])
     return replace(sonuc, _imza=_imza(sonuc))
 
 
