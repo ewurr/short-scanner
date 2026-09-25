@@ -7,7 +7,7 @@ odeme zamani ve aralik okunur; oran sutunlari hicbir fonksiyona verilmez.
 1. `rev10_kume_sonu_kesif_tam.csv` — KESIF, A grubu. Penceresi kume sonunu HAM karsilastirmayla asan
    4h barlar (kapanis > KESIF sonu 23:59:59; yani kumenin son bari 2025-08-31 20:00). Her bar icin:
    - karar noktasinin plan adimi (`pencere.pozisyon_plani`, gercek kod, kume sinirlari KESIF, seri
-     `klines.mumlari_yukle(..., "KESIF")`) her 4h ufkunda (6, 18, 42) ret gerekcesi. Olaylar ve
+     `klines.mumlari_yukle(..., "KESIF")`) her 4h ufkunda (config.UFUKLAR, 6/18/42 bar) ret gerekcesi. Olaylar ve
      kontroller (K1, K2) ayni karar noktasina gider; bir barin olay olarak da kontrol olarak da
      gidecegi cagri aynidir.
    - H2 penceresinde bugun kac kayit oldugu (`funding.sinyal_penceresi_ayrintisi`, `funding_yukle`
