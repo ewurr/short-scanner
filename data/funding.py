@@ -225,6 +225,10 @@ def sinyal_penceresi_ayrintisi(funding: pd.DataFrame, t_ler, bar: str, *, saat: 
 
     if not isinstance(saat, int) or isinstance(saat, bool) or saat < 1:
         raise ValueError(f"saat pozitif bir tamsayi olmali: {saat!r}")
+    if saat != config.H2_FUNDING_PENCERESI_SAAT:
+        raise ValueError(f"saat {saat} on-kayit degeri degil; H2 funding penceresi "
+                         f"{config.H2_FUNDING_PENCERESI_SAAT} saattir (on-kayit §5 H2 madde 1; "
+                         "config.H2_FUNDING_PENCERESI_SAAT).")
     kume_bas = pencere_modulu.sinir_zamani(kume_baslangic, "kume_baslangic")
     kume_son = pencere_modulu.sinir_zamani(kume_bitis, "kume_bitis")
     donem_bas = pencere_modulu.donem_siniri(donem_baslangic, "donem_baslangic")

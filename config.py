@@ -156,6 +156,11 @@ ILERI_KAYMA_SINIRI = {BAR_4H: 18, BAR_1D: 14}
 # Izgara basina butun gecerli ufuklar (birincil + ikincil), artan sirada.
 UFUKLAR = {bar: tuple(sorted((BIRINCIL_UFUK[bar], *IKINCIL_UFUKLAR[bar]))) for bar in BIRINCIL_UFUK}
 
+# H2'nin funding ortalamasi penceresi, saat (on-kayit §5 H2 madde 1: "t anina kadarki son 24 saatteki
+# funding oranlarinin ortalamasi"; §4 "Funding sinyal penceresinin tamligi": "24 saat geriye uzanir").
+# `funding.sinyal_penceresi_ayrintisi` ve `funding_ortalamasi` baska deger kabul etmez (denetci D-B3).
+H2_FUNDING_PENCERESI_SAAT = 24
+
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 
 # Listeleme yasi >= 30 gun

@@ -131,29 +131,35 @@ def test_kume_bitis_none_ise_varsayimsal_kume_sonunu_asan_pencere_engellenmez():
 # ==============================================================================
 
 
-def test_1d_barda_kisa_saat_penceresi_dogru_hesaplanir():
-    """`saat` parametresi izgara adimindan (`adim(bar)`) BAGIMSIZ bir sure birimidir: 1d
-    barda `saat=1` verilirse pencere kapanisin son 1 saatidir, gunun tamami degil. Capa,
-    zincir ve kume/donem kontrolleri bu kisa pencerede de dogru calismali."""
+def test_1d_barda_pencere_dogru_hesaplanir_serbest_saat_reddedilir():
+    """F1 kapanis turu (denetci D-B3): `saat` artik serbest degil; H2 funding penceresi on-kayit
+    degeri `config.H2_FUNDING_PENCERESI_SAAT` (24) disinda bir degerle cagrilamaz. Bu test once 1d
+    barda `saat=1` ile kisa pencereyi deniyordu; ayni yapi (1d bar, capa pencere basinda, tek kayit
+    kapanista) 24 saatle kuruldu ve `saat=1` artik ValueError."""
     donem_bas = T("2020-01-01")
     t = T("2032-01-10")  # 1d bar acilisi
     kapanis = t + pencere_modulu.adim(config.BAR_1D)  # +1 gun
-    bas = kapanis - H(1)
-    fund = _seri([bas, kapanis], aralik=1.0)  # capa=bas, sonraki kayit=kapanis, 1 saatlik aralik
+    bas = kapanis - H(24)
+    fund = _seri([bas, kapanis], aralik=24.0)  # capa=bas, sonraki kayit=kapanis
     a = funding.sinyal_penceresi_ayrintisi(
-        fund, [t], config.BAR_1D, saat=1, kume_baslangic=None, kume_bitis=None, donem_baslangic=donem_bas
+        fund, [t], config.BAR_1D, saat=24, kume_baslangic=None, kume_bitis=None, donem_baslangic=donem_bas
     ).iloc[0]
     assert bool(a["hesaplanabilir"])
     # Yari acik pencere: BAS'a (capa) denk gelen kayit ortalama araligina GIRMEZ; yalnizca
     # KAPANIS'a denk gelen kayit girer (tek kayit).
     assert int(a["son"]) - int(a["ilk"]) + 1 == 1
 
-    # Karsi-kanit: ortadaki kaydi (capa) silersek capa yok, hesaplanamaz.
-    fund_capasiz = _seri([kapanis], aralik=1.0)
+    # Karsi-kanit: capa silinirse capa yok, hesaplanamaz.
+    fund_capasiz = _seri([kapanis], aralik=24.0)
     b = funding.sinyal_penceresi_ayrintisi(
-        fund_capasiz, [t], config.BAR_1D, saat=1, kume_baslangic=None, kume_bitis=None, donem_baslangic=donem_bas
+        fund_capasiz, [t], config.BAR_1D, saat=24, kume_baslangic=None, kume_bitis=None, donem_baslangic=donem_bas
     ).iloc[0]
     assert not bool(b["hesaplanabilir"])
+
+    for serbest in (1, 23, 25):
+        with pytest.raises(ValueError, match="on-kayit"):
+            funding.sinyal_penceresi_ayrintisi(fund, [t], config.BAR_1D, saat=serbest, kume_baslangic=None,
+                                               kume_bitis=None, donem_baslangic=donem_bas)
 
 
 # ==============================================================================

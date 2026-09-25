@@ -48,7 +48,7 @@ from data import universe as universe_modulu  # noqa: E402
 P = pencere_modulu
 F = funding_modulu
 KUME = "KESIF"
-SAAT = 24  # on-kayit §5 H2 madde 1: "son 24 saatteki funding oranlarinin ortalamasi"
+SAAT = config.H2_FUNDING_PENCERESI_SAAT  # on-kayit §5 H2 madde 1 (tek kaynak config; F1 kapanis turu)
 
 
 def degersiz(fund: pd.DataFrame) -> pd.DataFrame:
