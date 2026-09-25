@@ -1334,6 +1334,21 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       Testlerde kapıyı `None` küme sınırıyla çağıran yaklaşık 24 çağrı (17 dosya) gerçek sınırla değiştirilir; iç adımlar
       F1 ölçümleri için `None` kabul etmeye devam eder.
 
+    **Tur sonu ajan bulguları (düzeltilmedi; yukarıdaki "kalan tek aday" cümlesinden sonra geldi).**
+    Denetçi D-C3 sınıflamasına katılıyor ve F1'i engelleyen iki yeni bulgu ekliyor:
+    - **D-B1 (yeni):** kapı H2 funding değerini doğrulamıyor, yalnızca hesaplanabilirliğine bakıyor.
+      Yanlış t ile ya da kapalı pencereyle hesaplanan değer kabul edilir. Getiriye dokunur.
+    - **D-B2 (yeni):** `SINYAL_DEGERLERI["H1"]` pump barına bağlı dört değeri K1/K2 kontrol barlarında
+      da istiyor. Ön-kayıt kontrol barında pump çapasını tanımlamıyor; bu adlandırma kararı ön-kayıtta
+      olmayan bir kural getiriyor. F2'den önce ön-kayıtta karar ister.
+
+    Sızıntı testçisi (`test_tur_saldirilari_j`, `6fe3430`) üç bulguyu xfail(strict) olarak doğruladı:
+    - İki bulgu aynı kökten: `__iter__` ile `.items()` arasında ayrışan bir `Mapping`, NaN ve bool
+      sinyal değerini tamlık kapısından geçiriyor. Ad ve değer denetimi farklı erişim yolları kullanıyor.
+    - Üçüncüsü: `KUME_NONE_DESENI` değişkenle taşınan `None`'u yakalamıyor (D-C3).
+
+    Denetçinin hükmü: **F1 kapanamaz**; engelleyenler D-C3, yeni D-B1 ve yeni D-B2.
+
     **F1'in çıkış koşulu (not).** CLAUDE.md §4, F1'in çıkış koşulunu "split.csv commit edildi, denetim
     raporu yazıldı" diye tanımlıyor. Bu koşul erken sağlandı; F1 fiilen §14.13 ölçütüyle kapanıyor.
     Uzamanın nedeni, denetimin getiri hesabını etkileyen kural hataları bulması ve bunların on
