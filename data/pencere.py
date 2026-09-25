@@ -590,9 +590,40 @@ def ayni_andaki_bar(zamanlar: pd.DatetimeIndex, an) -> pd.Timestamp | None:
     return None
 
 
+def _ufuk_tamsayisi(deger, ad: str) -> int:
+    if isinstance(deger, bool) or not isinstance(deger, (int, np.integer)):
+        raise TypeError(f"{ad} tamsayi bar sayisi olmali: {deger!r}")
+    return int(deger)
+
+
+def ufuk_dogrula(ufuk, bar: str) -> int:
+    """Ufuk on-kayit degerlerinden biri mi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10)?
+    Izgaranin birincil ya da ikincil ufku (`config.UFUKLAR`) degilse ValueError; tamsayi degilse
+    TypeError. Getiri, olay ya da kontrol ureten her cagri bundan gecer."""
+    deger = _ufuk_tamsayisi(ufuk, "ufuk")
+    adim(bar)
+    if deger not in config.UFUKLAR[bar]:
+        raise ValueError(f"ufuk {deger} ({bar}) on-kayit degeri degil; gecerli: {config.UFUKLAR[bar]} "
+                         "(on-kayit §4 'Ufuk degerlerinin baglanmasi').")
+    return deger
+
+
+def birincil_ufuk_dogrula(birincil_ufuk, bar: str) -> int:
+    """Birincil ufuk izgaranin on-kayit degeri mi (`config.BIRINCIL_UFUK`; on-kayit §4 rev.10)?"""
+    deger = _ufuk_tamsayisi(birincil_ufuk, "birincil_ufuk")
+    adim(bar)
+    if deger != config.BIRINCIL_UFUK[bar]:
+        raise ValueError(f"birincil_ufuk {deger} ({bar}) on-kayit degeri degil; on-kayit degeri "
+                         f"{config.BIRINCIL_UFUK[bar]} (on-kayit §4 'Ufuk degerlerinin baglanmasi').")
+    return deger
+
+
 def cikis_hedefi(giris_zamani, ufuk: int, bar: str) -> pd.Timestamp:
     """Hedef cikis ani T = giris ani + h x adim (on-kayit §4 rev.8); adim 4h
-    izgarasinda 4 saat, 1d izgarasinda 24 saat. Hedef bar, kapanisi T olan 4h bardir."""
+    izgarasinda 4 saat, 1d izgarasinda 24 saat. Hedef bar, kapanisi T olan 4h bardir.
+
+    Ic adim: ufkun on-kayit degeri oldugunu tek kapi `pozisyon.olay_karari` denetler
+    (`ufuk_dogrula`; on-kayit §4 rev.10). Analiz kodu ic adimlari cagirmaz (kaynak taramasi)."""
     if isinstance(ufuk, bool) or not isinstance(ufuk, (int, np.integer)) or ufuk < 1:
         raise ValueError(f"ufuk en az 1 bar olan bir tamsayi olmali: {ufuk!r}")
     return utc_zamani(giris_zamani, "giris_zamani") + int(ufuk) * adim(bar)

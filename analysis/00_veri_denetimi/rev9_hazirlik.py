@@ -127,8 +127,9 @@ CIKTI_SINIR = BU_DIZIN / "rev9_sinir_tam.csv"
 CIKTI_ORTAM = BU_DIZIN / "rev9_ortam_tam.csv"
 
 ONERI_KOSULLARI = ("onceki_var", "aralik_gecerli", "zincir_tam", "son_tam")
-# Raporlanan ufuklar (on-kayit §4 tablo: birincil ve ikincil).
-UFUKLAR = {config.BAR_4H: (6, 18, 42), config.BAR_1D: (7, 14, 30)}
+# Raporlanan ufuklar (on-kayit §4 tablo: birincil ve ikincil). Tek kaynak config (on-kayit §4 "Ufuk
+# degerlerinin baglanmasi", rev.10); degerler onceki sabitle ayni: 4h 6/18/42 bar, 1d 7/14/30 gun.
+UFUKLAR = config.UFUKLAR
 
 
 # --- Onerilen kural (yalnizca olcum) -------------------------------------------------

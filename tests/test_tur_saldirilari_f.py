@@ -585,8 +585,10 @@ def _basit_plan():
     donem_bitis = seri_bas + 200 * H4
     zamanlar = pd.date_range(seri_bas, donem_bitis, freq="4h", tz="UTC")
     sinyal = seri_bas + 10 * H4
+    # Rev.10 (on-kayit §4 "Ufuk degerlerinin baglanmasi"): plan kapiya (olay_karari) verildigi icin ufuk
+    # on-kayit degeri (onceki 3 bar yerine en kisa 4h ufku, 6 bar).
     return pencere_modulu.pozisyon_plani(
-        zamanlar, sinyal, 3, config.BAR_4H, birincil_ufuk=18,
+        zamanlar, sinyal, 6, config.BAR_4H, birincil_ufuk=18,
         kume_baslangic=None, kume_bitis=None, donem_baslangic=donem_bas, donem_bitis=donem_bitis,
     ), zamanlar, donem_bas, donem_bitis
 
@@ -662,7 +664,7 @@ def test_nan_sinyal_degeri_pozisyon_planindan_once_reddedilir():
     bozuk_zamanlar = pd.DatetimeIndex([])  # boyle bir seriyle pozisyon_plani cokerdi
     with pytest.raises(pozisyon_modulu.SinyalPenceresiTamDegil):
         pozisyon_modulu.olay_karari(
-            _cerceve(bozuk_zamanlar), _funding([]), T("2025-06-01 00:00"), 3, config.BAR_4H,
+            _cerceve(bozuk_zamanlar), _funding([]), T("2025-06-01 00:00"), 6, config.BAR_4H,  # Rev.10: on-kayit ufku
             birincil_ufuk=18, kume_baslangic=None, kume_bitis=None,
             donem_baslangic=T("2025-06-01 00:00"), donem_bitis=T("2025-06-10 00:00"),
             sinyal_degerleri={"x": float("nan")},

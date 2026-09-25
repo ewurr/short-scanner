@@ -61,8 +61,9 @@ def _basit_plan(seri_bas_str: str):
     donem_bitis = seri_bas + 200 * H4
     zamanlar = pd.date_range(seri_bas, donem_bitis, freq="4h", tz="UTC")
     sinyal = seri_bas + 10 * H4
+    # Rev.10: plan kapiya verildigi icin ufuk on-kayit degeri (onceki 3 bar yerine 6 bar).
     plan = pencere_modulu.pozisyon_plani(
-        zamanlar, sinyal, 3, config.BAR_4H, birincil_ufuk=18,
+        zamanlar, sinyal, 6, config.BAR_4H, birincil_ufuk=18,
         kume_baslangic=None, kume_bitis=None, donem_baslangic=donem_bas, donem_bitis=donem_bitis,
     )
     return plan, zamanlar, donem_bas, donem_bitis

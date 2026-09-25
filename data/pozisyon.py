@@ -197,6 +197,9 @@ def olay_karari(
     uygunluk esikleri, on-kayit §2 degerleri olmalidir (`eligibility.esikleri_dogrula`).
     Butun sinirlar ve esikler zorunlu anahtar sozcuktur; varsayilan yoktur.
     """
+    # Ufuklar on-kayit degeri olmali (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10).
+    pencere_modulu.ufuk_dogrula(ufuk, bar)
+    pencere_modulu.birincil_ufuk_dogrula(birincil_ufuk, bar)
     if not isinstance(sinyal_degerleri, Mapping) or not sinyal_degerleri:
         raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (sinyal barindaki pencere degerleri).")
     # Bool bir pencere degeri degil kosul sonucudur; `not (x < y)` gibi olumsuzlanmis bir kosul NaN

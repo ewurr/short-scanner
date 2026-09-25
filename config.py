@@ -132,13 +132,29 @@ DENETIM_TEMSILI_GIRIS_SURE = dt.timedelta(hours=24)
 # (on-kayit §4 rev.8 "Zaman toleransi"). Betige gomuluydu (8 + 1/60).
 DENETIM_ILK_GECIKME_SAAT = 8
 
-# Hipotezlerin birincil ufku, izgaraya gore bar sayisi (on-kayit §4 tablo: H1, H2
-# 18 bar (3 gun); H3 14 gun). Ileri kaymanin ust siniri da budur (§4 rev.8).
-# A1 olcumu ve rev.8 etki sayimlari kullanir; F2 hipotez kodu da buradan okur.
+# --- Hipotez izgarasi ve ufuklar (on-kayit §2, §4) ---------------------------
+#
+# On-kayit §4 "Ufuk degerlerinin baglanmasi" (rev.10): "Birincil ufuk, ikincil ufuklar ve
+# ileri kayma siniri yalnizca bu on-kayitta tanimlidir ... Kod bu degerleri tek bir yerden,
+# on-kayit degeri olarak okur; getiri, olay ya da kontrol ureten hicbir cagri serbest bir ufuk
+# degeri kabul etmez." Tek yer burasidir; `data.pencere` (`ufuk_dogrula`, `birincil_ufuk_dogrula`)
+# ve olcum betikleri buradan okur. Degerler izgara adimi cinsinden (4h: bar, 1d: gun).
+
+# Hipotezlerin izgarasi (on-kayit §2 "Bar tipleri"; §4-§5: H1, H2 4 saatlik; H3 1 gunluk).
+HIPOTEZ_IZGARASI = {"H1": BAR_4H, "H2": BAR_4H, "H3": BAR_1D}
+
+# Birincil ufuk (on-kayit §4 tablo): H1, H2 18 bar (3 gun); H3 14 gun. Onay kararlari buna gore.
 BIRINCIL_UFUK = {BAR_4H: 18, BAR_1D: 14}
 
-# Hipotezlerin izgarasi (on-kayit §4-§5: H1, H2 4 saatlik; H3 1 gunluk).
-HIPOTEZ_IZGARASI = {"H1": BAR_4H, "H2": BAR_4H, "H3": BAR_1D}
+# Ikincil ufuklar, yalnizca rapor (on-kayit §4 tablo): H1, H2 6 ve 42 bar; H3 7 ve 30 gun.
+IKINCIL_UFUKLAR = {BAR_4H: (6, 42), BAR_1D: (7, 30)}
+
+# Ileri kaymanin ust siniri (on-kayit §4 rev.6 "Ileri kaymanin ust siniri"; rev.10): H1, H2 18 bar,
+# H3 14 gun. Degerce birincil ufka esittir ama on-kayitta ayri bir kural olarak yazilidir.
+ILERI_KAYMA_SINIRI = {BAR_4H: 18, BAR_1D: 14}
+
+# Izgara basina butun gecerli ufuklar (birincil + ikincil), artan sirada.
+UFUKLAR = {bar: tuple(sorted((BIRINCIL_UFUK[bar], *IKINCIL_UFUKLAR[bar]))) for bar in BIRINCIL_UFUK}
 
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 

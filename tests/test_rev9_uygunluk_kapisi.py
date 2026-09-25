@@ -37,7 +37,8 @@ T_SINYAL = T("2025-03-05 04:00")
 def _karar(t=T_SINYAL, bar=config.BAR_4H, gun=None, db=DB, **ek):
     esik = {**esikler(bar), **{k: ek.pop(k) for k in list(ek) if k.startswith("asgari_")}}
     return pozisyon.olay_karari(
-        MUM, FUND, t, 6 if bar == config.BAR_4H else 3, bar, birincil_ufuk=18 if bar == config.BAR_4H else 14,
+        MUM, FUND, t, 6 if bar == config.BAR_4H else 7, bar,  # Rev.10: on-kayit ufku (1d'de onceki 3)
+        birincil_ufuk=18 if bar == config.BAR_4H else 14,
         kume_baslangic=None, kume_bitis=None, donem_baslangic=db, donem_bitis=B, sinyal_degerleri={"x": 1.0},
         gunluk_mumlar=gunluk(db, B) if gun is None else gun, **esik, **ek)
 
