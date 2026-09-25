@@ -402,10 +402,12 @@ def pencere_dilimi(
     donem_bas = donem_siniri(donem_baslangic, "donem_baslangic")
     beklenen = beklenen_zamanlar(t, bar_sayisi, bar, t_dahil=t_dahil)
 
-    if beklenen[0] < donem_bas:
+    # Iki sinir da ayni yardimciyla, zaman toleransiyla (on-kayit §4 rev.8 "Zaman toleransi"): sinirla
+    # ayni an olan pencere basi siniri asmis sayilmaz (Rev.10 uygulamasi madde 2; sizinti bulgusu).
+    if once(beklenen[0], donem_bas):
         return None
 
-    if kume_bas is not None and beklenen[0] < kume_bas:
+    if kume_bas is not None and once(beklenen[0], kume_bas):
         return None  # pencere kume oncesi veriyi odunc alamaz (rev.5)
 
     indeks = _zaman_dizisi_dogrula(seri.index, "pencere_dilimi")

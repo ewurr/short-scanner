@@ -138,19 +138,9 @@ def test_pencere_dilimi_donem_siniri_tam_1_dakika_once_dogru_reddedilir():
     assert sonuc is None
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SALDIRI BULGUSU: on-kayit §4 rev.8 'Zaman toleransi' PROJEDEKI BUTUN zaman "
-    "karsilastirmalarinin 1 dakikadan KESIN kucuk farkta 'ayni an' sayilmasini "
-    "ister; tests/test_zaman_toleransi.py bunu donem_icinde, bosluk kurali, "
-    "funding_ortalamasi kapanis kenari ve kume olcutu icin dogrular. "
-    "data/pencere.py pencere_dilimi (satir ~405-409) donem/kume baslangic "
-    "sinirini HAM `<` ile karsilastirir ('beklenen[0] < donem_bas'); "
-    "pencere_modulu.once/ayni_an KULLANMAZ. Boylece pencere basi donem "
-    "basindan yalnizca 1 NANOSANIYE once olsa bile (toleransa gore tam ayni "
-    "an, digber butun karsilastirma noktalarinda ayni_an=True sayilirdi) "
-    "pencere yine de None (NaN) donuyor; kural 'pencere donem baslangicini "
-    "asmamali' der, toleransa gore ayni an olan bir baslangic asma sayilmamali."
-))
+# SALDIRI BULGUSU (Rev.10 hazirlik turu, xfail idi): pencere_dilimi donem/kume basini ham `<` ile
+# karsilastiriyordu. Rev.10 uygulamasi madde 2'de kapandi (pencere.once); xfail isareti kaldirildi,
+# test ayni beklentiyle normal test olarak kaliyor.
 def test_pencere_dilimi_donem_siniri_bir_ns_once_toleransla_ayni_sayilmali():
     t = T("2040-01-01 00:00")
     donem_bas = t + pd.Timedelta(1, "ns")  # 1 ns once; toleransa gore AYNI AN
