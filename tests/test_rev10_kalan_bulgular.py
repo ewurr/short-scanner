@@ -99,7 +99,7 @@ FUND = pd.DataFrame({"odeme_zamani": _FZ, "aralik_saat": 8.0, "oran": 0.0, "oran
 
 
 def _karar(degerler):
-    return pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 18, config.BAR_4H, birincil_ufuk=18,
+    return pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
                                 kume_baslangic=None, kume_bitis=None, donem_baslangic=DB, donem_bitis=B,
                                 sinyal_degerleri=degerler, **uygunluk(config.BAR_4H, DB, B))
 

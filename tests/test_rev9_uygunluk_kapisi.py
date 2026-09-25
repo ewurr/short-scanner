@@ -38,7 +38,7 @@ def _karar(t=T_SINYAL, bar=config.BAR_4H, gun=None, db=DB, **ek):
     esik = {**esikler(bar), **{k: ek.pop(k) for k in list(ek) if k.startswith("asgari_")}}
     return pozisyon.olay_karari(
         MUM, FUND, t, 6 if bar == config.BAR_4H else 7, bar,  # Rev.10: on-kayit ufku (1d'de onceki 3)
-        birincil_ufuk=18 if bar == config.BAR_4H else 14,
+        hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
         kume_baslangic=None, kume_bitis=None, donem_baslangic=db, donem_bitis=B, sinyal_degerleri={"x": 1.0},
         gunluk_mumlar=gunluk(db, B) if gun is None else gun, **esik, **ek)
 
@@ -52,7 +52,7 @@ def test_uygun_bar_onaylanir():
 
 def test_uygunluk_girdisi_olmadan_onayli_pozisyon_uretilemez():
     with pytest.raises(TypeError):
-        pozisyon.olay_karari(MUM, FUND, T_SINYAL, 6, config.BAR_4H, birincil_ufuk=18, kume_baslangic=None,
+        pozisyon.olay_karari(MUM, FUND, T_SINYAL, 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume_baslangic=None,
                              kume_bitis=None, donem_baslangic=DB, donem_bitis=B, sinyal_degerleri={"x": 1.0})
     with pytest.raises(ValueError):  # elle kurulan onay reddedilir (karar noktasi atlanamaz)
         pozisyon.pozisyon_fiyatlari(pozisyon.OnaylanmisPozisyon(_karar().plan, 1.0, 1.0, 0.0))

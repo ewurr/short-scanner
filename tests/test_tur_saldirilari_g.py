@@ -304,7 +304,7 @@ def test_onaylanmis_pozisyon_f2_bayraklari_replace_ile_sahtelenemez():
     fund = _tam_funding_icin(plan)
     onayli = pozisyon_modulu.olay_karari(
         sahte_4h("2033-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
-        birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
+        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=donem_bas, donem_bitis=donem_bitis,
         sinyal_degerleri={"x": 1.0},
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),

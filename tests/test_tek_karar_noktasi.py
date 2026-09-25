@@ -35,7 +35,7 @@ def _fund(bas=BAS, son=B + H4, aralik=8):
 
 
 def _karar(t, ufuk=18, bar=config.BAR_4H, fr=None, mum=MUM, sinyal=SINYAL, **sinir):
-    return pozisyon.olay_karari(mum, _fund() if fr is None else fr, t, ufuk, bar, birincil_ufuk=18,
+    return pozisyon.olay_karari(mum, _fund() if fr is None else fr, t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18,
                                 **{**SINIR, **sinir}, sinyal_degerleri=sinyal,
                                 **uygunluk(bar, BAS - UYGUN_ONCELIK, B))
 

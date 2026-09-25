@@ -31,7 +31,7 @@ def _fund(parcalar):
 
 
 def _karar(fr, ufuk=6):  # Rev.10: on-kayit ufku (onceki 3)
-    return pozisyon.olay_karari(MUM, fr, T("2025-03-05 04:00"), ufuk, config.BAR_4H, birincil_ufuk=18,
+    return pozisyon.olay_karari(MUM, fr, T("2025-03-05 04:00"), ufuk, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
                                 kume_baslangic=None, kume_bitis=None, donem_baslangic=DB, donem_bitis=B,
                                 sinyal_degerleri={"x": 1.0}, **uygunluk(config.BAR_4H, DB, B))
 

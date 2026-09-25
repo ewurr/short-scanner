@@ -51,7 +51,7 @@ FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B, freq="8h"), "aralik_sa
 
 
 def _karar(sinyal):
-    return pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, birincil_ufuk=18,
+    return pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
                                 kume_baslangic=None, kume_bitis=None, donem_baslangic=DB, donem_bitis=B,
                                 sinyal_degerleri=sinyal, **uygunluk(config.BAR_4H, DB, B))
 

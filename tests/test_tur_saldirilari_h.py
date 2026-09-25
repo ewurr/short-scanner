@@ -202,7 +202,7 @@ def test_intenum_bool_benzeri_deger_bool_korumasini_atlatir():
     with pytest.raises(TypeError):
         pozisyon_modulu.olay_karari(
             sahte_4h("2034-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
-            birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
+            hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
             donem_baslangic=donem_bas, donem_bitis=donem_bitis,
             sinyal_degerleri={"kosul": _Kosul.YANLIS},
             **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
@@ -224,7 +224,7 @@ def test_tek_funding_kaydiyla_pozisyon_tam_ve_tek_ritim_sayilir():
     fund = _funding([(plan.giris, 2000.0, 0.0001)])  # tek kayit, cok genis aralik
     onayli = pozisyon_modulu.olay_karari(
         sahte_4h("2036-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
-        birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
+        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=donem_bas, donem_bitis=donem_bitis,
         sinyal_degerleri={"x": 1.0},
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
@@ -243,7 +243,7 @@ def test_capa_ve_son_aralik_saat_replace_ile_sahtelenemez():
     fund = _tam_funding_icin(plan)
     onayli = pozisyon_modulu.olay_karari(
         sahte_4h("2037-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
-        birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
+        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=donem_bas, donem_bitis=donem_bitis,
         sinyal_degerleri={"x": 1.0},
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),

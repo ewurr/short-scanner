@@ -29,7 +29,7 @@ FUND = pd.DataFrame({"odeme_zamani": pd.date_range(BAS, B, freq="8h"), "aralik_s
 def test_karar_noktasi_donem_sinirini_none_ile_kabul_etmez(sinir):
     sinirlar = {"donem_baslangic": BAS, "donem_bitis": B, sinir: None}
     with pytest.raises(TypeError):
-        pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, birincil_ufuk=18,
+        pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
                              kume_baslangic=None, kume_bitis=None, sinyal_degerleri={"x": 1.0},
                              **sinirlar, **uygunluk(config.BAR_4H, BAS, B))
     with pytest.raises(TypeError):

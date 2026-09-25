@@ -97,6 +97,7 @@ class OnaylanmisPozisyon:
     funding_ritmi_saat: float = float("nan")
     karisik_ritim: bool = False
     ritim_sinifi: str | None = None
+    hipotez: str | None = None
     _imza: int = field(default=0, repr=False, compare=False)
 
     @property
@@ -107,7 +108,7 @@ class OnaylanmisPozisyon:
 def _imza(p: OnaylanmisPozisyon) -> int:
     return hash((_ONAY_GIZLI, p.plan, p.p0, p.p1, p.funding_toplami, p.kuyruk_kismi, p.son_esitlik_affi,
                  p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim, p.funding_ritmi_saat, p.karisik_ritim,
-                 p.ritim_sinifi))
+                 p.ritim_sinifi, p.hipotez))
 
 
 def onay_dogrula(pozisyon) -> None:
@@ -190,6 +191,7 @@ def olay_karari(
     ufuk: int,
     bar: str,
     *,
+    hipotez: str,
     birincil_ufuk: int,
     kume_baslangic,
     kume_bitis,
@@ -210,11 +212,14 @@ def olay_karari(
     degerleri (ad -> deger); bos olamaz. `gunluk_mumlar`: sembolun 1d serisi (uygunluk
     hacmi; `klines.mumlari_yukle(s, "1d", ...)`). `asgari_hacim`, `asgari_listeleme_yasi_gun`:
     uygunluk esikleri, on-kayit §2 degerleri olmalidir (`eligibility.esikleri_dogrula`).
+    `hipotez` ("H1", "H2", "H3") zorunludur: `bar`, `ufuk` ve `birincil_ufuk` hipotezden tureyen on-kayit
+    degerleriyle uyumlu olmalidir (`pencere.hipotez_baglamini_dogrula`; F2 kodu bunlari
+    `pencere.hipotez_ufuklari`ndan okur). Onayli pozisyon hipotezi imzali tasir.
     Butun sinirlar ve esikler zorunlu anahtar sozcuktur; varsayilan yoktur.
     """
-    # Ufuklar on-kayit degeri olmali (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10).
-    pencere_modulu.ufuk_dogrula(ufuk, bar)
-    pencere_modulu.birincil_ufuk_dogrula(birincil_ufuk, bar)
+    # Hipotez -> izgara -> ufuk bagi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis
+    # turu, denetci D-B2): izgara ve ufuklar hipotezden turer; uyumsuz eslesme calisma aninda hata.
+    pencere_modulu.hipotez_baglamini_dogrula(hipotez, bar, ufuk, birincil_ufuk)
     if not isinstance(sinyal_degerleri, Mapping) or not sinyal_degerleri:
         raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (sinyal barindaki pencere degerleri).")
     # Bool bir pencere degeri degil kosul sonucudur; `not (x < y)` gibi olumsuzlanmis bir kosul NaN
@@ -263,7 +268,7 @@ def olay_karari(
                                son_aralik_saat=float(ayrinti["son_aralik_saat"]), tek_ritim=bool(ayrinti["tek_ritim"]),
                                funding_ritmi_saat=float(ayrinti["funding_ritmi_saat"]),
                                karisik_ritim=bool(ayrinti["karisik_ritim"]),
-                               ritim_sinifi=ayrinti["ritim_sinifi"])
+                               ritim_sinifi=ayrinti["ritim_sinifi"], hipotez=hipotez)
     return replace(sonuc, _imza=_imza(sonuc))
 
 

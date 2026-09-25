@@ -618,6 +618,50 @@ def birincil_ufuk_dogrula(birincil_ufuk, bar: str) -> int:
     return deger
 
 
+@dataclass(frozen=True)
+class HipotezUfuklari:
+    """Bir hipotezin izgarasi ve ufuklari; hepsi `config`'in on-kayit bolumunden turer (on-kayit §4
+    "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis turu, denetci D-B2). Yalnizca `hipotez_ufuklari`
+    uretir."""
+
+    hipotez: str
+    bar: str
+    birincil: int
+    ikincil: tuple[int, ...]
+    ileri_kayma_siniri: int
+    ufuklar: tuple[int, ...]
+
+
+def hipotez_izgarasi(hipotez) -> str:
+    """Hipotezin izgarasi (`config.HIPOTEZ_IZGARASI`: H1, H2 4h; H3 1d). Bilinmeyen hipotez ValueError,
+    metin olmayan TypeError."""
+    if not isinstance(hipotez, str):
+        raise TypeError(f"hipotez 'H1', 'H2' ya da 'H3' olmali: {hipotez!r}")
+    if hipotez not in config.HIPOTEZ_IZGARASI:
+        raise ValueError(f"Bilinmeyen hipotez {hipotez!r}; on-kayit hipotezleri: {tuple(config.HIPOTEZ_IZGARASI)}.")
+    return config.HIPOTEZ_IZGARASI[hipotez]
+
+
+def hipotez_ufuklari(hipotez) -> HipotezUfuklari:
+    """Hipotez -> izgara -> ufuklar, tek kaynaktan (`config`). F2 kodu ufuk ve izgarayi buradan okur."""
+    bar = hipotez_izgarasi(hipotez)
+    return HipotezUfuklari(hipotez, bar, config.BIRINCIL_UFUK[bar], tuple(config.IKINCIL_UFUKLAR[bar]),
+                           config.ILERI_KAYMA_SINIRI[bar], tuple(config.UFUKLAR[bar]))
+
+
+def hipotez_baglamini_dogrula(hipotez, bar: str, ufuk, birincil_ufuk) -> HipotezUfuklari:
+    """Verilen izgara, ufuk ve birincil ufuk hipotezden tureyen degerlerle uyumlu mu? Uyumsuzluk
+    calisma aninda ValueError (ör. H3 icin `bar="4h"`, H2 icin `ufuk=14`). Tek kapi
+    `pozisyon.olay_karari` her cagrida bunu uygular."""
+    tanim = hipotez_ufuklari(hipotez)
+    if bar != tanim.bar:
+        raise ValueError(f"{hipotez} izgarasi {tanim.bar}; verilen bar {bar!r} on-kayit hipotez-izgara bagiyla "
+                         "uyumsuz (config.HIPOTEZ_IZGARASI).")
+    ufuk_dogrula(ufuk, tanim.bar)
+    birincil_ufuk_dogrula(birincil_ufuk, tanim.bar)
+    return tanim
+
+
 def cikis_hedefi(giris_zamani, ufuk: int, bar: str) -> pd.Timestamp:
     """Hedef cikis ani T = giris ani + h x adim (on-kayit §4 rev.8); adim 4h
     izgarasinda 4 saat, 1d izgarasinda 24 saat. Hedef bar, kapanisi T olan 4h bardir.

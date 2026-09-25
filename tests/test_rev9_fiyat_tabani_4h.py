@@ -53,7 +53,7 @@ def _fund():
 def _karar(mumlar, bar=config.BAR_1D, t=T("2024-03-10")):
     return pozisyon.olay_karari(
         mumlar, _fund(), t, 14 if bar == config.BAR_1D else 18, bar,
-        birincil_ufuk=14 if bar == config.BAR_1D else 18, kume_baslangic=None, kume_bitis=None,
+        hipotez="H3" if bar == config.BAR_1D else "H1", birincil_ufuk=14 if bar == config.BAR_1D else 18, kume_baslangic=None, kume_bitis=None,
         donem_baslangic=BAS, donem_bitis=B, sinyal_degerleri={"x": 1.0}, **uygunluk(bar, BAS, B))
 
 
