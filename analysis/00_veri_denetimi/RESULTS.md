@@ -1131,6 +1131,120 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     - C2'nin ilk pozisyonlarında çapa 2025-09-01'den önceki bir kayıt olabilir; kesimle çapa
       kaybolur. Etki ölçülmedi (C2 hesaplanmadı).
 
+18. **Rev.10 uygulaması: açık noktaların durumu (2026-09-25).** Ön-kayıt Sürüm 10 (`d7b3629`,
+    `52d0751`, `f7009e5`) koda geçirildi. Yalnızca sayı; getiri, funding oranı ya da H2 ortalamasının
+    değeri hesaplanmadı. Ölçüm sonuçları yalnızca KEŞİF için (§4 "Ölçüm raporlamasının küme sınırı").
+
+    **H2 hesaplanabilirliği, gerçek kod yolu** (`rev10_uygulama.py`, `72c034b`; `funding_yukle` +
+    `funding_ortalamasi`, oran sütunları NaN'lığı korunarak 0 yapıldı, yalnızca NaN olup olmadığı
+    okundu). KEŞİF, A grubu, 333 sembol, dönem içi 4h bar 1.113.921.
+
+    | Kod | Koşu | Hesaplanabilen bar |
+    |---|---|---|
+    | Rev.10 öncesi (`funding_ortalamasi` rev.8 dönemi) | `72c034b`, temiz, çıktı `8477186` | 1.106.156 |
+    | Rev.10 (`f9a144d`) | `f9a144d`, temiz, çıktı `26fd27a` | 1.106.178 |
+
+    - Fark +22 bar (17 sembol); Rev.10 ile NaN olan bar **0**, hesaplanabilir olan 22. Sembollerin
+      hepsi aralık geçişi olan semboller (BLZ, FLM, FTT, HYPER, BROCCOLIF3B, ERA …); tek tek neden
+      sınıflanmadı. Liste: `rev10_uygulama_h2_nan_{once,sonra}_tam.csv` farkı.
+    - 1.106.178, §14.16'da kural metniyle (A okuması, Rev.9 çapa + zincir) ölçülen KEŞİF sayısıyla
+      aynı: gerçek kod metinle aynı barları hesaplıyor.
+
+    **Doğrulama: Rev.9 ve Rev.10 metnindeki sayılar gerçek kod yoluyla.** Temiz ağaçta, son kodla
+    (`26fd27a` sonrası) sırayla koşuldu; her koşunun `*_tam.csv` çıktıları bir önceki commit'tekilerle
+    `karsilastir.py` ile karşılaştırıldı (`karsilastirma_rev10_uyg_<koşu>_tam.csv`):
+
+    | Koşu | Commit (çıktı) | Veri CSV'leri |
+    |---|---|---|
+    | Tam denetim `calistir.py --eski-evren` | `9d1c243` | bayt düzeyinde aynı |
+    | A1 `a1_olcumu.py` | `2eac2c8` | aynı |
+    | `rev9_uygulama.py` (Rev.9 metnindeki sayılar: 3.887.825, 938.979, 435, 7.248, 12.298) | `26c5de8` | aynı |
+    | `rev10_son.py` (Rev.10: 473 / 337, 1.103.215 / 180.928, 23 / 21, kesik = kesiksiz) | `c4e8c8e` | aynı |
+    | `rev10_hazirlik.py` (Rev.10: 709.980; geçersiz aralık 0) | `8bf2878` | aynı |
+
+    Her koşuda yalnızca kendi ortam kaydı değişti (commit ve zaman). **Onay kümesi gerekçesi:**
+    `rev9_uygulama.py` ve `rev10_hazirlik.py` C1/C2'yi de hesaplar; Rev.9 metnindeki sayılar evren
+    toplamı olduğu için doğrulama aynı evreni gerektirir. Yeni bir onay kümesi sayısı raporlanmadı;
+    yalnızca önceki çıktılarla eşitlik okundu.
+
+    **Rev.10 maddeleri.**
+    - **H2 penceresi (§4 "Funding sinyal penceresinin tamlığı"): kapandı** — `f9a144d`;
+      `funding.sinyal_penceresi_ayrintisi` (vektörel, oran okumaz) ve `funding_ortalamasi`
+      (`kume_bitis` zorunlu; seri kapanışa kesilir). Testler `test_rev10_h2_penceresi` (36).
+      Önceki D-B2 (Rev.9 turu) ve Rev.10 hazırlığındaki D-A3 bununla kapandı.
+      - **Uygulanmayan parça (ön-kayıt belirsizliği):** veri katmanının küme kesimi
+        (`funding_yukle`, ham `>=`/`<=`) değiştirilmedi. KEŞİF'in son barının (08-31 20:00)
+        pencere sonu kaydı 2025-09-01 00:00; Rev.10 "pencere sonuna denk gelen kayıt **girer**" ve
+        "Küme sınırı karşılaştırmaları da §4 'Zaman toleransı'na tabidir" diyor, §3 ise C2'yi
+        2025-09-01 00:00'da başlatıyor. Bugün bu bar iki kayıttan hesaplanıyor. Denetçiye göre bu
+        bardan olay ya da kontrol oluşamaz (çıkış küme sonunu aşar); etkisi sembol başına en fazla
+        bir barın H2 değeri. Karar bekliyor.
+    - **Bar tabanlı pencerelerde tolerans (kod hatası): kapandı** — `233db57`; `pencere_dilimi`
+      dönem ve küme başını `pencere.once` ile karşılaştırıyor (bakışımsızlık kalktı). Bugünkü veride
+      etki 0: 690 dönem başı ve küme başları 4h ızgarasında. Tam denetim ve A1 çıktıları aynı.
+      Testler `test_rev10_pencere_toleransi`.
+    - **Ufuk bağlama (§4 "Ufuk değerlerinin bağlanması"): kapandı (tek kapıda)** — `5c688fb`;
+      `config` ön-kayıt bölümü (`BIRINCIL_UFUK`, `IKINCIL_UFUKLAR`, `ILERI_KAYMA_SINIRI`,
+      `UFUKLAR`, `HIPOTEZ_IZGARASI`), `pencere.ufuk_dogrula`, `pencere.birincil_ufuk_dogrula`;
+      `olay_karari` ön-kayıt dışı değeri reddeder. `rev9_hazirlik.UFUKLAR = config.UFUKLAR`. İç
+      adımlar serbest tamsayı alıyor; analiz kodundan çağrılmaları tarama ile yasak (denetçi D-B2,
+      aşağıda). Testler `test_rev10_ufuk_baglama`.
+    - **Ritim sınıfı (§4 "Pozisyonun funding ritmi"): kapandı** — `9952421`; `funding.ritim_sinifi`,
+      `RITIM_SINIFLARI`, `RITIM_SINIFLANMAMIS` ("siniflanmamis"), `ritim_sinifi_ozeti`;
+      `OnaylanmisPozisyon.ritim_sinifi` imzalı. Testler `test_rev10_ritim_siniflari`.
+    - **Geçerli aralık (§4 "Funding tamlığı" beşinci madde):** kodda Rev.9'dan beri var; H2
+      penceresine de uygulanıyor. Kapandı.
+    - **Dördüncü gevşeklik:** bilinen sınır; kod karşılığı gerekmiyor (denetçi).
+    - **Ölçüm raporlamasının küme sınırı:** `rev10_uygulama.py` yalnızca KEŞİF okur.
+
+    **Kalan sızıntı bulguları.** `739eb50`:
+    - NaT `close_time` (4h ve 1d çerçeve): kapandı.
+    - Enum koşul değeri: kapandı.
+    - `funding_ortalamasi` koruması: iki parça.
+      - Tarama `FUNDING_ORAN_DESENI`: analiz kodu oran sütunlarına doğrudan erişemez.
+      - Kapı `funding.SINYAL_PENCERESI_REVIZYONU`: ön-kayıttaki paragrafın son revizyonuyla eşit
+        olmalı.
+    - Testler `test_rev10_kalan_bulgular`. Rev.10 hazırlığının üç xfail'i ve Rev.9 turunun ilk çift
+      xfail'i kapandı; işaretleri kaldırıldı.
+
+    **`None` yerine küme işaret nesnesi (`KUMESIZ`): uygulanmadı, belgelenmiş sınır.**
+    - Neden: `None`'u `data/` fonksiyonlarında reddetmek gerekir. Testlerde 35 dosyada 165
+      `kume_baslangic/kume_bitis=None` çağrısı var ve bunlar Rev.10'un değiştirdiği bir davranışı
+      sabitlemiyor. Tur kuralı gereği güncellenemezler.
+    - `None` ile işaretin birlikte kabul edilmesi açığı kapatmaz.
+    - Sınır: tarama değişkenle taşınan `None`'u yakalamaz (`k = None; kume_baslangic=k`).
+      `kume_bitis=None` verilirse H2 penceresinin küme sonu denetimi de atlanır.
+    - Üretimde küme sınırları `split.kume_araligi`'ndan gelir.
+
+    **Bu turun denetçi bulguları (düzeltilmedi).**
+    - **D-B1:** tek kapı H2 funding değerinin `sinyal_degerleri`'nde bulunmasını şart koşmuyor. K1/K2
+      çağrısı değeri hesaplamadan geçerse, penceresi hesaplanamayan barda kontrol oluşabilir.
+    - **D-B2:** ufuk kuralı iç adımlarda yalnızca taramayla korunuyor.
+      - `analysis/00_veri_denetimi` taramadan muaf.
+      - `.ipynb` dosyaları taranmıyor.
+      - Hipotez ile ızgara bağı kapıda zorlanmıyor.
+    - **D-B3:** H2'nin 24 saatlik penceresi `config`'de değil; `saat` serbest.
+    - **D-C1:** küme sonu kaydı (yukarıda). Pozisyon ve sinyal tarafı arasında asimetri var.
+    - **D-C2:** `config.ILERI_KAYMA_SINIRI` üretim kodunda okunmuyor. Sınır birincil ufuktan türüyor;
+      eşitlik testle korunuyor.
+    - **D-C3:** yukarıdaki `KUMESIZ` sınırı.
+    - **D-C4:** `rev10_uygulama.py`'nin testi yok.
+    - **D-C5:** `kayit_var` ve penceredeki NaN oran şartları metinde yazılı değil.
+    - **D-C7:** son koşulu olmadığı için ortalama tek kayıttan hesaplanabilir. Bu, bilinen sınırlar
+      listesinde yok.
+
+    **Sızıntı testçisi.** Yeni `test_tur_saldirilari_i` (`f0e0c0a`), 27 vaka, bulgu yok.
+
+    **Rev.9'dan açık kalanlar.**
+    - D-C1, D-C2, D-C4, D-C5, D-C8 (Rev.9 turu): açık, getiriye dokunmaz.
+    - §14.3: açık not.
+
+    **Ağır bulgu (§14.13).** Önceki turun iki ağır bulgusu kapandı: D-B2 (H2) ve D-C6. Bu turda
+    getiriye dokunabilecek üç yeni kural açığı var: **D-B1, D-B2, D-B3**. Üçü de F2 kodu olay ya da
+    kontrol ürettiğinde devreye girer. §14.13'e göre ("etkileyip etkilemediği belirsizse etkilediği
+    varsayılır") F2'den önce kapanmalı. Küme sonu kaydı (D-C1) karar bekliyor ama denetçiye göre olay
+    kümesini değiştirmez. **F1 kapanmadı.**
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -1433,3 +1547,58 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     `test_rev10_son`.
   - §14.16'daki "iki ölçü de üst sınırdır" cümlesi düzeltildi (denetçi bulguları D-A1, D-A2).
   - Kod ve mevcut testler değişmedi.
+- 2026-09-25 (Rev.10 uygulaması). §14.18 eklendi. Kod: `233db57`, `f9a144d`, `5c688fb`,
+  `9952421`, `739eb50`. Ölçüm `rev10_uygulama.py` (`72c034b`). Doğrulama koşuları `9d1c243`,
+  `2eac2c8`, `26c5de8`, `c4e8c8e`, `8bf2878`.
+  **Güncellenen mevcut testler.** Hepsi Rev.10'un açıkça değiştirdiği davranışlar içindir.
+  - Zorunlu `kume_bitis` (§4 "Funding sinyal penceresinin tamlığı": pencere kümede olmalı):
+    `funding_ortalamasi` çağrılarına `kume_bitis=None` eklendi. 7 dosya (`f9a144d` commit mesajındaki
+    "8 dosya" yanlıştır):
+    - `test_funding_aralik_gecisi`
+    - `test_funding_penceresi`
+    - `test_f1_kapanis_saldirilari`
+    - `test_karantina_kaldirildi`
+    - `test_rev10_donem_none`
+    - `test_tur_saldirilari_g`
+    - `test_zaman_toleransi`
+
+    Beklentiler değişmedi. `test_funding_penceresi` zorunluluk testine `kume_bitis` eklendi
+    (sıkılaştırma).
+  - Yarı açık pencere, H2 zincirinde ilk çift tabanı ve son koşulunun olmaması:
+    - `test_funding_penceresi::test_kapanistan_sonraki_odeme_kullanilmaz` (eski adı
+      `test_kapanis_anindaki_ve_sonraki_odeme_kullanilmaz`):
+      - Kapanış anındaki kayıt artık ortalamaya giriyor.
+      - Kapanıştan sonraki bütün kayıtlar hâlâ bozuluyor.
+      - Kapanış kaydını bozmanın sonucu değiştirdiği ayrıca doğrulanıyor.
+    - `test_funding_penceresi::test_penceredeki_bir_odeme_eksikse_nan`:
+      - Pencere başındaki kaydın (04 08:00) eksikliği artık NaN değil.
+      - Pencere sonundaki kaydın eksikliği görülmez.
+      - İçerideki ilk ve ortadaki eksiklik NaN. Önceki üç durum dört durumla yazıldı.
+    - `test_zaman_toleransi::test_funding_ortalamasi_kapanis_kenari`: kenar kapanış + fark ile
+      deneniyor; aynı an girer, 1 dk ve sonrası okunmaz.
+    - `test_zaman_toleransi::test_bosluk_kurali_kenari`: aynı kenar, kaldırılan `_odemeler_tam_mi`
+      yerine `sinyal_penceresi_ayrintisi` ile.
+  - Ufuk bağlama (§4 "Ufuk değerlerinin bağlanması"): kapıyı serbest ufukla çağıran 20 test on-kayıt
+    değerine geçti. 4h'de 1, 2, 3 → 6; 1d'de 3 → 7. Dosyalar:
+    - `test_rev9_f2_bayraklari`
+    - `test_tur_saldirilari_f`
+    - `test_tur_saldirilari_g`
+    - `test_tur_saldirilari_h`
+    - `test_rev10_ritim_sinifi`
+    - `test_rev9_uygunluk_kapisi`
+
+    `test_rev9_f2_bayraklari`'nda kısmi kuyruk ve eşitlik affı senaryoları 6 barlık ufukla aynı
+    biçimde yeniden kuruldu; beklentiler değişmedi.
+  - `xfail(strict)` işareti kaldırılanlar (bulgu kapandı, XPASS; aynı beklentiyle normal test):
+    - `test_tur_saldirilari_h`: dönem sınırı 1 ns, NaT `close_time`, IntEnum.
+    - `test_tur_saldirilari_g`: H2 ilk çift tabanı.
+
+  Silinen, gevşetilen ya da xfail'e alınan test yok. Yeni test dosyaları:
+  - `test_rev10_pencere_toleransi`
+  - `test_rev10_h2_penceresi`
+  - `test_rev10_ufuk_baglama`
+  - `test_rev10_ritim_siniflari`
+  - `test_rev10_kalan_bulgular`
+  - `test_tur_saldirilari_i` (sızıntı testçisi)
+
+  Yardımcı `tarama_yardimcisi.FUNDING_ORAN_DESENI` eklendi.
