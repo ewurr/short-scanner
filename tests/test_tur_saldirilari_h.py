@@ -168,18 +168,9 @@ def test_iki_satirlik_1d_cerceve_sahte_close_time_ile_kabul_edilir_mi():
     assert len(sonuc) == 2
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SALDIRI BULGUSU: on-kayit §4 rev.8 'Fiyat okuma tabani' pozisyonun butun "
-    "fiyat okumalarinin HER IZGARADA 4h barlardan olmasini ister; _mum_zamanlari "
-    "bunu ic denetimle saglar. Ancak close_time NaT oldugunda 'sure = close_time - "
-    "acilis' NaT olur ve pandas'ta NaT karsilastirmasi (sure > adim) HER ZAMAN "
-    "False doner (float NaN gibi); bu satir suresiz sayilir, hata vermez. Dort "
-    "barlik bir cercevede uc bar gercekte 20h/24h araliklı (1d benzeri) olsa bile, "
-    "close_time'lari NaT verilir ve yalnizca BIR bar (gercek 4h close_time'li) "
-    "ardisik-fark denetimini (min == 4h) gecirmeye yeter; cerceve BUTUNUYLE kabul "
-    "edilir. data/pozisyon.py _mum_zamanlari (satir ~153-160): NaT close_time icin "
-    "'sure > adim' denetimi atlanabiliyor."
-))
+# SALDIRI BULGUSU (Rev.10 hazirlik turu, xfail idi): NaT close_time 4h denetimini atlatiyordu.
+# Rev.10 uygulamasi madde 5'te kapandi (pozisyon._close_time_nat_yok); xfail isareti kaldirildi,
+# test ayni beklentiyle normal test olarak kaliyor.
 def test_close_time_nat_ile_disguised_1d_cercevesi_4h_denetimini_atlatir():
     opens = pd.DatetimeIndex([T("2025-01-01 00:00"), T("2025-01-01 04:00"),
                               T("2025-01-02 00:00"), T("2025-01-03 00:00")])
@@ -202,18 +193,9 @@ class _Kosul(enum.IntEnum):
     DOGRU = 1
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "SALDIRI BULGUSU: on-kayit §2 'Tamlik sarti' (denetci bulgusu D-C1) bool bir "
-    "sinyal degerinin ('olumsuzlanmis bir kosul NaN pencereyi True ile gizleyebilir') "
-    "TypeError ile reddedilmesini ister; data/pozisyon.py olay_karari bunu "
-    "'isinstance(deger, (bool, np.bool_))' ile denetler. Ancak bir kosul sonucu "
-    "'bool' YERINE bir IntEnum (ör. enum.IntEnum) uyesi olarak tasinirsa -- "
-    "semantik olarak yine bir kosul sonucudur ve gercek bool ile ayni sekilde "
-    "kullanilabilir -- isinstance(x, (bool, np.bool_)) FALSE doner (IntEnum bool "
-    "ALT SINIFI degildir), sonraki 'eksik' denetimi de gecer (IntEnum bir int alt "
-    "sinifidir, math.isfinite calisir). Boylece bool-koruma tasarim amacini "
-    "atlatarak kosul-degeri sessizce numerik pencere degeri gibi kabul edilir."
-))
+# SALDIRI BULGUSU (Rev.10 hazirlik turu, xfail idi): IntEnum kosul degeri bool korumasini
+# atlatiyordu. Rev.10 uygulamasi madde 5'te kapandi (olay_karari enum uyesini reddeder); xfail
+# isareti kaldirildi, test ayni beklentiyle normal test olarak kaliyor.
 def test_intenum_bool_benzeri_deger_bool_korumasini_atlatir():
     plan, zamanlar, donem_bas, donem_bitis = _basit_plan("2034-01-01 00:00")
     fund = _tam_funding_icin(plan)

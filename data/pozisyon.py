@@ -26,6 +26,7 @@ raporlamaz. Saf fonksiyonlar.
 
 from __future__ import annotations
 
+import enum
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
@@ -117,6 +118,15 @@ def onay_dogrula(pozisyon) -> None:
         raise ValueError("OnaylanmisPozisyon elle kurulmus ya da degistirilmis; yalnizca olay_karari uretir.")
 
 
+def _close_time_nat_yok(mumlar: pd.DataFrame, ad: str) -> None:
+    """`close_time` sutunu varsa hicbir satiri NaT olamaz. NaT ile yapilan sure karsilastirmasi her
+    zaman False doner; NaT'li bir 1d cercevesi 4h denetiminden (ya da tersi) sessizce gecerdi
+    (sizinti testcisinin Rev.10 hazirlik bulgusu 2; on-kayit §4 "Fiyat okuma tabani")."""
+    if bool(pd.isna(mumlar["close_time"]).any()):
+        raise ValueError(f"{ad}: close_time sutununda NaT var; bar suresi dogrulanamaz "
+                         "(on-kayit §4 'Fiyat okuma tabani').")
+
+
 def _gunluk_hacim(gunluk_mumlar: pd.DataFrame) -> pd.Series:
     """Uygunluk hacminin girdisi: sembolun 1d serisi (`klines.mumlari_yukle(s, "1d", ...)`,
     tek 1d yolu `klines.gunluge_cevir`). 1d olmayan cerceve (ör. 4h mumlari) acik hata verir:
@@ -127,6 +137,7 @@ def _gunluk_hacim(gunluk_mumlar: pd.DataFrame) -> pd.Series:
     if len(acilis) and not bool((acilis == acilis.floor("D")).all()):
         raise ValueError("gunluk_mumlar 1d serisi olmali: acilislar UTC gun basi degil (4h cercevesi verilmis olabilir).")
     if "close_time" in gunluk_mumlar and len(acilis):
+        _close_time_nat_yok(gunluk_mumlar, "gunluk_mumlar")
         sure = pd.DatetimeIndex(gunluk_mumlar["close_time"]) - acilis
         if bool((sure <= pencere_modulu.ADIM_4H).any()):
             raise ValueError("gunluk_mumlar 1d serisi olmali: bar suresi 4 saati asmiyor.")
@@ -154,6 +165,7 @@ def _mum_zamanlari(mumlar: pd.DataFrame) -> pd.DatetimeIndex:
         raise ValueError("mumlar_4h 4h serisi oldugu dogrulanamiyor: tek satir ve close_time yok "
                          "(on-kayit §4 'Fiyat okuma tabani').")
     if "close_time" in mumlar:
+        _close_time_nat_yok(mumlar, "mumlar_4h")
         sure = pd.DatetimeIndex(mumlar["close_time"]) - zamanlar
         if bool((sure > adim).any()):
             raise ValueError("mumlar_4h 4h serisi olmali: bar suresi 4 saati asiyor (1d cercevesi verilmis olabilir; "
@@ -210,6 +222,12 @@ def olay_karari(
     mantiksal = [ad for ad, deger in sinyal_degerleri.items() if isinstance(deger, (bool, np.bool_))]
     if mantiksal:
         raise TypeError(f"sinyal_degerleri bool kabul etmez (pencere degeri verilmeli, kosul sonucu degil): {mantiksal}")
+    # Enum uyesi (IntEnum, IntFlag, float karisimli Enum) de bir kosul sonucu tasiyabilir ve sayi gibi
+    # gecer; bool ile ayni gerekceyle reddedilir (sizinti testcisinin Rev.10 hazirlik bulgusu 3).
+    numaralandirma = [ad for ad, deger in sinyal_degerleri.items() if isinstance(deger, enum.Enum)]
+    if numaralandirma:
+        raise TypeError(f"sinyal_degerleri enum uyesi kabul etmez (pencere degeri verilmeli, kosul sonucu "
+                        f"degil): {numaralandirma}")
     eksik = [ad for ad, deger in sinyal_degerleri.items()
              if deger is None or not isinstance(deger, (int, float, np.integer, np.floating)) or not math.isfinite(deger)]
     if eksik:

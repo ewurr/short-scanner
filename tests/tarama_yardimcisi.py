@@ -45,6 +45,13 @@ FUNDING_KAPI_DISI_DESENI = (
     r"|fundingRate|[\"']funding[\"']"
 )
 
+# Funding oranina dogrudan erisim (Rev.10 uygulamasi madde 5; denetci bulgusu D-A3): H2'nin funding
+# ortalamasinin tek yolu `funding.funding_ortalamasi`dir (on-kayit §4 "Funding sinyal penceresinin
+# tamligi"; yari acik pencere, capa, zincir, kume icinde olma). Analiz kodu oran sutunlarini okuyup
+# ortalamayi kendisi kurarsa bu kurallarin hepsini atlar. Getiri tarafinda pozisyon funding'i
+# `pozisyon.olay_karari` ciktisindan (`funding_toplami`) okunur; oran sutununa orada da gerek yoktur.
+FUNDING_ORAN_DESENI = r"\boran_8h\b|\bsekiz_saate_normallestir\b|[\"']oran[\"']|\.oran\b"
+
 # Kume korumasi olmayan ham yukleyiciler ve SETTLED verisi (denetci bulgusu D-C7). On-kayit §2
 # rev.8: "SETTLED dosyalari hicbir hesaba girmez"; SETTLED yalnizca veri denetimi icindir.
 # `tests/test_kume_korumasi.py`'deki eski desen (SETTLED'siz) degistirilmedi; bu desen onu kapsar.
