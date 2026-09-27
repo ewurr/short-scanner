@@ -16,6 +16,7 @@ import config
 from data import eligibility, pencere, pozisyon
 from tarama_yardimcisi import DONEM_NONE_DESENI, ihlaller
 from sinyal_yardimcisi import sinyal
+from kapi_yardimcisi import donem
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import uygunluk
 
@@ -29,11 +30,17 @@ FUND = pd.DataFrame({"odeme_zamani": pd.date_range(BAS, B, freq="8h"), "aralik_s
 
 @pytest.mark.parametrize("sinir", ["donem_baslangic", "donem_bitis"])
 def test_karar_noktasi_donem_sinirini_none_ile_kabul_etmez(sinir):
+    # Kapi sertlestirme turu: kapi donem sinirini hic almaz (evren tablosundan sembol ve donem numarasiyla
+    # okur). Serbest donem siniri (None ya da deger) verilemez; sembol / donem numarasi None olamaz.
     sinirlar = {"donem_baslangic": BAS, "donem_bitis": B, sinir: None}
+    ortak = dict(hipotez="H1", birincil_ufuk=18, kume=kume_adi(T('2025-03-05 04:00')), sinyal_degerleri=sinyal("H1"),
+                 **uygunluk(config.BAR_4H, BAS, B))
     with pytest.raises(TypeError):
-        pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
-                             kume=kume_adi(T('2025-03-05 04:00')), sinyal_degerleri=sinyal("H1"),
-                             **sinirlar, **uygunluk(config.BAR_4H, BAS, B))
+        pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, **ortak, **sinirlar)
+    kayit = donem(BAS, B)
+    for ad in ("sembol", "donem_no"):
+        with pytest.raises(TypeError):
+            pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, **ortak, **{**kayit, ad: None})
     with pytest.raises(TypeError):
         pencere.pozisyon_plani(Z, T("2025-03-05 04:00"), 6, config.BAR_4H, birincil_ufuk=18,
                                kume_baslangic=None, kume_bitis=None, **sinirlar)

@@ -27,6 +27,7 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
+from kapi_yardimcisi import donem
 from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
 from tarama_yardimcisi import KUME_NONE_DESENI
@@ -48,7 +49,7 @@ def _karar(hipotez, degerler, fr=TAM_FUND, **sinir):
     s = {"kume": kume_adi(SINYAL_T[hipotez])}
     s.update(sinir)
     return pozisyon.olay_karari(MUM, fr, SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
-                                birincil_ufuk=tanim.birincil, donem_baslangic=DB, donem_bitis=B,
+                                birincil_ufuk=tanim.birincil, **donem(DB, B),
                                 sinyal_degerleri=degerler, **s, **uygunluk(tanim.bar, DB, B))
 
 

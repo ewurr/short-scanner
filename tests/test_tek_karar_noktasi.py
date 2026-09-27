@@ -15,6 +15,7 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
+from kapi_yardimcisi import donem
 from sinyal_yardimcisi import sinyal as _tam_sinyal
 from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
 
@@ -26,7 +27,9 @@ MUM = pd.DataFrame({"open_time": Z, "open": np.arange(len(Z)) + 0.25, "high": np
                     "low": np.arange(len(Z)) + 0.0, "close": np.arange(len(Z)) + 0.5})
 # Rev.9 §4: uygunluk tek karar noktasinin parcasi. Donem, mum serisinden UYGUN_ONCELIK once baslar
 # (listeleme yasi >= 30 gun) ve uygunluk hacmi o gunden itibaren esigin ustundedir.
-SINIR = dict(kume="KESIF", donem_baslangic=BAS - UYGUN_ONCELIK, donem_bitis=B)
+# Kapi sertlestirme turu: donem sinirlari evren kaydindan okunur; sentetik donem `kapi_yardimcisi.donem`.
+DONEM_BAS = BAS - UYGUN_ONCELIK
+SINIR = dict(kume="KESIF", **donem(DONEM_BAS, B))
 # F1 kapanis turu (denetci D-B1): kapi hipotezin butun sinyal degerlerini ister; varsayilan tam kume.
 SINYAL = None
 
@@ -60,8 +63,8 @@ def test_funding_tam_olmayan_olay_brut_hesapta_da_olusmaz():
     fr = fr.loc[fr["odeme_zamani"] != T("2025-01-06 00:00")]  # pencere icinden bir odeme eksik
     t = T("2025-01-05 04:00")
     plan = pencere.pozisyon_plani(Z, t, 18, config.BAR_4H, birincil_ufuk=18, kume_baslangic=config.KESIF_BASI,
-                                  kume_bitis=config.KESIF_SONU, donem_baslangic=SINIR["donem_baslangic"],
-                                  donem_bitis=SINIR["donem_bitis"])  # plan var (ic adim)
+                                  kume_bitis=config.KESIF_SONU, donem_baslangic=DONEM_BAS,
+                                  donem_bitis=B)  # plan var (ic adim)
     with pytest.raises(pozisyon.FundingTamDegil) as hata:
         _karar(t, fr=fr)
     assert pencere.ret_gerekcesi(hata.value) == "funding_tam_degil"
@@ -101,7 +104,7 @@ def test_diger_kurallar_ayni_noktadan_gerekceyle():
     son_mum = pd.DataFrame({"open_time": son, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0})
     with pytest.raises(pencere.KumeSiniriHatasi):
         _karar(T("2025-08-30 04:00"), mum=son_mum, fr=_fund(T("2025-07-01"), T("2025-09-11")),
-               donem_baslangic=T("2025-07-01"), donem_bitis=T("2025-09-10 20:00"))
+               **donem(T("2025-07-01"), T("2025-09-10 20:00")))
     eksik = MUM.loc[(MUM["open_time"] < T("2025-01-07 12:00")) | (MUM["open_time"] > T("2025-01-12 00:00"))]
     with pytest.raises(pencere.IleriKaymaSiniriHatasi):
         _karar(T("2025-01-05 04:00"), mum=eksik)

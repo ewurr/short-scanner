@@ -16,6 +16,7 @@ import config
 from data import klines, pozisyon, split
 from data.donem import Donem
 from sinyal_yardimcisi import sinyal
+from kapi_yardimcisi import donem
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import uygunluk
 
@@ -56,7 +57,7 @@ def _karar(mumlar, bar=config.BAR_1D, t=T("2024-03-10")):
     return pozisyon.olay_karari(
         mumlar, _fund(), t, 14 if bar == config.BAR_1D else 18, bar,
         hipotez="H3" if bar == config.BAR_1D else "H1", birincil_ufuk=14 if bar == config.BAR_1D else 18, kume=kume_adi(t),
-        donem_baslangic=BAS, donem_bitis=B, sinyal_degerleri=sinyal("H3" if bar == config.BAR_1D else "H1"), **uygunluk(bar, BAS, B))
+        **donem(BAS, B), sinyal_degerleri=sinyal("H3" if bar == config.BAR_1D else "H1"), **uygunluk(bar, BAS, B))
 
 
 def test_mumlari_yukle_1d_ciktisi_karar_noktasinda_hata_verir(sembol):

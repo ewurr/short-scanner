@@ -88,3 +88,8 @@ parcalayip `importlib`/`getattr` ile cagirmak) yakalanmaz."""
 TURETILMIS_SERI_DESENI = (
     r"\.(rolling|expanding|ewm|shift|diff|pct_change|cumsum|cumprod|cummax|cummin|resample)\s*\("
 )
+
+# Kapinin donem ve grup kayitlari (kapi sertlestirme turu, denetci F1K2 D-B2): analiz kodu kapinin kayit
+# kaynagini degistiremez ya da test yardimcisinin sentetik donemlerini kullanamaz. Ikincil savunma;
+# kararli bir atlatmayi (ör. `setattr` ile parcalanmis ad) yakalamaz.
+KAYIT_DESENI = r"\b_kayitlar\b|\bkapi_yardimcisi\b|\bSENTETIK_(DONEMLER|GRUPLAR)\b"

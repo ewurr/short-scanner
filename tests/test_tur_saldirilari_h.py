@@ -37,6 +37,7 @@ from conftest import sahte_4h  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from sinyal_yardimcisi import sinyal
+from kapi_yardimcisi import donem
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import uygunluk  # noqa: E402
 
@@ -206,7 +207,7 @@ def test_intenum_bool_benzeri_deger_bool_korumasini_atlatir():
         pozisyon_modulu.olay_karari(
             sahte_4h("2024-02-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
             hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-            donem_baslangic=donem_bas, donem_bitis=donem_bitis,
+            **donem(donem_bas, donem_bitis),
             sinyal_degerleri={"kosul": _Kosul.YANLIS},
             **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
         )
@@ -229,7 +230,7 @@ def test_tek_funding_kaydiyla_pozisyon_tam_ve_tek_ritim_sayilir():
     onayli = pozisyon_modulu.olay_karari(
         sahte_4h("2024-03-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-        donem_baslangic=donem_bas, donem_bitis=donem_bitis,
+        **donem(donem_bas, donem_bitis),
         sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
     )
@@ -249,7 +250,7 @@ def test_capa_ve_son_aralik_saat_replace_ile_sahtelenemez():
     onayli = pozisyon_modulu.olay_karari(
         sahte_4h("2024-04-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-        donem_baslangic=donem_bas, donem_bitis=donem_bitis,
+        **donem(donem_bas, donem_bitis),
         sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
     )

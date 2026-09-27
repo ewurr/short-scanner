@@ -13,6 +13,7 @@ import config
 from data import klines, pozisyon
 from data.donem import Donem
 from sinyal_yardimcisi import sinyal
+from kapi_yardimcisi import donem
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
 
@@ -37,8 +38,8 @@ def _fund():
 def _karar(mum, t, ufuk=18, bar=config.BAR_4H, b=B):
     # Rev.9 §4: uygunluk karar noktasinda; donem mum serisinden UYGUN_ONCELIK once baslar.
     return pozisyon.olay_karari(mum, _fund(), t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
-                                kume=kume_adi(t), donem_baslangic=BAS - UYGUN_ONCELIK,
-                                donem_bitis=b, sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
+                                kume=kume_adi(t), **donem(BAS - UYGUN_ONCELIK, b),
+                                sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
                                 **uygunluk(bar, BAS - UYGUN_ONCELIK, b))
 
 

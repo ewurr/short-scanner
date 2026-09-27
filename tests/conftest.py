@@ -23,6 +23,16 @@ def ag_kapali(monkeypatch):
     monkeypatch.setattr(requests, "get", yasak)
 
 
+@pytest.fixture(autouse=True)
+def sentetik_donem_kayitlari(monkeypatch):
+    """Tek karar noktasi donem sinirlarini evren tablosundan okur (kapi sertlestirme turu). Sentetik seri
+    kullanan testlerin donemleri `kapi_yardimcisi.donem` ile kaydedilir; burada gercek kayitlara eklenir."""
+    from data import pozisyon
+    from kapi_yardimcisi import birlesik_kayitlar
+
+    monkeypatch.setattr(pozisyon, "_kayitlar", birlesik_kayitlar(pozisyon._kayitlar))
+
+
 def sahte_4h(bas: str, bar_sayisi: int, hacim: float = 1_000_000.0) -> pd.DataFrame:
     """Duzenli 4h mum cercevesi uretir. Fiyatlar sabittir; fiyat davranisi test
     edilmez, yalnizca zaman izgarasi ve hacim mantigi test edilir."""

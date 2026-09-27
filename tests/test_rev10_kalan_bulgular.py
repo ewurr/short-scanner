@@ -27,6 +27,7 @@ import config
 from data import funding, pozisyon
 from tarama_yardimcisi import FUNDING_ORAN_DESENI, KOK, ihlaller
 from sinyal_yardimcisi import sinyal as _tam_sinyal
+from kapi_yardimcisi import donem
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import gunluk, uygunluk
 
@@ -102,7 +103,7 @@ FUND = pd.DataFrame({"odeme_zamani": _FZ, "aralik_saat": 8.0, "oran": 0.0, "oran
 
 def _karar(degerler):
     return pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
-                                kume=kume_adi(T('2025-03-05 04:00')), donem_baslangic=DB, donem_bitis=B,
+                                kume=kume_adi(T('2025-03-05 04:00')), **donem(DB, B),
                                 sinyal_degerleri=degerler, **uygunluk(config.BAR_4H, DB, B))
 
 

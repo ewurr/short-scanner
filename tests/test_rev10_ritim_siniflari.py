@@ -21,6 +21,7 @@ import pytest
 import config
 from data import funding, pozisyon
 from sinyal_yardimcisi import sinyal
+from kapi_yardimcisi import donem
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import uygunluk
 
@@ -41,7 +42,7 @@ def _fund(parcalar):
 
 
 def _karar(fr):
-    return pozisyon.olay_karari(MUM, fr, SINYAL, 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume=kume_adi(SINYAL), donem_baslangic=DB, donem_bitis=B, sinyal_degerleri=sinyal("H1"),
+    return pozisyon.olay_karari(MUM, fr, SINYAL, 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume=kume_adi(SINYAL), **donem(DB, B), sinyal_degerleri=sinyal("H1"),
                                 **uygunluk(config.BAR_4H, DB, B))
 
 

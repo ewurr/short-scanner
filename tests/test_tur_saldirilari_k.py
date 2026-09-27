@@ -30,6 +30,7 @@ import pytest
 
 import config
 from data import pencere, pozisyon
+from kapi_yardimcisi import donem
 from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk
@@ -52,7 +53,7 @@ def _karar(hipotez, degerler=None, mumlar=MUM, fr=TAM_FUND, donem_bas=DB, donem_
     s = {"kume": kume_adi(SINYAL_T[hipotez])}
     s.update(sinir)
     return pozisyon.olay_karari(mumlar, fr, SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
-                                birincil_ufuk=tanim.birincil, donem_baslangic=donem_bas, donem_bitis=donem_son,
+                                birincil_ufuk=tanim.birincil, **donem(donem_bas, donem_son),
                                 sinyal_degerleri=degerler, **s, **uygunluk(tanim.bar, donem_bas, donem_son))
 
 
@@ -74,7 +75,7 @@ def test_ufku_c2ye_tasan_kesif_olayi_gercek_kesif_siniriyla_reddedilir():
     with pytest.raises(pencere.KumeSiniriHatasi):
         pozisyon.olay_karari(
             mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
-            donem_baslangic=donem_bas, donem_bitis=donem_son, sinyal_degerleri=sinyal("H2"),
+            **donem(donem_bas, donem_son), sinyal_degerleri=sinyal("H2"),
             kume="KESIF",  # kapi sertlestirme turu: sinirlar kume adindan kapida okunur
             **uygunluk(tanim.bar, donem_bas, donem_son))
 
@@ -94,14 +95,17 @@ def test_kesif_basi_ile_c2_sonu_karisimi_verilemez():
     fr = pd.DataFrame({"odeme_zamani": pd.date_range(donem_bas, donem_son + H(4), freq="8h"),
                        "aralik_saat": 8.0, "oran": 0.0, "oran_8h": 0.0})
     tanim = pencere.hipotez_ufuklari("H2")
-    ortak = dict(hipotez="H2", birincil_ufuk=tanim.birincil, donem_baslangic=donem_bas, donem_bitis=donem_son,
+    ortak = dict(hipotez="H2", birincil_ufuk=tanim.birincil, **donem(donem_bas, donem_son),
                  sinyal_degerleri=sinyal("H2"), **uygunluk(tanim.bar, donem_bas, donem_son))
     with pytest.raises(TypeError):
         pozisyon.olay_karari(mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, **ortak,
                              kume_baslangic=pd.Timestamp(config.KESIF_BASI), kume_bitis=pd.Timestamp(config.C2_SONU))
-    for kume in config.KUMELER:
+    for kume in ("KESIF", "C2"):
         with pytest.raises(pencere.OlayOlusmaz):
             pozisyon.olay_karari(mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume=kume)
+    # C1 (B grubu): sentetik sembol A grubunda; kapi grup denetiminde reddeder (kapi sertlestirme turu).
+    with pytest.raises(ValueError):
+        pozisyon.olay_karari(mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume="C1")
 
 
 # --- Saldiri 2: ters sirali kume sinirlari (kume_baslangic > kume_bitis) her zaman reddedilir --------

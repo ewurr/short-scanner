@@ -26,6 +26,7 @@ import config
 from data import pencere, pozisyon
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, KOK, ihlaller
 from sinyal_yardimcisi import sinyal
+from kapi_yardimcisi import donem
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import uygunluk
 
@@ -91,7 +92,7 @@ def test_olcum_betikleri_ayni_kaynaktan_okur():
 
 def _karar(ufuk, birincil, bar=config.BAR_4H):
     t = SINYAL_4H if bar == config.BAR_4H else SINYAL_1D
-    return pozisyon.olay_karari(MUM, FUND, t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=birincil, kume=kume_adi(t), donem_baslangic=DB, donem_bitis=B, sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
+    return pozisyon.olay_karari(MUM, FUND, t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=birincil, kume=kume_adi(t), **donem(DB, B), sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
                                 **uygunluk(bar, DB, B))
 
 

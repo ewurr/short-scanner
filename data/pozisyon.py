@@ -30,8 +30,10 @@ raporlamaz. Saf fonksiyonlar.
 from __future__ import annotations
 
 import enum
+import functools
 import math
 from collections.abc import Mapping
+from types import MappingProxyType
 from dataclasses import dataclass, field, replace
 
 import numpy as np
@@ -42,6 +44,7 @@ from data import eligibility as eligibility_modulu
 from data import funding as funding_modulu
 from data import pencere as pencere_modulu
 from data import split as split_modulu
+from data import universe as universe_modulu
 
 
 # Hipotez basina karar noktasina verilmesi ZORUNLU sinyal degerleri (F1 kapanis turu, denetci D-B1).
@@ -225,6 +228,49 @@ def kume_sinirlari(kume) -> tuple[pd.Timestamp, pd.Timestamp]:
     return split_modulu.kume_araligi(kume)
 
 
+@functools.lru_cache(maxsize=1)
+def _kayitlar():
+    """Commit edilmis evren ve bolme tablolarindan salt okunur kayitlar (bir kez okunur; ag yok).
+
+    Donemler: (sembol, donem_id) -> (donem_baslangic, donem_bitis, donem_funding_yok); yalnizca haric
+    tutulmayan semboller ve gecerli donemler (`donem_id >= 0`). Gruplar: sembol -> "A" / "B"."""
+    evren = universe_modulu.evren_yukle()
+    evren = evren.loc[~evren["haric"] & (evren["donem_id"] >= 0)]
+    donemler = {
+        (str(sembol), int(no)): (pd.Timestamp(bas), pd.Timestamp(bitis), bool(yok))
+        for sembol, no, bas, bitis, yok in zip(evren["sembol"], evren["donem_id"], evren["donem_baslangic"],
+                                               evren["donem_bitis"], evren["donem_funding_yok"])
+    }
+    bolme = split_modulu.split_oku()
+    gruplar = {str(s): str(g) for s, g in zip(bolme["sembol"], bolme["grup"])}
+    return MappingProxyType(donemler), MappingProxyType(gruplar)
+
+
+def donem_kaydi(sembol, donem_no) -> tuple[pd.Timestamp, pd.Timestamp, bool]:
+    """(donem_baslangic, donem_bitis, donem_funding_yok): evren tablosundaki listeleme donemi (on-kayit §2
+    "Listeleme donemi"). Tabloda olmayan (ya da haric tutulan sembolun) donem programlama hatasidir:
+    ValueError. `sembol` tam `str`, `donem_no` tamsayi (bool degil) olmalidir: TypeError."""
+    if type(sembol) is not str:
+        raise TypeError(f"sembol str olmali; verilen: {sembol!r}")
+    if isinstance(donem_no, bool) or not isinstance(donem_no, (int, np.integer)):
+        raise TypeError(f"donem_no tamsayi olmali (evren tablosundaki donem_id); verilen: {donem_no!r}")
+    kayit = _kayitlar()[0].get((sembol, int(donem_no)))
+    if kayit is None:
+        raise ValueError(f"{sembol} donem {donem_no} evren tablosunda yok (ya da sembol haric): donem sinirlari "
+                         "yalnizca tablodan okunur (on-kayit §2 'Evren tablosunun sabitlenmesi').")
+    return kayit
+
+
+def grup_dogrula(sembol: str, kume: str) -> None:
+    """Sembolun bolme grubu kumenin gruplarindan biri mi (on-kayit §3: KESIF A, C1 B, C2 A + B)? Degilse
+    programlama hatasi: ValueError."""
+    gruplar, _, _ = split_modulu.kume_tanimi(kume)
+    grup = _kayitlar()[1].get(sembol)
+    if grup is None or grup not in gruplar:
+        raise ValueError(f"{sembol} (grup {grup}) {kume} kumesine ait degil; kume gruplari {gruplar} "
+                         "(on-kayit §3 'Coin bolmesi').")
+
+
 def olay_karari(
     mumlar_4h: pd.DataFrame,
     funding: pd.DataFrame,
@@ -235,8 +281,8 @@ def olay_karari(
     hipotez: str,
     birincil_ufuk: int,
     kume: str,
-    donem_baslangic,
-    donem_bitis,
+    sembol: str,
+    donem_no: int,
     sinyal_degerleri: Mapping[str, float],
     gunluk_mumlar: pd.DataFrame,
     asgari_hacim,
@@ -257,7 +303,9 @@ def olay_karari(
     `pencere.hipotez_ufuklari`ndan okur). Onayli pozisyon hipotezi imzali tasir.
     Butun sinirlar ve esikler zorunlu anahtar sozcuktur; varsayilan yoktur. `kume`: kumenin ADI
     ("KESIF", "C1", "C2"); sinirlari kapi `split.kume_araligi`ndan kendisi okur (`kume_sinirlari`),
-    cagiran sinir vermez.
+    cagiran sinir vermez. `sembol`, `donem_no`: evren tablosundaki listeleme donemi (`donem_id`);
+    donem sinirlari kapida tablodan okunur (`donem_kaydi`), cagiran sinir vermez. Sembolun A/B grubu
+    (bolme tablosu) kumenin gruplarindan biri olmalidir (`grup_dogrula`).
     """
     # Hipotez -> izgara -> ufuk bagi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis
     # turu, denetci D-B2): izgara ve ufuklar hipotezden turer; uyumsuz eslesme calisma aninda hata.
@@ -266,6 +314,11 @@ def olay_karari(
     # D-B1; on-kayit §3 "Kume siniri ve geriye bakis": "kod duzeyinde ayrica dogrulanir"). Serbest sinir
     # cifti, karisik sinir (ör. KESIF basi + C2 sonu) ya da None verilemez.
     kume_baslangic, kume_bitis = kume_sinirlari(kume)
+    # Donem sinirlari da cagirandan alinmaz; commit edilmis evren tablosundan sembol ve donem numarasiyla
+    # okunur (kapi sertlestirme turu, denetci F1K2 D-B2; on-kayit §2 "Listeleme donemi", "Evren tablosunun
+    # sabitlenmesi": "analiz bu dosyadan okur"). Sembolun grubu kumeye ait olmali (on-kayit §3 "Coin bolmesi").
+    donem_baslangic, donem_bitis, donem_funding_yok = donem_kaydi(sembol, donem_no)
+    grup_dogrula(sembol, kume)
     if not isinstance(sinyal_degerleri, Mapping) or not sinyal_degerleri:
         raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (sinyal barindaki pencere degerleri).")
     # Eslem bir kez duz dict'e kopyalanir; asagidaki butun ad ve deger denetimleri bu kopya uzerinden
@@ -323,6 +376,11 @@ def olay_karari(
             asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun):
         raise UygunDegil(f"Sinyal bari {plan.sinyal_zamani} ({bar}) uygun degil: listeleme yasi ya da medyan "
                          "hacim esigi gecilmiyor (on-kayit §2 'Uygunluk').")
+    # On-kayit §2 "Funding'i bulunmayan donemler": hic funding kaydi olmayan donem hicbir hipotezde olay ya da
+    # kontrol uretmez. Cagiranin verdigi funding cercevesinden bagimsiz olarak tablodaki bayraktan uygulanir.
+    if donem_funding_yok:
+        raise FundingTamDegil(f"{sembol} donem {donem_no}: evren tablosunda funding kaydi yok (on-kayit §2 "
+                              "'Funding'i bulunmayan donemler'); olay ya da kontrol olusmaz.")
     ayrinti = funding_modulu.pozisyon_funding_ayrintisi(funding, plan)
     if not bool(ayrinti["tam"]):
         raise FundingTamDegil(f"Pozisyonun funding'i tam degil: giris {plan.giris}, cikis {plan.cikis_ani} "

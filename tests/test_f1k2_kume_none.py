@@ -15,6 +15,7 @@ import pytest
 
 import config
 from data import pencere, pozisyon, split
+from kapi_yardimcisi import donem
 from kume_yardimcisi import C2, KESIF, kume_adi, kume_sinirlari
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk
@@ -33,7 +34,7 @@ SINYAL_T = {"H1": T("2025-03-10 04:00"), "H2": T("2025-03-10 04:00"), "H3": T("2
 def _karar(hipotez, degerler=None, **kume):
     tanim = pencere.hipotez_ufuklari(hipotez)
     return pozisyon.olay_karari(MUM, FUND, SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
-                                birincil_ufuk=tanim.birincil, donem_baslangic=DB, donem_bitis=B,
+                                birincil_ufuk=tanim.birincil, **donem(DB, B),
                                 sinyal_degerleri=sinyal(hipotez) if degerler is None else degerler, **kume,
                                 **uygunluk(tanim.bar, DB, B))
 
