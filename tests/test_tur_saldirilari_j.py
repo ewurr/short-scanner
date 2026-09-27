@@ -80,11 +80,10 @@ class _SahteEslem(Mapping):
         return self._gorunen.items()
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU: data/pozisyon.py olay_karari ad tamligini "
-                    "'set(sinyal_degerleri)' (__iter__) ile, deger tamligini 'sinyal_degerleri.items()' ile "
-                    "ayri ayri denetliyor (data/pozisyon.py:266 ve :270-273). Bu iki erisim yolu Mapping alt "
-                    "sinifiyla ayristirilabiliyor: gercekte NaN olan bir sinyal degeri (pump_dip) tamlik "
-                    "kapisini gecip OnaylanmisPozisyon uretiyor (on-kayit §2 'Tamlik sarti').")
+# SALDIRI BULGUSU (F1 kapanis turu, xfail idi): olay_karari ad tamligini `set(sinyal_degerleri)`
+# (__iter__) ile, deger tamligini `.items()` ile ayri ayri denetliyordu; Mapping alt sinifi NaN'i gizliyordu.
+# F1 kapanis turu 2'de kapandi (kapi eslemi bir kez duz dict'e kopyalar); xfail isareti kaldirildi,
+# test ayni beklentiyle normal test olarak kaliyor.
 def test_esleme_iterasyon_ile_items_ayrismasi_nan_degeri_sizdirir():
     gorunen = sinyal("H1")  # goze gorunen: hepsi 1.0, tam
     gercek = sinyal("H1", pump_dip=float("nan"))  # gercek deger NaN
@@ -93,9 +92,8 @@ def test_esleme_iterasyon_ile_items_ayrismasi_nan_degeri_sizdirir():
         _karar("H1", sahte)
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU: ayni ayrisma (data/pozisyon.py:254-256, 266-273) "
-                    "bir 'kosul sonucu' (bool) degerini de gizliyor; kapi bunu pencere degeri gibi kabul "
-                    "edip olay/kontrol olusturuyor (denetci bulgusu D-C1'in ayni kok nedeni).")
+# SALDIRI BULGUSU (F1 kapanis turu, xfail idi): ayni ayrisma bool degerini de gizliyordu. F1 kapanis
+# turu 2'de ayni duzeltmeyle kapandi; xfail isareti kaldirildi, beklenti ayni.
 def test_esleme_iterasyon_ile_items_ayrismasi_bool_degerini_gizler():
     gorunen = sinyal("H3")
     gercek = sinyal("H3", sma50=True)  # bool: kosul sonucu, pencere degeri degil

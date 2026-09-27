@@ -249,6 +249,11 @@ def olay_karari(
     pencere_modulu.hipotez_baglamini_dogrula(hipotez, bar, ufuk, birincil_ufuk)
     if not isinstance(sinyal_degerleri, Mapping) or not sinyal_degerleri:
         raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (sinyal barindaki pencere degerleri).")
+    # Eslem bir kez duz dict'e kopyalanir; asagidaki butun ad ve deger denetimleri bu kopya uzerinden
+    # yapilir (F1 kapanis turu 2, sizinti testcisi bulgusu): `__iter__` ile `.items()`'i farkli sonuc
+    # donduren bir Mapping alt sinifi, ad denetimini gercek adlarla, deger denetimini sahte degerlerle
+    # gecebiliyordu. Degerin kendisi hala dogrulanmaz (denetci D-B1, Rev.11 sonrasi).
+    sinyal_degerleri = dict(sinyal_degerleri)
     # Bool bir pencere degeri degil kosul sonucudur; `not (x < y)` gibi olumsuzlanmis bir kosul NaN
     # pencereyi True ile gizleyebilir (denetci bulgusu D-C1). Programlama hatasi: TypeError.
     mantiksal = [ad for ad, deger in sinyal_degerleri.items() if isinstance(deger, (bool, np.bool_))]
