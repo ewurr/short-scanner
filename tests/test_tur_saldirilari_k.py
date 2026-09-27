@@ -3,9 +3,10 @@
 Hedef: `data/pozisyon.py` `olay_karari` tek karar noktasinin (F1 kapanis turu 2 ile
 degisen) iki maddesi:
   1. Sinyal eslemi bir kez duz `dict`'e kopyalanir (`sinyal_degerleri = dict(sinyal_degerleri)`);
-     bu turda kopyalama adiminin `dict` ALT SINIFLARINA (yalnizca genel `Mapping`'e degil)
-     karsi da saglam olup olmadigi, ChainMap/MappingProxyType/OrderedDict gibi bilinen
-     turlerle davranisin dogru oldugu sinanir.
+     bu turda kopyalama adiminin `dict` ALT SINIFLARINA (yalnizca genel `Mapping`'e degil; J
+     turundaki `.items()` ile `__iter__`/`__getitem__` ayrismasi saldirisinin dict alt sinifina
+     genellenmis hali dahil) karsi da saglam olup olmadigi, ChainMap/MappingProxyType/OrderedDict
+     gibi bilinen turlerle davranisin dogru oldugu sinanir.
   2. Kume siniri (`kume_baslangic`, `kume_bitis`) yalnizca `None` icin reddedilir; kapinin
      bu iki sinirin GERCEK bir kumeye (`split.kume_araligi`) ait olup olmadigini dogrulayip
      dogrulamadigi, ters sirali sinirlarin ve "bos gibi" degerlerin (0, "", bool, NaT,
@@ -29,7 +30,7 @@ import pytest
 
 import config
 from data import pencere, pozisyon
-from kume_yardimcisi import C2, KESIF, kume_sinirlari
+from kume_yardimcisi import KESIF, kume_sinirlari
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk
 
