@@ -1790,6 +1790,75 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     | KS D-C5 onaylı pozisyon kimliği | **kapandı** (`31da614`) |
     | KS D-C6 imza testleri | j kapandı; k kurulamıyor (yukarıda) |
 
+    **Doğrulama.** Tam denetim (`3e83805`, `--eski-evren`) ve A1 (`480dc48`) temiz ağaçta. Veri CSV'leri önceki
+    çıktılarla bayt düzeyinde aynı; yalnızca ortam kayıtları farklı (`karsilastirma_ks2_{calistir,a1}_tam.csv`).
+
+    **Tur sonu ajan bulguları (düzeltilmedi; yukarıdakilerden sonra geldi).** Denetçinin bulguları "KS2"
+    önekiyle. Denetçinin cevabı: getiri girdisi veren yollarda çağırandan gelen bir olgu kalmadı. Kalan
+    açıklar sinyal değerleri ve t seçimi (bilinen, Rev.11), onay koşusunun hipotezi ve yapılandırması,
+    ikincil ufuk.
+    - **KS2 D-B1: onay koşusunun hipotezi eşleştirilmiyor** (KS D-B4'ün açık kısmı, genişletilmiş).
+      - Kapı ve `split.kume_erisimi` yalnızca koşunun kümesine bakıyor. `onay_kosusu("H2", "C1")` içinde
+        `hipotez="H1"` ile C1 pozisyonu onaylanıyor.
+      - Koşunun hipotez adı yalnızca düzenli ifadeyle denetleniyor, `config` hipotezleriyle değil. "h2"
+        ya da "H2_b" ile açılan koşu, tek atış anahtarını (`("H2", "C1")`) atlatıyor.
+      - Sızıntı testçisi xfail(strict) ile doğruladı (`test_tur_saldirilari_m`, `5a6545f`).
+      - **Dokunur** (F3).
+    - **KS2 D-B2: onay koşusu seçilen yapılandırmaya bağlı değil.**
+      - Tek bir `onay_kosusu` içinde 9 yapılandırmanın hepsi koşulabilir.
+      - `KILIT.md` hiçbir kodda okunmuyor ve kilitli dosya listesinde değil (ön-kayıt §8.5, §9).
+      - **Dokunur** (F3).
+    - **KS2 D-B3: ikincil ufukta olay kimliği tanımsız.**
+      - Kapı her ufku bağımsız karara bağlıyor. Birincil ufukta küme sınırı ya da funding tamlığı yüzünden
+        oluşmayan bir olay ikincil ufukta onaylanıyor.
+      - Ön-kayıt §3 "hiç oluşmaz" ile "İkincil ufuklar … kendi ufuk uzunluklarıyla" birlikte okununca
+        tanımsız kalıyor.
+      - **Dokunur**; Rev.11 listesinde yok.
+    - **KS2 D-B4: pozisyon funding'inde NaN oran.**
+      - NaN oran pozisyonu `FundingTamDegil` ile sessizce düşürüyor. Ön-kayıt §4'ün beş maddesi oranı
+        okumuyor; bu bir ayrışma.
+      - Bu kural hiçbir listede yok; Rev.10 D-C5 yalnızca H2 sinyal penceresi içindi. §14.22'deki "Rev.10
+        D-C5, Rev.11'de" etiketi yanlış.
+      - Sonlu olmayan değerlere beş farklı sonuç veriliyor. Aynı pencerede +inf ve −inf toplamı NaN yapıyor
+        ve bu da `FundingTamDegil` ile sessizce düşüyor. Sızıntı testçisi bunu savuşturulmuş saydı.
+      - **Dokunur.**
+    - **KS2 D-B5: §14.21'in özeti ve Rev.11 listesi eksik; bazı satırlar bayat.**
+      - Özet listesinde yok: Rev.9 D-C5 (0 fiyat), A6, F1K2 D-C4, KS D-B4.
+      - Rev.11 listesinde yok: H1'de izleme sürerken yeni pump barı, H3 "ilk gün", KS2 D-B3, KS2 D-B4.
+      - §14.21'deki F1K2 D-C2 satırı ve "Bilinen sınır" paragrafı turu 2'den sonra bayat.
+    - **KS2 D-C1:** `OlayOlusmaz` bir `ValueError` alt sınıfı.
+      - F2'de `except ValueError` yazılırsa `_sonlu`, dönem dışı ve grup hataları sessiz rede döner.
+      - `DonemDisiSinyal` açıklaması kapıdaki sırayla çelişiyor.
+      - K2 havuzu kurulurken dönem üyeliğinin kapı dışında süzülmesi gerekiyor; ön-kayıt §4 rev.9 ile
+        gerilim var.
+    - **KS2 D-C2:** gerçek `_veri_yukle` hiçbir testte kapı üzerinden çalışmıyor. `onay=` hesabı,
+      `donem_sonrasi_kayitlari_at` ve boş çerçeve davranışı sınanmıyor.
+    - **KS2 D-C3:** veri yolu yeniden atanabilir modül özniteliklerine bağlı (`klines.mumlari_yukle`,
+      `funding.funding_yukle`, `config.KESIF_SONU`); taramada yok (kararlı atlatma).
+    - **KS2 D-C4:** `mae` yeniden yüklenen seriyi karara karşı doğrulamıyor. `pozisyon_fundingi`
+      karşılaştırıyor.
+    - **KS2 D-C5 (şüpheli):** tolerans içindeki ızgara dışı t ham hâliyle saklanıyor.
+    - **KS2 D-C6:** `test_tur_saldirilari_k` ters sıra testinin adı yanıltıcı. "Kurulamıyor" gerekçesi
+      fazla kesin: `config` ya da `split.kume_tanimi` yamalanarak kurulabilir (KS2 D-C3).
+    - **KS2 D-C7:** UTC denetimi `GMT`, `Africa/Abidjan` ve kışın `Europe/London`'ı da reddediyor. Açık
+      hata veriyor; zararsız.
+    - Denetçiye göre 1d serisinin yalnızca pozisyonun döneminden türetilmesi "Bu seri tektir" ile aynı
+      sonucu veriyor. Bu eşitlik, küme sınırlarının UTC gün sınırına denk gelmesine dayanıyor.
+
+    **Sızıntı testçisi** (`test_tur_saldirilari_m`, `5a6545f`, yalnızca yeni dosya): 19 test.
+    - 18 geçti, 1 xfail(strict): yukarıdaki KS2 D-B1.
+    - **Savuşturulanlar:**
+      - yinelenen, sırasız ya da tz'siz 4h ve funding zamanları;
+      - NaT `close_time`;
+      - string ya da None fiyat;
+      - pencere dışındaki inf (giriş anında ve pencere sonrasında);
+      - string oran;
+      - pytz, zoneinfo ve dateutil UTC eşdeğerleri;
+      - kışın `Europe/London`'ın reddi;
+      - seride olup dönem dışında kalan sinyal.
+    - **Ana oturum düzeltmesi:** tz'siz veri testlerinde beklenen hata sınıfı `(ZamanDizisiHatasi,
+      TypeError)` olarak genişletildi. Kapı kümeye kesimde `TypeError` veriyor; iddia (açık hata) aynı.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
