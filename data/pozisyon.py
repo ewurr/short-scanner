@@ -41,6 +41,7 @@ import config
 from data import eligibility as eligibility_modulu
 from data import funding as funding_modulu
 from data import pencere as pencere_modulu
+from data import split as split_modulu
 
 
 # Hipotez basina karar noktasina verilmesi ZORUNLU sinyal degerleri (F1 kapanis turu, denetci D-B1).
@@ -211,6 +212,19 @@ def _bar_degeri(mumlar: pd.DataFrame, zamanlar: pd.DatetimeIndex, zaman: pd.Time
     return float(mumlar[alan].to_numpy()[int(zamanlar.get_loc(bar))])
 
 
+def kume_sinirlari(kume) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """Kume adindan [baslangic, bitis] (on-kayit §3 "Donemler"); tek kaynak `split.kume_araligi`.
+
+    Yalnizca `config.KUMELER`deki adlar, tam `str` turunde (alt sinif `__eq__` ile yalan
+    soyleyebilir). Baska her deger programlama hatasidir: TypeError ya da ValueError."""
+    if type(kume) is not str:
+        raise TypeError(f"kume bir kume adi olmali ({config.KUMELER}); verilen: {kume!r}. Sinirlar "
+                        "cagirandan alinmaz (on-kayit §3).")
+    if kume not in config.KUMELER:
+        raise ValueError(f"Bilinmeyen kume: {kume!r}. Gecerli: {config.KUMELER}")
+    return split_modulu.kume_araligi(kume)
+
+
 def olay_karari(
     mumlar_4h: pd.DataFrame,
     funding: pd.DataFrame,
@@ -220,8 +234,7 @@ def olay_karari(
     *,
     hipotez: str,
     birincil_ufuk: int,
-    kume_baslangic,
-    kume_bitis,
+    kume: str,
     donem_baslangic,
     donem_bitis,
     sinyal_degerleri: Mapping[str, float],
@@ -242,20 +255,17 @@ def olay_karari(
     `hipotez` ("H1", "H2", "H3") zorunludur: `bar`, `ufuk` ve `birincil_ufuk` hipotezden tureyen on-kayit
     degerleriyle uyumlu olmalidir (`pencere.hipotez_baglamini_dogrula`; F2 kodu bunlari
     `pencere.hipotez_ufuklari`ndan okur). Onayli pozisyon hipotezi imzali tasir.
-    Butun sinirlar ve esikler zorunlu anahtar sozcuktur; varsayilan yoktur. Kume sinirlari
-    (`kume_baslangic`, `kume_bitis`) burada `None` olamaz (TypeError).
+    Butun sinirlar ve esikler zorunlu anahtar sozcuktur; varsayilan yoktur. `kume`: kumenin ADI
+    ("KESIF", "C1", "C2"); sinirlari kapi `split.kume_araligi`ndan kendisi okur (`kume_sinirlari`),
+    cagiran sinir vermez.
     """
     # Hipotez -> izgara -> ufuk bagi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis
     # turu, denetci D-B2): izgara ve ufuklar hipotezden turer; uyumsuz eslesme calisma aninda hata.
     pencere_modulu.hipotez_baglamini_dogrula(hipotez, bar, ufuk, birincil_ufuk)
-    # Kume siniri kapida None olamaz (F1 kapanis turu 2, Rev.10 denetci D-C3; on-kayit §3 "Kume siniri ve
-    # geriye bakis": "kod duzeyinde ayrica dogrulanir"). Her olay ve kontrol bir kumeye aittir; `None`
-    # yalnizca kume disi F1 olcumlerinde ic adimlara (`pencere.pozisyon_plani` vb.) verilebilir. Kaynak
-    # taramasi (`tests/tarama_yardimcisi.KUME_NONE_DESENI`) ikincil savunma olarak kalir.
-    for ad, deger in (("kume_baslangic", kume_baslangic), ("kume_bitis", kume_bitis)):
-        if deger is None:
-            raise TypeError(f"{ad} karar noktasinda None olamaz: olay ve kontrol her zaman bir kumeye aittir "
-                            "(on-kayit §3 'Kume siniri ve geriye bakis', 'Kume siniri ve ufuk').")
+    # Kume sinirlari cagirandan alinmaz; kume adindan kapida okunur (kapi sertlestirme turu, denetci F1K2
+    # D-B1; on-kayit §3 "Kume siniri ve geriye bakis": "kod duzeyinde ayrica dogrulanir"). Serbest sinir
+    # cifti, karisik sinir (ör. KESIF basi + C2 sonu) ya da None verilemez.
+    kume_baslangic, kume_bitis = kume_sinirlari(kume)
     if not isinstance(sinyal_degerleri, Mapping) or not sinyal_degerleri:
         raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (sinyal barindaki pencere degerleri).")
     # Eslem bir kez duz dict'e kopyalanir; asagidaki butun ad ve deger denetimleri bu kopya uzerinden

@@ -15,7 +15,6 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
-from kume_yardimcisi import KESIF
 from sinyal_yardimcisi import sinyal as _tam_sinyal
 from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
 
@@ -27,7 +26,7 @@ MUM = pd.DataFrame({"open_time": Z, "open": np.arange(len(Z)) + 0.25, "high": np
                     "low": np.arange(len(Z)) + 0.0, "close": np.arange(len(Z)) + 0.5})
 # Rev.9 §4: uygunluk tek karar noktasinin parcasi. Donem, mum serisinden UYGUN_ONCELIK once baslar
 # (listeleme yasi >= 30 gun) ve uygunluk hacmi o gunden itibaren esigin ustundedir.
-SINIR = dict(**KESIF, donem_baslangic=BAS - UYGUN_ONCELIK, donem_bitis=B)
+SINIR = dict(kume="KESIF", donem_baslangic=BAS - UYGUN_ONCELIK, donem_bitis=B)
 # F1 kapanis turu (denetci D-B1): kapi hipotezin butun sinyal degerlerini ister; varsayilan tam kume.
 SINYAL = None
 
@@ -60,7 +59,9 @@ def test_funding_tam_olmayan_olay_brut_hesapta_da_olusmaz():
     fr = _fund()
     fr = fr.loc[fr["odeme_zamani"] != T("2025-01-06 00:00")]  # pencere icinden bir odeme eksik
     t = T("2025-01-05 04:00")
-    plan = pencere.pozisyon_plani(Z, t, 18, config.BAR_4H, birincil_ufuk=18, **SINIR)  # plan var
+    plan = pencere.pozisyon_plani(Z, t, 18, config.BAR_4H, birincil_ufuk=18, kume_baslangic=config.KESIF_BASI,
+                                  kume_bitis=config.KESIF_SONU, donem_baslangic=SINIR["donem_baslangic"],
+                                  donem_bitis=SINIR["donem_bitis"])  # plan var (ic adim)
     with pytest.raises(pozisyon.FundingTamDegil) as hata:
         _karar(t, fr=fr)
     assert pencere.ret_gerekcesi(hata.value) == "funding_tam_degil"
@@ -94,8 +95,13 @@ def test_sinyal_degerleri_bos_olamaz():
 def test_diger_kurallar_ayni_noktadan_gerekceyle():
     with pytest.raises(pencere.GirisBariYok):
         _karar(T("2025-01-05 04:00"), mum=MUM.loc[MUM["open_time"] != T("2025-01-05 08:00")])
+    # Kapi sertlestirme turu: kume siniri artik cagirandan alinmaz (kapi `split.kume_araligi`ndan okur).
+    # Kume sonu kurali gercek KESIF sonunda sinanir: 2025-08-30 04:00 sinyalinin 18 barlik ufku C2'ye tasar.
+    son = pd.date_range(T("2025-07-01"), T("2025-09-10 20:00"), freq="4h")
+    son_mum = pd.DataFrame({"open_time": son, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0})
     with pytest.raises(pencere.KumeSiniriHatasi):
-        _karar(T("2025-01-05 04:00"), kume_bitis=T("2025-01-06 00:00"))
+        _karar(T("2025-08-30 04:00"), mum=son_mum, fr=_fund(T("2025-07-01"), T("2025-09-11")),
+               donem_baslangic=T("2025-07-01"), donem_bitis=T("2025-09-10 20:00"))
     eksik = MUM.loc[(MUM["open_time"] < T("2025-01-07 12:00")) | (MUM["open_time"] > T("2025-01-12 00:00"))]
     with pytest.raises(pencere.IleriKaymaSiniriHatasi):
         _karar(T("2025-01-05 04:00"), mum=eksik)

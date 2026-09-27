@@ -30,7 +30,7 @@ import pytest
 
 import config
 from data import pencere, pozisyon
-from kume_yardimcisi import KESIF, kume_sinirlari
+from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk
 
@@ -49,7 +49,7 @@ def _karar(hipotez, degerler=None, mumlar=MUM, fr=TAM_FUND, donem_bas=DB, donem_
     tanim = pencere.hipotez_ufuklari(hipotez)
     if degerler is None:
         degerler = sinyal(hipotez)
-    s = kume_sinirlari(SINYAL_T[hipotez])
+    s = {"kume": kume_adi(SINYAL_T[hipotez])}
     s.update(sinir)
     return pozisyon.olay_karari(mumlar, fr, SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, donem_baslangic=donem_bas, donem_bitis=donem_son,
@@ -75,28 +75,18 @@ def test_ufku_c2ye_tasan_kesif_olayi_gercek_kesif_siniriyla_reddedilir():
         pozisyon.olay_karari(
             mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
             donem_baslangic=donem_bas, donem_bitis=donem_son, sinyal_degerleri=sinyal("H2"),
-            kume_baslangic=pd.Timestamp(config.KESIF_BASI), kume_bitis=pd.Timestamp(config.KESIF_SONU),
+            kume="KESIF",  # kapi sertlestirme turu: sinirlar kume adindan kapida okunur
             **uygunluk(tanim.bar, donem_bas, donem_son))
 
 
-# SALDIRI BULGUSU: `olay_karari` kume_baslangic/kume_bitis'in GERCEK bir `split.kume_araligi()`
-# ciktisina ait oldugunu hicbir sekilde dogrulamaz; yalnizca `None` olup olmadiklarina bakar
-# (data/pozisyon.py:255-258). Bir caginin KESIF baslangicini (config.KESIF_BASI) C2 bitisiyle
-# (config.C2_SONU) karistirmasi -- ayni kume adi altinda iki farkli kumenin sinirini birlestirmesi --
-# kapidan hicbir uyari almadan gecer: ufku KESIF sinirini (2025-08-31 23:59:59) asip C2 donemine
-# (2025-09-01+) giren bir olay, gercek kesif sinirinda (yukaridaki test) dogru sekilde reddedilirken,
-# genisletilmis (KESIF basi + C2 sonu) sinirla ONAYLANMIS bir pozisyona donusur ve cikis fiyatini,
-# cikis anini VE son funding odemelerini C2 doneminden (kesif kumesinin disindan) okur. On-kayit §3
-# "Kumeler arasi veri odunc alinmaz: kesif kumesindeki bir olayin ufku C2 verisine uzanamaz" ve §3
-# "Kume siniri ve geriye bakis: ... kod duzeyinde ayrica dogrulanir" delinir: kod duzeyinde
-# kume KIMLIGI hic dogrulanmiyor, yalnizca sinirin None olmamasi dogrulaniyor.
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU: data/pozisyon.py olay_karari kume_baslangic/"
-                    "kume_bitis'in gercek split.kume_araligi() ciktisi oldugunu dogrulamaz. KESIF basi "
-                    "+ C2 sonu karisimi verilince, ufku KESIF sinirini asip C2 donemine giren bir olay "
-                    "gercek KESIF sinirinda reddedilirken bu genisletilmis sinirla onaylanir ve C2 "
-                    "donemi verisini (cikis fiyati, cikis ani, funding) odunc alir (on-kayit §3 "
-                    "'Kumeler arasi veri odunc alinmaz').")
-def test_kesif_basi_ile_c2_sonu_karisimi_kume_disi_veriyi_odunc_aldirir():
+# SALDIRI BULGUSU (F1 kapanis turu 2, xfail idi): `olay_karari` kume_baslangic/kume_bitis'in gercek bir
+# `split.kume_araligi()` ciktisi oldugunu dogrulamiyordu; KESIF basi + C2 sonu karisimi, ufku C2'ye tasan
+# bir KESIF olayini onaylatiyordu (on-kayit §3 "Kumeler arasi veri odunc alinmaz"). Kapi sertlestirme
+# turunda kapandi: kapi yalnizca kume ADINI alir, sinirlari kendisi okur. xfail isareti kaldirildi. Eski
+# govde serbest sinir cifti verdigi icin artik kurulamiyor; ayni iddia (karisim olay uretemez) su bicimde
+# sinanir: (1) serbest sinir cifti kapiya verilemez, (2) ayni sinyal hicbir gercek kumeyle onaylanmaz.
+# Eski adi: test_kesif_basi_ile_c2_sonu_karisimi_kume_disi_veriyi_odunc_aldirir.
+def test_kesif_basi_ile_c2_sonu_karisimi_verilemez():
     sinyal_zamani = T("2025-08-29 04:00")
     donem_bas, donem_son = T("2025-01-01"), T("2025-12-31 20:00")
     mumlar = pd.DataFrame({"open_time": pd.date_range(T("2025-01-01"), T("2026-01-05"), freq="4h"),
@@ -104,15 +94,14 @@ def test_kesif_basi_ile_c2_sonu_karisimi_kume_disi_veriyi_odunc_aldirir():
     fr = pd.DataFrame({"odeme_zamani": pd.date_range(donem_bas, donem_son + H(4), freq="8h"),
                        "aralik_saat": 8.0, "oran": 0.0, "oran_8h": 0.0})
     tanim = pencere.hipotez_ufuklari("H2")
-    # KESIF'in baslangici ile C2'nin bitisi karistirilmis: ne KESIF'in ne de C2'nin gercek araligi.
-    p = pozisyon.olay_karari(
-        mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
-        donem_baslangic=donem_bas, donem_bitis=donem_son, sinyal_degerleri=sinyal("H2"),
-        kume_baslangic=pd.Timestamp(config.KESIF_BASI), kume_bitis=pd.Timestamp(config.C2_SONU),
-        **uygunluk(tanim.bar, donem_bas, donem_son))
-    # Olay "kesif" sinirinin disina (C2 donemine) uzanan verilerle onaylanmamali (on-kayit §3);
-    # ama kapi bunu engellemedigi icin cikis KESIF_SONU'ndan sonraya (C2 donemine) dusuyor.
-    assert p.plan.cikis.zaman < pd.Timestamp(config.KESIF_SONU)
+    ortak = dict(hipotez="H2", birincil_ufuk=tanim.birincil, donem_baslangic=donem_bas, donem_bitis=donem_son,
+                 sinyal_degerleri=sinyal("H2"), **uygunluk(tanim.bar, donem_bas, donem_son))
+    with pytest.raises(TypeError):
+        pozisyon.olay_karari(mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, **ortak,
+                             kume_baslangic=pd.Timestamp(config.KESIF_BASI), kume_bitis=pd.Timestamp(config.C2_SONU))
+    for kume in config.KUMELER:
+        with pytest.raises(pencere.OlayOlusmaz):
+            pozisyon.olay_karari(mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume=kume)
 
 
 # --- Saldiri 2: ters sirali kume sinirlari (kume_baslangic > kume_bitis) her zaman reddedilir --------
@@ -124,7 +113,9 @@ def test_ters_sirali_kume_siniri_olay_olusturmaz(hipotez):
     sinyal zamani ikisinin arasina dusemez; olay ya baslangic kontrolunde (sinyal kume basindan once) ya
     da cikis/giris kontrolunde (kume sonundan sonra) reddedilmeli, sessizce olusmamali (on-kayit §3
     'Kume siniri ve geriye bakis'; savusturuldu)."""
-    with pytest.raises(pencere.OlayOlusmaz):
+    # Kapi sertlestirme turu: serbest sinir cifti artik kapiya verilemez (TypeError); onceki beklenti
+    # OlayOlusmaz idi. Ters sirali bir kume `split.kume_araligi`nda yoktur.
+    with pytest.raises(TypeError):
         _karar(hipotez, kume_baslangic=pd.Timestamp(config.C2_BASI), kume_bitis=pd.Timestamp(config.KESIF_SONU))
 
 
@@ -137,10 +128,10 @@ def test_sifir_ve_bos_string_kume_siniri_reddedilir(ad, bos):
     """`None` disindaki 'bos gibi' degerler (0, '', 0.0) bir zaman damgasina cevrilemez ya da saat
     dilimsiz kabul edilir; kume siniri sessizce gecerli bir tarihe donusmemeli (on-kayit §3 'Kume
     siniri ve geriye bakis: kod duzeyinde ayrica dogrulanir'; savusturuldu)."""
-    kume = dict(KESIF)
-    kume[ad] = bos
+    # Kapi sertlestirme turu: sinir yerine kume adi verilir; 'bos gibi' deger kume adi olarak reddedilir.
+    del ad  # iki sinir artik tek `kume` girdisidir; parametre adlari korunur
     with pytest.raises((TypeError, ValueError)):
-        _karar("H1", **kume)
+        _karar("H1", kume=bos)
 
 
 @pytest.mark.parametrize("ad", ["kume_baslangic", "kume_bitis"])
@@ -148,17 +139,16 @@ def test_sifir_ve_bos_string_kume_siniri_reddedilir(ad, bos):
 def test_bool_kume_siniri_reddedilir(ad, deger):
     """bool bir zaman damgasi degildir (`0`/`1` gibi sayica gecerli gorunse de); kume siniri olarak
     kabul edilmemeli (on-kayit §3; savusturuldu)."""
-    kume = dict(KESIF)
-    kume[ad] = deger
+    del ad  # kapi sertlestirme turu: tek `kume` girdisi
     with pytest.raises(TypeError):
-        _karar("H1", **kume)
+        _karar("H1", kume=deger)
 
 
 def test_np_datetime64_nat_kume_siniri_reddedilir():
     """`np.datetime64('NaT')` da `pd.NaT` gibi saat dilimsiz/gecersiz bir zamana cevrilir; kume siniri
     olarak sessizce kabul edilmemeli (on-kayit §3; savusturuldu)."""
     with pytest.raises(TypeError):
-        _karar("H2", kume_baslangic=KESIF["kume_baslangic"], kume_bitis=np.datetime64("NaT"))
+        _karar("H2", kume=np.datetime64("NaT"))  # kapi sertlestirme turu: tek `kume` girdisi
 
 
 # --- Saldiri 4: dict alt siniflari ve bilinen Mapping turleri kopyalama adimini atlatamaz -------------

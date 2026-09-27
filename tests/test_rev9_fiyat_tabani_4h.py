@@ -16,7 +16,7 @@ import config
 from data import klines, pozisyon, split
 from data.donem import Donem
 from sinyal_yardimcisi import sinyal
-from kume_yardimcisi import kume_sinirlari
+from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -55,7 +55,7 @@ def _fund():
 def _karar(mumlar, bar=config.BAR_1D, t=T("2024-03-10")):
     return pozisyon.olay_karari(
         mumlar, _fund(), t, 14 if bar == config.BAR_1D else 18, bar,
-        hipotez="H3" if bar == config.BAR_1D else "H1", birincil_ufuk=14 if bar == config.BAR_1D else 18, **kume_sinirlari(t),
+        hipotez="H3" if bar == config.BAR_1D else "H1", birincil_ufuk=14 if bar == config.BAR_1D else 18, kume=kume_adi(t),
         donem_baslangic=BAS, donem_bitis=B, sinyal_degerleri=sinyal("H3" if bar == config.BAR_1D else "H1"), **uygunluk(bar, BAS, B))
 
 

@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 
 from data import funding, pencere, pozisyon
-from kume_yardimcisi import kume_sinirlari
+from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, ihlaller
 from uygunluk_yardimcisi import uygunluk
@@ -37,7 +37,7 @@ def _plan():
 
 def _onayli():
     return pozisyon.olay_karari(MUM, FUND, T_SINYAL, 18, "4h", hipotez="H1", birincil_ufuk=18,
-                                sinyal_degerleri=sinyal("H1"), **kume_sinirlari(T_SINYAL), donem_baslangic=DB,
+                                sinyal_degerleri=sinyal("H1"), kume=kume_adi(T_SINYAL), donem_baslangic=DB,
                                 donem_bitis=B, **uygunluk("4h", DB, B))
 
 

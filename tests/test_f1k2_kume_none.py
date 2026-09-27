@@ -1,9 +1,11 @@
-"""Karar noktasi kume sinirini `None` kabul etmez (F1 kapanis turu 2, Rev.10 denetci D-C3).
+"""Karar noktasi kume sinirini cagirandan almaz (F1 kapanis turu 2: None reddi; kapi sertlestirme turu:
+kume adi, denetci F1K2 D-B1).
 
 On-kayit §3 "Kume siniri ve geriye bakis": "kod duzeyinde ayrica dogrulanir — verinin kume sinirinda
-kesilmis olmasina dayanilmaz". Her olay ve kontrol bir kumeye aittir; `pozisyon.olay_karari` iki kume
-sinirindan biri `None` ise programlama hatasi (TypeError) verir. Kaynak taramasi
-(`tarama_yardimcisi.KUME_NONE_DESENI`) ikincil savunma olarak kalir. Aga cikmaz.
+kesilmis olmasina dayanilmaz". `pozisyon.olay_karari` yalnizca kume ADINI ("KESIF", "C1", "C2") alir ve
+sinirlari `split.kume_araligi`ndan kendisi okur. `None`, serbest sinir cifti, karisik sinir ya da
+bilinmeyen ad programlama hatasidir. Kaynak taramasi (`tarama_yardimcisi.KUME_NONE_DESENI`) ikincil
+savunma olarak kalir. Aga cikmaz.
 """
 
 from __future__ import annotations
@@ -11,8 +13,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from data import pencere, pozisyon
-from kume_yardimcisi import C2, KESIF, kume_sinirlari
+import config
+from data import pencere, pozisyon, split
+from kume_yardimcisi import C2, KESIF, kume_adi, kume_sinirlari
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk
 
@@ -27,53 +30,69 @@ FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B + H(4), freq="8h"), "ar
 SINYAL_T = {"H1": T("2025-03-10 04:00"), "H2": T("2025-03-10 04:00"), "H3": T("2025-03-10")}
 
 
-def _karar(hipotez, **kume):
+def _karar(hipotez, degerler=None, **kume):
     tanim = pencere.hipotez_ufuklari(hipotez)
     return pozisyon.olay_karari(MUM, FUND, SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, donem_baslangic=DB, donem_bitis=B,
-                                sinyal_degerleri=sinyal(hipotez), **kume, **uygunluk(tanim.bar, DB, B))
+                                sinyal_degerleri=sinyal(hipotez) if degerler is None else degerler, **kume,
+                                **uygunluk(tanim.bar, DB, B))
 
 
 @pytest.mark.parametrize("hipotez", ["H1", "H2", "H3"])
-def test_gercek_kume_siniriyla_olusur(hipotez):
-    assert pozisyon.onay_dogrula(_karar(hipotez, **KESIF)) is None
+def test_gercek_kume_adiyla_olusur_ve_sinirlar_kapidan(hipotez):
+    p = _karar(hipotez, kume="KESIF")
+    pozisyon.onay_dogrula(p)
+    assert (p.plan.kume_baslangic, p.plan.kume_bitis) == split.kume_araligi("KESIF")
 
 
-@pytest.mark.parametrize("hipotez", ["H1", "H2", "H3"])
-@pytest.mark.parametrize("bos", [("kume_baslangic",), ("kume_bitis",), ("kume_baslangic", "kume_bitis")])
-def test_none_kume_siniri_programlama_hatasi(hipotez, bos):
-    kume = dict(KESIF)
-    kume.update({ad: None for ad in bos})
-    with pytest.raises(TypeError, match="None olamaz"):
-        _karar(hipotez, **kume)
+@pytest.mark.parametrize("kume", [None, pd.NaT, 0, "", True, "kesif", "KESIF ", "C3"])
+def test_gecersiz_kume_programlama_hatasi(kume):
+    with pytest.raises((TypeError, ValueError)):
+        _karar("H2", kume=kume)
+
+
+def test_str_alt_sinifi_kume_adi_reddedilir():
+    class _Ad(str):
+        def __eq__(self, diger):
+            return True
+
+        __hash__ = str.__hash__
+
+    with pytest.raises(TypeError):
+        _karar("H1", kume=_Ad("KESIF"))
+
+
+@pytest.mark.parametrize("sinirlar", [dict(KESIF), {"kume_baslangic": KESIF["kume_baslangic"],
+                                                      "kume_bitis": C2["kume_bitis"]},
+                                      {"kume_baslangic": None, "kume_bitis": None}])
+def test_serbest_sinir_cifti_kabul_edilmez(sinirlar):
+    """Gercek, karisik ya da None sinir cifti: hepsi TypeError (kapi sinir parametresi almaz)."""
+    with pytest.raises(TypeError):
+        _karar("H1", **sinirlar)
+    with pytest.raises(TypeError):
+        _karar("H1", kume="KESIF", **sinirlar)
 
 
 def test_none_reddi_diger_denetimlerden_once():
-    """Sinyal degeri NaN olsa bile once kume siniri reddedilir: `None` hicbir ret gerekcesine
-    (`OlayOlusmaz`) donusup sessizce sayilmaz."""
-    tanim = pencere.hipotez_ufuklari("H1")
-    with pytest.raises(TypeError, match="kume_bitis"):
-        pozisyon.olay_karari(MUM, FUND, SINYAL_T["H1"], tanim.birincil, tanim.bar, hipotez="H1",
-                             birincil_ufuk=tanim.birincil, kume_baslangic=KESIF["kume_baslangic"], kume_bitis=None,
-                             donem_baslangic=DB, donem_bitis=B, sinyal_degerleri=sinyal("H1", pump_dip=float("nan")),
-                             **uygunluk(tanim.bar, DB, B))
+    """Sinyal degeri NaN olsa bile once kume reddedilir: gecersiz kume hicbir ret gerekcesine (`OlayOlusmaz`)
+    donusup sessizce sayilmaz. NaT icin de ayni (onceki turda NaT plan adiminda reddediliyordu)."""
+    for kume in (None, pd.NaT):
+        with pytest.raises(TypeError):
+            _karar("H1", degerler=sinyal("H1", pump_dip=float("nan")), kume=kume)
 
 
-def test_none_degiskenle_tasinsa_da_reddedilir():
-    """Tarama degiskenle tasinan None'u gormez (tur_saldirilari_j); kapi gorur."""
-    x = None
-    kume = {"kume_baslangic": KESIF["kume_baslangic"], "kume_bitis": x}
-    with pytest.raises(TypeError, match="None olamaz"):
-        _karar("H2", **kume)
-
-
-def test_nat_kume_siniri_de_reddedilir():
-    with pytest.raises(TypeError):
-        _karar("H2", kume_baslangic=KESIF["kume_baslangic"], kume_bitis=pd.NaT)
+def test_sinyal_kumede_degilse_olay_olusmaz():
+    """KESIF'teki bir sinyal C2 adiyla verilirse kapi C2 sinirlarini okur ve reddeder."""
+    with pytest.raises(pencere.OlayOlusmaz):
+        _karar("H2", kume="C2")
 
 
 def test_yardimci_gercek_kumeleri_verir():
     assert kume_sinirlari(T("2025-08-31 20:00")) == KESIF
     assert kume_sinirlari(T("2025-09-01 00:00")) == C2
+    assert kume_adi(T("2025-08-31 20:00")) == "KESIF" and kume_adi(T("2025-09-01")) == "C2"
+    assert (KESIF["kume_baslangic"], KESIF["kume_bitis"]) == split.kume_araligi("KESIF")
+    assert (C2["kume_baslangic"], C2["kume_bitis"]) == split.kume_araligi("C2")
+    assert set(config.KUMELER) == {"KESIF", "C1", "C2"}
     with pytest.raises(ValueError):
         kume_sinirlari(T("2033-01-01"))

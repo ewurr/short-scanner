@@ -27,7 +27,7 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
-from kume_yardimcisi import kume_sinirlari
+from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
 from tarama_yardimcisi import KUME_NONE_DESENI
 from uygunluk_yardimcisi import uygunluk
@@ -45,7 +45,7 @@ SINYAL_T = {"H1": T("2025-03-10 04:00"), "H2": T("2025-03-10 04:00"), "H3": T("2
 
 def _karar(hipotez, degerler, fr=TAM_FUND, **sinir):
     tanim = pencere.hipotez_ufuklari(hipotez)
-    s = kume_sinirlari(SINYAL_T[hipotez])
+    s = {"kume": kume_adi(SINYAL_T[hipotez])}
     s.update(sinir)
     return pozisyon.olay_karari(MUM, fr, SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, donem_baslangic=DB, donem_bitis=B,
@@ -198,7 +198,9 @@ def test_h2_kume_bitis_sinyal_barinin_kapanisindan_once_ise_olay_olusmaz():
     (on-kayit §4 'Olayin kumede olusma olcutu'; savusturuldu, iki asamadan hangisi yakalarsa yakalasin)."""
     t = SINYAL_T["H2"]
     kume_son = t + H(4) - pd.Timedelta(minutes=1)
-    with pytest.raises(pencere.OlayOlusmaz):
+    # Kapi sertlestirme turu: kume siniri artik cagirandan alinmaz; serbest `kume_bitis` verilemez
+    # (TypeError). Onceki beklenti OlayOlusmaz idi; gercek kumelerde boyle bir sinir yoktur.
+    with pytest.raises(TypeError):
         _karar("H2", sinyal("H2"), kume_bitis=kume_son)
 
 

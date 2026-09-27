@@ -18,7 +18,7 @@ import config
 from data import pencere, pozisyon
 from tarama_yardimcisi import KOK
 from sinyal_yardimcisi import sinyal
-from kume_yardimcisi import kume_sinirlari
+from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -32,7 +32,7 @@ SINYAL = {config.BAR_4H: T("2025-03-10 04:00"), config.BAR_1D: T("2025-03-10")}
 
 def _karar(hipotez, bar, ufuk, birincil):
     return pozisyon.olay_karari(MUM, FUND, SINYAL[bar], ufuk, bar, hipotez=hipotez, birincil_ufuk=birincil,
-                                **kume_sinirlari(SINYAL[bar]), donem_baslangic=DB, donem_bitis=B,
+                                kume=kume_adi(SINYAL[bar]), donem_baslangic=DB, donem_bitis=B,
                                 sinyal_degerleri=_sinyal(hipotez), **uygunluk(bar, DB, B))
 
 
@@ -90,7 +90,7 @@ def test_uyumsuz_eslesme_calisma_aninda_hata(hipotez, bar, ufuk, birincil):
 def test_hipotez_zorunlu():
     with pytest.raises(TypeError):
         pozisyon.olay_karari(MUM, FUND, SINYAL[config.BAR_4H], 18, config.BAR_4H, birincil_ufuk=18,
-                             **kume_sinirlari(SINYAL[config.BAR_4H]), donem_baslangic=DB, donem_bitis=B,
+                             kume=kume_adi(SINYAL[config.BAR_4H]), donem_baslangic=DB, donem_bitis=B,
                              sinyal_degerleri=_sinyal("H1"), **uygunluk(config.BAR_4H, DB, B))
 
 

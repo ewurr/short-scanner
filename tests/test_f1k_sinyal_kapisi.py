@@ -20,7 +20,7 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
-from kume_yardimcisi import kume_sinirlari
+from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk
 
@@ -40,7 +40,7 @@ SINYAL_T = {"H1": T_KONTROL, "H2": T_KONTROL, "H3": T("2025-03-10")}
 
 def _karar(hipotez, fr, degerler, t=None, **sinir):
     tanim = pencere.hipotez_ufuklari(hipotez)
-    s = kume_sinirlari(SINYAL_T[hipotez] if t is None else t)
+    s = {"kume": kume_adi(SINYAL_T[hipotez] if t is None else t)}
     s.update(sinir)
     return pozisyon.olay_karari(MUM, fr, SINYAL_T[hipotez] if t is None else t, tanim.birincil, tanim.bar,
                                 hipotez=hipotez, birincil_ufuk=tanim.birincil, donem_baslangic=DB, donem_bitis=B,
@@ -65,16 +65,26 @@ def test_h2_olay_tarafi_da_ayni():
 
 
 def test_h2_penceresi_kume_basini_asarsa_olusmaz():
-    """Pencere basi kume basindan onceyse (seride kume oncesi kayit bulunsa bile) reddedilir."""
-    kume_bas = T_KONTROL + H(4) - H(24) + pd.Timedelta(minutes=1)  # pencere basindan 1 dk sonra
+    """Pencere basi kume basindan onceyse (seride kume oncesi kayit bulunsa bile) reddedilir.
+
+    Kapi sertlestirme turu: kume siniri artik cagirandan alinmaz; kural gercek KESIF basinda (2020-01-01)
+    sinanir. Donem ve funding serisi kume oncesine uzanir; 2020-01-01 04:00 sinyalinin 24 saatlik penceresi
+    (2019-12-31 08:00, 2020-01-01 08:00] kume basindan once baslar."""
+    db, b = T("2019-11-01"), T("2020-03-01 20:00")
+    z = pd.date_range(db, b, freq="4h")
+    mum = pd.DataFrame({"open_time": z, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0})
+    fr = pd.DataFrame({"odeme_zamani": pd.date_range(db, b + H(4), freq="8h"), "aralik_saat": 8.0,
+                       "oran": 0.0, "oran_8h": 0.0})
+    t = T("2020-01-01 04:00")
+    tanim = pencere.hipotez_ufuklari("H2")
     with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        _karar("H2", TAM_FUND, sinyal("H2"), kume_baslangic=kume_bas)
-    # Karsi-ornek: kume basi pencere basinda olsaydi pencere hesaplanabilirdi (kapinin kalan adimlari,
-    # ör. 30 gunluk uygunluk penceresi, bu kume basiyla ayrica reddeder; burada yalnizca pencere).
-    a = funding.sinyal_penceresi_ayrintisi(TAM_FUND, [T_KONTROL], config.BAR_4H,
-                                           saat=config.H2_FUNDING_PENCERESI_SAAT,
-                                           kume_baslangic=kume_bas - pd.Timedelta(minutes=1), kume_bitis=None,
-                                           donem_baslangic=DB).iloc[0]
+        pozisyon.olay_karari(mum, fr, t, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
+                             kume="KESIF", donem_baslangic=db, donem_bitis=b, sinyal_degerleri=sinyal("H2"),
+                             **uygunluk(tanim.bar, db, b))
+    # Karsi-ornek (ic adim): kume basi pencere basinda olsaydi pencere hesaplanabilirdi.
+    a = funding.sinyal_penceresi_ayrintisi(fr, [t], config.BAR_4H, saat=config.H2_FUNDING_PENCERESI_SAAT,
+                                           kume_baslangic=t + H(4) - H(24), kume_bitis=None,
+                                           donem_baslangic=db).iloc[0]
     assert bool(a["hesaplanabilir"])
 
 

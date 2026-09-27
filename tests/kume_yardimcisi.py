@@ -24,3 +24,10 @@ def kume_sinirlari(t) -> dict:
         if sinir["kume_baslangic"] <= zaman <= sinir["kume_bitis"]:
             return dict(sinir)
     raise ValueError(f"{zaman} hicbir gercek kumenin tarih araliginda degil (on-kayit §3 'Donemler').")
+
+
+def kume_adi(t) -> str:
+    """`t` aninin ait oldugu gercek kumenin ADI (KESIF ya da C2), `olay_karari(kume=...)` icin (kapi
+    sertlestirme turu: kapi sinirlari kume adindan kendisi okur). Hicbir kumeye dusmeyen `t`: ValueError."""
+    sinir = kume_sinirlari(t)
+    return "KESIF" if sinir == KESIF else "C2"
