@@ -1505,7 +1505,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     | Rev.9 D-C1 küme ölçütü / ileri kayma sırası | açık | hayır (yalnızca ret etiketi; ön-kayıt etiket tanımlamıyor, olay kümesi aynı) |
     | Rev.9 D-C2 veri katmanı kesimlerinde zaman toleransı yok | açık, **kod düzeltmesi** | **evet**: ön-kayıt §4 "Zaman toleransı" bütün karşılaştırmaları kapsıyor, kod kesimlerde uygulamıyor. KEŞİF/C2 arasındaki bir saniyede ölçülen kayıt 0 (§14.19), ama ölçüt ayrışmayı dokunur sayar |
     | Rev.9 D-C4 zaman toleransı sabitinin `pencere.py`'de olması | açık | hayır (yer; değer ön-kayıtla aynı) |
-    | Rev.9 D-C5 NaN / 0 P0, P1 reddedilmiyor | açık | hayır (commit'li veride yok; ön-kayıt durumu tanımlamıyor ve veri sabit) |
+    | Rev.9 D-C5 NaN / 0 P0, P1 reddedilmiyor | açık | **evet** (kapı sertleştirme turu 2'de yeniden sınıflandı: ön-kayıtta tanımsız, kod bir okuma seçmiş; önceki "veri sabit" gerekçesi yanlıştı, fiyat verisi `cache/` altında ve git dışında). NaN ve ±inf P0/P1 turu 2'de açık hata; 0 değeri hâlâ reddedilmiyor |
     | Rev.9 D-C8 imza süreçler arası taşınamaz | açık | hayır (hata ile durur) |
     | Rev.10 D-C1 H2 penceresinin küme sonundaki kaydı | açık, **Rev.11** | **evet** (ön-kayıtta tanımsız; bugün 234 / 234 bar pozisyon adımında reddediliyor) |
     | Rev.10 D-C2 `ILERI_KAYMA_SINIRI` iç adımda okunmuyor | açık | hayır (ön-kayıt sınırı birincil ufka eşitliyor; kod birincil ufku kullanıyor) |
@@ -1513,7 +1513,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     | Rev.10 D-C5 H2 penceresinde `kayit_var` ve NaN oran şartları | açık, **Rev.11** | **evet** (kodda var, metinde yok) |
     | Rev.10 D-C7 H2 ortalaması tek kayıttan hesaplanabilir | açık, Rev.11 notu | hayır (kod ön-kayıt metnine uygun; bilinen sınırlar listesinde yok) |
     | Tarama açıkları (analiz dizini muaf, `.ipynb`, parçalanmış ad, iç adımlar) | açık, belgeli sınır | hayır (P0, P1 ve funding onaylı pozisyondan; iç adımlarla kurulan yol kararlı atlatmadır ve F2 denetiminde aranır) |
-    | xfail: `gunluge_cevir` NaN hacim (A6), eşzamanlı `csv_yaz`, parçalanmış ad taraması | açık | hayır (veride örnek yok; kilitle korunuyor; tarama ikincil) |
+    | xfail: `gunluge_cevir` NaN hacim (A6) | açık | **evet** (kapı sertleştirme turu 2'de yeniden sınıflandı: xfail olduğu için ayrışma biliniyor; ölçülen 0 muafiyet değildir, §14.13) |
+    | xfail: eşzamanlı `csv_yaz`, parçalanmış ad taraması | açık | hayır (kilitle korunuyor; tarama ikincil) |
     | xfail: `KUME_NONE_DESENI` değişkenle taşınan `None` | konusuz | hayır (kapı küme sınırı almıyor) |
     | F1 kapanış D-B1 sinyal değerleri çağırandan, doğrulanmıyor | açık, **Rev.11 sonrası kod** | **evet** |
     | F1 kapanış D-B2 H1 kontrol çapası | açık, **Rev.11** | **evet** |
@@ -1523,7 +1524,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     | F1K2 turu: `tepe`'de t; H3'te t günü; SMA50; ızgara parametreleri; kontrol barındaki k | açık, **Rev.11** | **evet** |
     | F1K2 D-C1 `pozisyon._imza` tarama deseninde yok | açık | hayır (kararlı atlatma) |
     | F1K2 D-C2 `mae` kararla aynı seriyi zorunlu tutmuyor; onaylı pozisyon sembol ve küme taşımıyor | açık | hayır (MAE raporlanır, eşik değil) |
-    | F1K2 D-C4 §5–§9 sabitleri `config.py`'de yok | açık, F2 ön koşulu | hayır (bugün kullanan kod yok) |
+    | F1K2 D-C4 §5–§9 sabitleri `config.py`'de yok | açık, F2 ön koşulu | **evet** (kapı sertleştirme turu 2'de yeniden sınıflandı; Rev.11 listesinin 7. maddesi bunun alt kümesi) |
 
     **Getiriye dokunan açıklar.** F2 bunlar kapanmadan başlamaz.
     - Kod düzeltmesi: Rev.9 D-C2.
@@ -1563,6 +1564,21 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
        - İki şart da ön-kayıtta yazılı değil.
     10. **Not (Rev.10 D-C7):** H2 ortalaması tek kayıttan hesaplanabiliyor. Kod metne uygun; bilinen
         sınırlar listesine eklenmesi bir ön-kayıt notu.
+
+    Kapı sertleştirme turu 2'de eklenenler (denetçinin KS isteği, araştırma tarafının kararı):
+    11. **Bekleme süresi** (§5).
+        - Açık sorular: t'den mi, girişten mi ölçülür? Reddedilen olay beklemeyi başlatır mı? Dönemler
+          arasında sürer mi? Yapılandırma başına mı işler?
+        - Kod bugün: bekleme süresini uygulayan kod yok.
+    12. **K1/K2 örneklemesi** (§6).
+        - Açık sorular: "herhangi bir olayına" ve "o anda olay üretmemiş" hangi olaylara ve yapılandırmaya
+          göre? 10'dan az aday varsa ne olur? İadeli mi, iadesiz mi? Tohum hangi sırayla kullanılır?
+        - Kod bugün: kontrol barı seçen kod yok.
+    13. **§7'deki `r` tanımı.**
+        - `p = (r + 1) / (10000 + 1)` formülünde `r`'nin neyi saydığı yazılı değil.
+        - Kod bugün: p-değeri ya da yeniden örnekleme kodu yok.
+
+    Maddelerin ön-kayıt alıntıları depo dışındaki Rev.11 girdisindedir (`D:/Projeler/prompts/rev11_girdi.md`).
 
     **Bilinen sınır (düzeltilmedi, denetim sorusu).** Kapı `kume="C1"` ya da `"C2"` ile çağrıldığında aktif
     bir onay koşusu (`split.onay_kosusu`) aramıyor. Onay koruması yalnızca veri yükleyicisinde
@@ -1664,6 +1680,115 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       - fiyat, funding ve 1d çerçeveleri;
       - sinyal barının varlığı;
       - onay koşusu.
+
+22. **Kapı sertleştirme turu 2 (2026-09-28).** Ön-kayda dokunulmadı; getiri hesaplanmadı; F2'ye geçilmedi.
+    Kapının sinyal değerlerini kendisi hesaplaması (F1 kapanış D-B1) Rev.11'i bekliyor, yapılmadı.
+
+    **Kapı değişikliği (`31da614`).**
+    - **Veri kapıda yükleniyor** (KS D-B1, KS D-B2).
+      - `olay_karari` 4h, funding ve 1d çerçevesi almaz.
+      - 4h mumlarını ve funding kayıtlarını sembol ve küme adıyla küme korumalı yükleyicilerden alır
+        (`pozisyon._veri_yukle`: `klines.mumlari_yukle`, `funding.funding_yukle`) ve küme aralığına yeniden
+        keser.
+      - 1d serisini 4h barlardan tek yol `klines.gunluge_cevir` ile türetir (ön-kayıt §2 rev.8 "Bu seri
+        tektir").
+      - C1/C2 için yükleyici açık bir onay koşusu istiyor; KS D-B4'ün onaysız C1/C2 kısmı bu yüzden kapandı.
+        Onay koşusunun **hipotezi** kapıda hâlâ eşleştirilmiyor; KS D-B4 bu kısmıyla açık.
+    - **Sinyal barı** (KS D-B3): t barı hipotezin ızgarasındaki dönem içi seride yoksa `SinyalBariYok`
+      (olay ya da kontrol oluşmaz).
+      - 4h'de t açılışlı bar gerekir.
+      - 1d'de t günü türetilmiş seride olmalı, yani altı 4h barın tamamı.
+    - **Sonlu olmayan değerler** (sızıntı testçisinin inf bulgusu): ±inf funding toplamı, sonlu olmayan
+      P0, P1 ve MAE penceresindeki high açık `ValueError` veriyor. Sinyal değerleri zaten sonluluk
+      denetiminden geçiyordu. NaN oran önceki gibi `FundingTamDegil` (Rev.10 D-C5, Rev.11'de).
+    - **UTC** (KS D-B5): önce testle doğrulandı; ölçüm aşağıda. Kapı artık UTC dışı saat dilimli sinyal
+      zamanını `ValueError` ile reddediyor. Saat dilimsiz zaman önceki gibi `TypeError`.
+    - **Onaylı pozisyon kimlik taşıyor:** sembol, küme ve dönem numarası imzalı (KS D-C5). `mae(pozisyon)`
+      ve `funding.pozisyon_fundingi(pozisyon)` veriyi bu kimlikle kendileri yüklüyor; çerçeve verilemez.
+    - `pozisyon.py` modül açıklaması düzeltildi: kapı disk okur, "saf fonksiyonlar" değil (KS D-C4).
+
+    **KS D-B5 doğrulaması** (kapı değiştirilmeden önce, scratchpad testi):
+    - Aynı an (2025-03-10 04:00Z) üç saat dilimiyle verildi: UTC, `Europe/Istanbul`, `America/New_York`.
+    - **UTC:** H1, H2 ve H3'ün üçü de onaylandı.
+    - **UTC dışı iki saat dilimi:**
+      - H1 ve H2 hata vermeden `UygunDegil` ile düştü;
+      - H3 açık `ValueError` ("1d bar zamanı gün açılışı olmalı") verdi.
+    - Mekanizma `test_ks2_kapi_veri::test_utc_disi_saat_dilimi_uygunlukta_gunu_kaydirir` ile kalıcı:
+      `eligibility.medyan_hacim` UTC dışı t'de günü yerel saatle yuvarlıyor ve NaN veriyor. Bu alt katman
+      değişmedi; koruma kapıda.
+
+    **Kural 0 notları (ön-kayıtta tanımsız seçimler).**
+    - Sonlu olmayan fiyat ve funding için ön-kayıtta metin yok. Kapı bir olay-oluşmaz kuralı icat etmiyor;
+      açık hata veriyor, yani koşu durur ve veri incelenir. NaN oranın `FundingTamDegil` olması eski
+      davranış ve Rev.11 listesinde (Rev.10 D-C5).
+    - 1d serisi yalnızca pozisyonun döneminden türetiliyor. `gunluge_cevir` günleri dönem dönem kurduğu için
+      bu dönemin günleri, sembolün bütün dönemleriyle kurulan seriyle aynı; bir seçim değil.
+
+    **Test güncellemeleri.**
+    - Kapı çağrıları yeni imzaya geçti. `tests/kapi_yardimcisi.veri` sentetik 4h ve funding kaydı yapıyor.
+      Eski ayrı 1d uygunluk serisinin karşılığı, 4h serisinin öncesine eklenen hacimli düz barlar. Günlük
+      hacim tam değer olarak 00:00 barına yazılıyor; kayan nokta bölmesi eşik testlerinde eşitliği bozuyordu.
+    - `tests/conftest.py`: `_veri_yukle` yaması. Sentetik yolda da C1/C2 için onay koşusu şart
+      (gerçek yükleyicinin aynası).
+    - **Beklentisi değişen testler:**
+      - `test_ks_donem_kaydi::test_grup_kumeye_ait_olmali`: onaysız C1 onayı → `OnayGerekli`; koşu
+        içinde onaylanıyor.
+      - `test_f1k2_kume_none::test_sinyal_kumede_degilse_olay_olusmaz`: C2 → önce `OnayGerekli`, koşu
+        içinde `OlayOlusmaz`.
+      - `test_tur_saldirilari_k::test_kesif_basi_ile_c2_sonu_karisimi_verilemez`: C2 aynı biçimde.
+      - `test_rev9_uygunluk_kapisi::test_gunluk_yerine_4h_cerceve_hata_verir`: `ValueError` →
+        `TypeError` (1d çerçevesi verilemez).
+      - `test_rev9_fiyat_tabani_4h::test_mae_de_1d_cercevesini_reddeder`: `ValueError` → `TypeError`
+        (`mae` çerçeve almaz).
+      - `test_ks_funding_onayli::test_baska_funding_serisi_reddedilir` ve
+        `test_tur_saldirilari_l::test_pozisyon_fundingi_nan_toplami_sessizce_kabul_etmez`: "başka seri"
+        artık yükleyici kaydında değiştiriliyor.
+    - **Fikstür değişiklikleri (beklenti aynı):**
+      - `test_rev8_mae`: 4h fikstürünün `quote_volume=1.0` sütunu kaldırıldı; uygunluk artık bu seriden
+        türüyor.
+      - `test_rev9_uygunluk_kapisi`: `gun` girdisi `hacim` ve `eksik_gunler` ile.
+    - **KS D-C6:**
+      - `test_tur_saldirilari_j` küme sonu testi kapının gerçek davranışını sınıyor: KEŞİF'in son barı, veri
+        C2'ye uzanıyor, ret `GirisBariYok`. Kesme olmasaydı ret `KumeSiniriHatasi` olurdu.
+      - `test_tur_saldirilari_k` ters sıralı sınır testi gerçek davranışa çevrilemedi: ters sıralı bir küme
+        `split.kume_araligi`nda yok, dolayısıyla kapıya verilebilecek bir girdi değil. İmza denetimi olarak
+        kaldı.
+    - **`test_tur_saldirilari_l` inf testi xfail'den çıktı.** Önceki gövde inf'i tam giriş anındaki
+      kayda koyuyordu; ön-kayıt §4 bu ödemeyi pozisyon dışında tutar. Bu yüzden toplam sonluydu ve test
+      yanlış nedenle xfail oluyordu. Giriş sonrası kayda alındı; beklenti `ValueError`.
+    - `test_rev9_donem_none` kapı kısmı yeni imzayla yeniden yazıldı; eski hâli imza hatası yüzünden
+      boş yere geçiyordu.
+    - Yeni: `test_ks2_kapi_veri` (39); `tarama_yardimcisi.KAYIT_DESENI` `_veri_yukle`, `_kume_verisi`,
+      `SENTETIK_VERI` ile genişletildi.
+
+    **Bilinen sınırlar (düzeltilmedi).**
+    - **Hız:** kapı her çağrıda diskten yüklüyor. Gerçek veriyle bir çağrı 1,3–3,6 sn sürdü (bir A grubu
+      sembol, KEŞİF). F2'nin K1/K2 çağrıları için önbellek gerekecek. C1/C2'de önbellek onay denetimini
+      atlamamalı.
+    - Izgara dışı bir t (ör. 06:00), sinyal barı denetiminden önce plan adımında `GirisBariYok` ile
+      reddediliyor. Olay oluşmuyor; yalnızca ret etiketi.
+    - **KS D-C2:** tarama `donem_kaydi`, `grup_dogrula`, `kume_sinirlari`, `config` sabitleri ve
+      `split._AKTIF_KOSU` atamalarını hâlâ kapsamıyor.
+
+    **Sınıflama (§14.13, muafiyetsiz).** §14.21 tablosu güncellendi; Rev.11 listesine 11–13 eklendi.
+    Bu turda "dokunur"a geçenler: Rev.9 D-C5, A6 xfail'i, F1K2 D-C4.
+
+    **KS bulgularının durumu:**
+
+    | Bulgu | Durum |
+    |---|---|
+    | KS D-B1 fiyat ve funding çerçeveleri çağırandan | **kapandı** (`31da614`) |
+    | KS D-B2 1d serisi tek seri değil | **kapandı** (`31da614`) |
+    | KS D-B3 sinyal barı varlığı | **kapandı** (`31da614`) |
+    | KS D-B4 onay koşusu | kısmen: onaysız C1/C2 kapandı; hipotez eşleşmesi açık, **dokunur** |
+    | KS D-B5 UTC dışı saat dilimi | doğrulandı, **kapandı** (`31da614`) |
+    | Sızıntı: ±inf funding toplamı | **kapandı** (`31da614`) |
+    | KS D-C1 `pozisyon_fundingi` taramada yasak | açık; hayır |
+    | KS D-C2 kayıt taraması eksik | kısmen (veri yolu eklendi); hayır |
+    | KS D-C3 `_kayitlar` önbelleği | açık, şüpheli; hayır |
+    | KS D-C4 modül açıklaması | **kapandı** (`31da614`) |
+    | KS D-C5 onaylı pozisyon kimliği | **kapandı** (`31da614`) |
+    | KS D-C6 imza testleri | j kapandı; k kurulamıyor (yukarıda) |
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
@@ -2085,3 +2210,15 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
   Silinen ya da gevşetilen test yok. Yeni: `test_ks_funding_onayli` (5), `test_ks_donem_kaydi` (15);
   yardımcı `kapi_yardimcisi`; `tarama_yardimcisi.KAYIT_DESENI`.
+- 2026-09-28 (kapı sertleştirme turu 2). §14.22 eklendi; §14.21 tablosunda Rev.9 D-C5, A6 xfail'i ve
+  F1K2 D-C4 "dokunur"a geçti; Rev.11 listesine 11–13 eklendi. Kod: `31da614`.
+  **§14.13'e muafiyet cümlesi eklenmedi** (araştırma tarafının kararı). Gerekçe:
+  - Bugünkü veride sıfır olan etki, kod ya da veri değiştiğinde sıfır kalmaz.
+  - Muafiyet kaydı, kimse yeniden ölçmeden geçerli sayılır.
+  - Emsal: `aralik_gecerli` (funding tamlığının geçerli aralık koşulu) bugün hiçbir pozisyonu elemediği
+    hâlde Rev.10'da ön-kayda yazıldı.
+
+  Denetçinin itirazındaki alternatif (ölçülmüş sıfır etki muafiyeti) bu yüzden reddedildi; Rev.9 D-C2 ve
+  Rev.10 D-C1 "dokunur" kaldı.
+  **Güncellenen mevcut testler:** §14.22 "Test güncellemeleri". Silinen ya da gevşetilen test yok. xfail'den
+  çıkan: `test_tur_saldirilari_l` inf testi. Yeni: `test_ks2_kapi_veri` (39).
