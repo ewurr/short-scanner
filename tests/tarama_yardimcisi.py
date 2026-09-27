@@ -71,7 +71,7 @@ UYGUNLUK_ADLARI = ("uygun_mu", "uygunluk_serisi", "uygunluk_karari", "esikleri_d
                    "hacim_esigi", "listeleme_yasi_gun", "gunluk_hacim_serisi")
 
 CIKIS_KAPI_DISI_DESENI = (
-    r"\b(cikis_bari|ufuk_kumeye_sigar_mi|cikis_ani|pozisyon_plani|pozisyon_fundingi|pozisyon_funding_tam_mi"
+    r"\b(cikis_bari|ufuk_kumeye_sigar_mi|cikis_ani|pozisyon_plani|pozisyon_fundingi|_plan_fundingi|pozisyon_funding_tam_mi"
     r"|pozisyon_funding_ayrintisi|funding_tamlik_ayrintisi"
     r"|" + "|".join(UYGUNLUK_ADLARI) + r")\s*\(|\b(CikisSonucu|PozisyonPlani|OnaylanmisPozisyon)\s*\("
     r"|_PLAN_GIZLI|_plan_imzasi|_ONAY_GIZLI|\beligibility\b"

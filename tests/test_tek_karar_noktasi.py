@@ -51,7 +51,7 @@ def test_onayli_pozisyon_plan_fiyat_ve_funding_tasir():
     i0 = int(np.flatnonzero(Z == p.plan.giris)[0])
     i1 = int(np.flatnonzero(Z == p.plan.cikis.zaman)[0])
     assert pozisyon.pozisyon_fiyatlari(p) == (MUM["open"][i0], MUM["close"][i1])
-    assert p.funding_toplami == funding.pozisyon_fundingi(_fund(), p.plan)
+    assert p.funding_toplami == funding.pozisyon_fundingi(_fund(), p)
 
 
 def test_funding_tam_olmayan_olay_brut_hesapta_da_olusmaz():

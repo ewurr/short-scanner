@@ -52,7 +52,7 @@ def _fund():
         pytest.param(lambda: pencere.pozisyon_plani(_seri().index, _seri().index[100], 18, config.BAR_4H, birincil_ufuk=18,
                                                     kume_baslangic=None, kume_bitis=None, donem_baslangic=TOPLAM_DONEM_BASI,
                                                     donem_bitis=TOPLAM_DONEM_B, **KAR), id="pozisyon_plani"),
-        pytest.param(lambda: funding.pozisyon_fundingi(
+        pytest.param(lambda: funding._plan_fundingi(
             _fund(), pencere.pozisyon_plani(_seri().index, _seri().index[100], 18, config.BAR_4H, birincil_ufuk=18,
                                             kume_baslangic=None, kume_bitis=None, donem_baslangic=TOPLAM_DONEM_BASI, donem_bitis=TOPLAM_DONEM_B),
             **KAR), id="pozisyon_fundingi"),

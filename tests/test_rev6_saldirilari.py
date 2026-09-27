@@ -71,7 +71,7 @@ def _plan(giris, cikis_bari, bar=config.BAR_4H, **sinirlar) -> pencere.PozisyonP
 
 
 def _fon(fund, giris, cikis_bari, bar=config.BAR_4H, **sinirlar):
-    return funding.pozisyon_fundingi(fund, _plan(giris, cikis_bari, bar, **sinirlar))
+    return funding._plan_fundingi(fund, _plan(giris, cikis_bari, bar, **sinirlar))
 
 
 # --- 1) Kume sonuna ODEME_TOLERANSI kadar yakin cikis --------------------------
@@ -250,7 +250,7 @@ def test_cikis_ani_bilinmeyen_fiyat_alani_reddedilir():
 
     fund = _funding("2021-01-01", "2021-01-10")
     with pytest.raises(TypeError):
-        funding.pozisyon_fundingi(fund, bozuk)
+        funding._plan_fundingi(fund, bozuk)
 
 
 # --- 5) Kume siniri ile ileri kayma sinirinin ayni anda asilmasi ---------------
@@ -326,7 +326,7 @@ def test_gunluk_barda_ileri_kaymali_cikiste_funding_dogru_toplanir():
     assert plan.cikis.zaman == hedef  # 2021-05-20 00:00
 
     fund = _funding("2021-05-01", "2021-06-01", aralik_saat=8, oran=1e-4)
-    deger = funding.pozisyon_fundingi(fund, plan)
+    deger = funding._plan_fundingi(fund, plan)
     #   05-06 gunu   : 08:00 ve 16:00 (00:00 giris ile ayni an, haric) -> 2
     #   05-07..05-19 : her gun 3 odeme, 13 gun                         -> 39
     #   05-20 gunu   : yalnizca 00:00 (cikis anindaki odeme, dahil)    -> 1

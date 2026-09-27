@@ -528,11 +528,33 @@ def pozisyon_funding_tam_mi(funding: pd.DataFrame, plan) -> bool:
     return bool(pozisyon_funding_ayrintisi(funding, plan)["tam"])
 
 
-def pozisyon_fundingi(funding: pd.DataFrame, plan) -> float:
+def pozisyon_fundingi(funding: pd.DataFrame, pozisyon) -> float:
+    """Onayli pozisyonun funding toplami (net getirinin funding girdisi; on-kayit §4).
+
+    YALNIZCA `pozisyon.olay_karari`nin urettigi `OnaylanmisPozisyon`u kabul eder (kapi sertlestirme
+    turu, denetci F1K2 D-B3): kapidan gecmemis bir plan (`pencere.pozisyon_plani` ciktisi) TypeError
+    verir. Toplam `_plan_fundingi` ile yeniden hesaplanir ve kararin `funding_toplami` degeriyle ayni
+    olmalidir; degilse `funding` karardakiyle ayni seri degildir (ValueError). Saf fonksiyon.
+    """
+    from data import pozisyon as pozisyon_modulu
+
+    pozisyon_modulu.onay_dogrula(pozisyon)
+    toplam = _plan_fundingi(funding, pozisyon.plan)
+    if not toplam == pozisyon.funding_toplami:
+        raise ValueError("funding serisi karar noktasindakiyle ayni degil: toplam "
+                         f"{toplam!r} != onayli {pozisyon.funding_toplami!r}.")
+    return toplam
+
+
+def _plan_fundingi(funding: pd.DataFrame, plan) -> float:
     """Short pozisyonun tuttugu sure boyunca aldigi (+) ya da odedigi (-) funding.
 
     On-kayit §4: her funding aninda `+oran` (GERCEK odeme orani, `oran`;
     8 saate normallestirilmis `oran_8h` kullanilmaz). Toplam doner.
+
+    MODUL DISINA KAPALI ic adim: yalnizca tek karar noktasi (`pozisyon.olay_karari`) cagirir;
+    getiri tarafi funding'i onayli pozisyondan (`funding_toplami` ya da `pozisyon_fundingi`) okur.
+    Testler dogrudan cagirabilir; analiz kodu icin kaynak taramasinda yasaklidir.
 
     Yalnizca `pencere.pozisyon_plani`nin urettigi PLANI alir. Sinirlar (on-kayit §4
     rev.8): giris anindaki odeme HARIC, cikis anindaki DAHIL; donem sonuna ulasan
@@ -545,7 +567,7 @@ def pozisyon_fundingi(funding: pd.DataFrame, plan) -> float:
     from data import pencere as pencere_modulu
 
     pencere_modulu.plan_dogrula(plan)
-    zamanlar = _zaman_dizisi(funding, "pozisyon_fundingi")
+    zamanlar = _zaman_dizisi(funding, "_plan_fundingi")
     if not pozisyon_funding_tam_mi(funding, plan):
         return float("nan")
     maske = (np.asarray(sonra(zamanlar, plan.giris), dtype=bool)

@@ -51,7 +51,7 @@ def _poz(fr, giris, **sinirlar):
     plan = pencere.pozisyon_plani(
         zamanlar, giris - DORT_SAAT, 18, config.BAR_4H, birincil_ufuk=18, **{**SINIRSIZ_POZ, **donem, **sinirlar}
     )
-    return funding.pozisyon_fundingi(fr, plan)
+    return funding._plan_fundingi(fr, plan)
 
 
 def _gecisi_kapsayan_ortalama_zamanlari(gecis: pd.Timestamp):

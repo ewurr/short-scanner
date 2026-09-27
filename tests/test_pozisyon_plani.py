@@ -222,7 +222,7 @@ def test_kume_karari_gercek_cikis_anina_gore(kume, bar, ufuklar, birincil, senar
                 assert plan.cikis_turu == "donem_sonu"
             assert plan.cikis_ani == serbest.cikis_ani and plan.cikis == serbest.cikis
             assert plan.sinyal_zamani >= kume_bas
-            deger = funding.pozisyon_fundingi(fund, plan)  # kume hatasi olamaz
+            deger = funding._plan_fundingi(fund, plan)  # kume hatasi olamaz
             assert isinstance(deger, float)
     assert kontrol > 0 and kabul > 0
     if senaryo == "donem_sonu_icinde":

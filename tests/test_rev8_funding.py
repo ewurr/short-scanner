@@ -48,7 +48,7 @@ def test_giris_anindaki_odeme_haric(fark, dahil):
     zam = [plan.giris - pd.Timedelta(hours=8)] + [plan.giris + fark + i * pd.Timedelta(hours=8) for i in range(4)]
     fr = _kayit(zam)
     fr.loc[1, "oran"] = 9e-4
-    deger = funding.pozisyon_fundingi(fr, plan)
+    deger = funding._plan_fundingi(fr, plan)
     if dahil:
         assert deger == pytest.approx(9e-4 + 2e-4)
     else:
@@ -65,7 +65,7 @@ def test_cikis_anindaki_odeme_dahil(fark, dahil):
     zam = [an - pd.Timedelta(hours=24), an - pd.Timedelta(hours=16), an - pd.Timedelta(hours=8), an + fark]
     fr = _kayit(zam)
     fr.loc[3, "oran"] = 9e-4
-    deger = funding.pozisyon_fundingi(fr, plan)
+    deger = funding._plan_fundingi(fr, plan)
     if dahil:
         assert deger == pytest.approx(2e-4 + 9e-4)
     else:
@@ -87,7 +87,7 @@ def test_donem_sonu_penceresi_b_de_kapanir_k_haric():
     fr.loc[fr["odeme_zamani"] == B + H4, "oran"] = 9.0  # K'daki odeme: hesaba girmez
     fr.loc[fr["odeme_zamani"] == B, "oran"] = 5e-4  # B'deki odeme: dahil
     beklenen = 5e-4 + 1e-4 * ((B - T("2025-01-18 12:00")) / H4 - 1)  # 16:00 .. B-4h (giris 12:00 haric)
-    assert funding.pozisyon_fundingi(fr, plan) == pytest.approx(beklenen)
+    assert funding._plan_fundingi(fr, plan) == pytest.approx(beklenen)
 
 
 def test_donem_sonu_tamligi_son_odemeyi_b_ye_gore_arar():
@@ -139,7 +139,7 @@ def test_penceresinde_kayit_yoksa_tam_degil():
     plan = _plan(T("2025-01-05 04:00"), 1, BAS, B)  # 08:00 -> 12:00
     fr = _kayit([T("2025-01-05 00:00"), T("2025-01-05 16:00")])
     assert not funding.pozisyon_funding_tam_mi(fr, plan)
-    assert pd.isna(funding.pozisyon_fundingi(fr, plan))
+    assert pd.isna(funding._plan_fundingi(fr, plan))
 
 
 @pytest.mark.parametrize("kayitlar", [
@@ -161,9 +161,9 @@ def test_giris_son_kayittan_sonraysa_tam_degil_cokmez(kayitlar):
     capa_giriste = kayitlar[-1] == plan.giris
     assert funding.pozisyon_funding_tam_mi(fr, plan) is capa_giriste
     if capa_giriste:
-        assert funding.pozisyon_fundingi(fr, plan) == 0.0
+        assert funding._plan_fundingi(fr, plan) == 0.0
     else:
-        assert pd.isna(funding.pozisyon_fundingi(fr, plan))
+        assert pd.isna(funding._plan_fundingi(fr, plan))
     erken = _plan(T("2025-01-03 20:00"), 1, BAS, B)  # giris 01-04 00:00, kayit anda: haric
     ayrinti = funding.funding_tamlik_ayrintisi(
         fr, [erken.giris, plan.giris], [funding.funding_penceresi_sonu(erken), funding.funding_penceresi_sonu(plan)],

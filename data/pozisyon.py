@@ -317,7 +317,7 @@ def olay_karari(
     if not bool(ayrinti["tam"]):
         raise FundingTamDegil(f"Pozisyonun funding'i tam degil: giris {plan.giris}, cikis {plan.cikis_ani} "
                               f"({plan.cikis_turu}); olay brut dahil hicbir hesapta olusmaz.")
-    toplam = funding_modulu.pozisyon_fundingi(funding, plan)
+    toplam = funding_modulu._plan_fundingi(funding, plan)
     if math.isnan(toplam):
         raise FundingTamDegil(f"Pozisyonun funding'i hesaplanamadi (oran NaN): giris {plan.giris}.")
     p0 = _bar_degeri(mumlar_4h, zamanlar, plan.giris, "open")

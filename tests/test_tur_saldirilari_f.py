@@ -282,7 +282,7 @@ def test_funding_giris_anindaki_odeme_haric_tutulur():
         z += H4
     fund3 = _funding(kayitlar)
     assert funding_modulu.pozisyon_funding_tam_mi(fund3, plan) is True
-    toplam = funding_modulu.pozisyon_fundingi(fund3, plan)
+    toplam = funding_modulu._plan_fundingi(fund3, plan)
     assert toplam == pytest.approx(0.0001 * (len(kayitlar) - 1))  # giris anindaki 5.0 DAHIL DEGIL
 
 
@@ -309,7 +309,7 @@ def test_funding_cikis_anindaki_odeme_dahil_edilir():
         z += H4
     fund = _funding(kayitlar)
     assert funding_modulu.pozisyon_funding_tam_mi(fund, plan) is True
-    toplam = funding_modulu.pozisyon_fundingi(fund, plan)
+    toplam = funding_modulu._plan_fundingi(fund, plan)
     assert toplam == pytest.approx(0.001 * (len(kayitlar) - 1))
     # cikis anindaki son kaydin (z == cikis_ani) toplama girdigini dogrula.
     assert kayitlar[-1][0] == cikis_ani
@@ -509,7 +509,7 @@ def test_donem_sonu_pencere_b_dahil_b_ile_k_arasi_ve_k_haric():
     kayitlar.append((k, 4, 999.0))  # K'da -- DAHIL EDILMEMELI
     fund = _funding(kayitlar)
     assert funding_modulu.pozisyon_funding_tam_mi(fund, plan) is True
-    toplam = funding_modulu.pozisyon_fundingi(fund, plan)
+    toplam = funding_modulu._plan_fundingi(fund, plan)
     beklenen = 0.001 * sum(1 for z, *_ in kayitlar if giris < z <= b)
     assert toplam == pytest.approx(beklenen)
     assert toplam < 500  # 999'lar HESABA GIRMEDI
@@ -542,7 +542,7 @@ def test_giris_tam_b_de_olan_donem_sonu_pozisyonunun_funding_penceresi_bostur():
     kayitlar = [(b - pd.Timedelta(minutes=30), 4, 0.001), (b, 4, 0.001), (b + H4, 4, 0.001)]
     fund = _funding(kayitlar)
     assert funding_modulu.pozisyon_funding_tam_mi(fund, plan) is True
-    assert funding_modulu.pozisyon_fundingi(fund, plan) == 0.0
+    assert funding_modulu._plan_fundingi(fund, plan) == 0.0
     assert funding_modulu.pozisyon_funding_tam_mi(_funding([(b + H4, 4, 0.001)]), plan) is False
 
 
@@ -570,7 +570,7 @@ def test_donem_sonu_istisnasi_1d_izgarada_da_aynidir():
     kayitlar.append((b + H4, 4, 777.0))  # K -- DAHIL EDILMEMELI
     fund = _funding(kayitlar)
     assert funding_modulu.pozisyon_funding_tam_mi(fund, plan) is True
-    toplam = funding_modulu.pozisyon_fundingi(fund, plan)
+    toplam = funding_modulu._plan_fundingi(fund, plan)
     assert toplam < 100  # 777 disarida kaldi
 
 

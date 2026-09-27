@@ -60,7 +60,7 @@ def _plan(giris, cikis_bari, alan: str = "close", bar=config.BAR_4H, **sinirlar)
 
 
 def _fon(fund, giris, cikis_bari, alan: str = "close", bar=config.BAR_4H, **sinirlar):
-    return funding.pozisyon_fundingi(fund, _plan(giris, cikis_bari, alan, bar, **sinirlar))
+    return funding._plan_fundingi(fund, _plan(giris, cikis_bari, alan, bar, **sinirlar))
 
 
 # --- Cikis ani ---------------------------------------------------------------
@@ -335,7 +335,7 @@ def test_donem_sonunu_asan_ufuk_planda_kirpilir():
     fund = _funding("2021-05-01", "2021-06-30")
     # Rev.8 §4 "Donem sonu istisnasi": pencere B'de (dahil) kapanir; K'daki (06-01 00:00)
     # odeme hesaba girmez (rev.7'de 6 odeme, rev.8'de 5).
-    assert funding.pozisyon_fundingi(fund, plan) == pytest.approx(5e-4)
+    assert funding._plan_fundingi(fund, plan) == pytest.approx(5e-4)
 
 
 def test_sinyal_donem_basindan_onceyse_hata():
@@ -373,27 +373,27 @@ def test_cikis_bari_kabul_etse_de_plan_kume_sonunda_reddeder():
 def test_plan_disinda_girdi_reddedilir():
     fund = _funding("2021-01-01", "2021-01-10")
     with pytest.raises(TypeError):
-        funding.pozisyon_fundingi(fund, _cikis("2021-01-05 20:00"))
+        funding._plan_fundingi(fund, _cikis("2021-01-05 20:00"))
     with pytest.raises(TypeError):
-        funding.pozisyon_fundingi(fund, _ts("2021-01-05 20:00"))
+        funding._plan_fundingi(fund, _ts("2021-01-05 20:00"))
 
 
 def test_eski_imza_reddedilir():
     """Rev.6 imzasi (giris, cikis, bar, sinirlar) artik yok."""
     fund = _funding("2021-01-01", "2021-01-10")
     with pytest.raises(TypeError):
-        funding.pozisyon_fundingi(fund, _ts("2021-01-05 00:00"), _cikis("2021-01-05 20:00"), config.BAR_4H, **SINIRSIZ)
+        funding._plan_fundingi(fund, _ts("2021-01-05 00:00"), _cikis("2021-01-05 20:00"), config.BAR_4H, **SINIRSIZ)
 
 
 def test_elle_kurulmus_ya_da_degistirilmis_plan_reddedilir():
     fund = _funding("2021-01-01", "2021-01-10")
     plan = _plan("2021-01-05 00:00", "2021-01-05 20:00")
-    assert not pd.isna(funding.pozisyon_fundingi(fund, plan))
+    assert not pd.isna(funding._plan_fundingi(fund, plan))
 
     with pytest.raises(ValueError):  # cikis anini uzat: daha fazla odeme toplanirdi
-        funding.pozisyon_fundingi(fund, dataclasses.replace(plan, cikis_ani=plan.cikis_ani + pd.Timedelta(hours=8)))
+        funding._plan_fundingi(fund, dataclasses.replace(plan, cikis_ani=plan.cikis_ani + pd.Timedelta(hours=8)))
     with pytest.raises(ValueError):  # kume sinirini sonradan degistir
-        funding.pozisyon_fundingi(fund, dataclasses.replace(plan, kume_bitis=_ts("2030-01-01")))
+        funding._plan_fundingi(fund, dataclasses.replace(plan, kume_bitis=_ts("2030-01-01")))
     elle = pencere.PozisyonPlani(**{f.name: getattr(plan, f.name) for f in dataclasses.fields(plan) if f.name != "_imza"})
     with pytest.raises(ValueError):
-        funding.pozisyon_fundingi(fund, elle)
+        funding._plan_fundingi(fund, elle)

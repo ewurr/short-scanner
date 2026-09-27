@@ -121,7 +121,7 @@ def test_t_esit_k_planinda_funding_penceresi_b_de_kapanir():
     kayitlar = pd.date_range(plan.giris, K, freq="4h")
     fr = pd.DataFrame({"odeme_zamani": kayitlar, "aralik_saat": 4.0, "oran": 1e-4, "oran_8h": 1e-4})
     fr.loc[fr["odeme_zamani"] == K, "oran"] = 9.0  # K'daki odeme
-    assert funding.pozisyon_fundingi(fr, plan) == pytest.approx(1e-4 * 5)  # giris haric, B dahil, K haric
+    assert funding._plan_fundingi(fr, plan) == pytest.approx(1e-4 * 5)  # giris haric, B dahil, K haric
 
 
 def test_t_esit_k_1d_izgarasinda_da_donem_sonu():
