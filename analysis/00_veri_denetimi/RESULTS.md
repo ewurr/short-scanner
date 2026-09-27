@@ -1354,6 +1354,90 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     Uzamanın nedeni, denetimin getiri hesabını etkileyen kural hataları bulması ve bunların on
     revizyonla kapatılmasıydı. İki ölçüt arasındaki fark bilinçlidir.
 
+20. **F1 kapanış turu 2 (2026-09-27).** Getiri hesaplanmadı; F2'ye geçilmedi. Sayılar yalnızca
+    KEŞİF'e ya da test girdilerine aittir.
+
+    **Kapı değişiklikleri.**
+    - `5b8f376`: `olay_karari` sinyal eşlemini bir kez düz `dict`'e kopyalar; ad ve değer denetimlerinin
+      hepsi bu kopya üzerinden yapılır. Sızıntı testçisinin `Mapping.items()` bulgusu (§14.19) kapandı.
+      İmza değişmedi.
+    - `0e5dc1c`: `olay_karari` küme sınırını `None` olarak kabul etmez (TypeError). Rev.10 D-C3 kapandı.
+      İç adımlar F1 ölçümleri için `None` kabul etmeye devam eder. `KUME_NONE_DESENI` taraması ikincil
+      savunma olarak kalır.
+    - **Kapının sinyal değerlerini kendisi hesaplaması (yeni D-B1): ertelendi.** Karar araştırma
+      tarafının. Hipotez başına sinyal hesaplayan kod yok. Kapı değerleri kendisi hesaplayacaksa
+      ön-kayıtta tanımsız üç okumayı seçmesi gerekir:
+      - H1 pump çapası (olay tarafında θ ve olay tanımı gerekir; kontrol tarafında pump barı yok);
+      - H2 kırılım dibinin k'sı;
+      - `close[t-30]` tamlık penceresi ile H3 pencerelerinde t gününün dahil olup olmadığı.
+      Değer doğrulaması Rev.11 sonrasına bırakıldı.
+
+    **Kontrol barında sinyal (ölçüm, kural yazılmadı).**
+    - Kontrol barı üreten ya da sinyal değeri hesaplayan kod yok: `events/` ve `study/` boş.
+    - Kapı olay ile kontrolü ayırt etmez. Aldığı adların tam kümesini ve değerlerin sonlu sayı
+      olmasını denetler. H2'de ayrıca funding penceresini kendisi yeniden kurar ve hesaplanabilir mi
+      diye bakar.
+    - Ölçüm, test takımı üzerinden: kapı çağrıları kaydedildi.
+      - Kapı 74 H1 çağrısında pozisyon onayladı. Bunların 73'ünde sinyal anından önce 185'ten az 4h
+        bar var; yani H1 pencereleri veride kurulamazken de sabit 1.0 değerleriyle pozisyon oluşuyor.
+      - H3'te 12 onaylı çağrının 12'sinde 120 günden az 1d geçmişi var.
+      - Kapı, değerlerin veriden gelip gelmediğini bilmiyor.
+    - Ön-kayıtta karşılığı olmayan varsayımlar:
+      - H1: dört adın kontrol barındaki çapası.
+      - H1: `tepe` penceresinin t'yi (teyit barını) içerip içermediği; olay tarafında da geçerli.
+      - H2: kontrol barında kırılım dibinin hangi k ile kurulacağı.
+      - H2 ve H3: `close[t-30]`'un tamlık penceresi (30 ya da 31 bar).
+      - H3: "son 30 gün" ve SMA50'de t gününün dahil olup olmadığı; −120…−31 penceresiyle bitişikliği.
+      - Ayrıntı ve alıntılar tur raporunda.
+
+    **Doğrulama.** Tam denetim (`bf19721`, `--eski-evren`) ve A1 (`f7d7120`) temiz ağaçta; veri
+    CSV'leri önceki çıktılarla bayt düzeyinde aynı, yalnızca ortam kayıtları farklı
+    (`karsilastirma_f1k2_{calistir,a1}_tam.csv`). Tam takım 1505 geçti, 4 xfail.
+
+    **Açık noktaların iki ölçütle yeniden sınıflanması.** §14.13'e göre iki ayrı sütun:
+    - ağır bulgu açıkken F1 kapanmaz;
+    - getiriye dokunan bulgu açıkken F2 başlamaz.
+
+    §14.13 "ağır"ı tanımlamıyor. Buradaki sınıflama şu çalışma ölçütüyle yapıldı; ölçütün onayı
+    araştırma tarafının:
+    - **Ağır.** Veri katmanı ya da tek karar noktası, girdisi doğruyken ön-kayda aykırı bir olay ya da
+      kontrol üretebiliyor ya da düşürebiliyor; veya kapı ön-kayıtta olmayan bir kural uyguluyor.
+    - **Getiriye dokunur.** Olay ya da kontrol kümesini ya da getirinin girdilerini (P0, P1, funding,
+      sinyal değeri) değiştirebilir. Belirsizse dokunur sayılır (§14.13).
+
+    | Nokta | Durum | Getiriye dokunur | Ağır |
+    |---|---|---|---|
+    | §14.3 exchangeInfo görüntüsünün zamanı | açık not | hayır | hayır |
+    | Rev.9 D-C1 küme ölçütü / ileri kayma sırası | açık | hayır (ret etiketi değişir, olay kümesi aynı) | hayır |
+    | Rev.9 D-C2 veri katmanı kesimlerinde tolerans yok | açık | hayır (bir saniyelik aralıkta kayıt 0; §14.19) | hayır |
+    | Rev.9 D-C4 zaman toleransı `pencere.py`'de | açık | hayır | hayır |
+    | Rev.9 D-C5 NaN / 0 P0, P1 reddedilmiyor | açık | hayır (veride 0) | hayır |
+    | Rev.9 D-C8 imza süreçler arası taşınamaz | açık | hayır (hata ile durur) | hayır |
+    | Rev.10 D-C1 küme sonu kaydı | açık, ön-kayıt kararı bekliyor | hayır (234 / 234 bar kapıda reddediliyor) | hayır |
+    | Rev.10 D-C2 `ILERI_KAYMA_SINIRI` iç adımda okunmuyor | açık | hayır (değerler eşit, testli) | hayır |
+    | Rev.10 D-C3 küme sınırı `None` | **kapandı** (`0e5dc1c`) | — | — |
+    | Rev.10 D-C4 `rev10_uygulama.py` testsiz | açık | hayır (ölçüm betiği) | hayır |
+    | Rev.10 D-C5, D-C7 metinde yazılı olmayan `kayit_var`, NaN oran, tek kayıtla ortalama | açık, ön-kayıt notu | hayır (kod ön-kayda uygun) | hayır |
+    | Tarama açıkları: `analysis/00_veri_denetimi` muaf, `.ipynb`, parçalanmış ad, iç adımlar serbest tamsayı (§14.19) | açık, belgeli sınır | hayır (kapı ufku, hipotezi ve küme sınırını yapısal denetliyor; iç adım planı getiri fonksiyonuna verilemiyor) | hayır |
+    | xfail: `gunluge_cevir` NaN hacim (A6), eşzamanlı `csv_yaz`, parçalanmış ad taraması | açık | hayır (veride örnek yok; kilitle korunuyor; tarama ikincil) | hayır |
+    | xfail: `KUME_NONE_DESENI` değişkenle taşınan `None` | açık, belgeli sınır | hayır (kapı artık `None`'u reddediyor) | hayır |
+    | Sızıntı: `Mapping.items()` ile NaN / bool gizleme | **kapandı** (`5b8f376`) | — | — |
+    | F1 kapanış D-B1: kapı sinyal değerlerini doğrulamıyor, değerler çağırandan geliyor | açık, ertelendi (Rev.11 sonrası) | **evet** (φ ile karşılaştırılan sayı; olay kümesi) | hayır: çalışma ölçütüne göre; kapı doğru girdiyle doğru karar veriyor, açık yanlış girdide |
+    | F1 kapanış D-B2: `SINYAL_DEGERLERI["H1"]` kontrol barında pump çapası istiyor | açık, ön-kayıt kararı bekliyor | **evet** (kontrol havuzu) | **evet**: kapı ön-kayıtta olmayan bir kural uyguluyor |
+    | F1 kapanış D-C2: `close[t-30]` ile "30 barlık pencere t'yi içerir" arasında bir bar | açık, ön-kayıt kararı bekliyor | **evet** (tamlık penceresi olay ve kontrol kümesini değiştirir) | hayır (kapı yalnızca ad istiyor, pencere kurmuyor) |
+    | F1 kapanış D-C3: `tepe` tamlık listesinde yok | açık, ön-kayıt notu | **evet** (belirsiz; §14.13) | hayır |
+    | F1 kapanış D-C1, D-C4, D-C5 (yorum/sayı, NaN denetiminin sırası, RESULTS yapısal gerekçesi) | açık | hayır (olay kümesi değişmez) | hayır |
+    | Bu tur: `tepe` penceresinin t'yi içerip içermediği | açık, ön-kayıt kararı bekliyor | **evet** | hayır |
+    | Bu tur: H3 "son 30 gün" ve SMA50'de t günü; −120…−31 ile bitişiklik | açık, ön-kayıt kararı bekliyor | **evet** | hayır |
+    | Bu tur: ızgara parametrelerinin (θ, δ, φ, k, ν, τ) kapıya ulaşması, ön-kayıtta metin yok | açık | **evet** (k kontrol barının kırılım dibini belirler) | hayır |
+
+    **Sonuç, çalışma ölçütüyle.**
+    - Ağır açık bulgu bir tane: **D-B2** (H1 kontrol çapası). F1 kapanmadı.
+    - Getiriye dokunan açık bulgular: D-B1, D-B2, D-C2, D-C3 ve bu turun üç ön-kayıt belirsizliği.
+      Bunlar F2'den önce kapanmalı. Çoğu Rev.11 kararı ister.
+    - Önceki turlar "getiriye dokunur" ile "ağır"ı eşit tutuyordu; bu ayrım bu turda yapıldı.
+      Eşitlik korunursa bu sütundaki bütün "evet"ler F1'i de engeller.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -1727,3 +1811,21 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
   Silinen, gevşetilen ya da xfail'e alınan test yok. Yeni: `test_f1k_h2_saat`,
   `test_f1k_hipotez_baglama`, `test_f1k_sinyal_kapisi`; yardımcı `sinyal_yardimcisi`.
+- 2026-09-27 (F1 kapanış turu 2). §14.20 eklendi. Kod: `5b8f376` (sinyal eşlemi düz dict'e
+  kopyalanır; sızıntı bulgusu), `0e5dc1c` (kapı küme sınırını `None` kabul etmez; Rev.10 D-C3).
+  Tam denetim `bf19721`, A1 `f7d7120`. Kapının sinyal değerlerini kendisi hesaplaması ertelendi
+  (araştırma tarafının kararı).
+  **Güncellenen mevcut testler:**
+  - `test_tur_saldirilari_j`: düzelen iki `Mapping` saldırısının `xfail(strict)` işareti kaldırıldı
+    (XPASS); beklenti aynı.
+  - Küme sınırı `None` (D-C3): **18 dosyada** 25 kapı çağrısı gerçek küme sınırına geçti
+    (`tests/kume_yardimcisi.py`; `0e5dc1c` commit mesajındaki "17 dosya" yanlıştır). Beklentiler
+    değişmedi.
+  - Sentetik tarihi hiçbir kümeye düşmeyen 6 saldırı testinde tarih KEŞİF içine (2024) alındı:
+    `test_tur_saldirilari_g` (1; 2033), `test_tur_saldirilari_h` (3; 2034, 2036, 2037),
+    `test_tur_saldirilari_i` (2; 2038). Beklentiler değişmedi.
+  - `test_rev9_uygunluk_kapisi::test_karar_noktasi_uygunlugu_tek_uygulamadan_cagirir`: beklenen
+    `kume_baslangic` `None`'dan kapıya verilen gerçek KEŞİF başına (girdinin yankısı; iddia aynı).
+
+  Silinen, gevşetilen ya da xfail'e alınan test yok. Yeni: `test_f1k2_kume_none` (16); yardımcı
+  `kume_yardimcisi`.
