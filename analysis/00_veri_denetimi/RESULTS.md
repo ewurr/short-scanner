@@ -1438,6 +1438,38 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     - Önceki turlar "getiriye dokunur" ile "ağır"ı eşit tutuyordu; bu ayrım bu turda yapıldı.
       Eşitlik korunursa bu sütundaki bütün "evet"ler F1'i de engeller.
 
+    **Tur sonu ajan bulguları (düzeltilmedi; yukarıdaki tablodan sonra geldi).** Denetçinin bu tur
+    bulguları "F1K2" önekiyle, önceki turunkilerden ayrı:
+    - **F1K2 D-B1: küme sınırı kayıtlı bir kümeye bağlı değil.** Kapı yalnızca `None`'u reddediyor.
+      `Timestamp.min`/`max` ya da karışık sınır (KEŞİF başı + C2 sonu) geçiyor. Sızıntı testçisi bunu
+      xfail(strict) ile doğruladı (`test_tur_saldirilari_k`, `80cbad7`): ufku C2'ye taşan bir KEŞİF olayı
+      gerçek sınırla reddediliyor, karışık sınırla onaylanıyor. `split.kume_araligi` tek kaynak olarak var,
+      kapı onu çağırmıyor. Rev.10 D-C3'ün kapanışı bu yüzden biçimsel.
+    - **F1K2 D-B2: dönem sınırları evren tablosuna bağlı değil.** `donem_baslangic`/`donem_bitis`
+      serbest girdi. Yanlış sınırla dolgu barları, önceki dönemin funding çapası ve listeleme yaşı kapıdan
+      geçebilir.
+    - **F1K2 D-B3: net getirinin funding girdisi kapısız elde edilebiliyor.** `funding.pozisyon_fundingi`
+      imzalı bir `PozisyonPlani` kabul ediyor, onaylı pozisyon istemiyor. Plan `pencere.pozisyon_plani`
+      ile `None` küme ve serbest ufukla kurulabiliyor. P0 ve P1'in barları da plandan okunabiliyor. Tek
+      koruma kaynak taraması. **Yukarıdaki tablonun "Tarama açıkları" satırındaki "iç adım planı getiri
+      fonksiyonuna verilemiyor" gerekçesi (§14.19'dan taşındı) `pozisyon_fundingi` için yanlış.**
+    - F1K2 D-C1: `pozisyon._imza` tarama deseninde yok. F1K2 D-C2: `mae` kararla aynı seriyi zorunlu
+      tutmuyor. F1K2 D-C3: NaT küme sınırı sinyal ve uygunluk denetiminden sonra reddediliyor; NaN
+      sinyalle birlikte verilirse ret gerekçesi gibi sayılır. F1K2 D-C4: §5–§9 sabitlerinin (ızgaralar,
+      H1/H2 bar sayıları, K1/K2 10'ar, §8–§9 eşikleri) çoğu `config.py`'de yok; F2'nin ön koşulu.
+    - **Sınıflama ölçütüne itirazlar.**
+      - "Girdisi doğruyken" sinyal değerleri için bugün tanımlanamıyor.
+      - Ölçüt geriye dönük tutarsız: bu ölçütle Rev.10 D-C3 de ağır olmazdı, F1K2 D-B1 de ağır olmaz.
+      - Kapıyı atlayan ikinci kod yolu (F1K2 D-B3) sınıflanmıyor. Ön-kayıt §4 bu yolu "kabul edilmez"
+        diye yazıyor. Denetçi ağır sayılmasından yana.
+      - Önceki tur D-C3 (`tepe`) için "ağır" öneriyor; D-B2 ile aynı yapıda gördüğü için.
+    - Denetçinin hükmü: **F1 kapanamaz.** Kapı ne tek (F1K2 D-B3) ne eksiksiz (F1K2 D-B1, D-B2).
+
+    Sızıntı testçisi `test_tur_saldirilari_k` (`80cbad7`, yalnızca yeni dosya): 21 test, 20 savuşturuldu,
+    1 xfail (yukarıdaki F1K2 D-B1). Sözlük kopyasına yönelik saldırıların hepsi savuşturuldu: `dict`
+    alt sınıfı, `ChainMap`, `MappingProxyType`, `OrderedDict` alt sınıfı. Boş değerli küme sınırları
+    da reddedildi: `0`, `""`, bool, `np.datetime64('NaT')`, ters sıra.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
