@@ -37,6 +37,7 @@ from conftest import sahte_4h  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from sinyal_yardimcisi import sinyal
+from kume_yardimcisi import kume_sinirlari
 from uygunluk_yardimcisi import uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -198,12 +199,13 @@ class _Kosul(enum.IntEnum):
 # atlatiyordu. Rev.10 uygulamasi madde 5'te kapandi (olay_karari enum uyesini reddeder); xfail
 # isareti kaldirildi, test ayni beklentiyle normal test olarak kaliyor.
 def test_intenum_bool_benzeri_deger_bool_korumasini_atlatir():
-    plan, zamanlar, donem_bas, donem_bitis = _basit_plan("2034-01-01 00:00")
+    # F1 kapanis turu 2: kapi kume sinirini None kabul etmez; sentetik tarih (2034) gercek KESIF icine alindi.
+    plan, zamanlar, donem_bas, donem_bitis = _basit_plan("2024-02-01 00:00")
     fund = _tam_funding_icin(plan)
     with pytest.raises(TypeError):
         pozisyon_modulu.olay_karari(
-            sahte_4h("2034-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
-            hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
+            sahte_4h("2024-02-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+            hipotez="H1", birincil_ufuk=plan.birincil_ufuk, **kume_sinirlari(plan.sinyal_zamani),
             donem_baslangic=donem_bas, donem_bitis=donem_bitis,
             sinyal_degerleri={"kosul": _Kosul.YANLIS},
             **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
@@ -221,11 +223,12 @@ def test_tek_funding_kaydiyla_pozisyon_tam_ve_tek_ritim_sayilir():
     araligi tum pencereyi kapsiyor), pozisyon yine TAM sayilmali (§4 rev.9 'Son':
     capa + araligi pencere sonunu kapsiyorsa yeterli) ve karisik_ritim YANLIS
     olmali (tek kayit = tanim geregi tek ritim)."""
-    plan, zamanlar, donem_bas, donem_bitis = _basit_plan("2036-01-01 00:00")
+    # F1 kapanis turu 2: kapi kume sinirini None kabul etmez; sentetik tarih (2036) gercek KESIF icine alindi.
+    plan, zamanlar, donem_bas, donem_bitis = _basit_plan("2024-03-01 00:00")
     fund = _funding([(plan.giris, 2000.0, 0.0001)])  # tek kayit, cok genis aralik
     onayli = pozisyon_modulu.olay_karari(
-        sahte_4h("2036-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
-        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
+        sahte_4h("2024-03-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, **kume_sinirlari(plan.sinyal_zamani),
         donem_baslangic=donem_bas, donem_bitis=donem_bitis,
         sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
@@ -240,11 +243,12 @@ def test_capa_ve_son_aralik_saat_replace_ile_sahtelenemez():
     """`OnaylanmisPozisyon.capa_aralik_saat` / `son_aralik_saat` `dataclasses.replace`
     ile degistirilirse imza tutarsizlasmali ve pozisyon REDDEDILMELI (on-kayit §4
     rev.9: bu alanlar 'gercek tamlik kodundan ve imzaya bagli')."""
-    plan, zamanlar, donem_bas, donem_bitis = _basit_plan("2037-01-01 00:00")
+    # F1 kapanis turu 2: kapi kume sinirini None kabul etmez; sentetik tarih (2037) gercek KESIF icine alindi.
+    plan, zamanlar, donem_bas, donem_bitis = _basit_plan("2024-04-01 00:00")
     fund = _tam_funding_icin(plan)
     onayli = pozisyon_modulu.olay_karari(
-        sahte_4h("2037-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
-        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
+        sahte_4h("2024-04-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, **kume_sinirlari(plan.sinyal_zamani),
         donem_baslangic=donem_bas, donem_bitis=donem_bitis,
         sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
@@ -255,7 +259,7 @@ def test_capa_ve_son_aralik_saat_replace_ile_sahtelenemez():
 
     sahte2 = replace(onayli, son_aralik_saat=onayli.son_aralik_saat + 1.0)
     with pytest.raises(ValueError):
-        pozisyon_modulu.mae(sahte_4h("2037-01-01 00:00", len(zamanlar)), sahte2)
+        pozisyon_modulu.mae(sahte_4h("2024-04-01 00:00", len(zamanlar)), sahte2)
 
 
 # ==============================================================================

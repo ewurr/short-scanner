@@ -242,11 +242,20 @@ def olay_karari(
     `hipotez` ("H1", "H2", "H3") zorunludur: `bar`, `ufuk` ve `birincil_ufuk` hipotezden tureyen on-kayit
     degerleriyle uyumlu olmalidir (`pencere.hipotez_baglamini_dogrula`; F2 kodu bunlari
     `pencere.hipotez_ufuklari`ndan okur). Onayli pozisyon hipotezi imzali tasir.
-    Butun sinirlar ve esikler zorunlu anahtar sozcuktur; varsayilan yoktur.
+    Butun sinirlar ve esikler zorunlu anahtar sozcuktur; varsayilan yoktur. Kume sinirlari
+    (`kume_baslangic`, `kume_bitis`) burada `None` olamaz (TypeError).
     """
     # Hipotez -> izgara -> ufuk bagi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis
     # turu, denetci D-B2): izgara ve ufuklar hipotezden turer; uyumsuz eslesme calisma aninda hata.
     pencere_modulu.hipotez_baglamini_dogrula(hipotez, bar, ufuk, birincil_ufuk)
+    # Kume siniri kapida None olamaz (F1 kapanis turu 2, Rev.10 denetci D-C3; on-kayit §3 "Kume siniri ve
+    # geriye bakis": "kod duzeyinde ayrica dogrulanir"). Her olay ve kontrol bir kumeye aittir; `None`
+    # yalnizca kume disi F1 olcumlerinde ic adimlara (`pencere.pozisyon_plani` vb.) verilebilir. Kaynak
+    # taramasi (`tests/tarama_yardimcisi.KUME_NONE_DESENI`) ikincil savunma olarak kalir.
+    for ad, deger in (("kume_baslangic", kume_baslangic), ("kume_bitis", kume_bitis)):
+        if deger is None:
+            raise TypeError(f"{ad} karar noktasinda None olamaz: olay ve kontrol her zaman bir kumeye aittir "
+                            "(on-kayit §3 'Kume siniri ve geriye bakis', 'Kume siniri ve ufuk').")
     if not isinstance(sinyal_degerleri, Mapping) or not sinyal_degerleri:
         raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (sinyal barindaki pencere degerleri).")
     # Eslem bir kez duz dict'e kopyalanir; asagidaki butun ad ve deger denetimleri bu kopya uzerinden

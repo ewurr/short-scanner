@@ -38,6 +38,7 @@ from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, ihlaller  # noqa: E402
 from sinyal_yardimcisi import sinyal
+from kume_yardimcisi import kume_sinirlari
 from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -273,7 +274,9 @@ def test_capa_tam_donem_basinda_sayilir_bir_dakika_once_sayilmaz():
 
 
 def _basit_plan():
-    seri_bas = T("2033-01-01 00:00")
+    # F1 kapanis turu 2: kapi kume sinirini None kabul etmez; sentetik tarih (2033) gercek KESIF
+    # kumesinin icine alindi (beklenti ayni).
+    seri_bas = T("2024-01-01 00:00")
     donem_bas = seri_bas - UYGUN_ONCELIK
     donem_bitis = seri_bas + 200 * H4
     zamanlar = pd.date_range(seri_bas, donem_bitis, freq="4h", tz="UTC")
@@ -304,8 +307,8 @@ def test_onaylanmis_pozisyon_f2_bayraklari_replace_ile_sahtelenemez():
     plan, zamanlar, donem_bas, donem_bitis = _basit_plan()
     fund = _tam_funding_icin(plan)
     onayli = pozisyon_modulu.olay_karari(
-        sahte_4h("2033-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
-        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
+        sahte_4h("2024-01-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, **kume_sinirlari(plan.sinyal_zamani),
         donem_baslangic=donem_bas, donem_bitis=donem_bitis,
         sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
@@ -316,7 +319,7 @@ def test_onaylanmis_pozisyon_f2_bayraklari_replace_ile_sahtelenemez():
 
     sahte2 = replace(onayli, son_esitlik_affi=not onayli.son_esitlik_affi)
     with pytest.raises(ValueError):
-        pozisyon_modulu.mae(sahte_4h("2033-01-01 00:00", len(zamanlar)), sahte2)
+        pozisyon_modulu.mae(sahte_4h("2024-01-01 00:00", len(zamanlar)), sahte2)
 
 
 # SALDIRI BULGUSU (Rev.9 turu, xfail idi): close_time'siz tek satirlik cerceve 4h denetiminden

@@ -15,6 +15,7 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
+from kume_yardimcisi import KESIF
 from sinyal_yardimcisi import sinyal as _tam_sinyal
 from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
 
@@ -26,7 +27,7 @@ MUM = pd.DataFrame({"open_time": Z, "open": np.arange(len(Z)) + 0.25, "high": np
                     "low": np.arange(len(Z)) + 0.0, "close": np.arange(len(Z)) + 0.5})
 # Rev.9 §4: uygunluk tek karar noktasinin parcasi. Donem, mum serisinden UYGUN_ONCELIK once baslar
 # (listeleme yasi >= 30 gun) ve uygunluk hacmi o gunden itibaren esigin ustundedir.
-SINIR = dict(kume_baslangic=None, kume_bitis=None, donem_baslangic=BAS - UYGUN_ONCELIK, donem_bitis=B)
+SINIR = dict(**KESIF, donem_baslangic=BAS - UYGUN_ONCELIK, donem_bitis=B)
 # F1 kapanis turu (denetci D-B1): kapi hipotezin butun sinyal degerlerini ister; varsayilan tam kume.
 SINYAL = None
 

@@ -21,6 +21,7 @@ import pytest
 import config
 from data import funding, pozisyon
 from sinyal_yardimcisi import sinyal
+from kume_yardimcisi import kume_sinirlari
 from uygunluk_yardimcisi import uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -40,8 +41,7 @@ def _fund(parcalar):
 
 
 def _karar(fr):
-    return pozisyon.olay_karari(MUM, fr, SINYAL, 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume_baslangic=None,
-                                kume_bitis=None, donem_baslangic=DB, donem_bitis=B, sinyal_degerleri=sinyal("H1"),
+    return pozisyon.olay_karari(MUM, fr, SINYAL, 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18, **kume_sinirlari(SINYAL), donem_baslangic=DB, donem_bitis=B, sinyal_degerleri=sinyal("H1"),
                                 **uygunluk(config.BAR_4H, DB, B))
 
 

@@ -20,6 +20,7 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
+from kume_yardimcisi import kume_sinirlari
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import uygunluk
 
@@ -39,7 +40,7 @@ SINYAL_T = {"H1": T_KONTROL, "H2": T_KONTROL, "H3": T("2025-03-10")}
 
 def _karar(hipotez, fr, degerler, t=None, **sinir):
     tanim = pencere.hipotez_ufuklari(hipotez)
-    s = dict(kume_baslangic=None, kume_bitis=None)
+    s = kume_sinirlari(SINYAL_T[hipotez] if t is None else t)
     s.update(sinir)
     return pozisyon.olay_karari(MUM, fr, SINYAL_T[hipotez] if t is None else t, tanim.birincil, tanim.bar,
                                 hipotez=hipotez, birincil_ufuk=tanim.birincil, donem_baslangic=DB, donem_bitis=B,

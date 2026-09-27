@@ -37,6 +37,7 @@ from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from tarama_yardimcisi import FUNDING_ORAN_DESENI  # noqa: E402
 from sinyal_yardimcisi import sinyal
+from kume_yardimcisi import kume_sinirlari
 from uygunluk_yardimcisi import uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -320,11 +321,13 @@ def _tam_funding_icin_i(plan):
 
 
 def _onayli_pozisyon(bas_str: str):
+    # F1 kapanis turu 2: kapi kume sinirini None kabul etmez; cagiranlarin sentetik tarihleri (2038) gercek
+    # KESIF icine alindi (beklenti ayni).
     plan, zamanlar, donem_bas, donem_bitis = _basit_plan_i(bas_str)
     fund = _tam_funding_icin_i(plan)
     onayli = pozisyon_modulu.olay_karari(
         sahte_4h(bas_str, len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
-        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume_baslangic=None, kume_bitis=None,
+        hipotez="H1", birincil_ufuk=plan.birincil_ufuk, **kume_sinirlari(plan.sinyal_zamani),
         donem_baslangic=donem_bas, donem_bitis=donem_bitis, sinyal_degerleri=sinyal("H1"),
         **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
     )
@@ -332,7 +335,7 @@ def _onayli_pozisyon(bas_str: str):
 
 
 def test_ritim_sinifi_replace_ile_sahtelenemez():
-    onayli, zamanlar, bas_str = _onayli_pozisyon("2038-05-01 00:00")
+    onayli, zamanlar, bas_str = _onayli_pozisyon("2024-05-01 00:00")
     assert onayli.ritim_sinifi == "4"  # 4 saatlik funding
     sahte = replace(onayli, ritim_sinifi="8")
     with pytest.raises(ValueError):
@@ -342,7 +345,7 @@ def test_ritim_sinifi_replace_ile_sahtelenemez():
 
 
 def test_funding_ritmi_saat_ve_karisik_ritim_replace_ile_sahtelenemez():
-    onayli, zamanlar, bas_str = _onayli_pozisyon("2038-06-01 00:00")
+    onayli, zamanlar, bas_str = _onayli_pozisyon("2024-06-01 00:00")
     sahte1 = replace(onayli, funding_ritmi_saat=onayli.funding_ritmi_saat + 1.0)
     with pytest.raises(ValueError):
         pozisyon_modulu.pozisyon_fiyatlari(sahte1)

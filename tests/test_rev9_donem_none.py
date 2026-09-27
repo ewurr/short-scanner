@@ -16,6 +16,7 @@ import config
 from data import eligibility, pencere, pozisyon
 from tarama_yardimcisi import DONEM_NONE_DESENI, ihlaller
 from sinyal_yardimcisi import sinyal
+from kume_yardimcisi import kume_sinirlari
 from uygunluk_yardimcisi import uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -31,7 +32,7 @@ def test_karar_noktasi_donem_sinirini_none_ile_kabul_etmez(sinir):
     sinirlar = {"donem_baslangic": BAS, "donem_bitis": B, sinir: None}
     with pytest.raises(TypeError):
         pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
-                             kume_baslangic=None, kume_bitis=None, sinyal_degerleri=sinyal("H1"),
+                             **kume_sinirlari(T('2025-03-05 04:00')), sinyal_degerleri=sinyal("H1"),
                              **sinirlar, **uygunluk(config.BAR_4H, BAS, B))
     with pytest.raises(TypeError):
         pencere.pozisyon_plani(Z, T("2025-03-05 04:00"), 6, config.BAR_4H, birincil_ufuk=18,
