@@ -1569,6 +1569,102 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     (`split.kume_erisimi`). Kapıya verilen fiyat, funding ve 1d çerçeveleri de hâlâ çağırandan geliyor;
     kapı bunların hangi sembolün ya da kümenin verisi olduğunu doğrulamıyor.
 
+    **Tur sonu ajan bulguları (düzeltilmedi; yukarıdaki tablo ve listeden sonra geldi).** Denetçinin bu tur
+    bulguları "KS" önekiyle. Aşağıdaki sınıflar denetçinin önerisidir; yukarıdaki tablo değiştirilmedi.
+    - **KS D-B1: fiyat ve funding çerçeveleri çağırandan geliyor.**
+      - Kapı yalnızca biçimi doğruluyor: `mumlar_4h` için 4h ızgarası ve `close_time`; funding için tamlık.
+      - Hangi sembolün ya da kümenin verisi olduğuna, boşluğun doldurulup doldurulmadığına bakmıyor.
+      - Örnekler:
+        - (a) `reindex`/`asfreq` + `ffill` ile düzenli ızgaraya getirilmiş bir 4h serisi `GirisBariYok`
+          ve ileri kaymayı hiç üretmez; boşluk üzerinden bayat fiyatla çıkış yapılır (on-kayıt §2 rev.3).
+          Bu deyimler `TURETILMIS_SERI_DESENI`'nde yok.
+        - (b) Sembol kaymasıyla başka bir sembolün fiyatları onaylanır.
+        - (c) Doldurulmuş ya da değiştirilmiş bir `oran` sütunu tamlıktan geçer.
+      - Kapı bu çerçeveleri `sembol` ve `kume` ile veri yükleyicisinden kendisi alabilir.
+      - `pozisyon_fiyatlari`'nın P0 ve P1'i de bu çerçeveden gelir.
+      - Denetçiye göre getiriye **dokunur**.
+    - **KS D-B2: 1d serisi tek seri olarak bağlı değil.**
+      - `gunluk_mumlar` yalnızca 1d biçimiyle doğrulanıyor.
+      - `klines.birincil_gunluk_indir` (küme korumalı, `ham_` öneki yok) çerçevesi de denetimlerden geçer.
+      - Borsanın 1d dosyasında 4h barı eksik günler de satırdır; örneğin 2022-02-26…28 kesintisi. Bu
+        günlerde uygunluk penceresinin tamlığı yanlışlıkla sağlanır.
+      - Ön-kayıt §2 rev.8 "Bu seri tektir" ile ayrışıyor.
+      - Denetçiye göre **dokunur**.
+    - **KS D-B3: sinyal barı (t) varlığı kapıda denetlenmiyor.**
+      - Yalnızca t+1 barı aranıyor (`pencere.pozisyon_plani`).
+      - t barı eksik, t+1 mevcutsa, ya da H3'te t günü 1d serisinde yoksa, pozisyon onaylanır.
+      - Yapısaldır, Rev.11'deki okumalara bağlı değil.
+      - Denetçiye göre **dokunur**.
+    - **KS D-B4: onay koşusu kapıda yok; veri kapısı hipotezi denetlemiyor.**
+      - Kapı `kume="C1"`/`"C2"` ile aktif onay koşusu olmadan çağrılabiliyor
+        (`test_ks_donem_kaydi` bunu onaylıyor).
+      - `split.kume_erisimi` onay koşusunun yalnızca kümesini karşılaştırıyor. `onay_kosusu("H2", "C1")`
+        içinde H1 ve H3'ün C1 pozisyonları da onaylanır; onay kaydında tek satır (H2) oluşur.
+      - `split._AKTIF_KOSU` ataması taramada yok.
+      - İlgili kurallar: CLAUDE.md §3.3; ön-kayıt §3 ve §9.
+      - Denetçiye göre **dokunur**; pratik etkisi F3'te.
+    - **KS D-B5 (şüpheli, testle doğrulanmadı): UTC dışı saat dilimli `sinyal_zamani` olayları sessizce
+      düşürüyor.**
+      - `utc_zamani` saat dilimi var mı diye bakıyor, UTC mi diye bakmıyor.
+      - `eligibility.medyan_hacim`'deki `floor("D")` yerel saatle yuvarlıyor. Uygunluk penceresi NaN oluyor
+        ve H1/H2 olayları hata vermeden `UygunDegil` ile düşüyor.
+      - CLAUDE.md §5 ile ayrışıyor.
+    - **KS D-C1…D-C6:**
+      - D-C1: `pozisyon_fundingi` taramada hâlâ yasak. Bu yüzden analiz kodunun yasal yolu
+        `funding_toplami` özniteliği kalıyor ve öznitelik okuması imzadan geçmiyor.
+      - D-C2: kayıt taraması `pozisyon.donem_kaydi`, `grup_dogrula`, `kume_sinirlari`, `config`
+        sabitleri ve `split._AKTIF_KOSU` atamalarını kapsamıyor.
+      - D-C3 (şüpheli): `_kayitlar` önbelleği süreç boyunca donuyor. Bugün tetikleyen çağrı yok.
+      - D-C4: `pozisyon.py` modül açıklaması "saf fonksiyonlar" diyor, kapı artık disk okuyor.
+      - D-C5: onaylı pozisyon sembol, küme ve dönem taşımıyor (K2 havuzu, §9.5).
+      - D-C6: beklentisi TypeError'a dönen iki test (`tur_saldirilari_j` küme sonu,
+        `tur_saldirilari_k` ters sıra) kapıyı değil Python'un imza denetimini sınıyor. Kapı düzeyinde
+        küme sonu testi, gerçek KEŞİF son barıyla kurulmalı.
+    - **Sızıntı testçisi bulgusu (`test_tur_saldirilari_l`, `d6cc482`, xfail(strict)).**
+      - `olay_karari` funding toplamında yalnızca `math.isnan` denetliyor; tamlık kodu oranı okumuyor.
+      - Pencere içindeki tek bir kayıtta `oran = inf` olduğunda `funding_toplami = inf` olan onaylı bir
+        pozisyon üretiliyor.
+      - Net getiriye doğrudan girer; **dokunur**.
+      - Dosyanın öteki 7 testi savuşturuldu: gerçek A/B sembolleri yanlış kümede, yeniden adlandırma
+        zinciri grupları, önbelleğin salt okunurluğu, gerçek funding'siz dönem, dönem sonrası aşırı
+        fiyatlı barlar, NaN toplamın eşitlik kenarı.
+      - O testlerden birinin kurgusu hatalıydı: giriş anındaki kaydı siliyordu. Ana oturum silinen kaydı
+        giriş sonrasındaki kayıtla değiştirdi; iddia aynı.
+    - **Denetçinin sınıflama itirazları.**
+      - **Rev.9 D-C5** (NaN / 0 P0, P1) ve **A6 xfail'i** (`gunluge_cevir` NaN hacim) "dokunur" olmalı.
+        İkisi de "ön-kayıtta tanımsız, kod bir okuma seçmiş, ölçülen 0" yapısında; aynı yapıdaki Rev.9
+        D-C2 ile Rev.10 D-C1 "evet" sınıflandı.
+      - Yukarıdaki "commit'li veride yok, veri sabit" gerekçesi yanlış: fiyat verisi `cache/` altında,
+        git dışında. A6 bir xfail olduğu için ayrışma zaten biliniyor. Ya bu ikisi "evet" olmalı, ya da
+        §14.13'e ölçülmüş sıfır etki için bir muafiyet eklenmeli.
+      - **F1K2 D-C4** (§5–§9 sabitleri config'te yok) "evet" olmalı; Rev.11 listesinin 7. maddesi bunun
+        alt kümesi ve "evet".
+      - F1K2 D-C2'nin sembol/küme kısmı dokunabilir (KS D-C5).
+      - "Bilinen sınır" paragrafının çerçeve kısmı "evet" olmalı (KS D-B1, D-B2).
+    - **Denetçinin Rev.11 listesine eklenmesini istedikleri** (ön-kayıtta tanımsız, kod bir okuma
+      seçmek zorunda kalır):
+      - **Bekleme süresi (§5):**
+        - t'den mi, girişten mi ölçülüyor?
+        - Kapının reddettiği olay beklemeyi başlatır mı?
+        - Dönemler arasında sürer mi?
+        - Yapılandırma başına mı işler?
+      - **K1 örneklemesi:**
+        - "herhangi bir olayına" reddedilen ya da başka yapılandırmaya ait olayları kapsıyor mu?
+        - 10'dan az aday varsa ne olur?
+        - İadeli mi, iadesiz mi?
+      - **K2 örneklemesi:**
+        - "o anda olay üretmemiş" hangi yapılandırmaya göre?
+        - 10'dan az uygun coin varsa ne olur?
+      - **§7'deki `r` tanımı:** p-değerinde `r`'nin neyi saydığı yazılı değil. F3 kararını belirler;
+        CLAUDE.md §3.4 gereği keşif çıktıları görülmeden yazılmalı.
+      - Ayrıca: H1'de 12 barlık izleme sürerken yeni bir pump barı; H3'te "ilk gün"ün tanımı.
+      - Tohum: F2'nin K1/K2 örneklemesi `config.TOHUM` ile ve belirlenmiş bir sembol sırasıyla yapılmalı.
+    - Denetçinin hükmü: bu turun üç değişikliği amacına ulaşıyor. Kapı hâlâ şu olguları çağırandan kabul
+      ediyor, oysa kendisi türetebilir:
+      - fiyat, funding ve 1d çerçeveleri;
+      - sinyal barının varlığı;
+      - onay koşusu.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
