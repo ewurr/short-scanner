@@ -26,9 +26,9 @@ import config
 from data import pencere, pozisyon
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, KOK, ihlaller
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 DB, B = T("2025-01-01"), T("2025-06-30 20:00")
@@ -92,8 +92,8 @@ def test_olcum_betikleri_ayni_kaynaktan_okur():
 
 def _karar(ufuk, birincil, bar=config.BAR_4H):
     t = SINYAL_4H if bar == config.BAR_4H else SINYAL_1D
-    return pozisyon.olay_karari(MUM, FUND, t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=birincil, kume=kume_adi(t), **donem(DB, B), sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
-                                **uygunluk(bar, DB, B))
+    return pozisyon.olay_karari(t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=birincil, kume=kume_adi(t), **veri(MUM, FUND, DB, B, uygun_bas=DB), sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
+                                **esikler(bar))
 
 
 @pytest.mark.parametrize("bar", [config.BAR_4H, config.BAR_1D])

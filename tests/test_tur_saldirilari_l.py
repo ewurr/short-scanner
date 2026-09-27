@@ -20,9 +20,9 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon, split, universe
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from sinyal_yardimcisi import sinyal
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -39,18 +39,20 @@ def _karar_h1(fr=TAM_FUND, mumlar=MUM, donem_bas=DB, donem_son=B, **sinir):
     tanim = pencere.hipotez_ufuklari("H1")
     s = {"kume": "KESIF"}
     s.update(sinir)
-    return pozisyon.olay_karari(mumlar, fr, T_SINYAL_H1, tanim.birincil, tanim.bar, hipotez="H1",
-                                birincil_ufuk=tanim.birincil, **donem(donem_bas, donem_son),
-                                sinyal_degerleri=sinyal("H1"), **s, **uygunluk(tanim.bar, donem_bas, donem_son))
+    return pozisyon.olay_karari(T_SINYAL_H1, tanim.birincil, tanim.bar, hipotez="H1",
+                                birincil_ufuk=tanim.birincil, **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas),
+                                sinyal_degerleri=sinyal("H1"), **s, **esikler(tanim.bar))
 
 
 # --- Saldiri 1: oran = inf iceren bir funding kaydi sonsuz funding_toplami uretebilir -------------------
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU: data/pozisyon.py olay_karari yalnizca "
-                    "math.isnan(toplam) denetler; math.isnan(float('inf')) False oldugu icin oran=inf "
-                    "iceren bir funding kaydi, tamlik denetimini (yalnizca zaman/aralik okur) gecip "
-                    "funding_toplami=inf olan bir OnaylanmisPozisyon uretir.")
+# SALDIRI BULGUSU (kapi sertlestirme turu, xfail idi): olay_karari funding toplamini yalnizca math.isnan
+# ile denetliyordu; +-inf oranli bir kayit sonsuz toplamla onaylanabilirdi. Kapi sertlestirme turu 2'de
+# kapandi (`pozisyon._sonlu`: sonlu olmayan toplam acik ValueError). Ana oturum duzeltmesi: xfail'in
+# asil govdesi inf'i tam giris anindaki kayda (pencere_ici[0], 08:00) koyuyordu; on-kayit §4 giris
+# anindaki odemeyi pozisyon disinda tutar, bu yuzden toplam sonluydu ve test yanlis nedenle xfail
+# oluyordu. Kayit giris anindan KESIN SONRAKI kayda (pencere_ici[1]) alindi; beklenti ValueError.
 def test_sonsuz_orani_olan_funding_kaydi_pozisyonu_sonsuz_toplamla_onaylatamaz():
     """`olay_karari`, `_plan_fundingi`nin dondurdugu toplami yalnizca `math.isnan` ile denetler
     (data/pozisyon.py, `if math.isnan(toplam): raise FundingTamDegil`). `math.isnan(float('inf'))`
@@ -64,13 +66,11 @@ def test_sonsuz_orani_olan_funding_kaydi_pozisyonu_sonsuz_toplamla_onaylatamaz()
     pencere_ici = fr.index[(fr["odeme_zamani"] > T_SINYAL_H1)
                            & (fr["odeme_zamani"] <= T_SINYAL_H1 + pd.Timedelta(days=3))]
     assert len(pencere_ici) > 0, "test kurulumu: pozisyon penceresinde funding kaydi bekleniyordu"
-    fr.loc[pencere_ici[0], "oran"] = float("inf")
+    assert fr.loc[pencere_ici[1], "odeme_zamani"] > T_SINYAL_H1 + pd.Timedelta(hours=4)  # giristen sonra
+    fr.loc[pencere_ici[1], "oran"] = float("inf")
 
-    with pytest.raises(pozisyon.FundingTamDegil):
-        p = _karar_h1(fr=fr)
-        # Saldiri gercekten basarili oldugunda olusan pozisyonun toplami sonsuzdur; bu satir
-        # yalnizca `raises` bloguna girilmezse (yani onay verilirse) calisir ve bulguyu somutlar.
-        assert not math.isfinite(p.funding_toplami)
+    with pytest.raises(ValueError, match="sonlu degil"):
+        _karar_h1(fr=fr)
 
 
 # --- Saldiri 2: gercek A/B grubu semboller yanlis kumede reddedilmeli (savusturuldu) ---------------------
@@ -94,11 +94,10 @@ def test_gercek_a_grubu_sembol_c1_kumesinde_reddedilir():
     sembol, donem_no = _gercek_sembol_donem("A")
     tanim = pencere.hipotez_ufuklari("H1")
     with pytest.raises(ValueError, match="kumesine ait degil"):
-        pozisyon.olay_karari(
-            pd.DataFrame(), pd.DataFrame(), T("2025-01-01"), tanim.birincil, tanim.bar, hipotez="H1",
+        pozisyon.olay_karari(  # kapi sertlestirme turu 2: cerceve parametreleri kalkti
+            T("2025-01-01"), tanim.birincil, tanim.bar, hipotez="H1",
             birincil_ufuk=tanim.birincil, kume="C1", sembol=sembol, donem_no=donem_no,
-            sinyal_degerleri=sinyal("H1"), gunluk_mumlar=pd.DataFrame(), asgari_hacim=1.0,
-            asgari_listeleme_yasi_gun=1)
+            sinyal_degerleri=sinyal("H1"), asgari_hacim=1.0, asgari_listeleme_yasi_gun=1)
 
 
 def test_gercek_b_grubu_sembol_kesifte_reddedilir_uctan_uca():
@@ -108,11 +107,10 @@ def test_gercek_b_grubu_sembol_kesifte_reddedilir_uctan_uca():
     sembol, donem_no = _gercek_sembol_donem("B")
     tanim = pencere.hipotez_ufuklari("H1")
     with pytest.raises(ValueError, match="kumesine ait degil"):
-        pozisyon.olay_karari(
-            pd.DataFrame(), pd.DataFrame(), T("2025-01-01"), tanim.birincil, tanim.bar, hipotez="H1",
+        pozisyon.olay_karari(  # kapi sertlestirme turu 2: cerceve parametreleri kalkti
+            T("2025-01-01"), tanim.birincil, tanim.bar, hipotez="H1",
             birincil_ufuk=tanim.birincil, kume="KESIF", sembol=sembol, donem_no=donem_no,
-            sinyal_degerleri=sinyal("H1"), gunluk_mumlar=pd.DataFrame(), asgari_hacim=1.0,
-            asgari_listeleme_yasi_gun=1)
+            sinyal_degerleri=sinyal("H1"), asgari_hacim=1.0, asgari_listeleme_yasi_gun=1)
 
 
 # --- Saldiri 3: yeniden adlandirma zincirinin iki ucu farkli gruba dusurulemez (veri butunlugu) ----------
@@ -153,7 +151,7 @@ def test_kayitlar_onbellegi_disaridan_degistirilemez():
 # --- Saldiri 5: gercek funding'siz donem, uyumlu bir funding cercevesiyle bile atlatilamaz ---------------
 
 
-def test_gercek_fundingsiz_donem_uygun_funding_cercevesiyle_bile_atlatilamaz():
+def test_gercek_fundingsiz_donem_uygun_funding_cercevesiyle_bile_atlatilamaz(tmp_path, monkeypatch):
     """On-kayit §2 'Funding'i bulunmayan donemler': tablodaki bayrak, cagiranin verdigi funding
     cercevesinden BAGIMSIZ uygulanir. Gercek bir funding'siz donem icin, karar noktasina TAM
     (tamlik kosullarini gecen) bir funding cercevesi verilse bile olay olusmamali (savusturuldu;
@@ -187,11 +185,22 @@ def test_gercek_fundingsiz_donem_uygun_funding_cercevesiyle_bile_atlatilamaz():
                        "oran": 0.0, "oran_8h": 0.0})
     tanim = pencere.hipotez_ufuklari("H1")
 
-    with pytest.raises(pozisyon.FundingTamDegil, match="evren tablosunda funding kaydi yok"):
+    # Kapi sertlestirme turu 2: kapi veriyi kendisi yukler; gercek sembol icin tam bir funding cercevesi
+    # yukleyici kaydina (sentetik yol, gercek sembol adi) konur; cerceve kapiya verilemez.
+    from kapi_yardimcisi import SENTETIK_VERI, _hazirla
+
+    monkeypatch.setitem(SENTETIK_VERI, sembol, (_hazirla(mumlar, uygun_bas=bas, hacim=5e7, eksik_gunler=()), fr))
+    kayit = tmp_path / "onay_gecici.md"
+    kayit.write_text("bas\n", encoding="utf-8")
+    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
+    import contextlib
+
+    kosu = split.onay_kosusu("H1", kume) if kume in config.ONAY_KUMELERI else contextlib.nullcontext()
+    with kosu, pytest.raises(pozisyon.FundingTamDegil, match="evren tablosunda funding kaydi yok"):
         pozisyon.olay_karari(
-            mumlar, fr, t_sinyal, tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
+            t_sinyal, tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
             kume=kume, sembol=sembol, donem_no=donem_no, sinyal_degerleri=sinyal("H1"),
-            **uygunluk(tanim.bar, bas, bit))
+            **esikler(tanim.bar))
 
 
 # --- Saldiri 6: donem/kume sinirini asan fazladan barlar cikis fiyatina sizamaz -------------------------
@@ -205,7 +214,6 @@ def test_donem_sonrasi_asiri_fiyatli_barlar_cikis_fiyatina_sizamaz():
     cercevesinin ICERIGININ dogrulugu degil, sinir disina TASMASI sinanir)."""
     donem_bas, donem_son = T("2025-01-01"), T("2025-02-05 20:00")
     t_sinyal = T("2025-02-05 04:00")  # donem basindan 35 gun sonra (listeleme yasi >= 30 gun)
-    kayit = donem(donem_bas, donem_son, grup="A")
 
     zaman = pd.date_range(donem_bas, donem_bas + pd.Timedelta(days=400), freq="4h")
     mumlar = pd.DataFrame({"open_time": zaman, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0})
@@ -218,9 +226,9 @@ def test_donem_sonrasi_asiri_fiyatli_barlar_cikis_fiyatina_sizamaz():
     tanim = pencere.hipotez_ufuklari("H1")
 
     p = pozisyon.olay_karari(
-        mumlar, fr, t_sinyal, tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
-        kume="KESIF", **kayit, sinyal_degerleri=sinyal("H1"),
-        **uygunluk(tanim.bar, donem_bas, donem_son))
+        t_sinyal, tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
+        kume="KESIF", **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas),
+        sinyal_degerleri=sinyal("H1"), **esikler(tanim.bar))
 
     assert p.plan.donem_sonu_mu, "test kurulumu: ufuk (18 bar) donem sonunu asmali (kirpma bekleniyordu)"
     assert p.plan.cikis.zaman == donem_son
@@ -253,5 +261,9 @@ def test_pozisyon_fundingi_nan_toplami_sessizce_kabul_etmez():
     # silmek zinciri kirmaz. Giris anindan KESIN SONRAKI bir kayit silinir (pencere_ici[1]); iddia ayni.
     assert TAM_FUND.loc[pencere_ici[1], "odeme_zamani"] > p.plan.giris
     bozuk = TAM_FUND.drop(pencere_ici[1]).reset_index(drop=True)
+    # Kapi sertlestirme turu 2: funding cercevesi verilemez; bozuk seri yukleyici kaydina konur.
+    from kapi_yardimcisi import SENTETIK_VERI
+
+    SENTETIK_VERI[p.sembol] = (SENTETIK_VERI[p.sembol][0], bozuk)
     with pytest.raises(ValueError, match="ayni degil"):
-        funding.pozisyon_fundingi(bozuk, p)
+        funding.pozisyon_fundingi(p)

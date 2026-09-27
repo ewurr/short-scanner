@@ -13,9 +13,9 @@ import pandas as pd
 import pytest
 
 from data import pencere, pozisyon, split, universe
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import veri
 from sinyal_yardimcisi import sinyal
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -29,8 +29,13 @@ T_SINYAL = T("2025-03-10 04:00")
 
 
 def _karar(kume="KESIF", **kayit):
-    return pozisyon.olay_karari(MUM, FUND, T_SINYAL, 18, "4h", hipotez="H1", birincil_ufuk=18, kume=kume,
-                                sinyal_degerleri=sinyal("H1"), **kayit, **uygunluk("4h", DB, B))
+    return pozisyon.olay_karari(T_SINYAL, 18, "4h", hipotez="H1", birincil_ufuk=18, kume=kume,
+                                sinyal_degerleri=sinyal("H1"), **kayit, **esikler("4h"))
+
+
+def _veri(**ek):
+    """Kapi sertlestirme turu 2: kapi veriyi kendisi yukler; sentetik donem ve veri birlikte kaydedilir."""
+    return veri(MUM, FUND, DB, B, uygun_bas=DB, **ek)
 
 
 def _evren():
@@ -38,7 +43,7 @@ def _evren():
 
 
 def test_sinirlar_tablodan_gelir():
-    p = _karar(**donem(DB, B))
+    p = _karar(**_veri())
     assert (p.plan.donem_baslangic, p.plan.donem_bitis) == (DB, B)
 
 
@@ -78,7 +83,7 @@ def test_serbest_donem_siniri_verilemez(serbest):
     with pytest.raises(TypeError):
         _karar(**serbest)
     with pytest.raises(TypeError):
-        _karar(**donem(DB, B), **serbest)
+        _karar(**_veri(), **serbest)
 
 
 @pytest.mark.parametrize("kayit", [{"sembol": None, "donem_no": 0}, {"sembol": b"BTCUSDT", "donem_no": 0},
@@ -89,15 +94,25 @@ def test_sembol_ve_donem_no_turu(kayit):
         _karar(**kayit)
 
 
-def test_grup_kumeye_ait_olmali():
-    a = donem(DB, B, grup="A")
-    b = donem(DB, B, grup="B")
+def test_grup_kumeye_ait_olmali(tmp_path, monkeypatch):
+    a = _veri(grup="A")
+    b = _veri(grup="B")
     pozisyon.onay_dogrula(_karar(**a))
     with pytest.raises(ValueError, match="kumesine ait degil"):
         _karar(**b)  # KESIF yalnizca A
     with pytest.raises(ValueError, match="kumesine ait degil"):
         _karar(kume="C1", **a)  # C1 yalnizca B
-    pozisyon.onay_dogrula(_karar(kume="C1", **b))
+    # Kapi sertlestirme turu 2: kapi C1 verisini kume korumali yoldan yukler; onay kosusu olmadan
+    # OnayGerekli (onceki beklenti: onaysiz onay; denetci KS D-B4). Kosu icinde onaylanir.
+    with pytest.raises(split.OnayGerekli):
+        _karar(kume="C1", **b)
+    import config
+
+    kayit = tmp_path / "onay_gecici.md"
+    kayit.write_text("bas\n", encoding="utf-8")
+    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
+    with split.onay_kosusu("H1", "C1"):
+        pozisyon.onay_dogrula(_karar(kume="C1", **b))
 
 
 def test_gercek_b_grubu_sembol_kesifte_reddedilir():
@@ -112,7 +127,7 @@ def test_gercek_b_grubu_sembol_kesifte_reddedilir():
 def test_fundingsiz_donem_olay_uretmez():
     """Funding cercevesi tam olsa bile tablodaki funding'siz donem bayragi olayi dusurur (on-kayit §2)."""
     with pytest.raises(pozisyon.FundingTamDegil) as hata:
-        _karar(**donem(DB, B, funding_yok=True))
+        _karar(**_veri(funding_yok=True))
     assert pencere.ret_gerekcesi(hata.value) == "funding_tam_degil"
 
 

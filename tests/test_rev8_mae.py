@@ -13,9 +13,9 @@ import config
 from data import klines, pozisyon
 from data.donem import Donem
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
+from uygunluk_yardimcisi import esikler, UYGUN_ONCELIK, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -25,8 +25,10 @@ BAS, B = T("2025-01-01 00:00"), T("2025-02-10 20:00")
 def _mum(z, high=None):
     z = pd.DatetimeIndex(z)
     n = len(z)
+    # Kapi sertlestirme turu 2: 1d uygunluk hacmi artik bu 4h serisinden turetilir; `quote_volume`
+    # verilmez, `kapi_yardimcisi.veri` eski ayri uygunluk serisinin hacmini (5e7/gun) yazar.
     return pd.DataFrame({"open_time": z, "open": 100.0, "high": 101.0 if high is None else high,
-                         "low": 99.0, "close": 100.0, "volume": 1.0, "close_time": z, "quote_volume": 1.0,
+                         "low": 99.0, "close": 100.0, "volume": 1.0, "close_time": z,
                          "count": 1, "taker_buy_volume": 0.0, "taker_buy_quote_volume": 0.0})
 
 
@@ -37,10 +39,10 @@ def _fund():
 
 def _karar(mum, t, ufuk=18, bar=config.BAR_4H, b=B):
     # Rev.9 §4: uygunluk karar noktasinda; donem mum serisinden UYGUN_ONCELIK once baslar.
-    return pozisyon.olay_karari(mum, _fund(), t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
-                                kume=kume_adi(t), **donem(BAS - UYGUN_ONCELIK, b),
+    return pozisyon.olay_karari(t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
+                                kume=kume_adi(t), **veri(mum, _fund(), BAS - UYGUN_ONCELIK, b, uygun_bas=BAS - UYGUN_ONCELIK),
                                 sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
-                                **uygunluk(bar, BAS - UYGUN_ONCELIK, b))
+                                **esikler(bar))
 
 
 def test_pencere_giris_barindan_cikis_barina():
@@ -52,7 +54,7 @@ def test_pencere_giris_barindan_cikis_barina():
     m.loc[m["open_time"] == T("2025-01-06 08:00"), "high"] = 400.0  # kapanisi cikistan sonra
     m.loc[m["open_time"] == T("2025-01-06 04:00"), "high"] = 130.0  # son pencere bari
     p = _karar(m, T("2025-01-05 04:00"), ufuk=6)
-    assert pozisyon.mae(m, p) == pytest.approx(130.0 / 100.0 - 1)
+    assert pozisyon.mae(p) == pytest.approx(130.0 / 100.0 - 1)
 
 
 def test_p1_tepeden_buyukse_p1_kullanilir():
@@ -63,7 +65,7 @@ def test_p1_tepeden_buyukse_p1_kullanilir():
     m.loc[m["open_time"] == T("2025-01-09 08:00"), "open"] = 150.0  # bosluk sonrasi acilis (P1)
     p = _karar(m, T("2025-01-05 04:00"))  # T = 2025-01-08 08:00; hedef bar 04:00 eksik
     assert p.cikis_turu == "ileri_kayma" and p.p1 == 150.0
-    assert pozisyon.mae(m, p) == pytest.approx(0.5)
+    assert pozisyon.mae(p) == pytest.approx(0.5)
 
 
 def test_donem_sonunda_b_deki_bar_dahil_sonrasi_degil():
@@ -74,14 +76,14 @@ def test_donem_sonunda_b_deki_bar_dahil_sonrasi_degil():
     m.loc[m["open_time"] == b + H4, "high"] = 999.0  # donem disi (dolgu) bar
     p = _karar(m, T("2025-01-18 08:00"), b=b)
     assert p.cikis_turu == "donem_sonu"
-    assert pozisyon.mae(m, p) == pytest.approx(0.2)
+    assert pozisyon.mae(p) == pytest.approx(0.2)
 
 
 def test_eksik_bar_mae_yi_hesaplanamaz_yapmaz():
     z = pd.date_range(BAS, B, freq="4h")
     m = _mum(z.drop([T("2025-01-06 00:00"), T("2025-01-06 04:00")]))
     p = _karar(m, T("2025-01-05 04:00"))
-    assert np.isfinite(pozisyon.mae(m, p))
+    assert np.isfinite(pozisyon.mae(p))
 
 
 def test_tam_gunlerde_1d_tanimiyla_ayni():
@@ -89,12 +91,13 @@ def test_tam_gunlerde_1d_tanimiyla_ayni():
     z = pd.date_range(BAS, B, freq="4h")
     rng = np.random.default_rng(config.TOHUM)
     m = _mum(z, high=100.0 + rng.random(len(z)) * 20)
-    gunluk = klines.gunluge_cevir(m, donemler=[Donem(BAS, B, len(z), len(z))]).set_index("open_time")
+    gunluk = klines.gunluge_cevir(m.assign(quote_volume=1.0),  # hacim beklenen degere girmez
+                                  donemler=[Donem(BAS, B, len(z), len(z))]).set_index("open_time")
     t, h = T("2025-01-10"), 14
     p = _karar(m, t, ufuk=h, bar=config.BAR_1D)
     gunler = pd.date_range(t + pd.Timedelta(days=1), t + h * pd.Timedelta(days=1), freq="1D")
     beklenen = max(gunluk.loc[gunler, "high"].max(), gunluk.loc[gunler[-1], "close"]) / gunluk.loc[gunler[0], "open"] - 1
-    assert pozisyon.mae(m, p) == pytest.approx(beklenen)
+    assert pozisyon.mae(p) == pytest.approx(beklenen)
 
 
 def test_yalnizca_onayli_pozisyon():
@@ -102,4 +105,4 @@ def test_yalnizca_onayli_pozisyon():
     m = _mum(z)
     p = _karar(m, T("2025-01-05 04:00"))
     with pytest.raises(TypeError):
-        pozisyon.mae(m, p.plan)
+        pozisyon.mae(p.plan)

@@ -15,9 +15,9 @@ import pytest
 import config
 from data import pozisyon
 from sinyal_yardimcisi import sinyal as _tam_sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -54,9 +54,9 @@ FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B, freq="8h"), "aralik_sa
 
 
 def _karar(sinyal):
-    return pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
-                                kume=kume_adi(T('2025-03-05 04:00')), **donem(DB, B),
-                                sinyal_degerleri=sinyal, **uygunluk(config.BAR_4H, DB, B))
+    return pozisyon.olay_karari(T("2025-03-05 04:00"), 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
+                                kume=kume_adi(T('2025-03-05 04:00')), **veri(MUM, FUND, DB, B, uygun_bas=DB),
+                                sinyal_degerleri=sinyal, **esikler(config.BAR_4H))
 
 
 @pytest.mark.parametrize("deger", [True, False, np.bool_(True), np.bool_(False)])

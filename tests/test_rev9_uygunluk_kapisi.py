@@ -20,9 +20,9 @@ import config
 from data import eligibility, pencere, pozisyon
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, KOK, UYGUNLUK_ADLARI, ihlaller
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import veri
 from kume_yardimcisi import kume_adi, kume_sinirlari
-from uygunluk_yardimcisi import esikler, gunluk
+from uygunluk_yardimcisi import esikler
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -37,13 +37,15 @@ FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B, freq="8h"), "aralik_sa
 T_SINYAL = T("2025-03-05 04:00")
 
 
-def _karar(t=T_SINYAL, bar=config.BAR_4H, gun=None, db=DB, **ek):
+def _karar(t=T_SINYAL, bar=config.BAR_4H, db=DB, mum=MUM, hacim=5e7, eksik_gunler=(), **ek):
+    """Kapi sertlestirme turu 2: kapi 1d serisini 4h barlardan kendisi turetir; eski `gun` (1d cercevesi)
+    girdisinin karsiligi 4h serisinin hacmi (`hacim`) ve eksik gunleridir (`eksik_gunler`)."""
     esik = {**esikler(bar), **{k: ek.pop(k) for k in list(ek) if k.startswith("asgari_")}}
     return pozisyon.olay_karari(
-        MUM, FUND, t, 6 if bar == config.BAR_4H else 7, bar,  # Rev.10: on-kayit ufku (1d'de onceki 3)
+        t, 6 if bar == config.BAR_4H else 7, bar,  # Rev.10: on-kayit ufku (1d'de onceki 3)
         hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
-        kume=kume_adi(t), **donem(db, B), sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
-        gunluk_mumlar=gunluk(db, B) if gun is None else gun, **esik, **ek)
+        kume=kume_adi(t), **veri(mum, FUND, db, B, uygun_bas=db, hacim=hacim, eksik_gunler=eksik_gunler),
+        sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"), **esik, **ek)
 
 
 # --- Uygunluk karar noktasinin icinde ------------------------------------------------------
@@ -55,7 +57,8 @@ def test_uygun_bar_onaylanir():
 
 def test_uygunluk_girdisi_olmadan_onayli_pozisyon_uretilemez():
     with pytest.raises(TypeError):
-        pozisyon.olay_karari(MUM, FUND, T_SINYAL, 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume=kume_adi(T_SINYAL), **donem(DB, B), sinyal_degerleri=sinyal("H1"))
+        pozisyon.olay_karari(T_SINYAL, 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume=kume_adi(T_SINYAL),
+                             **veri(MUM, FUND, DB, B, uygun_bas=DB), sinyal_degerleri=sinyal("H1"))
     with pytest.raises(ValueError):  # elle kurulan onay reddedilir (karar noktasi atlanamaz)
         pozisyon.pozisyon_fiyatlari(pozisyon.OnaylanmisPozisyon(_karar().plan, 1.0, 1.0, 0.0))
 
@@ -65,17 +68,15 @@ def test_esigi_gecmeyen_bar_olay_uretmez(bar, esik):
     """Medyan hacim esigin hemen altinda: deger hesaplanabiliyor ama esik gecilmiyor."""
     t = T("2025-03-05 00:00")
     with pytest.raises(pozisyon.UygunDegil) as hata:
-        _karar(t=t, bar=bar, gun=gunluk(DB, B, hacim=esik - 1.0))
+        _karar(t=t, bar=bar, hacim=esik - 1.0)
     assert pencere.ret_gerekcesi(hata.value) == "uygun_degil"
-    assert _karar(t=t, bar=bar, gun=gunluk(DB, B, hacim=esik)).plan.sinyal_zamani == t  # esik dahil (>=)
+    assert _karar(t=t, bar=bar, hacim=esik).plan.sinyal_zamani == t  # esik dahil (>=)
 
 
 def test_hacim_penceresi_hesaplanamazsa_olay_uretmez():
     """Uygunluk penceresinde bir gun eksik: deger NaN -> uygun degil."""
-    gun = gunluk(DB, B)
-    gun = gun.loc[gun["open_time"] != T("2025-02-20")].reset_index(drop=True)
     with pytest.raises(pozisyon.UygunDegil):
-        _karar(gun=gun)
+        _karar(eksik_gunler=[T("2025-02-20")])
 
 
 @pytest.mark.parametrize("yas_gun,uygun", [(30, True), (29.9, False)])
@@ -92,9 +93,10 @@ def test_listeleme_yasi_esigi(yas_gun, uygun):
 
 def test_uygunluk_t_gunu_haric_gecmis_hacme_bakar():
     """t gununun (ve sonrasinin) hacmi kararini degistirmez; gelecege bakis yok."""
-    gun = gunluk(DB, B)
-    gun.loc[gun["open_time"] >= T_SINYAL.floor("D"), "quote_volume"] = 0.0
-    assert _karar(gun=gun).plan.sinyal_zamani == T_SINYAL
+    zaman = pd.DatetimeIndex(MUM["open_time"])
+    hacim = np.where(zaman.hour == 0, 5e7, 0.0)
+    hacim[np.asarray(zaman >= T_SINYAL.floor("D"))] = 0.0
+    assert _karar(mum=MUM.assign(quote_volume=hacim)).plan.sinyal_zamani == T_SINYAL
 
 
 @pytest.mark.parametrize("ad,deger", [("asgari_hacim", config.ASGARI_HACIM_1D), ("asgari_hacim", 9_999_999.0),
@@ -105,8 +107,10 @@ def test_on_kayit_disi_esik_reddedilir(ad, deger):
 
 
 def test_gunluk_yerine_4h_cerceve_hata_verir():
-    with pytest.raises(ValueError):
-        _karar(gun=MUM.assign(quote_volume=5e7))
+    # Kapi sertlestirme turu 2: 1d serisi kapida 4h barlardan turetilir; cagiran 1d (ya da yerine 4h)
+    # cercevesi veremez: TypeError (onceki beklenti: verilen 4h cercevesi icin ValueError).
+    with pytest.raises(TypeError):
+        _karar(gunluk_mumlar=MUM.assign(quote_volume=5e7))
 
 
 # --- Olaylar ve kontroller ayni kapidan ------------------------------------------------------
@@ -133,10 +137,10 @@ def test_karar_noktasi_uygunlugu_tek_uygulamadan_cagirir(monkeypatch):
 def test_kontrol_bari_ayni_kapidan_gecer():
     """K2 kontrolu: ayni t'de baska bir coin. Ayri bir kontrol yolu yoktur; kontrol barinin
     uygunlugu da `olay_karari` icinde ayni esikle denetlenir."""
-    uygun_kontrol = _karar(gun=gunluk(DB, B, hacim=2e7))
+    uygun_kontrol = _karar(hacim=2e7)
     assert uygun_kontrol.plan.sinyal_zamani == T_SINYAL
     with pytest.raises(pozisyon.UygunDegil):
-        _karar(gun=gunluk(DB, B, hacim=1e6))
+        _karar(hacim=1e6)
     # Karar noktasi olay/kontrol ayrimi yapan bir parametre almaz.
     parametreler = set(inspect.signature(pozisyon.olay_karari).parameters)
     assert not {p for p in parametreler if "kontrol" in p or "tur" == p}

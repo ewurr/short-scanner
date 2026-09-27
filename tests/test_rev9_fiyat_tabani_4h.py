@@ -9,6 +9,7 @@ gercek kapidan (kume, 1d tek yolu `gunluge_cevir`) gecer.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -16,9 +17,9 @@ import config
 from data import klines, pozisyon, split
 from data.donem import Donem
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -55,9 +56,9 @@ def _fund():
 
 def _karar(mumlar, bar=config.BAR_1D, t=T("2024-03-10")):
     return pozisyon.olay_karari(
-        mumlar, _fund(), t, 14 if bar == config.BAR_1D else 18, bar,
+        t, 14 if bar == config.BAR_1D else 18, bar,
         hipotez="H3" if bar == config.BAR_1D else "H1", birincil_ufuk=14 if bar == config.BAR_1D else 18, kume=kume_adi(t),
-        **donem(BAS, B), sinyal_degerleri=sinyal("H3" if bar == config.BAR_1D else "H1"), **uygunluk(bar, BAS, B))
+        **veri(mumlar, _fund(), BAS, B, uygun_bas=BAS), sinyal_degerleri=sinyal("H3" if bar == config.BAR_1D else "H1"), **esikler(bar))
 
 
 def test_mumlari_yukle_1d_ciktisi_karar_noktasinda_hata_verir(sembol):
@@ -83,8 +84,11 @@ def test_close_time_olmadan_1d_cercevesi_de_reddedilir(sembol):
 def test_mae_de_1d_cercevesini_reddeder(sembol):
     dort = klines.mumlari_yukle(sembol, config.BAR_4H, "KESIF")
     p = _karar(dort)
-    with pytest.raises(ValueError, match="4h"):
+    # Kapi sertlestirme turu 2: `mae` 4h serisini onayli pozisyonun kimligiyle kendisi yukler; cagiran
+    # (1d ya da baska) cerceve veremez: TypeError (onceki beklenti: verilen 1d cercevesi icin ValueError).
+    with pytest.raises(TypeError):
         pozisyon.mae(klines.mumlari_yukle(sembol, config.BAR_1D, "KESIF"), p)
+    assert np.isfinite(pozisyon.mae(p))
 
 
 def test_izgara_disi_acilis_reddedilir():

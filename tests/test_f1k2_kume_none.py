@@ -15,10 +15,10 @@ import pytest
 
 import config
 from data import pencere, pozisyon, split
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import C2, KESIF, kume_adi, kume_sinirlari
 from sinyal_yardimcisi import sinyal
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -33,10 +33,10 @@ SINYAL_T = {"H1": T("2025-03-10 04:00"), "H2": T("2025-03-10 04:00"), "H3": T("2
 
 def _karar(hipotez, degerler=None, **kume):
     tanim = pencere.hipotez_ufuklari(hipotez)
-    return pozisyon.olay_karari(MUM, FUND, SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
-                                birincil_ufuk=tanim.birincil, **donem(DB, B),
+    return pozisyon.olay_karari(SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
+                                birincil_ufuk=tanim.birincil, **veri(MUM, FUND, DB, B, uygun_bas=DB),
                                 sinyal_degerleri=sinyal(hipotez) if degerler is None else degerler, **kume,
-                                **uygunluk(tanim.bar, DB, B))
+                                **esikler(tanim.bar))
 
 
 @pytest.mark.parametrize("hipotez", ["H1", "H2", "H3"])
@@ -82,10 +82,19 @@ def test_none_reddi_diger_denetimlerden_once():
             _karar("H1", degerler=sinyal("H1", pump_dip=float("nan")), kume=kume)
 
 
-def test_sinyal_kumede_degilse_olay_olusmaz():
-    """KESIF'teki bir sinyal C2 adiyla verilirse kapi C2 sinirlarini okur ve reddeder."""
-    with pytest.raises(pencere.OlayOlusmaz):
+def test_sinyal_kumede_degilse_olay_olusmaz(tmp_path, monkeypatch):
+    """KESIF'teki bir sinyal C2 adiyla verilirse kapi C2 sinirlarini okur ve reddeder.
+
+    Kapi sertlestirme turu 2: kapi C2 verisini kume korumali yoldan yukler; onay kosusu olmadan
+    `OnayGerekli` (onceki beklenti dogrudan OlayOlusmaz idi). Kosu icinde kume siniri reddeder."""
+    with pytest.raises(split.OnayGerekli):
         _karar("H2", kume="C2")
+    kayit = tmp_path / "onay_gecici.md"
+    kayit.write_text("bas\n", encoding="utf-8")
+    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
+    with split.onay_kosusu("H2", "C2"):
+        with pytest.raises(pencere.OlayOlusmaz):
+            _karar("H2", kume="C2")
 
 
 def test_yardimci_gercek_kumeleri_verir():

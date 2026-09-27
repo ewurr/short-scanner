@@ -16,9 +16,9 @@ import config
 from data import eligibility, pencere, pozisyon
 from tarama_yardimcisi import DONEM_NONE_DESENI, ihlaller
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 BAS, B = T("2025-01-01 00:00"), T("2025-04-10 20:00")
@@ -33,14 +33,16 @@ def test_karar_noktasi_donem_sinirini_none_ile_kabul_etmez(sinir):
     # Kapi sertlestirme turu: kapi donem sinirini hic almaz (evren tablosundan sembol ve donem numarasiyla
     # okur). Serbest donem siniri (None ya da deger) verilemez; sembol / donem numarasi None olamaz.
     sinirlar = {"donem_baslangic": BAS, "donem_bitis": B, sinir: None}
+    # Kapi sertlestirme turu 2: cerceve parametreleri kalkti; veri `kapi_yardimcisi.veri` kaydindan.
     ortak = dict(hipotez="H1", birincil_ufuk=18, kume=kume_adi(T('2025-03-05 04:00')), sinyal_degerleri=sinyal("H1"),
-                 **uygunluk(config.BAR_4H, BAS, B))
-    with pytest.raises(TypeError):
-        pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, **ortak, **sinirlar)
-    kayit = donem(BAS, B)
+                 **esikler(config.BAR_4H))
+    kayit = veri(MUM, FUND, BAS, B, uygun_bas=BAS)
+    pozisyon.onay_dogrula(pozisyon.olay_karari(T("2025-03-05 04:00"), 6, config.BAR_4H, **ortak, **kayit))
+    with pytest.raises(TypeError, match="unexpected keyword"):
+        pozisyon.olay_karari(T("2025-03-05 04:00"), 6, config.BAR_4H, **ortak, **kayit, **sinirlar)
     for ad in ("sembol", "donem_no"):
-        with pytest.raises(TypeError):
-            pozisyon.olay_karari(MUM, FUND, T("2025-03-05 04:00"), 6, config.BAR_4H, **ortak, **{**kayit, ad: None})
+        with pytest.raises(TypeError, match=ad):
+            pozisyon.olay_karari(T("2025-03-05 04:00"), 6, config.BAR_4H, **ortak, **{**kayit, ad: None})
     with pytest.raises(TypeError):
         pencere.pozisyon_plani(Z, T("2025-03-05 04:00"), 6, config.BAR_4H, birincil_ufuk=18,
                                kume_baslangic=None, kume_bitis=None, **sinirlar)

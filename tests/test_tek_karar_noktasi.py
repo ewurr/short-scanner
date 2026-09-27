@@ -15,9 +15,9 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import veri
 from sinyal_yardimcisi import sinyal as _tam_sinyal
-from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk
+from uygunluk_yardimcisi import UYGUN_ONCELIK, esikler
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -27,9 +27,9 @@ MUM = pd.DataFrame({"open_time": Z, "open": np.arange(len(Z)) + 0.25, "high": np
                     "low": np.arange(len(Z)) + 0.0, "close": np.arange(len(Z)) + 0.5})
 # Rev.9 §4: uygunluk tek karar noktasinin parcasi. Donem, mum serisinden UYGUN_ONCELIK once baslar
 # (listeleme yasi >= 30 gun) ve uygunluk hacmi o gunden itibaren esigin ustundedir.
-# Kapi sertlestirme turu: donem sinirlari evren kaydindan okunur; sentetik donem `kapi_yardimcisi.donem`.
+# Kapi sertlestirme turu: donem sinirlari evren kaydindan okunur; turu 2: kapi veriyi kendisi yukler,
+# sentetik veri ve donem `kapi_yardimcisi.veri` ile kaydedilir.
 DONEM_BAS = BAS - UYGUN_ONCELIK
-SINIR = dict(kume="KESIF", **donem(DONEM_BAS, B))
 # F1 kapanis turu (denetci D-B1): kapi hipotezin butun sinyal degerlerini ister; varsayilan tam kume.
 SINYAL = None
 
@@ -39,12 +39,13 @@ def _fund(bas=BAS, son=B + H4, aralik=8):
     return pd.DataFrame({"odeme_zamani": z, "aralik_saat": float(aralik), "oran": 1e-4, "oran_8h": 1e-4})
 
 
-def _karar(t, ufuk=18, bar=config.BAR_4H, fr=None, mum=MUM, sinyal=SINYAL, **sinir):
+def _karar(t, ufuk=18, bar=config.BAR_4H, fr=None, mum=MUM, sinyal=SINYAL, donem_bas=DONEM_BAS, donem_bitis=B):
     if sinyal is None:
         sinyal = _tam_sinyal("H1" if bar == config.BAR_4H else "H3")
-    return pozisyon.olay_karari(mum, _fund() if fr is None else fr, t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18,
-                                **{**SINIR, **sinir}, sinyal_degerleri=sinyal,
-                                **uygunluk(bar, BAS - UYGUN_ONCELIK, B))
+    return pozisyon.olay_karari(t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18,
+                                kume="KESIF", **veri(mum, _fund() if fr is None else fr, donem_bas, donem_bitis,
+                                                     uygun_bas=DONEM_BAS),
+                                sinyal_degerleri=sinyal, **esikler(bar))
 
 
 def test_onayli_pozisyon_plan_fiyat_ve_funding_tasir():
@@ -53,7 +54,7 @@ def test_onayli_pozisyon_plan_fiyat_ve_funding_tasir():
     i0 = int(np.flatnonzero(Z == p.plan.giris)[0])
     i1 = int(np.flatnonzero(Z == p.plan.cikis.zaman)[0])
     assert pozisyon.pozisyon_fiyatlari(p) == (MUM["open"][i0], MUM["close"][i1])
-    assert p.funding_toplami == funding.pozisyon_fundingi(_fund(), p)
+    assert p.funding_toplami == funding.pozisyon_fundingi(p)
 
 
 def test_funding_tam_olmayan_olay_brut_hesapta_da_olusmaz():
@@ -104,7 +105,7 @@ def test_diger_kurallar_ayni_noktadan_gerekceyle():
     son_mum = pd.DataFrame({"open_time": son, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0})
     with pytest.raises(pencere.KumeSiniriHatasi):
         _karar(T("2025-08-30 04:00"), mum=son_mum, fr=_fund(T("2025-07-01"), T("2025-09-11")),
-               **donem(T("2025-07-01"), T("2025-09-10 20:00")))
+               donem_bas=T("2025-07-01"), donem_bitis=T("2025-09-10 20:00"))
     eksik = MUM.loc[(MUM["open_time"] < T("2025-01-07 12:00")) | (MUM["open_time"] > T("2025-01-12 00:00"))]
     with pytest.raises(pencere.IleriKaymaSiniriHatasi):
         _karar(T("2025-01-05 04:00"), mum=eksik)

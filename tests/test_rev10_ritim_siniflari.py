@@ -21,9 +21,9 @@ import pytest
 import config
 from data import funding, pozisyon
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 DB, B = T("2025-01-01"), T("2025-04-10 20:00")
@@ -42,8 +42,8 @@ def _fund(parcalar):
 
 
 def _karar(fr):
-    return pozisyon.olay_karari(MUM, fr, SINYAL, 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume=kume_adi(SINYAL), **donem(DB, B), sinyal_degerleri=sinyal("H1"),
-                                **uygunluk(config.BAR_4H, DB, B))
+    return pozisyon.olay_karari(SINYAL, 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume=kume_adi(SINYAL), **veri(MUM, fr, DB, B, uygun_bas=DB), sinyal_degerleri=sinyal("H1"),
+                                **esikler(config.BAR_4H))
 
 
 def test_sinif_adlari():

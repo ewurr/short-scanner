@@ -20,10 +20,10 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -43,9 +43,9 @@ def _karar(hipotez, fr, degerler, t=None, **sinir):
     tanim = pencere.hipotez_ufuklari(hipotez)
     s = {"kume": kume_adi(SINYAL_T[hipotez] if t is None else t)}
     s.update(sinir)
-    return pozisyon.olay_karari(MUM, fr, SINYAL_T[hipotez] if t is None else t, tanim.birincil, tanim.bar,
-                                hipotez=hipotez, birincil_ufuk=tanim.birincil, **donem(DB, B),
-                                sinyal_degerleri=degerler, **s, **uygunluk(tanim.bar, DB, B))
+    return pozisyon.olay_karari(SINYAL_T[hipotez] if t is None else t, tanim.birincil, tanim.bar,
+                                hipotez=hipotez, birincil_ufuk=tanim.birincil, **veri(MUM, fr, DB, B, uygun_bas=DB),
+                                sinyal_degerleri=degerler, **s, **esikler(tanim.bar))
 
 
 def test_h2_penceresi_hesaplanamayan_barda_kontrol_olusmaz():
@@ -79,9 +79,9 @@ def test_h2_penceresi_kume_basini_asarsa_olusmaz():
     t = T("2020-01-01 04:00")
     tanim = pencere.hipotez_ufuklari("H2")
     with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        pozisyon.olay_karari(mum, fr, t, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
-                             kume="KESIF", **donem(db, b), sinyal_degerleri=sinyal("H2"),
-                             **uygunluk(tanim.bar, db, b))
+        pozisyon.olay_karari(t, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
+                             kume="KESIF", **veri(mum, fr, db, b, uygun_bas=db), sinyal_degerleri=sinyal("H2"),
+                             **esikler(tanim.bar))
     # Karsi-ornek (ic adim): kume basi pencere basinda olsaydi pencere hesaplanabilirdi.
     a = funding.sinyal_penceresi_ayrintisi(fr, [t], config.BAR_4H, saat=config.H2_FUNDING_PENCERESI_SAAT,
                                            kume_baslangic=t + H(4) - H(24), kume_bitis=None,

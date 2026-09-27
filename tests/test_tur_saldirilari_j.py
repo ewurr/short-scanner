@@ -27,11 +27,11 @@ import pytest
 
 import config
 from data import funding, pencere, pozisyon
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
 from tarama_yardimcisi import KUME_NONE_DESENI
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -48,9 +48,9 @@ def _karar(hipotez, degerler, fr=TAM_FUND, **sinir):
     tanim = pencere.hipotez_ufuklari(hipotez)
     s = {"kume": kume_adi(SINYAL_T[hipotez])}
     s.update(sinir)
-    return pozisyon.olay_karari(MUM, fr, SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
-                                birincil_ufuk=tanim.birincil, **donem(DB, B),
-                                sinyal_degerleri=degerler, **s, **uygunluk(tanim.bar, DB, B))
+    return pozisyon.olay_karari(SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
+                                birincil_ufuk=tanim.birincil, **veri(MUM, fr, DB, B, uygun_bas=DB),
+                                sinyal_degerleri=degerler, **s, **esikler(tanim.bar))
 
 
 # --- Saldiri 1: `__iter__` (ad tamligi) ile `.items()` (deger tamligi) ayrismasi -------------------
@@ -182,10 +182,10 @@ def test_onaylanmis_pozisyon_elle_degistirilince_mae_reddedilir():
     p = _karar("H1", sinyal("H1"))
     sahte_p1 = replace(p, p1=p.p1 * 1.5)
     with pytest.raises(ValueError):
-        pozisyon.mae(MUM, sahte_p1)
+        pozisyon.mae(sahte_p1)
     sahte_funding = replace(p, funding_toplami=p.funding_toplami + 1.0)
     with pytest.raises(ValueError):
-        pozisyon.mae(MUM, sahte_funding)
+        pozisyon.mae(sahte_funding)
     with pytest.raises(ValueError):
         pozisyon.pozisyon_fiyatlari(sahte_p1)
 
@@ -200,9 +200,24 @@ def test_h2_kume_bitis_sinyal_barinin_kapanisindan_once_ise_olay_olusmaz():
     t = SINYAL_T["H2"]
     kume_son = t + H(4) - pd.Timedelta(minutes=1)
     # Kapi sertlestirme turu: kume siniri artik cagirandan alinmaz; serbest `kume_bitis` verilemez
-    # (TypeError). Onceki beklenti OlayOlusmaz idi; gercek kumelerde boyle bir sinir yoktur.
+    # (TypeError). Onceki beklenti OlayOlusmaz idi.
     with pytest.raises(TypeError):
         _karar("H2", sinyal("H2"), kume_bitis=kume_son)
+    # Kapi sertlestirme turu 2 (denetci KS D-C6): ayni iddia kapinin gercek davranisiyla. Sinyal KESIF'in
+    # son bari (2025-08-31 20:00); kapanisi kume sonuyla tolerans icinde ayni an, giris bari (09-01 00:00)
+    # C2'de. Fikstur serisi C2'ye uzansa da kapi veriyi kume sonuna keser: olay ya da kontrol olusmaz.
+    # Gerekce `GirisBariYok`: kesme olmasaydi giris bari bulunur ve ret `KumeSiniriHatasi` olurdu.
+    son = T("2025-08-31 20:00")
+    db = T("2025-06-01")
+    z = pd.date_range(db, T("2025-09-10 20:00"), freq="4h")
+    mum = pd.DataFrame({"open_time": z, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0})
+    fr = pd.DataFrame({"odeme_zamani": pd.date_range(db, T("2025-09-11"), freq="8h"), "aralik_saat": 8.0,
+                       "oran": 0.0, "oran_8h": 0.0})
+    tanim = pencere.hipotez_ufuklari("H2")
+    with pytest.raises(pencere.GirisBariYok):
+        pozisyon.olay_karari(son, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
+                             kume="KESIF", **veri(mum, fr, db, T("2025-09-10 20:00"), uygun_bas=db),
+                             sinyal_degerleri=sinyal("H2"), **esikler(tanim.bar))
 
 
 # --- Saldiri 7: kaynak taramasinin bilinen kor noktasi (D-C3) ---------------------------------------

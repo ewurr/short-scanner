@@ -14,11 +14,11 @@ import pandas as pd
 import pytest
 
 from data import funding, pencere, pozisyon
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, ihlaller
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -37,32 +37,38 @@ def _plan():
 
 
 def _onayli():
-    return pozisyon.olay_karari(MUM, FUND, T_SINYAL, 18, "4h", hipotez="H1", birincil_ufuk=18,
-                                sinyal_degerleri=sinyal("H1"), kume=kume_adi(T_SINYAL), **donem(DB, B),
-                                **uygunluk("4h", DB, B))
+    return pozisyon.olay_karari(T_SINYAL, 18, "4h", hipotez="H1", birincil_ufuk=18,
+                                sinyal_degerleri=sinyal("H1"), kume=kume_adi(T_SINYAL), **veri(MUM, FUND, DB, B, uygun_bas=DB),
+                                **esikler("4h"))
 
 
 def test_kapidan_gecmemis_plan_reddedilir():
     with pytest.raises(TypeError, match="Onaylanmis pozisyon"):
-        funding.pozisyon_fundingi(FUND, _plan())
+        funding.pozisyon_fundingi(_plan())
 
 
 def test_onayli_pozisyon_kararin_toplamini_verir():
     p = _onayli()
-    assert funding.pozisyon_fundingi(FUND, p) == p.funding_toplami
+    assert funding.pozisyon_fundingi(p) == p.funding_toplami
     assert p.funding_toplami == funding._plan_fundingi(FUND, p.plan)
 
 
 def test_degistirilmis_onayli_pozisyon_reddedilir():
     p = _onayli()
     with pytest.raises(ValueError):
-        funding.pozisyon_fundingi(FUND, dataclasses.replace(p, funding_toplami=1.0))
+        funding.pozisyon_fundingi(dataclasses.replace(p, funding_toplami=1.0))
 
 
 def test_baska_funding_serisi_reddedilir():
     p = _onayli()
     with pytest.raises(ValueError, match="ayni degil"):
-        funding.pozisyon_fundingi(FUND.assign(oran=2e-4), p)
+        # Kapi sertlestirme turu 2: funding cercevesi verilemez; veri karardan sonra degisirse (kayitta
+        # baska seri) toplam kararinkiyle ayni olmaz.
+        from kapi_yardimcisi import SENTETIK_VERI
+
+        mumlar, _ = SENTETIK_VERI[p.sembol]
+        SENTETIK_VERI[p.sembol] = (mumlar, FUND.assign(oran=2e-4))
+        funding.pozisyon_fundingi(p)
 
 
 def test_ic_adim_analiz_kodunda_taramaya_takilir(tmp_path):

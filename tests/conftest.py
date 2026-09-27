@@ -31,6 +31,10 @@ def sentetik_donem_kayitlari(monkeypatch):
     from kapi_yardimcisi import birlesik_kayitlar
 
     monkeypatch.setattr(pozisyon, "_kayitlar", birlesik_kayitlar(pozisyon._kayitlar))
+    # Kapi sertlestirme turu 2: kapi veriyi kendisi yukler; sentetik semboller `kapi_yardimcisi.veri` kaydindan.
+    from kapi_yardimcisi import birlesik_veri_yukle
+
+    monkeypatch.setattr(pozisyon, "_veri_yukle", birlesik_veri_yukle(pozisyon._veri_yukle))
 
 
 def sahte_4h(bas: str, bar_sayisi: int, hacim: float = 1_000_000.0) -> pd.DataFrame:

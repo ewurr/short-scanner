@@ -29,11 +29,11 @@ import pandas as pd
 import pytest
 
 import config
-from data import pencere, pozisyon
-from kapi_yardimcisi import donem
+from data import pencere, pozisyon, split
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from sinyal_yardimcisi import sinyal
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -52,9 +52,9 @@ def _karar(hipotez, degerler=None, mumlar=MUM, fr=TAM_FUND, donem_bas=DB, donem_
         degerler = sinyal(hipotez)
     s = {"kume": kume_adi(SINYAL_T[hipotez])}
     s.update(sinir)
-    return pozisyon.olay_karari(mumlar, fr, SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
-                                birincil_ufuk=tanim.birincil, **donem(donem_bas, donem_son),
-                                sinyal_degerleri=degerler, **s, **uygunluk(tanim.bar, donem_bas, donem_son))
+    return pozisyon.olay_karari(SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
+                                birincil_ufuk=tanim.birincil, **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas),
+                                sinyal_degerleri=degerler, **s, **esikler(tanim.bar))
 
 
 # --- Saldiri 1: gercek KESIF siniriyla dogru sekilde reddedilir (temel olcum) ------------------------
@@ -74,10 +74,10 @@ def test_ufku_c2ye_tasan_kesif_olayi_gercek_kesif_siniriyla_reddedilir():
     tanim = pencere.hipotez_ufuklari("H2")
     with pytest.raises(pencere.KumeSiniriHatasi):
         pozisyon.olay_karari(
-            mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
-            **donem(donem_bas, donem_son), sinyal_degerleri=sinyal("H2"),
+            sinyal_zamani, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
+            **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas), sinyal_degerleri=sinyal("H2"),
             kume="KESIF",  # kapi sertlestirme turu: sinirlar kume adindan kapida okunur
-            **uygunluk(tanim.bar, donem_bas, donem_son))
+            **esikler(tanim.bar))
 
 
 # SALDIRI BULGUSU (F1 kapanis turu 2, xfail idi): `olay_karari` kume_baslangic/kume_bitis'in gercek bir
@@ -87,7 +87,7 @@ def test_ufku_c2ye_tasan_kesif_olayi_gercek_kesif_siniriyla_reddedilir():
 # govde serbest sinir cifti verdigi icin artik kurulamiyor; ayni iddia (karisim olay uretemez) su bicimde
 # sinanir: (1) serbest sinir cifti kapiya verilemez, (2) ayni sinyal hicbir gercek kumeyle onaylanmaz.
 # Eski adi: test_kesif_basi_ile_c2_sonu_karisimi_kume_disi_veriyi_odunc_aldirir.
-def test_kesif_basi_ile_c2_sonu_karisimi_verilemez():
+def test_kesif_basi_ile_c2_sonu_karisimi_verilemez(tmp_path, monkeypatch):
     sinyal_zamani = T("2025-08-29 04:00")
     donem_bas, donem_son = T("2025-01-01"), T("2025-12-31 20:00")
     mumlar = pd.DataFrame({"open_time": pd.date_range(T("2025-01-01"), T("2026-01-05"), freq="4h"),
@@ -95,17 +95,28 @@ def test_kesif_basi_ile_c2_sonu_karisimi_verilemez():
     fr = pd.DataFrame({"odeme_zamani": pd.date_range(donem_bas, donem_son + H(4), freq="8h"),
                        "aralik_saat": 8.0, "oran": 0.0, "oran_8h": 0.0})
     tanim = pencere.hipotez_ufuklari("H2")
-    ortak = dict(hipotez="H2", birincil_ufuk=tanim.birincil, **donem(donem_bas, donem_son),
-                 sinyal_degerleri=sinyal("H2"), **uygunluk(tanim.bar, donem_bas, donem_son))
+    # Kapi sertlestirme turu 2: kapi veriyi kendisi yukler (sentetik kayit `veri`); cerceve verilemez.
+    ortak = dict(hipotez="H2", birincil_ufuk=tanim.birincil,
+                 **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas),
+                 sinyal_degerleri=sinyal("H2"), **esikler(tanim.bar))
     with pytest.raises(TypeError):
-        pozisyon.olay_karari(mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, **ortak,
+        pozisyon.olay_karari(sinyal_zamani, tanim.birincil, tanim.bar, **ortak,
                              kume_baslangic=pd.Timestamp(config.KESIF_BASI), kume_bitis=pd.Timestamp(config.C2_SONU))
-    for kume in ("KESIF", "C2"):
+    with pytest.raises(pencere.OlayOlusmaz):
+        pozisyon.olay_karari(sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume="KESIF")
+    # C2: kapi C2 verisini kume korumali yoldan yukler; onay kosusu olmadan OnayGerekli, kosu icinde
+    # sinyal C2'de olmadigi icin OlayOlusmaz (kapi sertlestirme turu 2).
+    with pytest.raises(split.OnayGerekli):
+        pozisyon.olay_karari(sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume="C2")
+    kayit = tmp_path / "onay_gecici.md"
+    kayit.write_text("bas\n", encoding="utf-8")
+    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
+    with split.onay_kosusu("H2", "C2"):
         with pytest.raises(pencere.OlayOlusmaz):
-            pozisyon.olay_karari(mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume=kume)
+            pozisyon.olay_karari(sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume="C2")
     # C1 (B grubu): sentetik sembol A grubunda; kapi grup denetiminde reddeder (kapi sertlestirme turu).
     with pytest.raises(ValueError):
-        pozisyon.olay_karari(mumlar, fr, sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume="C1")
+        pozisyon.olay_karari(sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume="C1")
 
 
 # --- Saldiri 2: ters sirali kume sinirlari (kume_baslangic > kume_bitis) her zaman reddedilir --------

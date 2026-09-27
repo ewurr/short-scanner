@@ -17,9 +17,9 @@ import pytest
 import config
 from data import funding, pozisyon
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import uygunluk
+from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -36,8 +36,8 @@ def _fund(saat, bas=DB, son=B, disla=()):
 
 
 def _karar(fr, t, ufuk=6):
-    return pozisyon.olay_karari(MUM, fr, t, ufuk, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume=kume_adi(t), **donem(DB, B), sinyal_degerleri=sinyal("H1"),
-                                **uygunluk(config.BAR_4H, DB, B))
+    return pozisyon.olay_karari(t, ufuk, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume=kume_adi(t), **veri(MUM, fr, DB, B, uygun_bas=DB), sinyal_degerleri=sinyal("H1"),
+                                **esikler(config.BAR_4H))
 
 
 def test_sekiz_saatlik_ritimde_kismi_kuyruk():

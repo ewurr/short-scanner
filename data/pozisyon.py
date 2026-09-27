@@ -23,8 +23,14 @@ Karar olumluysa `OnaylanmisPozisyon` doner: plan, P0, P1 ve funding toplami. Bru
 getiri, net getiri, MAE ve K1/K2 kontrolleri YALNIZCA bu ciktiyi kullanir;
 `pozisyon_fiyatlari` ve `mae` baska girdi kabul etmez. Ayri bir kapi yoktur.
 
-Getiri HESAPLAMAZ (F2 kodu degildir); fiyat ve funding degerlerini tasir ama
-raporlamaz. Saf fonksiyonlar.
+Veri (kapi sertlestirme turu 2): karar noktasi fiyat, funding ve 1d cercevelerini cagirandan ALMAZ.
+4h serisini ve funding kayitlarini sembol ve kume adiyla kume korumali yukleyicilerden
+(`klines.mumlari_yukle`, `funding.funding_yukle`; C1/C2 icin acik onay kosusu sarttir) kendisi
+yukler, kume araligina keser ve 1d serisini bu 4h barlardan tek yol `klines.gunluge_cevir` ile
+turetir. Donem ve kume kayitlari commit edilmis tablolardan okunur. Bu yuzden fonksiyonlar saf
+degildir: disk okurlar (CLAUDE.md §5: ag ve disk erisimi yalnizca `data/` katmaninda).
+
+Getiri HESAPLAMAZ (F2 kodu degildir); fiyat ve funding degerlerini tasir ama raporlamaz.
 """
 
 from __future__ import annotations
@@ -42,6 +48,7 @@ import pandas as pd
 import config
 from data import eligibility as eligibility_modulu
 from data import funding as funding_modulu
+from data import klines as klines_modulu
 from data import pencere as pencere_modulu
 from data import split as split_modulu
 from data import universe as universe_modulu
@@ -91,6 +98,15 @@ class FundingTamDegil(pencere_modulu.OlayOlusmaz):
     gerekce = "funding_tam_degil"
 
 
+class SinyalBariYok(pencere_modulu.OlayOlusmaz):
+    """Sinyal bari t, hipotezin izgarasindaki donem ici seride yok: 4h'de t acilisli bar, 1d'de t gunu
+    (alti 4h barin tamami; on-kayit §2 "1 gunluk barlar"). Sinyal t barinin kapanisinda hesaplanir ve
+    pencereler t'yi icerir (on-kayit §5 "Pencere sinirlari"); t yoksa olay ya da kontrol olusmaz
+    (kapi sertlestirme turu 2, denetci KS D-B3)."""
+
+    gerekce = "sinyal_bari_yok"
+
+
 _ONAY_GIZLI = object()
 
 
@@ -129,6 +145,11 @@ class OnaylanmisPozisyon:
     karisik_ritim: bool = False
     ritim_sinifi: str | None = None
     hipotez: str | None = None
+    # Kimlik (kapi sertlestirme turu 2): `mae` ve `funding.pozisyon_fundingi` veriyi bu kimlikle kendileri
+    # yukler; cagiran cerceve vermez.
+    sembol: str | None = None
+    kume: str | None = None
+    donem_no: int | None = None
     _imza: int = field(default=0, repr=False, compare=False)
 
     @property
@@ -139,7 +160,7 @@ class OnaylanmisPozisyon:
 def _imza(p: OnaylanmisPozisyon) -> int:
     return hash((_ONAY_GIZLI, p.plan, p.p0, p.p1, p.funding_toplami, p.kuyruk_kismi, p.son_esitlik_affi,
                  p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim, p.funding_ritmi_saat, p.karisik_ritim,
-                 p.ritim_sinifi, p.hipotez))
+                 p.ritim_sinifi, p.hipotez, p.sembol, p.kume, p.donem_no))
 
 
 def onay_dogrula(pozisyon) -> None:
@@ -271,9 +292,76 @@ def grup_dogrula(sembol: str, kume: str) -> None:
                          "(on-kayit §3 'Coin bolmesi').")
 
 
+@dataclass(frozen=True)
+class _DonemSiniri:
+    """`klines.gunluge_cevir`in bir donemden okudugu iki alan (baslangic, bitis = B)."""
+
+    baslangic: pd.Timestamp
+    bitis: pd.Timestamp
+
+
+def _veri_yukle(sembol: str, kume: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Kapinin TEK veri yolu: sembolun 4h mumlari ve funding kayitlari, kume korumali yukleyicilerden.
+
+    C1/C2 icin `onay=True` verilir; yukleyiciler yine de acik bir `split.onay_kosusu` ister
+    (`split.kume_erisimi`), yoksa `OnayGerekli`. Testler bu fonksiyonu sentetik veriyle degistirir
+    (`tests/conftest.py`); analiz kodu icin kaynak taramasinda yasaklidir (`KAYIT_DESENI`)."""
+    onay = kume in config.ONAY_KUMELERI
+    mumlar = klines_modulu.mumlari_yukle(sembol, config.BAR_4H, kume, onay=onay)
+    fr = funding_modulu.funding_yukle(sembol, kume, onay=onay)
+    return mumlar, fr
+
+
+def _kume_verisi(sembol: str, kume: str, kume_baslangic, kume_bitis) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """`_veri_yukle` ciktisi, kapida kume araligina yeniden kesilmis (ikinci savunma; yukleyici zaten keser)."""
+    mumlar, fr = _veri_yukle(sembol, kume)
+    if not isinstance(mumlar, pd.DataFrame) or not isinstance(fr, pd.DataFrame):
+        raise TypeError("veri yukleyicisi iki DataFrame dondurmeli (4h mumlari, funding).")
+    mumlar = klines_modulu.donem_kes(mumlar, kume_baslangic, kume_bitis)
+    if len(fr):
+        zaman = pd.DatetimeIndex(fr["odeme_zamani"])
+        fr = fr.loc[np.asarray((zaman >= kume_baslangic) & (zaman <= kume_bitis), dtype=bool)].reset_index(drop=True)
+    return mumlar, fr
+
+
+def _utc_sinyal_zamani(sinyal_zamani) -> pd.Timestamp:
+    """Sinyal zamani UTC olmali (CLAUDE.md §5 "Tum zaman damgalari UTC"). Saat dilimi olan ama UTC olmayan
+    bir zaman, uygunluk penceresinin gun sinirini yerel saate kaydirir ve H1/H2 olaylarini sessizce
+    `UygunDegil` ile dusururdu (kapi sertlestirme turu 2, denetci KS D-B5; testle dogrulandi). Acik hata."""
+    zaman = pencere_modulu.utc_zamani(sinyal_zamani, "sinyal_zamani")
+    if zaman.utcoffset() != pd.Timedelta(0) or zaman.tzname() != "UTC":
+        raise ValueError(f"sinyal_zamani UTC olmali; verilen saat dilimi {zaman.tzinfo!r} ({zaman}). "
+                         "UTC'ye cevrilerek verilmeli (CLAUDE.md §5).")
+    return zaman
+
+
+def _sonlu(deger: float, ad: str) -> float:
+    """Sonlu olmayan (NaN, +-inf) fiyat ya da funding degeri acik hatadir: on-kayit bu durumu tanimlamaz;
+    kapi bir olay-olusmaz kurali icat etmez (kapi sertlestirme turu 2, sizinti testcisi inf bulgusu)."""
+    if not math.isfinite(deger):
+        raise ValueError(f"{ad} sonlu degil ({deger!r}); pozisyon onaylanmaz. On-kayit sonlu olmayan veriyi "
+                         "tanimlamaz: veri denetlenmeli.")
+    return deger
+
+
+def _mae_tepesi(mumlar_4h: pd.DataFrame, zamanlar: pd.DatetimeIndex, plan, p1: float) -> float:
+    """MAE'nin H'si (on-kayit §4 rev.8): giris anindan once acilmayan, cikis anindan sonra kapanmayan donem
+    ici 4h barlarin en yuksek high'i ile P1'in buyugu. Secilen high'lar sonlu olmali (`_sonlu`)."""
+    kapanislar = zamanlar + pencere_modulu.ADIM_4H
+    secim = (np.asarray(pencere_modulu.ayni_ya_da_sonra(zamanlar, plan.giris), dtype=bool)
+             & np.asarray(pencere_modulu.ayni_ya_da_once(kapanislar, plan.cikis_ani), dtype=bool)
+             & np.asarray(pencere_modulu.donem_ici_4h_maskesi(
+                 zamanlar, donem_baslangic=plan.donem_baslangic, donem_bitis=plan.donem_bitis), dtype=bool))
+    tepe = p1
+    if secim.any():
+        yuksekler = mumlar_4h["high"].to_numpy(dtype=float)[secim]
+        for deger in yuksekler:
+            _sonlu(float(deger), "pozisyon penceresindeki high")
+        tepe = max(float(np.max(yuksekler)), p1)
+    return tepe
+
+
 def olay_karari(
-    mumlar_4h: pd.DataFrame,
-    funding: pd.DataFrame,
     sinyal_zamani,
     ufuk: int,
     bar: str,
@@ -284,7 +372,6 @@ def olay_karari(
     sembol: str,
     donem_no: int,
     sinyal_degerleri: Mapping[str, float],
-    gunluk_mumlar: pd.DataFrame,
     asgari_hacim,
     asgari_listeleme_yasi_gun,
 ) -> OnaylanmisPozisyon:
@@ -292,11 +379,11 @@ def olay_karari(
     `OnaylanmisPozisyon`, olusmazsa `OlayOlusmaz` alt sinifi (ret gerekcesi:
     `pencere.ret_gerekcesi`). Olaylar ve kontroller ayni cagriyi kullanir.
 
-    `mumlar_4h`: sembolun donem ici 4h mumlari (her izgarada; `open_time`, `open`,
-    `high`, `low`, `close`). `funding`: veri katmaninin funding cercevesi
-    (`funding.funding_yukle`). `sinyal_degerleri`: sinyal barinda hesaplanan pencere
-    degerleri (ad -> deger); bos olamaz. `gunluk_mumlar`: sembolun 1d serisi (uygunluk
-    hacmi; `klines.mumlari_yukle(s, "1d", ...)`). `asgari_hacim`, `asgari_listeleme_yasi_gun`:
+    Fiyat, funding ve 1d cerceveleri cagirandan alinmaz: kapi `sembol` ve `kume` ile yukler
+    (`_kume_verisi`), 1d serisini 4h barlardan turetir (`klines.gunluge_cevir`). `sinyal_zamani` UTC
+    olmali; sinyal bari hipotezin izgarasinda donem ici seride bulunmali (`SinyalBariYok`). Sonlu
+    olmayan fiyat ya da funding toplami acik hatadir. `sinyal_degerleri`: sinyal barinda hesaplanan
+    pencere degerleri (ad -> deger); bos olamaz. `asgari_hacim`, `asgari_listeleme_yasi_gun`:
     uygunluk esikleri, on-kayit §2 degerleri olmalidir (`eligibility.esikleri_dogrula`).
     `hipotez` ("H1", "H2", "H3") zorunludur: `bar`, `ufuk` ve `birincil_ufuk` hipotezden tureyen on-kayit
     degerleriyle uyumlu olmalidir (`pencere.hipotez_baglamini_dogrula`; F2 kodu bunlari
@@ -310,6 +397,7 @@ def olay_karari(
     # Hipotez -> izgara -> ufuk bagi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis
     # turu, denetci D-B2): izgara ve ufuklar hipotezden turer; uyumsuz eslesme calisma aninda hata.
     pencere_modulu.hipotez_baglamini_dogrula(hipotez, bar, ufuk, birincil_ufuk)
+    sinyal_zamani = _utc_sinyal_zamani(sinyal_zamani)
     # Kume sinirlari cagirandan alinmaz; kume adindan kapida okunur (kapi sertlestirme turu, denetci F1K2
     # D-B1; on-kayit §3 "Kume siniri ve geriye bakis": "kod duzeyinde ayrica dogrulanir"). Serbest sinir
     # cifti, karisik sinir (ör. KESIF basi + C2 sonu) ya da None verilemez.
@@ -351,12 +439,28 @@ def olay_karari(
     # Uygunluk girdileri her cagrida denetlenir (programlama hatasi, ret gerekcesi degil).
     eligibility_modulu.esikleri_dogrula(bar, asgari_hacim=asgari_hacim,
                                         asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
+    # Veri kapida yuklenir (kapi sertlestirme turu 2, denetci KS D-B1, KS D-B2): cagiran cerceve vermez.
+    mumlar_4h, funding = _kume_verisi(sembol, kume, kume_baslangic, kume_bitis)
+    zamanlar = _mum_zamanlari(mumlar_4h)
+    # 1d serisi tektir ve donem ici 4h barlardan turetilir (on-kayit §2 rev.8 "1 gunluk barlar": "Bu seri
+    # tektir: H3'un sinyal pencereleri, butun hipotezlerin uygunluk hacmi ve K1/K2 havuzlarinin 1d barlari
+    # ayni seriden gelir"). Uygunluk ve sinyal bari bu donemin gunlerine bakar; gun donem donem kuruldugu
+    # icin yalnizca bu donemi vermek sembolun butun donemleriyle kurulan seriyle bu donemde aynidir.
+    gunluk_mumlar = klines_modulu.gunluge_cevir(mumlar_4h, donemler=[_DonemSiniri(donem_baslangic, donem_bitis)])
     gunluk_hacim = _gunluk_hacim(gunluk_mumlar)
 
-    zamanlar = _mum_zamanlari(mumlar_4h)
     plan = pencere_modulu.pozisyon_plani(
         zamanlar, sinyal_zamani, ufuk, bar, birincil_ufuk=birincil_ufuk, kume_baslangic=kume_baslangic,
         kume_bitis=kume_bitis, donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
+    # Sinyal bari t seride olmali (kapi sertlestirme turu 2, denetci KS D-B3): plan yalnizca t+1'i arar.
+    # 4h: t acilisli donem ici bar; 1d: t gunu turetilmis 1d serisinde (alti 4h barin tamami donem ici).
+    if bar == config.BAR_4H:
+        t_bari = pencere_modulu.ayni_andaki_bar(zamanlar, plan.sinyal_zamani)
+    else:
+        t_bari = pencere_modulu.ayni_andaki_bar(pd.DatetimeIndex(gunluk_mumlar["open_time"]), plan.sinyal_zamani)
+    if t_bari is None:
+        raise SinyalBariYok(f"{sembol}: sinyal bari {plan.sinyal_zamani} ({bar}) donem ici seride yok; olay ya da "
+                            "kontrol olusmaz.")
     # H2 funding penceresi karar noktasinda YAPISAL olarak denetlenir (on-kayit §4 "Funding sinyal
     # penceresinin tamligi": "... o barda olay ya da kontrol olusmaz"; denetci D-B1): cagiranin verdigi
     # sayiya guvenilmez, pencere funding serisinden yeniden kurulur (yalnizca zaman ve aralik okunur).
@@ -388,15 +492,19 @@ def olay_karari(
     toplam = funding_modulu._plan_fundingi(funding, plan)
     if math.isnan(toplam):
         raise FundingTamDegil(f"Pozisyonun funding'i hesaplanamadi (oran NaN): giris {plan.giris}.")
-    p0 = _bar_degeri(mumlar_4h, zamanlar, plan.giris, "open")
-    p1 = _bar_degeri(mumlar_4h, zamanlar, plan.cikis.zaman, plan.cikis.fiyat_alani)
+    # Sonlu olmayan degerler (kapi sertlestirme turu 2): +-inf funding toplami, fiyat ve MAE penceresi.
+    _sonlu(toplam, "funding toplami")
+    p0 = _sonlu(_bar_degeri(mumlar_4h, zamanlar, plan.giris, "open"), "P0")
+    p1 = _sonlu(_bar_degeri(mumlar_4h, zamanlar, plan.cikis.zaman, plan.cikis.fiyat_alani), "P1")
+    _mae_tepesi(mumlar_4h, zamanlar, plan, p1)
     sonuc = OnaylanmisPozisyon(plan, p0, p1, toplam, kuyruk_kismi=bool(ayrinti["kuyruk_kismi"]),
                                son_esitlik_affi=bool(ayrinti["son_esitlik_affi"]),
                                capa_aralik_saat=float(ayrinti["capa_aralik_saat"]),
                                son_aralik_saat=float(ayrinti["son_aralik_saat"]), tek_ritim=bool(ayrinti["tek_ritim"]),
                                funding_ritmi_saat=float(ayrinti["funding_ritmi_saat"]),
                                karisik_ritim=bool(ayrinti["karisik_ritim"]),
-                               ritim_sinifi=ayrinti["ritim_sinifi"], hipotez=hipotez)
+                               ritim_sinifi=ayrinti["ritim_sinifi"], hipotez=hipotez, sembol=sembol, kume=kume,
+                               donem_no=int(donem_no))
     return replace(sonuc, _imza=_imza(sonuc))
 
 
@@ -406,7 +514,7 @@ def pozisyon_fiyatlari(pozisyon) -> tuple[float, float]:
     return pozisyon.p0, pozisyon.p1
 
 
-def mae(mumlar_4h: pd.DataFrame, pozisyon) -> float:
+def mae(pozisyon) -> float:
     """En kotu ara zarar (on-kayit §4 rev.8 "MAE"): `max(H, P1) / P0 - 1`.
 
     "H, acilisi giris anindan once olmayan ve kapanisi cikis anindan sonra olmayan
@@ -414,18 +522,12 @@ def mae(mumlar_4h: pd.DataFrame, pozisyon) -> float:
     kullanilir. Izgaradan bagimsiz olarak 4h barlardan hesaplanir." Zaman
     karsilastirmalari "Zaman toleransi"na gore. Eksik barlar MAE'yi hesaplanamaz
     yapmaz (bosluk suresince ara zarar gozlenemez; rapor bu siniri yazar).
-    Yalnizca `olay_karari` ciktisini kabul eder; `mumlar_4h` kararla ayni seri
-    olmalidir. Saf; raporlanir, esik degildir.
+    Yalnizca `olay_karari` ciktisini kabul eder; 4h serisini onayli pozisyonun kimligiyle (sembol,
+    kume) kararla ayni yoldan kendisi yukler (kapi sertlestirme turu 2): cagiran cerceve vermez.
+    Raporlanir, esik degildir.
     """
     onay_dogrula(pozisyon)
     plan = pozisyon.plan
+    mumlar_4h, _ = _kume_verisi(pozisyon.sembol, pozisyon.kume, plan.kume_baslangic, plan.kume_bitis)
     zamanlar = _mum_zamanlari(mumlar_4h)
-    kapanislar = zamanlar + pencere_modulu.ADIM_4H
-    secim = (np.asarray(pencere_modulu.ayni_ya_da_sonra(zamanlar, plan.giris), dtype=bool)
-             & np.asarray(pencere_modulu.ayni_ya_da_once(kapanislar, plan.cikis_ani), dtype=bool)
-             & np.asarray(pencere_modulu.donem_ici_4h_maskesi(
-                 zamanlar, donem_baslangic=plan.donem_baslangic, donem_bitis=plan.donem_bitis), dtype=bool))
-    tepe = pozisyon.p1
-    if secim.any():
-        tepe = max(float(np.max(mumlar_4h["high"].to_numpy(dtype=float)[secim])), pozisyon.p1)
-    return tepe / pozisyon.p0 - 1
+    return _mae_tepesi(mumlar_4h, zamanlar, plan, pozisyon.p1) / pozisyon.p0 - 1

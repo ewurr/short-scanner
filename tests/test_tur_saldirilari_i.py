@@ -37,9 +37,9 @@ from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from tarama_yardimcisi import FUNDING_ORAN_DESENI  # noqa: E402
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import uygunluk  # noqa: E402
+from uygunluk_yardimcisi import esikler, uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -327,10 +327,10 @@ def _onayli_pozisyon(bas_str: str):
     plan, zamanlar, donem_bas, donem_bitis = _basit_plan_i(bas_str)
     fund = _tam_funding_icin_i(plan)
     onayli = pozisyon_modulu.olay_karari(
-        sahte_4h(bas_str, len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+        plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-        **donem(donem_bas, donem_bitis), sinyal_degerleri=sinyal("H1"),
-        **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
+        **veri(sahte_4h(bas_str, len(zamanlar)), fund, donem_bas, donem_bitis, uygun_bas=donem_bas), sinyal_degerleri=sinyal("H1"),
+        **esikler(config.BAR_4H),
     )
     return onayli, zamanlar, bas_str
 
@@ -342,7 +342,7 @@ def test_ritim_sinifi_replace_ile_sahtelenemez():
     with pytest.raises(ValueError):
         pozisyon_modulu.pozisyon_fiyatlari(sahte)
     with pytest.raises(ValueError):
-        pozisyon_modulu.mae(sahte_4h(bas_str, len(zamanlar)), sahte)
+        pozisyon_modulu.mae(sahte)
 
 
 def test_funding_ritmi_saat_ve_karisik_ritim_replace_ile_sahtelenemez():
@@ -353,7 +353,7 @@ def test_funding_ritmi_saat_ve_karisik_ritim_replace_ile_sahtelenemez():
 
     sahte2 = replace(onayli, karisik_ritim=not onayli.karisik_ritim)
     with pytest.raises(ValueError):
-        pozisyon_modulu.mae(sahte_4h(bas_str, len(zamanlar)), sahte2)
+        pozisyon_modulu.mae(sahte2)
 
 
 # ==============================================================================

@@ -31,9 +31,9 @@ from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from data.donem import Donem  # noqa: E402
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import UYGUN_ONCELIK, uygunluk  # noqa: E402
+from uygunluk_yardimcisi import esikler, UYGUN_ONCELIK, uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 TOL = pencere_modulu.ZAMAN_TOLERANSI  # 1 dakika
@@ -621,15 +621,15 @@ def test_mae_dataclasses_replace_ile_degistirilmis_pozisyonu_reddeder():
     plan, zamanlar, _, _ = _basit_plan()
     fund = _tam_funding_icin(plan)
     onayli = pozisyon_modulu.olay_karari(
-        _cerceve(zamanlar), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+        plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-        **donem(plan.donem_baslangic, plan.donem_bitis),
+        **veri(_cerceve(zamanlar), fund, plan.donem_baslangic, plan.donem_bitis, uygun_bas=plan.donem_baslangic),
         sinyal_degerleri=sinyal("H1"),
-        **uygunluk(config.BAR_4H, plan.donem_baslangic, plan.donem_bitis),  # Rev.9 §4: uygunluk karar noktasinda
+        **esikler(config.BAR_4H),  # Rev.9 §4: uygunluk karar noktasinda
     )
     sahte = replace(onayli, p0=0.0001)  # imza artik tutarsiz
     with pytest.raises(ValueError):
-        pozisyon_modulu.mae(_cerceve(zamanlar), sahte)
+        pozisyon_modulu.mae(sahte)
     with pytest.raises(ValueError):
         pozisyon_modulu.pozisyon_fiyatlari(sahte)
 
@@ -651,11 +651,11 @@ def test_funding_tam_olmayan_olay_brut_dahil_hicbir_hesapta_olusmaz():
     bos_funding = pd.DataFrame(columns=["odeme_zamani", "aralik_saat", "oran", "oran_8h"])
     with pytest.raises(pozisyon_modulu.FundingTamDegil):
         pozisyon_modulu.olay_karari(
-            _cerceve(zamanlar), bos_funding, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+            plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
             hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-            **donem(donem_bas, donem_bitis),
+            **veri(_cerceve(zamanlar), bos_funding, donem_bas, donem_bitis, uygun_bas=donem_bas),
             sinyal_degerleri=sinyal("H1"),
-            **uygunluk(config.BAR_4H, donem_bas, donem_bitis),  # Rev.9 §4: uygunluk karar noktasinda
+            **esikler(config.BAR_4H),  # Rev.9 §4: uygunluk karar noktasinda
         )
 
 
@@ -667,11 +667,11 @@ def test_nan_sinyal_degeri_pozisyon_planindan_once_reddedilir():
     bozuk_zamanlar = pd.DatetimeIndex([])  # boyle bir seriyle pozisyon_plani cokerdi
     with pytest.raises(pozisyon_modulu.SinyalPenceresiTamDegil):
         pozisyon_modulu.olay_karari(
-            _cerceve(bozuk_zamanlar), _funding([]), T("2025-06-01 00:00"), 6, config.BAR_4H,  # Rev.10: on-kayit ufku
+            T("2025-06-01 00:00"), 6, config.BAR_4H,  # Rev.10: on-kayit ufku
             hipotez="H1", birincil_ufuk=18, kume=kume_adi(T('2025-06-01 00:00')),
-            **donem(T("2025-06-01 00:00"), T("2025-06-10 00:00")),
+            **veri(_cerceve(bozuk_zamanlar), _funding([]), T("2025-06-01 00:00"), T("2025-06-10 00:00"), uygun_bas=T("2025-06-01 00:00")),
             sinyal_degerleri=sinyal("H1", pump_dip=float("nan")),  # F1 kapanis turu: tam sinyal kumesi
-            **uygunluk(config.BAR_4H, T("2025-06-01 00:00"), T("2025-06-10 00:00")),  # Rev.9 §4
+            **esikler(config.BAR_4H),  # Rev.9 §4
         )
 
 
@@ -682,14 +682,14 @@ def test_onaylanmis_pozisyon_replace_ile_funding_toplamini_sahteleyemez():
     plan, zamanlar, _, _ = _basit_plan()
     fund = _tam_funding_icin(plan)
     onayli = pozisyon_modulu.olay_karari(
-        _cerceve(zamanlar), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+        plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-        **donem(plan.donem_baslangic, plan.donem_bitis),
+        **veri(_cerceve(zamanlar), fund, plan.donem_baslangic, plan.donem_bitis, uygun_bas=plan.donem_baslangic),
         sinyal_degerleri=sinyal("H1"),
-        **uygunluk(config.BAR_4H, plan.donem_baslangic, plan.donem_bitis),  # Rev.9 §4: uygunluk karar noktasinda
+        **esikler(config.BAR_4H),  # Rev.9 §4: uygunluk karar noktasinda
     )
     sahte = replace(onayli, funding_toplami=999.0)
     with pytest.raises(ValueError):
         pozisyon_modulu.pozisyon_fiyatlari(sahte)
     with pytest.raises(ValueError):
-        pozisyon_modulu.mae(_cerceve(zamanlar), sahte)
+        pozisyon_modulu.mae(sahte)

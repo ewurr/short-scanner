@@ -92,4 +92,6 @@ TURETILMIS_SERI_DESENI = (
 # Kapinin donem ve grup kayitlari (kapi sertlestirme turu, denetci F1K2 D-B2): analiz kodu kapinin kayit
 # kaynagini degistiremez ya da test yardimcisinin sentetik donemlerini kullanamaz. Ikincil savunma;
 # kararli bir atlatmayi (ör. `setattr` ile parcalanmis ad) yakalamaz.
-KAYIT_DESENI = r"\b_kayitlar\b|\bkapi_yardimcisi\b|\bSENTETIK_(DONEMLER|GRUPLAR)\b"
+# Kapi sertlestirme turu 2: kapinin veri yolu (`_veri_yukle`, `_kume_verisi`) ve sentetik veri kaydi da.
+KAYIT_DESENI = (r"\b_kayitlar\b|\bkapi_yardimcisi\b|\bSENTETIK_(DONEMLER|GRUPLAR|VERI)\b"
+                r"|\b_veri_yukle\b|\b_kume_verisi\b")

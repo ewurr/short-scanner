@@ -37,9 +37,9 @@ from conftest import sahte_4h  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from sinyal_yardimcisi import sinyal
-from kapi_yardimcisi import donem
+from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from uygunluk_yardimcisi import uygunluk  # noqa: E402
+from uygunluk_yardimcisi import esikler, uygunluk  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -205,11 +205,11 @@ def test_intenum_bool_benzeri_deger_bool_korumasini_atlatir():
     fund = _tam_funding_icin(plan)
     with pytest.raises(TypeError):
         pozisyon_modulu.olay_karari(
-            sahte_4h("2024-02-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+            plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
             hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-            **donem(donem_bas, donem_bitis),
+            **veri(sahte_4h("2024-02-01 00:00", len(zamanlar)), fund, donem_bas, donem_bitis, uygun_bas=donem_bas),
             sinyal_degerleri={"kosul": _Kosul.YANLIS},
-            **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
+            **esikler(config.BAR_4H),
         )
 
 
@@ -228,11 +228,11 @@ def test_tek_funding_kaydiyla_pozisyon_tam_ve_tek_ritim_sayilir():
     plan, zamanlar, donem_bas, donem_bitis = _basit_plan("2024-03-01 00:00")
     fund = _funding([(plan.giris, 2000.0, 0.0001)])  # tek kayit, cok genis aralik
     onayli = pozisyon_modulu.olay_karari(
-        sahte_4h("2024-03-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+        plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-        **donem(donem_bas, donem_bitis),
+        **veri(sahte_4h("2024-03-01 00:00", len(zamanlar)), fund, donem_bas, donem_bitis, uygun_bas=donem_bas),
         sinyal_degerleri=sinyal("H1"),
-        **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
+        **esikler(config.BAR_4H),
     )
     assert onayli.tek_ritim is True
     assert onayli.karisik_ritim is False
@@ -248,11 +248,11 @@ def test_capa_ve_son_aralik_saat_replace_ile_sahtelenemez():
     plan, zamanlar, donem_bas, donem_bitis = _basit_plan("2024-04-01 00:00")
     fund = _tam_funding_icin(plan)
     onayli = pozisyon_modulu.olay_karari(
-        sahte_4h("2024-04-01 00:00", len(zamanlar)), fund, plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
+        plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-        **donem(donem_bas, donem_bitis),
+        **veri(sahte_4h("2024-04-01 00:00", len(zamanlar)), fund, donem_bas, donem_bitis, uygun_bas=donem_bas),
         sinyal_degerleri=sinyal("H1"),
-        **uygunluk(config.BAR_4H, donem_bas, donem_bitis),
+        **esikler(config.BAR_4H),
     )
     sahte1 = replace(onayli, capa_aralik_saat=onayli.capa_aralik_saat + 1.0)
     with pytest.raises(ValueError):
@@ -260,7 +260,7 @@ def test_capa_ve_son_aralik_saat_replace_ile_sahtelenemez():
 
     sahte2 = replace(onayli, son_aralik_saat=onayli.son_aralik_saat + 1.0)
     with pytest.raises(ValueError):
-        pozisyon_modulu.mae(sahte_4h("2024-04-01 00:00", len(zamanlar)), sahte2)
+        pozisyon_modulu.mae(sahte2)
 
 
 # ==============================================================================
