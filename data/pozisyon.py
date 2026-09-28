@@ -176,7 +176,7 @@ def _close_time_nat_yok(mumlar: pd.DataFrame, ad: str) -> None:
     zaman False doner; NaT'li bir 1d cercevesi 4h denetiminden (ya da tersi) sessizce gecerdi
     (sizinti testcisinin Rev.10 hazirlik bulgusu 2; on-kayit §4 "Fiyat okuma tabani")."""
     if bool(pd.isna(mumlar["close_time"]).any()):
-        raise ValueError(f"{ad}: close_time sutununda NaT var; bar suresi dogrulanamaz "
+        raise pencere_modulu.VeriHatasi(f"{ad}: close_time sutununda NaT var; bar suresi dogrulanamaz "
                          "(on-kayit §4 'Fiyat okuma tabani').")
 
 
@@ -188,12 +188,12 @@ def _gunluk_hacim(gunluk_mumlar: pd.DataFrame) -> pd.Series:
         raise TypeError("gunluk_mumlar sembolun 1d mum cercevesi olmali (open_time, quote_volume).")
     acilis = pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(gunluk_mumlar["open_time"]), "gunluk_mumlar")
     if len(acilis) and not bool((acilis == acilis.floor("D")).all()):
-        raise ValueError("gunluk_mumlar 1d serisi olmali: acilislar UTC gun basi degil (4h cercevesi verilmis olabilir).")
+        raise pencere_modulu.VeriHatasi("gunluk_mumlar 1d serisi olmali: acilislar UTC gun basi degil (4h cercevesi verilmis olabilir).")
     if "close_time" in gunluk_mumlar and len(acilis):
         _close_time_nat_yok(gunluk_mumlar, "gunluk_mumlar")
         sure = pd.DatetimeIndex(gunluk_mumlar["close_time"]) - acilis
         if bool((sure <= pencere_modulu.ADIM_4H).any()):
-            raise ValueError("gunluk_mumlar 1d serisi olmali: bar suresi 4 saati asmiyor.")
+            raise pencere_modulu.VeriHatasi("gunluk_mumlar 1d serisi olmali: bar suresi 4 saati asmiyor.")
     return eligibility_modulu.gunluk_hacim_serisi(gunluk_mumlar)
 
 
@@ -211,20 +211,20 @@ def _mum_zamanlari(mumlar: pd.DataFrame) -> pd.DatetimeIndex:
         return zamanlar
     adim = pencere_modulu.ADIM_4H
     if bool(((zamanlar - zamanlar.floor("D")) % adim != pd.Timedelta(0)).any()):
-        raise ValueError("mumlar_4h 4h izgarasinda degil (acilislar 00/04/08/12/16/20 UTC olmali).")
+        raise pencere_modulu.VeriHatasi("mumlar_4h 4h izgarasinda degil (acilislar 00/04/08/12/16/20 UTC olmali).")
     if "close_time" not in mumlar and len(zamanlar) < 2:
         # Tek satirlik ve close_time'siz cerceve: gece yarisi acilisli bir 1d bari izgaraya uyar
         # ve ardisik fark olculemez; 4h serisi oldugu dogrulanamaz (sizinti testcisi bulgusu).
-        raise ValueError("mumlar_4h 4h serisi oldugu dogrulanamiyor: tek satir ve close_time yok "
+        raise pencere_modulu.VeriHatasi("mumlar_4h 4h serisi oldugu dogrulanamiyor: tek satir ve close_time yok "
                          "(on-kayit §4 'Fiyat okuma tabani').")
     if "close_time" in mumlar:
         _close_time_nat_yok(mumlar, "mumlar_4h")
         sure = pd.DatetimeIndex(mumlar["close_time"]) - zamanlar
         if bool((sure > adim).any()):
-            raise ValueError("mumlar_4h 4h serisi olmali: bar suresi 4 saati asiyor (1d cercevesi verilmis olabilir; "
+            raise pencere_modulu.VeriHatasi("mumlar_4h 4h serisi olmali: bar suresi 4 saati asiyor (1d cercevesi verilmis olabilir; "
                              "on-kayit §4 'Fiyat okuma tabani').")
     if len(zamanlar) > 1 and (zamanlar[1:] - zamanlar[:-1]).min() != adim:
-        raise ValueError("mumlar_4h 4h serisi olmali: ardisik acilislar arasinda 4 saatlik fark yok "
+        raise pencere_modulu.VeriHatasi("mumlar_4h 4h serisi olmali: ardisik acilislar arasinda 4 saatlik fark yok "
                          "(1d cercevesi verilmis olabilir; on-kayit §4 'Fiyat okuma tabani').")
     return zamanlar
 
@@ -232,7 +232,7 @@ def _mum_zamanlari(mumlar: pd.DataFrame) -> pd.DatetimeIndex:
 def _bar_degeri(mumlar: pd.DataFrame, zamanlar: pd.DatetimeIndex, zaman: pd.Timestamp, alan: str) -> float:
     bar = pencere_modulu.ayni_andaki_bar(zamanlar, zaman)
     if bar is None:
-        raise ValueError(f"{zaman} bari mum cercevesinde yok (karar ile ayni seri verilmeli).")
+        raise pencere_modulu.VeriHatasi(f"{zaman} bari mum cercevesinde yok (karar ile ayni seri verilmeli).")
     return float(mumlar[alan].to_numpy()[int(zamanlar.get_loc(bar))])
 
 
@@ -316,7 +316,13 @@ def _kume_verisi(sembol: str, kume: str, kume_baslangic, kume_bitis) -> tuple[pd
     """`_veri_yukle` ciktisi, kapida kume araligina yeniden kesilmis (ikinci savunma; yukleyici zaten keser)."""
     mumlar, fr = _veri_yukle(sembol, kume)
     if not isinstance(mumlar, pd.DataFrame) or not isinstance(fr, pd.DataFrame):
-        raise TypeError("veri yukleyicisi iki DataFrame dondurmeli (4h mumlari, funding).")
+        raise pencere_modulu.VeriHatasi("veri yukleyicisi iki DataFrame dondurmeli (4h mumlari, funding).")
+    # Zaman dizileri kesimden ONCE dogrulanir (kapi sertlestirme turu 3): tz'siz, sirasiz ya da tekrarli
+    # damga `ZamanDizisiHatasi` (VeriHatasi) olur; kesimdeki naive/aware karsilastirmasina (TypeError) dusmez.
+    if len(mumlar):
+        pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(mumlar["open_time"]), "_kume_verisi (4h)")
+    if len(fr):
+        funding_modulu._zaman_dizisi(fr, "_kume_verisi (funding)")
     mumlar = klines_modulu.donem_kes(mumlar, kume_baslangic, kume_bitis)
     if len(fr):
         zaman = pd.DatetimeIndex(fr["odeme_zamani"])
@@ -336,10 +342,10 @@ def _utc_sinyal_zamani(sinyal_zamani) -> pd.Timestamp:
 
 
 def _sonlu(deger: float, ad: str) -> float:
-    """Sonlu olmayan (NaN, +-inf) fiyat ya da funding degeri acik hatadir: on-kayit bu durumu tanimlamaz;
+    """Sonlu olmayan (NaN, +-inf) fiyat ya da funding degeri acik hatadir (`VeriHatasi`): on-kayit bu durumu tanimlamaz;
     kapi bir olay-olusmaz kurali icat etmez (kapi sertlestirme turu 2, sizinti testcisi inf bulgusu)."""
     if not math.isfinite(deger):
-        raise ValueError(f"{ad} sonlu degil ({deger!r}); pozisyon onaylanmaz. On-kayit sonlu olmayan veriyi "
+        raise pencere_modulu.VeriHatasi(f"{ad} sonlu degil ({deger!r}); pozisyon onaylanmaz. On-kayit sonlu olmayan veriyi "
                          "tanimlamaz: veri denetlenmeli.")
     return deger
 

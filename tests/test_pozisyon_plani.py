@@ -59,8 +59,10 @@ def test_plan_alanlari():
 
 def test_hata_siniflari_olay_olusmaz_altinda():
     for sinif in (pencere.KumeSiniriHatasi, pencere.IleriKaymaSiniriHatasi, pencere.GirisBariYok):
-        assert issubclass(sinif, pencere.OlayOlusmaz) and issubclass(sinif, ValueError)
+        # Kapi sertlestirme turu 3: OlayOlusmaz ValueError degil (onceki beklenti: ValueError alt sinifi).
+        assert issubclass(sinif, pencere.OlayOlusmaz) and not issubclass(sinif, ValueError)
     assert not issubclass(pencere.ZamanDizisiHatasi, pencere.OlayOlusmaz)
+    assert issubclass(pencere.ZamanDizisiHatasi, pencere.VeriHatasi)
     assert split.KumeSiniriHatasi is pencere.KumeSiniriHatasi
 
 

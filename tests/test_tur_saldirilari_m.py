@@ -90,9 +90,9 @@ def test_mumlarda_tz_naive_open_time_reddedilir():
     m = _hazirlanmis_mumlar()
     m2 = m.copy()
     m2["open_time"] = pd.DatetimeIndex(m2["open_time"]).tz_localize(None)
-    # Ana oturum duzeltmesi: kapi tz-naive veriyi kume kesiminde (`_kume_verisi`, naive/aware karsilastirma)
-    # TypeError ile reddediyor; iddia (acik hata, sessiz sonuc yok) ayni, beklenen hata sinifi genisletildi.
-    with pytest.raises((pencere.ZamanDizisiHatasi, TypeError)):
+    # Kapi sertlestirme turu 3: kapi zaman dizisini kesimden once dogruluyor; tz'siz veri ZamanDizisiHatasi
+    # (VeriHatasi). Onceki turda genisletilen beklenti (ZamanDizisiHatasi, TypeError) testcinin ilk haline dondu.
+    with pytest.raises(pencere.ZamanDizisiHatasi):
         _karar_ham(m2)
 
 
@@ -155,9 +155,9 @@ def test_fundingde_tz_naive_odeme_zamani_reddedilir():
     yanlis sonuc verirdi; kapi acik hata vermeli."""
     fr = FUND.copy()
     fr["odeme_zamani"] = pd.DatetimeIndex(fr["odeme_zamani"]).tz_localize(None)
-    # Ana oturum duzeltmesi: kapi tz-naive veriyi kume kesiminde (`_kume_verisi`, naive/aware karsilastirma)
-    # TypeError ile reddediyor; iddia (acik hata, sessiz sonuc yok) ayni, beklenen hata sinifi genisletildi.
-    with pytest.raises((pencere.ZamanDizisiHatasi, TypeError)):
+    # Kapi sertlestirme turu 3: kapi zaman dizisini kesimden once dogruluyor; tz'siz veri ZamanDizisiHatasi
+    # (VeriHatasi). Onceki turda genisletilen beklenti (ZamanDizisiHatasi, TypeError) testcinin ilk haline dondu.
+    with pytest.raises(pencere.ZamanDizisiHatasi):
         _karar(fr=fr)
 
 

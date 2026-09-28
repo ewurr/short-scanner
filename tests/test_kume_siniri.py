@@ -78,7 +78,10 @@ def test_ufuk_birden_kucukse_hata(ufuk):
 
 def test_hata_sinifi_tek():
     assert split.KumeSiniriHatasi is pencere.KumeSiniriHatasi
-    assert issubclass(split.KumeSiniriHatasi, ValueError)
+    # Kapi sertlestirme turu 3: ret gerekceleri (OlayOlusmaz) artik ValueError alt sinifi degil; onceki
+    # beklenti `issubclass(..., ValueError)` idi (hata ile "olay yok" ayrimi, denetci KS2 D-C1).
+    assert issubclass(split.KumeSiniriHatasi, pencere.OlayOlusmaz)
+    assert not issubclass(split.KumeSiniriHatasi, ValueError)
 
 
 # --- Sigma kosulu ------------------------------------------------------------

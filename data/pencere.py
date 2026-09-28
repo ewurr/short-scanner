@@ -193,11 +193,16 @@ class CikisSonucu:
         return "donem_sonu" if self.tur == "donem_sonu" else None
 
 
-class OlayOlusmaz(ValueError):
+class OlayOlusmaz(Exception):
     """Kural geregi olay (ya da kontrol) OLUSMAZ; programlama hatasi ya da veri
     bozuklugu degildir. Tek kapi `pozisyon_plani` bu sinifin alt siniflarini
     firlatir; olay dusme nedenleri raporu nedeni `gerekce` ozelliginden okur
-    (on-kayit §4 rev.8: reddedilen her olay bir ret gerekcesi tasir)."""
+    (on-kayit §4 rev.8: reddedilen her olay bir ret gerekcesi tasir).
+
+    Kapi sertlestirme turu 3 (denetci KS2 D-C1): `ValueError` alt sinifi DEGILDIR. Veri hatalari
+    (`VeriHatasi`, `ZamanDizisiHatasi`) ve cagri hatalari (`TypeError`, `ValueError`, `DonemDisiSinyal`,
+    `split.OnayGerekli`) bu siniftan ayridir: `except OlayOlusmaz` bir hatayi yutmaz, `except ValueError`
+    bir ret gerekcesini yutmaz. Olay dusmelerini sayan kod YALNIZCA `OlayOlusmaz`i yakalar."""
 
     gerekce = "olay_olusmaz"
 
@@ -239,7 +244,14 @@ class GirisBariYok(OlayOlusmaz):
     gerekce = "giris_bari_yok"
 
 
-class ZamanDizisiHatasi(ValueError):
+class VeriHatasi(ValueError):
+    """Veri katmaninin yukledigi veri bozuk ya da tutarsiz (kapi sertlestirme turu 3): acik hata,
+    `OlayOlusmaz` degildir. On-kayit bozuk veriyi tanimlamaz; kapi bir olay-olusmaz kurali icat etmez,
+    kosu durur ve veri incelenir. Ornek: sonlu olmayan fiyat ya da funding toplami, 4h izgarasi disi
+    acilis, NaT `close_time`, sirasiz ya da tekrarli zaman damgasi (`ZamanDizisiHatasi`)."""
+
+
+class ZamanDizisiHatasi(VeriHatasi):
     """Zaman damgalari sirasiz ya da tekrarli: bu bir VERI BOZUKLUGUDUR.
 
     On-kayit §2 rev.3'un "deger hesaplanmaz (NaN)" kurali EKSIK bar icindir;
