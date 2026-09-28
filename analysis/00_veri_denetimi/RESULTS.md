@@ -1578,6 +1578,17 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
         - `p = (r + 1) / (10000 + 1)` formülünde `r`'nin neyi saydığı yazılı değil.
         - Kod bugün: p-değeri ya da yeniden örnekleme kodu yok.
 
+    Kapı sertleştirme turu 3'te eklenen:
+    14. **Pozisyon funding'inde NaN oran ve sonlu olmayan değer politikası** (KS2 D-B4).
+        - Ön-kayıt §4 "Funding tamlığı"nın beş maddesi oranı okumuyor; NaN oranlı pozisyonun ne olacağı
+          yazılı değil.
+        - Kod bugün:
+          - pozisyon penceresinde NaN oran varsa toplam NaN olur ve pozisyon `FundingTamDegil` ile sessizce
+            düşer;
+          - aynı pencerede +inf ve −inf toplamı NaN yapar ve aynı yoldan düşer;
+          - tek başına ±inf toplam açık `VeriHatasi` verir.
+        - Rev.10 D-C5 (H2 sinyal penceresinde `kayit_var` ve NaN oran, madde 9) ile karıştırılmamalı.
+
     Maddelerin ön-kayıt alıntıları depo dışındaki Rev.11 girdisindedir (`D:/Projeler/prompts/rev11_girdi.md`).
 
     **Bilinen sınır (düzeltilmedi, denetim sorusu).** Kapı `kume="C1"` ya da `"C2"` ile çağrıldığında aktif
@@ -1700,7 +1711,11 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       - 1d'de t günü türetilmiş seride olmalı, yani altı 4h barın tamamı.
     - **Sonlu olmayan değerler** (sızıntı testçisinin inf bulgusu): ±inf funding toplamı, sonlu olmayan
       P0, P1 ve MAE penceresindeki high açık `ValueError` veriyor. Sinyal değerleri zaten sonluluk
-      denetiminden geçiyordu. NaN oran önceki gibi `FundingTamDegil` (Rev.10 D-C5, Rev.11'de).
+      denetiminden geçiyordu. NaN oran önceki gibi `FundingTamDegil`.
+      **Düzeltme (kapı sertleştirme turu 3):** burada önceden "(Rev.10 D-C5, Rev.11'de)" yazıyordu; etiket
+      yanlıştı. Rev.10 D-C5 yalnızca H2 **sinyal** penceresini (`funding_ortalamasi`) kapsar. Bu davranış,
+      **pozisyon funding'inde NaN oranın sessizce reddi**, kendi adıyla KS2 D-B4'tür ve Rev.11 listesinin
+      14. maddesidir (§14.21).
     - **UTC** (KS D-B5): önce testle doğrulandı; ölçüm aşağıda. Kapı artık UTC dışı saat dilimli sinyal
       zamanını `ValueError` ile reddediyor. Saat dilimsiz zaman önceki gibi `TypeError`.
     - **Onaylı pozisyon kimlik taşıyor:** sembol, küme ve dönem numarası imzalı (KS D-C5). `mae(pozisyon)`
@@ -1858,6 +1873,91 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       - seride olup dönem dışında kalan sinyal.
     - **Ana oturum düzeltmesi:** tz'siz veri testlerinde beklenen hata sınıfı `(ZamanDizisiHatasi,
       TypeError)` olarak genişletildi. Kapı kümeye kesimde `TypeError` veriyor; iddia (açık hata) aynı.
+
+23. **Kapı sertleştirme turu 3 (2026-09-28).** Ön-kayda dokunulmadı; getiri hesaplanmadı; F2'ye geçilmedi;
+    önbellek eklenmedi. Kapının sinyal değerlerini hesaplaması Rev.11'i bekliyor.
+
+    **Kod.**
+    - **`edebbbd`: hata ile "olay yok" ayrımı** (KS2 D-C1; madde 3).
+      - `pencere.OlayOlusmaz` artık `Exception`'dan türüyor; `ValueError` alt sınıfı değil.
+      - Yeni `pencere.VeriHatasi(ValueError)`; `ZamanDizisiHatasi` bundan türüyor.
+      - Kapının veri hataları `VeriHatasi`: sonlu olmayan fiyat ya da funding toplamı, NaT `close_time`, 4h
+        ızgarası dışı açılış, bar yok, yükleyicinin DataFrame dışı döndürmesi.
+      - Sonuç: `except OlayOlusmaz` bir hatayı yutmaz, `except ValueError` bir ret gerekçesini yutmaz.
+      - `_kume_verisi` zaman dizilerini kesimden önce doğruluyor.
+      - Sızıntı testçisinin iki tz'siz testi (madde 5) ilk beklentisine (`ZamanDizisiHatasi`) döndü ve geçiyor.
+    - **`c866f74`: onay koşusu bağlamı** (KS2 D-B1; madde 1).
+      - `config.HIPOTEZLER` eklendi. `split._hipotez_dogrula` yalnızca bu sabitleri tam `str` olarak kabul
+        ediyor. Serbest ad deseni kaldırıldı; onay kümesi de tam `str` ve `config.ONAY_KUMELERI` içinde olmalı.
+      - `split.onay_baglami_dogrula` ve `OnayUyusmazligi(OnayGerekli)`: C1/C2 pozisyonu yalnızca aynı
+        (hipotez, küme) çiftinin açık koşusunda oluşur.
+      - Açık koşu varken KEŞİF dahil başka hiçbir pozisyon oluşmaz. Bu, görevin "eşleştirsin" ifadesinin
+        katı okuması.
+      - Kapı, `mae` ve `funding.pozisyon_fundingi` bu denetimi çağırıyor.
+    - **`6699ff3`: ikincil ufuk** (KS2 D-B3; madde 2).
+      - İkincil ufuk istendiğinde aynı çağrı önce birincil ufukla değerlendiriliyor. Birincilde olay
+        oluşmazsa aynı ret gerekçesi yukarı çıkıyor.
+      - Birincilde oluşan olayın ikincil çıkışı kendi uzunluğuyla kurallara tabi.
+
+    **Yakalama noktaları.**
+    - Kapı yolunda yakalama yok.
+    - Analiz betikleri `OlayOlusmaz` ve `DonemDisiSinyal`i adıyla yakalıyor; bunlar zaten dardı, değişmedi:
+      - `a1_olcumu.py:194, 196`
+      - `f1k_kume_sonu.py:62`
+      - `rev8_etki.py:122`
+      - `rev9_hazirlik.py:859, 863, 933, 1179`
+      - `rev9_ritim.py:139`
+      - `rev9_uygulama.py:90, 145, 147, 193`
+
+      `OlayOlusmaz` artık `ValueError` olmadığı için bu noktalar hiçbir veri hatasını yakalamıyor.
+    - **Geniş yakalamalar** (`except Exception` / `BaseException`) kapı yolunda değil, değiştirilmedi:
+      - `calistir.py:108` (geçici dosya temizliği; yeniden fırlatır)
+      - `calistir.py:255` (çapraz doğrulama hatası tabloya yazılır)
+      - `calistir.py:877` (sürüm okuma)
+      - `calistir.py:1285` (sembol başına yükleme hatası `hatalar` listesine yazılır ve raporlanır)
+      - `binance_vision.py:96` (ağ yeniden denemesi; sonunda `RuntimeError`)
+      - `split.py` `_git` (git yoksa `None`)
+
+      Hiçbiri bir ret gerekçesini yutmuyor.
+
+    **KS2 D-B2 (onay koşusunu kilitlenen yapılandırmaya bağlama): tasarlandı, uygulanmadı.** Ayrıntı tur
+    raporunda. `KILIT.md`'nin kodda okunması ve kilitli dosyalara eklenmesi ayrı bir kilit oturumunda.
+
+    **KS2 D-B4:** §14.22'deki yanlış etiket ("Rev.10 D-C5") yerinde düzeltildi. Madde kendi adıyla Rev.11
+    listesinin 14. maddesi (§14.21).
+
+    **Test güncellemeleri.**
+    - **Beklentisi değişenler:**
+      - `test_kume_siniri::test_hata_sinifi_tek` ve
+        `test_pozisyon_plani::test_hata_siniflari_olay_olusmaz_altinda`: `OlayOlusmaz` artık `ValueError`
+        değil.
+      - `test_kume_korumasi`: `"HTEST"` → `"H1"`; geçersiz ad listesine varyasyonlar eklendi.
+      - `test_onay_kaydi::_test_hipotezi`: `config.HIPOTEZLER`'den boş ad seçer; boş ad yoksa atlanır.
+      - `test_ks_donem_kaydi`, `tur_saldirilari_k`, `tur_saldirilari_l`: C1 grup denetimi açık koşu içinde
+        yapılıyor; koşu dışında `OnayUyusmazligi`.
+    - **Fikstürler birincil ufka taşındı (beklenti aynı):**
+      - `test_rev9_f2_bayraklari::test_pencere_sonu_esitlik_affi`
+      - `tur_saldirilari_f`, `g`, `h`, `i`'nin imza testi planları (6 → 18)
+    - **xfail'den çıkan:** `tur_saldirilari_m` hipotez uyuşmazlığı.
+    - **Beklentisi ilk hâline dönen:** `tur_saldirilari_m`'in iki tz'siz testi.
+    - **Yeni:** `test_ks3_kapi` (31).
+
+    **KS2 bulgularının durumu:**
+
+    | Bulgu | Durum |
+    |---|---|
+    | KS2 D-B1 onay koşusunun hipotezi | **kapandı** (`c866f74`) |
+    | KS2 D-B2 yapılandırma bağı | tasarlandı; kilit oturumunda uygulanacak; **dokunur** (F3) |
+    | KS2 D-B3 ikincil ufuk | **kapandı** (`6699ff3`) |
+    | KS2 D-B4 pozisyon funding'inde NaN oran | Rev.11 listesi 14; **dokunur** |
+    | KS2 D-B5 §14.21 özeti ve bayat satırlar | açık (belge) |
+    | KS2 D-C1 `OlayOlusmaz` ValueError | **kapandı** (`edebbbd`) |
+    | KS2 D-C2 gerçek `_veri_yukle` testte yok | açık |
+    | KS2 D-C3 yükleyici öznitelikleri atanabilir | açık (kararlı atlatma) |
+    | KS2 D-C4 `mae` seri doğrulaması | açık |
+    | KS2 D-C5 ızgara dışı t ham saklanıyor | açık, şüpheli |
+    | KS2 D-C6 k ters sıra testinin adı | açık |
+    | KS2 D-C7 UTC fazla reddediyor | açık, zararsız |
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
@@ -2291,3 +2391,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   Rev.10 D-C1 "dokunur" kaldı.
   **Güncellenen mevcut testler:** §14.22 "Test güncellemeleri". Silinen ya da gevşetilen test yok. xfail'den
   çıkan: `test_tur_saldirilari_l` inf testi. Yeni: `test_ks2_kapi_veri` (39).
+- 2026-09-28 (kapı sertleştirme turu 3). §14.23 eklendi. Kod: `edebbbd` (KS2 D-C1), `c866f74`
+  (KS2 D-B1), `6699ff3` (KS2 D-B3). §14.22'deki "Rev.10 D-C5" etiketi düzeltildi. Rev.11 listesine 14
+  (KS2 D-B4) eklendi.
+  **Güncellenen mevcut testler:** §14.23 "Test güncellemeleri". Silinen ya da gevşetilen test yok.
+  xfail'den çıkan: `tur_saldirilari_m` hipotez uyuşmazlığı. Yeni: `test_ks3_kapi` (31).
