@@ -1959,6 +1959,90 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     | KS2 D-C6 k ters sıra testinin adı | açık |
     | KS2 D-C7 UTC fazla reddediyor | açık, zararsız |
 
+    **Doğrulama.** Tam denetim (`f523cb5`, `--eski-evren`) ve A1 (`18263d5`) temiz ağaçta; veri CSV'leri önceki
+    çıktılarla bayt düzeyinde aynı, yalnızca ortam kayıtları farklı (`karsilastirma_ks3_{calistir,a1}_tam.csv`).
+
+    **Tur sonu ajan bulguları (düzeltilmedi; yukarıdakilerden sonra geldi).** Denetçinin bulguları "KS3" önekiyle.
+
+    *Denetçinin cevabı:* getiriye dokunan açıklar kaldı; F2 başlayamaz. Denetçi açıkları üçe ayırıyor.
+
+    - **Rev.11 kararı bekleyenler (F2'yi engeller).**
+      - Listedeki 1–9 ve 11–14. maddeler.
+      - Listede olmayanlar:
+        - H1'de 12 barlık izleme sürerken yeni pump barı; H3'te "ilk gün";
+        - A6 (`gunluge_cevir` NaN hacmi 0 sayıyor);
+        - KS3 D-B4.
+    - **Kod düzeltmesi bekleyenler (F2'den önce).**
+      - Rev.9 D-C2 (kesimlerde tolerans yok).
+      - Rev.9 D-C5 (0 ya da negatif P0/P1 reddedilmiyor).
+      - F1 kapanış D-B1 (Rev.11'den sonra).
+      - §8 eşiği `config`'te yok (F1K2 D-C4).
+      - KS3 D-C1.
+    - **F3'ü engelleyenler (F2'yi değil).**
+      - KS2 D-B2.
+      - KS3 D-B1, D-B2, D-B3.
+      - §9 eşikleri `config`'te yok.
+
+    *Yeni bulgular:*
+    - **KS3 D-B1:** onay kaydı ve tek atış, `onay_kosusu(..., yol=...)` parametresiyle ya da `config.ONAY_KAYDI`
+      yeniden atamasıyla atlatılabiliyor.
+      - Gerçek kayda bir şey yazılmadan koşu açılıyor.
+      - Tekrar denetimi yalnızca verilen dosyayı okuyor.
+      - Sızıntı testçisinin bulgusu da aynı ailede: `split._AKTIF_KOSU` doğrudan atanınca kayıtsız C1 pozisyonu
+        onaylanıyor (`test_tur_saldirilari_n`, xfail).
+    - **KS3 D-B2:** onay koşusu kirli çalışma ağacında ya da git yokken açılabiliyor; "KIRLI" yalnızca kayda
+      yazılıyor.
+    - **KS3 D-B3:** koşunun sonucu (GEÇTİ / KALDI / YETERSİZ GÜÇ) kayda yazılmıyor (ön-kayıt §9).
+    - **KS3 D-B4:** BTCUSDT B grubunda. §10'daki "BTC rejimi" dökümü KEŞİF'te C1 verisine bakmayı
+      gerektiriyor (ön-kayıt §3 ile gerilim). Rev.11 kararı.
+    - **KS3 D-B5:** depo dışı Rev.11 girdisi (12 bölüm) §14.21 listesiyle (14 madde) uyuşmuyor.
+      - Girdide olmayanlar: Rev.10 D-C5 (madde 9) ve D-C7 notu (madde 10).
+      - Ne girdide ne listede olanlar: H1'de yeni pump barı, H3 "ilk gün", A6, Rev.9 D-C5.
+    - **KS3 D-C1:** `DonemDisiSinyal` / K2 havuzu kısmı kapanmadı. (sembol, t) → dönem no araması veri
+      katmanında yok; F2 bunu kapı dışında yapmak zorunda kalıyor. `DonemDisiSinyal` docstring'i bayat.
+    - **KS3 D-C2:** `pozisyon_fiyatlari` onay bağlamını denetlemiyor; `mae` ve `pozisyon_fundingi`
+      denetliyor.
+    - **KS3 D-C3:** `pencere.py:777, 796` ve `funding.py:551` veri hatası için düz `ValueError` veriyor,
+      `VeriHatasi` değil.
+    - **KS3 D-C4:** `tur_saldirilari_m` testinin adı (`..._engellenmez`) artık tersini söylüyor; beklenti
+      `OnayUyusmazligi` kadar dar değil.
+    - **KS3 D-C5:** §14.23'te doğrulama paragrafı eksikti; yukarıya eklendi.
+    - **KS3 D-C6 (şüpheli):** ikincil ufuk okuması ön-kayıt metnine dayanıyor; Rev.11'e bir açıklama cümlesi
+      önerildi.
+    - **KS3 D-C7:** `test_onay_kaydi`, bütün onay koşuları yapıldıktan sonra sessizce atlanıyor.
+    - **KS2 D-B5 genişledi.**
+      - §14.21 özetinde yok: Rev.9 D-C5, A6, F1K2 D-C4, KS2 D-B2, KS3 D-B1…B4.
+      - Bayat: F1K2 D-C2 satırı ve "Bilinen sınır" paragrafı.
+
+    *Denetçinin onayladıkları:*
+    - `OlayOlusmaz` ayrımı sessiz ret ya da yutulan hata yaratmıyor.
+    - Katı onay okuması ön-kayıtla çelişmiyor. §10'daki H1–H2 örtüşme oranı için Rev.11'de bir not öneriyor.
+    - İkincil ufuk özyinelemesi doğru ve en fazla bir adım derin.
+    - Beklentisi değişen testlerde anlam kaybı yok.
+    - KS2 D-B2 tasarımı yönüyle tutarlı. Eksik adımlar:
+      - ızgaralar `config`'e ve D-B1 bağımlılığı;
+      - KS3 D-B1 ve D-B2 önce kapanmalı;
+      - C1 ve C2 aynı kilitle koşulmalı;
+      - §8.4 keşif sonuçları kilitte olmalı;
+      - sonuç satırı ve yarıda kalan koşu;
+      - kilit commit'inin HEAD'in atası olması.
+
+    **Sızıntı testçisi** (`test_tur_saldirilari_n`, `2d32ce6`, yalnızca yeni dosya): 12 test.
+    - Sonuç: 11 geçti, 1 xfail(strict). Bulgu: `_AKTIF_KOSU` doğrudan ataması (yukarıda, KS3 D-B1 ailesi).
+    - Savuşturulanlar:
+      - iç içe koşu;
+      - koşu içinde istisna ve temizlik;
+      - `OnayTekrari`'nın `_AKTIF_KOSU`'yu kirletmemesi;
+      - başka koşuda `mae` / `pozisyon_fundingi`;
+      - `numpy.str_` hipotez adı;
+      - `DonemDisiSinyal`in `OlayOlusmaz` olarak yakalanmaması;
+      - `cikis_bari`'nın düz `ValueError`'ı;
+      - ikincil ufkun kendi küme sınırı ve birincil gerekçenin korunması;
+      - H3'ün 7 ve 30 günlük ikincil ufukları.
+    - `config.HIPOTEZLER` monkeypatch'i yalnızca belgelendi (kararlı atlatma).
+    - **Ana oturum düzeltmesi:** xfail testinin gövdesi saldırının başarısını iddia ediyordu ve XPASS veriyordu.
+      Uzlaşıma göre istenen davranışı (`OnayGerekli`) iddia edecek biçimde çevrildi; bulgu aynı.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
