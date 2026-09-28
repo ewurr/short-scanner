@@ -403,6 +403,15 @@ def olay_karari(
     # Hipotez -> izgara -> ufuk bagi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis
     # turu, denetci D-B2): izgara ve ufuklar hipotezden turer; uyumsuz eslesme calisma aninda hata.
     pencere_modulu.hipotez_baglamini_dogrula(hipotez, bar, ufuk, birincil_ufuk)
+    # Olayin olusup olusmadigi BIRINCIL ufukta belirlenir (kapi sertlestirme turu 3, denetci KS2 D-B3; on-kayit
+    # §4 "Ufuk degerlerinin baglanmasi": "Ikincil ufuklar yalnizca raporlanir; onay kararlari birincil ufka
+    # gore verilir"). Ikincil ufuk istenirse ayni cagri once birincil ufukla degerlendirilir; orada olay
+    # olusmazsa ayni ret gerekcesi yukari cikar ve hicbir ikincil ufukta onay verilmez. Birincil ufukta olusan
+    # olayin ikincil cikisi ayrica kendi ufuk uzunluguyla kurallara tabidir (on-kayit §3 "Kume siniri ve ufuk").
+    if ufuk != birincil_ufuk:
+        olay_karari(sinyal_zamani, birincil_ufuk, bar, hipotez=hipotez, birincil_ufuk=birincil_ufuk, kume=kume,
+                    sembol=sembol, donem_no=donem_no, sinyal_degerleri=sinyal_degerleri, asgari_hacim=asgari_hacim,
+                    asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
     sinyal_zamani = _utc_sinyal_zamani(sinyal_zamani)
     # Kume sinirlari cagirandan alinmaz; kume adindan kapida okunur (kapi sertlestirme turu, denetci F1K2
     # D-B1; on-kayit §3 "Kume siniri ve geriye bakis": "kod duzeyinde ayrica dogrulanir"). Serbest sinir

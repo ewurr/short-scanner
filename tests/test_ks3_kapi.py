@@ -176,3 +176,51 @@ def test_mae_ve_funding_onay_baglamini_ister(gecici_kayit):
         pozisyon.mae(p)
     with pytest.raises(split.OnayUyusmazligi):
         funding.pozisyon_fundingi(p)
+
+
+# --- 2. Ikincil ufuk: olay birincil ufukta belirlenir (denetci KS2 D-B3) -------------------------------
+
+
+def test_birincilde_kume_sinirina_takilan_olay_ikincilde_de_olusmaz():
+    """KESIF sonuna yakin t: birincil (18 bar) cikis C2'ye tasar, 6 barlik cikis sigar. Olay birincilde
+    olusmadigi icin 6 barda da onaylanmaz; ret gerekcesi birincilinkidir."""
+    db = T("2025-06-01")
+    z = pd.date_range(db, T("2025-08-31 20:00"), freq="4h")
+    mum = pd.DataFrame({"open_time": z, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0})
+    fr = pd.DataFrame({"odeme_zamani": pd.date_range(db, T("2025-09-01"), freq="8h"), "aralik_saat": 8.0,
+                       "oran": 0.0, "oran_8h": 0.0})
+    tanim = pencere.hipotez_ufuklari("H1")
+    t = T("2025-08-29 04:00")
+    kayit = veri(mum, fr, db, T("2025-08-31 20:00"), uygun_bas=db)
+    ortak = dict(hipotez="H1", birincil_ufuk=tanim.birincil, kume="KESIF", **kayit, sinyal_degerleri=sinyal("H1"),
+                 **esikler(tanim.bar))
+    with pytest.raises(pencere.KumeSiniriHatasi):
+        pozisyon.olay_karari(t, tanim.birincil, tanim.bar, **ortak)
+    for ufuk in tanim.ikincil:
+        with pytest.raises(pencere.KumeSiniriHatasi):
+            pozisyon.olay_karari(t, ufuk, tanim.bar, **ortak)
+
+
+def test_birincilde_funding_eksik_olay_ikincilde_de_olusmaz():
+    """Birincil pencerenin 6 barlik ufuktan SONRAKI kisminda bir funding kaydi eksik: 6 barlik pozisyonun
+    funding'i tamdir ama olay birincilde olusmaz."""
+    p6_giris = T_SINYAL + H(4)
+    eksik = p6_giris + H(6 * 4 + 16)  # 6 barlik cikistan sonra, birincil cikistan once
+    fr = FUND.loc[FUND["odeme_zamani"] != eksik].reset_index(drop=True)
+    assert (FUND["odeme_zamani"] == eksik).any()
+    with pytest.raises(pozisyon.FundingTamDegil):
+        _karar(fr=fr)
+    with pytest.raises(pozisyon.FundingTamDegil):
+        _karar(fr=fr, ufuk=6)
+
+
+def test_birincilde_olusan_olayin_ikincil_cikisi_kendi_kurallarina_tabidir():
+    """Birincil onayli olay 6 barda da onaylanir; 42 barlik cikis donem/kume/funding kurallarini kendi
+    uzunluguyla gecmelidir (on-kayit §3 'Ikincil ufuklar ... kendi ufuk uzunluklariyla')."""
+    p18 = _karar()
+    p6 = _karar(ufuk=6)
+    assert p18.plan.ufuk == 18 and p6.plan.ufuk == 6 and p6.plan.giris == p18.plan.giris
+    fr = FUND.loc[FUND["odeme_zamani"] != p18.plan.cikis_ani + H(16)].reset_index(drop=True)
+    pozisyon.onay_dogrula(_karar(fr=fr))
+    with pytest.raises(pozisyon.FundingTamDegil):
+        _karar(fr=fr, ufuk=42)

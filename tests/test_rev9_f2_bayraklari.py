@@ -57,10 +57,12 @@ def test_dort_saatlik_ritimde_kuyruk_yok():
 
 
 def test_pencere_sonu_esitlik_affi():
-    """4 saatlik ritim, cikis anindaki (03-06 08:00) kayit yok: son kayit 04:00 + 4h = 08:00.
-    Rev.10: 6 barlik ufuk (onceki 1 bar); ayni senaryo."""
-    fr = _fund(4, disla=[T("2025-03-06 08:00")])
-    p = _karar(fr, T("2025-03-05 04:00"))
+    """4 saatlik ritim, cikis anindaki kayit yok: son kayit 04:00 + 4h = 08:00.
+    Rev.10: 6 barlik ufuk (onceki 1 bar); ayni senaryo. Kapi sertlestirme turu 3: ikincil ufuk once birincil
+    ufukla degerlendirilir ve 6 barlik cikistaki (03-06 08:00) eksik kayit birincil pencerenin ortasina duser;
+    senaryo birincil ufukta (18 bar, cikis 03-08 08:00) ayni yapiyla kurulur."""
+    fr = _fund(4, disla=[T("2025-03-08 08:00")])
+    p = _karar(fr, T("2025-03-05 04:00"), ufuk=18)
     assert p.son_esitlik_affi and not p.kuyruk_kismi
 
 

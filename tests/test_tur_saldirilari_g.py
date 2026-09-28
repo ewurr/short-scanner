@@ -284,7 +284,7 @@ def _basit_plan():
     sinyal = seri_bas + 10 * H4
     # Rev.10: plan kapiya verildigi icin ufuk on-kayit degeri (onceki 3 bar yerine 6 bar).
     plan = pencere_modulu.pozisyon_plani(
-        zamanlar, sinyal, 6, config.BAR_4H, birincil_ufuk=18,
+        zamanlar, sinyal, 18, config.BAR_4H, birincil_ufuk=18,  # Kapi sertlestirme turu 3: ikincil ufuk (6) once birincil ufukla degerlendirilir; plan birincil ufukta (18)
         kume_baslangic=None, kume_bitis=None, donem_baslangic=donem_bas, donem_bitis=donem_bitis,
     )
     return plan, zamanlar, donem_bas, donem_bitis

@@ -300,7 +300,7 @@ def _basit_plan_i(seri_bas_str: str):
     zamanlar = pd.date_range(seri_bas, donem_bitis, freq="4h", tz="UTC")
     sinyal = seri_bas + 10 * H(4)
     plan = pencere_modulu.pozisyon_plani(
-        zamanlar, sinyal, 6, config.BAR_4H, birincil_ufuk=18,
+        zamanlar, sinyal, 18, config.BAR_4H, birincil_ufuk=18,  # Kapi sertlestirme turu 3: ikincil ufuk (6) once birincil ufukla degerlendirilir; plan birincil ufukta (18)
         kume_baslangic=None, kume_bitis=None, donem_baslangic=donem_bas, donem_bitis=donem_bitis,
     )
     return plan, zamanlar, donem_bas, donem_bitis
