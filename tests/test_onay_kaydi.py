@@ -34,13 +34,18 @@ def gercek_kopya(tmp_path):
     return hedef
 
 
-def _test_hipotezi(metin: str, onek: str = "TESTH") -> str:
-    """Gercek kayitta henuz bulunmayan bir hipotez adi (ilk F3 kosusundan sonra da calisir)."""
-    mevcut = {h for h, _ in split.kayittaki_kosular(metin)}
-    i = 0
-    while f"{onek}{i}" in mevcut:
-        i += 1
-    return f"{onek}{i}"
+def _test_hipotezi(metin: str) -> str:
+    """Gercek kayitta C1 ve C2 icin henuz bulunmayan bir hipotez adi (ilk F3 kosusundan sonra da calisir).
+
+    Kapi sertlestirme turu 3 (denetci KS2 D-B1): hipotez adi yalnizca `config.HIPOTEZLER`den olabilir;
+    onceki serbest test adlari ("TESTH0") artik reddedilir. Butun hipotezler kayitta ise test atlanir."""
+    import config
+
+    mevcut = split.kayittaki_kosular(metin)
+    for hipotez in config.HIPOTEZLER:
+        if (hipotez, "C1") not in mevcut and (hipotez, "C2") not in mevcut:
+            return hipotez
+    pytest.skip("Gercek kayitta her hipotez icin onay kosusu var; bos hipotez adi kalmadi.")
 
 
 def test_gercek_kayit_dosyasinda_satir_tablonun_icine_duser(gercek_kopya):

@@ -94,3 +94,85 @@ def test_cagri_hatasi_olay_olusmaz_degil():
     assert not isinstance(hata.value, pencere.OlayOlusmaz)
     with pytest.raises(TypeError):
         pencere.ret_gerekcesi(pencere.VeriHatasi("x"))
+
+
+# --- 1. Onay kosusu baglami (denetci KS2 D-B1) -----------------------------------------------------
+
+
+@pytest.fixture
+def gecici_kayit(tmp_path, monkeypatch):
+    import config
+
+    yol = tmp_path / "onay_gecici.md"
+    yol.write_text("bas\n", encoding="utf-8")
+    monkeypatch.setattr(config, "ONAY_KAYDI", yol)
+    return yol
+
+
+def _c1(hipotez="H1", **ek):
+    return _karar(hipotez=hipotez, kume="C1", grup="B", **ek)
+
+
+def test_uyusmayan_hipotez_reddedilir_eslesen_onaylanir(gecici_kayit):
+    with split.onay_kosusu("H2", "C1"):
+        with pytest.raises(split.OnayUyusmazligi):
+            _c1("H1")
+        pozisyon.onay_dogrula(_c1("H2"))
+
+
+def test_onay_kumesi_kosu_disinda_ve_baska_kumenin_kosusunda_reddedilir(gecici_kayit):
+    with pytest.raises(split.OnayUyusmazligi):
+        _c1("H1")
+    with split.onay_kosusu("H1", "C2"):
+        with pytest.raises(split.OnayUyusmazligi):
+            _c1("H1")
+
+
+def test_acik_kosu_icinde_kesif_pozisyonu_reddedilir(gecici_kayit):
+    pozisyon.onay_dogrula(_karar())
+    with split.onay_kosusu("H1", "C1"):
+        with pytest.raises(split.OnayUyusmazligi):
+            _karar()
+
+
+@pytest.mark.parametrize("hipotez", ["h2", "H2_b", " H2", "H2 ", "H4", "HTEST", "", None, b"H2"])
+def test_hipotez_adi_varyasyonlari_kosu_acamaz(gecici_kayit, hipotez):
+    with pytest.raises(ValueError):
+        with split.onay_kosusu(hipotez, "C1"):
+            pytest.fail("kosu acilmamali")
+    assert gecici_kayit.read_text(encoding="utf-8") == "bas\n"
+    assert split.aktif_onay_kosusu() is None
+
+
+@pytest.mark.parametrize("kume", ["c1", "C1 ", "KESIF", "C3", None])
+def test_onay_kumesi_varyasyonlari_kosu_acamaz(gecici_kayit, kume):
+    with pytest.raises(ValueError):
+        with split.onay_kosusu("H2", kume):
+            pytest.fail("kosu acilmamali")
+
+
+def test_str_alt_sinifi_hipotez_adi_kosu_acamaz(gecici_kayit):
+    class _Ad(str):
+        pass
+
+    with pytest.raises(ValueError):
+        with split.onay_kosusu(_Ad("H2"), "C1"):
+            pytest.fail("kosu acilmamali")
+
+
+def test_kapi_hipotezi_de_sabitlerden(gecici_kayit):
+    with pytest.raises((ValueError, KeyError)):
+        _karar(hipotez="h1")
+
+
+def test_mae_ve_funding_onay_baglamini_ister(gecici_kayit):
+    from data import funding
+
+    with split.onay_kosusu("H1", "C1"):
+        p = _c1("H1")
+        assert pozisyon.mae(p) == pozisyon.mae(p)
+        funding.pozisyon_fundingi(p)
+    with pytest.raises(split.OnayUyusmazligi):
+        pozisyon.mae(p)
+    with pytest.raises(split.OnayUyusmazligi):
+        funding.pozisyon_fundingi(p)

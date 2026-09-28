@@ -142,6 +142,9 @@ DENETIM_ILK_GECIKME_SAAT = 8
 
 # Hipotezlerin izgarasi (on-kayit §2 "Bar tipleri"; §4-§5: H1, H2 4 saatlik; H3 1 gunluk).
 HIPOTEZ_IZGARASI = {"H1": BAR_4H, "H2": BAR_4H, "H3": BAR_1D}
+# Hipotez adlari (on-kayit §5: H1, H2, H3). Onay kosusu ve karar noktasi yalnizca bu sabitleri kabul eder;
+# "h2", "H2_b" gibi varyasyonlar reddedilir (kapi sertlestirme turu 3, denetci KS2 D-B1).
+HIPOTEZLER = tuple(HIPOTEZ_IZGARASI)
 
 # Birincil ufuk (on-kayit §4 tablo): H1, H2 18 bar (3 gun); H3 14 gun. Onay kararlari buna gore.
 BIRINCIL_UFUK = {BAR_4H: 18, BAR_1D: 14}

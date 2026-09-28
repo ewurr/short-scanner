@@ -185,7 +185,7 @@ def test_onay_true_ama_kosu_yoksa_reddedilir_kayit_yazilmaz(yukleyici, kume, tab
 @pytest.mark.parametrize("deger", ["False", "True", 1, 0, None, "evet"])
 def test_onay_yalnizca_gercek_bool(deger, tablo, sahte_ham, kayit):
     """Bulgu 8: `onay="False"` gibi dogruluk degeri tasiyan her sey reddedilir."""
-    with split.onay_kosusu("HTEST", "C1"):
+    with split.onay_kosusu("H1", "C1"):
         with pytest.raises(PermissionError):
             klines.mumlari_yukle("BBUSDT", config.BAR_4H, "C1", onay=deger)
     with pytest.raises(PermissionError):
@@ -193,13 +193,13 @@ def test_onay_yalnizca_gercek_bool(deger, tablo, sahte_ham, kayit):
 
 
 def test_baska_kumenin_kosusu_kapiyi_acmaz(tablo, sahte_ham, kayit):
-    with split.onay_kosusu("HTEST", "C1"):
+    with split.onay_kosusu("H1", "C1"):
         with pytest.raises(PermissionError):
             klines.mumlari_yukle("AAUSDT", config.BAR_4H, "C2", onay=True)
 
 
 def test_kosu_kapaninca_erisim_kapanir(tablo, sahte_ham, kayit):
-    with split.onay_kosusu("HTEST", "C1"):
+    with split.onay_kosusu("H1", "C1"):
         assert not klines.mumlari_yukle("BBUSDT", config.BAR_4H, "C1", onay=True).empty
     assert split.aktif_onay_kosusu() is None
     with pytest.raises(PermissionError):
@@ -208,7 +208,7 @@ def test_kosu_kapaninca_erisim_kapanir(tablo, sahte_ham, kayit):
 
 def test_kosu_icinde_hata_olsa_da_kosu_kapanir(tablo, sahte_ham, kayit):
     with pytest.raises(RuntimeError, match="deneme"):
-        with split.onay_kosusu("HTEST", "C1"):
+        with split.onay_kosusu("H1", "C1"):
             raise RuntimeError("deneme")
     assert split.aktif_onay_kosusu() is None
 
@@ -267,7 +267,12 @@ def test_ic_ice_kosu_acilamaz(tablo, kayit):
                 pass
 
 
-@pytest.mark.parametrize(("hipotez", "kume"), [("H1", "KESIF"), ("", "C1"), ("H 1", "C1"), ("H1|x", "C1"), (None, "C1")])
+# Kapi sertlestirme turu 3 (denetci KS2 D-B1): hipotez ve kume adi yalnizca sabit degerler (`config.HIPOTEZLER`,
+# `config.ONAY_KUMELERI`); ad varyasyonlari ("h2", "H2_b", "HTEST", "c1") reddedilir. Bu dosyadaki onceki
+# serbest test adi "HTEST" gecerli bir hipotez adiyla ("H1") degistirildi.
+@pytest.mark.parametrize(("hipotez", "kume"), [("H1", "KESIF"), ("", "C1"), ("H 1", "C1"), ("H1|x", "C1"), (None, "C1"),
+                                               ("h2", "C1"), ("H2_b", "C1"), (" H2", "C1"), ("H4", "C1"),
+                                               ("HTEST", "C1"), ("H2", "c1"), ("H2", "C1 ")])
 def test_gecersiz_kosu_reddedilir(hipotez, kume, tablo, kayit):
     with pytest.raises(ValueError):
         with split.onay_kosusu(hipotez, kume):
@@ -277,7 +282,7 @@ def test_gecersiz_kosu_reddedilir(hipotez, kume, tablo, kayit):
 
 def test_c2_donemi_c2_araligina_kesilir(tablo, sahte_ham, kayit):
     bas, _ = split.kume_araligi("C2")
-    with split.onay_kosusu("HTEST", "C2"):
+    with split.onay_kosusu("H1", "C2"):
         mumlar = klines.mumlari_yukle("AAUSDT", config.BAR_4H, "C2", onay=True)
         fund = funding.funding_yukle("BBUSDT", "C2", onay=True)
     assert mumlar["open_time"].min() >= bas

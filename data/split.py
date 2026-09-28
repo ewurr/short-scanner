@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
-import re
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -48,6 +47,12 @@ from data.pencere import KumeSiniriHatasi  # noqa: F401  (disari acik ad)
 
 class OnayGerekli(PermissionError):
     """Onay kumesine gecerli bir onay kosusu olmadan erisim denendi (CLAUDE.md §3.3)."""
+
+
+class OnayUyusmazligi(OnayGerekli):
+    """Acik onay kosusunun (hipotez, kume) cifti, karar noktasina gelen pozisyonunkiyle uyusmuyor
+    (kapi sertlestirme turu 3, denetci KS2 D-B1; onay kumeleri her hipotez icin BIR KEZ kosulur).
+    Ornek: `onay_kosusu("H2", "C1")` icinde H1 pozisyonu ya da acik bir onay kosusu icinde KESIF pozisyonu."""
 
 
 class OnayTekrari(PermissionError):
@@ -219,7 +224,6 @@ def _cagiran_betik() -> str:
 
 
 ONAY_TABLO_BASLIGI = "| Tarih (UTC) |"
-HIPOTEZ_DESENI = re.compile(r"^[A-Za-z0-9_.-]{1,40}$")
 
 
 def kayda_satir_ekle(metin: str, satir: str) -> str:
@@ -269,11 +273,31 @@ def kayittaki_kosular(metin: str) -> set[tuple[str, str]]:
 
 
 def _hipotez_dogrula(hipotez) -> str:
-    if not isinstance(hipotez, str) or not HIPOTEZ_DESENI.match(hipotez):
-        raise ValueError(
-            f"Hipotez adi harf, rakam, '_', '.', '-' iceren 1-40 karakterlik bir metin olmali: {hipotez!r}"
-        )
+    """Hipotez adi sabit degerlerden biri olmali (`config.HIPOTEZLER`), tam `str` turunde (kapi sertlestirme
+    turu 3, denetci KS2 D-B1): serbest metin ("h2", "H2_b", "HTEST") tek atis anahtarini atlatirdi."""
+    if type(hipotez) is not str or hipotez not in config.HIPOTEZLER:
+        raise ValueError(f"Hipotez adi {config.HIPOTEZLER} degerlerinden biri olmali: {hipotez!r}")
     return hipotez
+
+
+def _onay_kumesi_dogrula(kume) -> str:
+    """Onay kumesi sabit degerlerden biri olmali (`config.ONAY_KUMELERI`), tam `str` turunde."""
+    if type(kume) is not str or kume not in config.ONAY_KUMELERI:
+        raise ValueError(f"{kume!r} bir onay kumesi degil: {config.ONAY_KUMELERI}")
+    return kume
+
+
+def onay_baglami_dogrula(hipotez: str, kume: str) -> None:
+    """Karar noktasinin onay baglami (kapi sertlestirme turu 3, denetci KS2 D-B1): C1/C2 pozisyonu yalnizca
+    ayni (hipotez, kume) ciftinin acik onay kosusu icinde; acik bir onay kosusu varken baska hicbir
+    (hipotez, kume) pozisyonu, KESIF dahil, olusturulamaz. Uyusmazlik `OnayUyusmazligi`."""
+    aktif = _AKTIF_KOSU
+    if kume in config.ONAY_KUMELERI or aktif is not None:
+        if aktif != (hipotez, kume):
+            raise OnayUyusmazligi(
+                f"Pozisyon ({hipotez}, {kume}) acik onay kosusuyla ({aktif}) eslesmiyor. C1/C2 pozisyonu yalnizca "
+                f"`with split.onay_kosusu({hipotez!r}, {kume!r}):` icinde; acik kosu varken baska pozisyon "
+                "olusturulamaz.")
 
 
 def onay_kaydet(hipotez: str, kume: str, yol: Path | None = None) -> None:
@@ -285,8 +309,7 @@ def onay_kaydet(hipotez: str, kume: str, yol: Path | None = None) -> None:
       durumu (temiz / KIRLI / bilinmiyor), hipotez adi.
     """
     _hipotez_dogrula(hipotez)
-    if kume not in config.ONAY_KUMELERI:
-        raise ValueError(f"{kume!r} bir onay kumesi degil: {config.ONAY_KUMELERI}")
+    _onay_kumesi_dogrula(kume)
     hedef = config.ONAY_KAYDI if yol is None else Path(yol)
 
     # newline="" satir sonlarini cevirmeden okur/yazar; aksi halde Windows'ta tum

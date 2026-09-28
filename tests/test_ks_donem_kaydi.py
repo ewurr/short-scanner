@@ -100,8 +100,6 @@ def test_grup_kumeye_ait_olmali(tmp_path, monkeypatch):
     pozisyon.onay_dogrula(_karar(**a))
     with pytest.raises(ValueError, match="kumesine ait degil"):
         _karar(**b)  # KESIF yalnizca A
-    with pytest.raises(ValueError, match="kumesine ait degil"):
-        _karar(kume="C1", **a)  # C1 yalnizca B
     # Kapi sertlestirme turu 2: kapi C1 verisini kume korumali yoldan yukler; onay kosusu olmadan
     # OnayGerekli (onceki beklenti: onaysiz onay; denetci KS D-B4). Kosu icinde onaylanir.
     with pytest.raises(split.OnayGerekli):
@@ -112,6 +110,10 @@ def test_grup_kumeye_ait_olmali(tmp_path, monkeypatch):
     kayit.write_text("bas\n", encoding="utf-8")
     monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
     with split.onay_kosusu("H1", "C1"):
+        # Kapi sertlestirme turu 3: onay baglami grup denetiminden once gelir; C1 grup denetimi (A sembolu)
+        # artik acik kosu icinde sinaniyor (onceki: kosu disinda ValueError).
+        with pytest.raises(ValueError, match="kumesine ait degil"):
+            _karar(kume="C1", **a)  # C1 yalnizca B
         pozisyon.onay_dogrula(_karar(kume="C1", **b))
 
 

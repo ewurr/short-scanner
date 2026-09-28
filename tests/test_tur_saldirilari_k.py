@@ -115,8 +115,12 @@ def test_kesif_basi_ile_c2_sonu_karisimi_verilemez(tmp_path, monkeypatch):
         with pytest.raises(pencere.OlayOlusmaz):
             pozisyon.olay_karari(sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume="C2")
     # C1 (B grubu): sentetik sembol A grubunda; kapi grup denetiminde reddeder (kapi sertlestirme turu).
-    with pytest.raises(ValueError):
+    # Kapi sertlestirme turu 3: kosu disinda once onay baglami (OnayUyusmazligi); grup denetimi kosu icinde.
+    with pytest.raises(split.OnayUyusmazligi):
         pozisyon.olay_karari(sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume="C1")
+    with split.onay_kosusu("H2", "C1"):
+        with pytest.raises(ValueError, match="kumesine ait degil"):
+            pozisyon.olay_karari(sinyal_zamani, tanim.birincil, tanim.bar, **ortak, kume="C1")
 
 
 # --- Saldiri 2: ters sirali kume sinirlari (kume_baslangic > kume_bitis) her zaman reddedilir --------

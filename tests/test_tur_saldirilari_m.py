@@ -280,16 +280,10 @@ def test_donem_disi_sinyal_seride_var_olsa_da_reddedilir():
 # --- 6. Onay kosusu hipotez-kume eslesmesi (CLAUDE.md §3.3, on-kayit "tek atis") ---------------------
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU: split.kume_erisimi (data/split.py) ve "
-                    "kapi_yardimcisi.birlesik_veri_yukle yalnizca AKTIF onay kosusunun KUMESINI "
-                    "(`_AKTIF_KOSU[1] != kume`) denetler, HIPOTEZINI degil. `onay_kosusu('H2', 'C1')` "
-                    "acik bir kosu icinde `pozisyon.olay_karari(..., hipotez='H1', kume='C1', ...)` "
-                    "cagirisi C1 verisine erisip pozisyonu onaylayabiliyor; oysa ONAY_KAYDI.md'ye "
-                    "yazilan tek satir 'hipotez=H2' der (CLAUDE.md §3.3: 'Onay kosusu ... her koşu "
-                    "ONAY_KAYDI.md dosyasina ... eklenir'; on-kayit 'Keşif serbest, onay tek atis': "
-                    "her hipotez icin BIR onay kosusu). Beklenen: hipotez uyusmazliginda ValueError/"
-                    "OnayGerekli; GOZLENEN: pozisyon sessizce onaylaniyor, kayitla gercekte hesaplanan "
-                    "hipotez arasinda uyumsuzluk denetlenmiyor.")
+# SALDIRI BULGUSU (kapi sertlestirme turu 2, xfail idi): kapi ve `split.kume_erisimi` acik onay kosusunun
+# yalnizca kumesini denetliyordu; `onay_kosusu("H2", "C1")` icinde H1'in C1 pozisyonu onaylaniyordu.
+# Kapi sertlestirme turu 3'te kapandi (`split.onay_baglami_dogrula`: `OnayUyusmazligi`, `OnayGerekli` alt
+# sinifi); xfail isareti kaldirildi, beklenti ayni.
 def test_onay_kosusu_hipotez_uyusmazligi_engellenmez(tmp_path, monkeypatch):
     kayit = tmp_path / "onay_gecici.md"
     monkeypatch.setattr(config, "ONAY_KAYDI", kayit)

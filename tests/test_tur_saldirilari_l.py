@@ -87,13 +87,17 @@ def _gercek_sembol_donem(istenen_grup: str) -> tuple[str, int]:
     return str(r["sembol"]), int(r["donem_id"])
 
 
-def test_gercek_a_grubu_sembol_c1_kumesinde_reddedilir():
+def test_gercek_a_grubu_sembol_c1_kumesinde_reddedilir(tmp_path, monkeypatch):
     """C1 yalnizca B grubudur (on-kayit §3 'Coin bolmesi'). Gercek bir A grubu sembolun gercek
     listeleme donemiyle C1'e sokulmaya calisilmasi `grup_dogrula` tarafindan reddedilmeli; kod bu
     noktaya kadar `sinyal_degerleri`, `mumlar_4h` gibi diger girdileri hic okumaz (savusturuldu)."""
     sembol, donem_no = _gercek_sembol_donem("A")
     tanim = pencere.hipotez_ufuklari("H1")
-    with pytest.raises(ValueError, match="kumesine ait degil"):
+    # Kapi sertlestirme turu 3: C1 cagrisi once onay baglamindan gecer; grup denetimi acik kosu icinde sinanir.
+    kayit = tmp_path / "onay_gecici.md"
+    kayit.write_text("bas\n", encoding="utf-8")
+    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
+    with split.onay_kosusu("H1", "C1"), pytest.raises(ValueError, match="kumesine ait degil"):
         pozisyon.olay_karari(  # kapi sertlestirme turu 2: cerceve parametreleri kalkti
             T("2025-01-01"), tanim.birincil, tanim.bar, hipotez="H1",
             birincil_ufuk=tanim.birincil, kume="C1", sembol=sembol, donem_no=donem_no,

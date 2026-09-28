@@ -408,6 +408,9 @@ def olay_karari(
     # D-B1; on-kayit §3 "Kume siniri ve geriye bakis": "kod duzeyinde ayrica dogrulanir"). Serbest sinir
     # cifti, karisik sinir (ör. KESIF basi + C2 sonu) ya da None verilemez.
     kume_baslangic, kume_bitis = kume_sinirlari(kume)
+    # Onay baglami (kapi sertlestirme turu 3, denetci KS2 D-B1): C1/C2 pozisyonu yalnizca ayni (hipotez, kume)
+    # ciftinin acik onay kosusunda; acik kosu varken baska pozisyon yok. Uyusmazlik `split.OnayUyusmazligi`.
+    split_modulu.onay_baglami_dogrula(hipotez, kume)
     # Donem sinirlari da cagirandan alinmaz; commit edilmis evren tablosundan sembol ve donem numarasiyla
     # okunur (kapi sertlestirme turu, denetci F1K2 D-B2; on-kayit §2 "Listeleme donemi", "Evren tablosunun
     # sabitlenmesi": "analiz bu dosyadan okur"). Sembolun grubu kumeye ait olmali (on-kayit §3 "Coin bolmesi").
@@ -533,6 +536,7 @@ def mae(pozisyon) -> float:
     Raporlanir, esik degildir.
     """
     onay_dogrula(pozisyon)
+    split_modulu.onay_baglami_dogrula(pozisyon.hipotez, pozisyon.kume)  # kapi sertlestirme turu 3
     plan = pozisyon.plan
     mumlar_4h, _ = _kume_verisi(pozisyon.sembol, pozisyon.kume, plan.kume_baslangic, plan.kume_bitis)
     zamanlar = _mum_zamanlari(mumlar_4h)
