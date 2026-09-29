@@ -2188,6 +2188,67 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     | KS3 D-C3 düz `ValueError` | **kapandı** (`b2acfa3`) |
     | KS3 D-C1, D-C2, D-C4, D-C6, D-C7 | açık (bu turun kapsamı dışında) |
 
+    **Doğrulama.** Tam denetim (`008c72d`, `--eski-evren`) ve A1 (`ae2350d`) temiz ağaçta. 64 çıktının 63'ü önceki
+    çıktılarla bayt düzeyinde aynı; yalnızca ortam kayıtları farklı (`karsilastirma_ok_{calistir,a1}_tam.csv`).
+
+    **Tur sonu ajan bulguları (düzeltilmedi; yukarıdakilerden sonra geldi).** Denetçinin bulguları "OK" önekiyle.
+
+    *Denetçinin cevabı:* onay kaydı hâlâ atlatılabiliyor, bir yolu kazayla. Yukarıdaki "Kalan atlatma yolları"
+    listesinin 5. maddesi yanlış, 6. maddesi eksik.
+    - **OK D-B1: kayıt commit edilene kadar yalnızca çalışma ağacında.** Tek atış denetimi yalnızca çalışma
+      ağacındaki dosyayı okuyor. Koşudan sonra ağaç kirli; `git stash -u`, `git checkout .`, `git reset --hard`
+      ya da IDE'de "Discard changes" satırları siler. Çift harcanmamış görünür, iz kalmaz. **Kazayla olabilir.**
+      Kasıtlı biçimi: `git checkout -- ONAY_KAYDI.md`.
+    - **OK D-B2 (şüpheli, denetçi testle doğrulamadı): korunan fonksiyonlar modül sözlüğünden değiştirilebiliyor.**
+      - `vars(split)["aktif_onay_kosusu"] = lambda: ("H2", "C1")` (ya da `_acik_kosu`) ile C1 kayda satır
+        yazılmadan açılır. 5. maddedeki "kilitli dosyaya yazıp silmeyi gerektirir" yalnızca `_AKTIF_KOSU` için
+        doğru.
+      - `split.__class__ = types.ModuleType` korumayı kaldırır.
+      - Tarama deseni `vars(split)` arıyor; depodaki takma ad `split_modulu` ve `\b` onu eşlemiyor.
+    - **OK D-C1:** sonuç bildirildikten sonra blok hata ile biterse (ör. `SystemExit`) kayda yalnızca HATA yazılıyor;
+      bildirilmiş sonuç kayda girmiyor. Sonuç bildirilmeden istatistik ekrana basılırsa kayıtta yalnızca
+      `OnaySonucuYok` kalır.
+    - **OK D-C2 (şüpheli):** `ONAY_TABLO_BASLIGI` korunmuyor. Sızıntı testçisi ölçtü: biçim bozuluyor, tek atış
+      bozulmuyor (aşağıda).
+    - **OK D-C3:** kayıt izi yanıltıcı olabilir: `__main__.__file__` elle atanabiliyor, `config.KOK` korunmuyor,
+      izlenen betik depo dışı kodu içe aktarabilir.
+    - **OK D-C4:** tarama `analysis/00_veri_denetimi`'yi ve `.ipynb`'yi muaf tutuyor. `pozisyon.split_modulu` ve
+      `data` paketinin `split` özniteliği korunmuyor.
+    - **OK D-C5:** bitiş satırı yazılamazsa (kilit zaman aşımı, finally içinde Ctrl-C) başarılı koşunun sonucu
+      kaybolur; BASLADI kalır ve hata yüksek sesle verilir. Kayıtsız erişim açan bir hata yolu bulunmadı.
+    - **OK D-C6 (şüpheli):** `_acik_kosu` her erişimde dosyayı kilitsiz okuyor. Windows'ta geçici `OSError` koşuyu
+      HATA ile bitirir ve çifti harcar. Süreç şartı yüzünden F3 çok süreçli koşulamaz. Performans ölçülmedi.
+    - **OK D-C7:** `_test_kaydi_ayarla` varsayılanları gerçek `_kosu_ortami`'nin olumlu yolunu (`relative_to`,
+      `ls-files`, porcelain) hiç sınatmıyor. Gerçek ortama dokunan tek test olumsuz yönlü; pytest temiz ağaçta
+      izlenen bir giriş betiğinden başlatılırsa gerçek `(H1, C1)` çiftini harcar (şüpheli; bugün böyle betik yok).
+    - **OK D-C8: bayat metin.**
+      - Kilitli: `CLAUDE.md:54` (`--onay` bayrağı), `CLAUDE.md:107` (`onay_kaydet`), `ONAY_KAYDI.md:6-9`
+        (tek satır, temiz/kirli). `ONAY_KAYDI.md:15` "Henuz onay kosusu yok." satırı ilk koşudan sonra da kalır.
+      - Kilitsiz: hook yorumu (`onay_kaydet`), `test_kume_korumasi.py:6, 217` ("tek satir"),
+        `test_tur_saldirilari_n.py:117`, `split.py` modül korumasının yorumu (OK D-B2).
+    - **OK D-C9:** kural 0 okuması (sonuç değer kümesi) doğru. Ek: §9'un altı koşulunun küme başına değerlerinin
+      kayda girip girmeyeceği de tanımsız.
+    - Rev.11 girdisi ile §14.21 listesi 1–17 birebir uyuşuyor. 9, 10 ve 15–17'deki alıntılar satır satır doğru.
+
+    *Denetçinin sınıflaması:*
+    - Kazayla olabilecek: OK D-B1; küme tarihlerinin "duyarlılık için" değiştirilmesi (listenin 2. maddesi).
+    - Kasıtla, iz bırakmadan: listenin 1–4, 6, 7. maddeleri; OK D-B2; OK D-B1'in kasıtlı biçimi; OK D-C4.
+    - İz bırakan: 5. madde (yalnızca `_AKTIF_KOSU`), OK D-C2, OK D-C3 (yanlış iz), öldürülen süreç.
+
+    **Sızıntı testçisi** (`test_tur_saldirilari_o`, `ab104f2`, yalnızca yeni dosya): 6 test; ana oturum koştu
+    (testçinin kabuk aracı yoktu): 4 geçti, 2 xfail(strict).
+    - **Bulgular:**
+      - `split.split_oku` korunan adlarda yok. Düz `setattr` ile sahte tablo verilince B grubu bir sembol
+        KEŞİF'te izinli dönüyor (CLAUDE.md §3.2).
+      - `split.kume_araligi` korunan adlarda yok. Düz `setattr` ile KEŞİF'in sonu C2 sonuna uzatılabiliyor
+        (ön-kayıt §3).
+    - **Belgelenen:** `ONAY_TABLO_BASLIGI` bozulunca satır tablonun dışına düşüyor, tek atış bozulmuyor. İç içe koşu
+      denemesinin `RuntimeError`'ı dıştaki koşuyu HATA ile bitiriyor ve çiftini harcıyor.
+    - **Savuşturulanlar:** sonuç metnine gömülü sahte alanlar (`durum=`, `kosu=`, `hipotez=`) ayrıştırıcıyı
+      yanıltmıyor; koşu sırasında kayıt dosyasının silinmesi iz bırakan bir hata veriyor ve çift harcanmış kalıyor.
+    - Testçi raporunda 7 test diyordu; dosyada 6 test var.
+    - **Tam takım:** 1726 geçti, 6 xfail.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
