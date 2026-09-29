@@ -1589,7 +1589,23 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
           - tek başına ±inf toplam açık `VeriHatasi` verir.
         - Rev.10 D-C5 (H2 sinyal penceresinde `kayit_var` ve NaN oran, madde 9) ile karıştırılmamalı.
 
+    Onay kaydı ve koşu bütünlüğü turunda eklenenler (denetçi KS2 D-B5, KS3 D-B5; §14.24):
+    15. **H1'de izleme sürerken gelen yeni pump barı.**
+        - Açık sorular: ilk izleme sürer mi, yeni bar yeni izleme başlatır mı? Tepe ve 12 barlık sayaç hangi
+          pump barından ölçülür? Aynı teyit barı iki izlemeyi de teyit ederse kaç olay sayılır?
+        - Kod bugün: pump, tepe ve izleme kodu yok; kapı `tepe`'yi ve pump adlarını çağırandan alıyor.
+    16. **H3'te "ilk gün".**
+        - Açık sorular: koşulların birlikte sağlandığı kesintisiz dizinin ilk günü mü, dönem ya da küme başından
+          beri ilk gün mü? Koşullar sürerken bekleme bitince ertesi gün yeni "ilk gün" mü? Bir günlük NaN
+          diziyi keser mi?
+        - Kod bugün: H3 sinyal kodu yok; kapı t'yi çağırandan alıyor.
+    17. **NaN hacmin 0 sayılması** (A6).
+        - Açık soru: 4h barın satırı var ama hacim (ya da fiyat) hücresi NaN ise bar "mevcut" mu sayılır?
+        - Kod bugün: `klines.gunluge_cevir` yalnızca bar sayısına bakıyor; gün oluşuyor ve toplam NaN'ı atlıyor
+          (xfail: `test_f1_kapanis_saldirilari::test_gunluge_cevir_nan_hacimli_bari_tam_gun_sayar_kismi_toplar`).
+
     Maddelerin ön-kayıt alıntıları depo dışındaki Rev.11 girdisindedir (`D:/Projeler/prompts/rev11_girdi.md`).
+    Girdinin bölüm numaraları bu listeninkilerle aynıdır (onay kaydı turunda eşitlendi, §14.24).
 
     **Bilinen sınır (düzeltilmedi, denetim sorusu).** Kapı `kume="C1"` ya da `"C2"` ile çağrıldığında aktif
     bir onay koşusu (`split.onay_kosusu`) aramıyor. Onay koruması yalnızca veri yükleyicisinde
@@ -2043,6 +2059,135 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     - **Ana oturum düzeltmesi:** xfail testinin gövdesi saldırının başarısını iddia ediyordu ve XPASS veriyordu.
       Uzlaşıma göre istenen davranışı (`OnayGerekli`) iddia edecek biçimde çevrildi; bulgu aynı.
 
+24. **Onay kaydı ve koşu bütünlüğü turu (2026-09-29).** Ön-kayda dokunulmadı; getiri hesaplanmadı; F2'ye
+    geçilmedi; önbellek eklenmedi. Kilitli dosyalara (`ONAY_KAYDI.md`, `CLAUDE.md`) dokunulmadı.
+
+    **Koruma ölçütü.** Aynı süreç içinden mutlak koruma mümkün değil. Amaç: onay kaydını atlatmak kazayla
+    olmasın ve geçmişte iz bırakmayan bir yolla yapılamasın.
+
+    **Kod (`b2acfa3`).**
+    - **KS3 D-B1: üç atlatma yolu kapandı.**
+      - `split.onay_kosusu(hipotez, kume)` yol parametresi almıyor. Yol alan `onay_kaydet` kaldırıldı; kayıt
+        yalnızca `config.ONAY_KAYDI`ya yazılıyor.
+      - `config.ONAY_KAYDI` çalışma anında yeniden atanamıyor ve silinemiyor (`config.SabitDegistirilemez`).
+        `split` yolu yükleme anında sabitliyor; `vars(config)` ile yapılan değişikliği yakalıyor.
+      - `split._AKTIF_KOSU` ve koşu yolundaki 30 ad modül dışından atanamıyor ve silinemiyor
+        (`split.OnayKorumasi`, `OnayGerekli` alt sınıfı). Durum yalnızca `onay_kosusu` içinde değişiyor.
+      - Onay kümesine her erişimde (`kume_erisimi`, `onay_baglami_dogrula`, `aktif_onay_kosusu`) açık koşu
+        kayıt dosyasında doğrulanıyor. Kayıtta koşunun bu sürece ait tek bir BASLADI satırı olmalı ve koşu
+        kapanmamış olmalı. `vars(split)` ile bellekte kurulan koşu, gerçek kayda satır yazılmadan erişim
+        açamıyor. Süreç numarası şartı, çökmüş bir koşunun asılı BASLADI satırının başka süreçte yeniden
+        kullanılmasını engelliyor.
+      - Testler kayıt yolunu yalnızca `split._test_kaydi_ayarla` ile değiştirebiliyor. Ayar yalnızca bir pytest
+        testi içinde (`PYTEST_CURRENT_TEST`) kurulabiliyor ve yalnızca onu kuran testte geçerli.
+      - Tarama: `tarama_yardimcisi.ONAY_ATLATMA_DESENI`. Analiz kodunda koşu durumu, test kapısı, kayıt
+        yazıcıları, `vars(split|config)`, `split/config.__dict__` ve kayıt dosyasının adı yasak.
+      - Sızıntı testçisinin `test_tur_saldirilari_n` xfail'i normal teste döndü.
+    - **KS3 D-B2: temiz ağaç.**
+      - Koşu yalnızca şu koşullarda açılıyor: git okunabiliyor, `git status --porcelain` boş (izlenmeyen
+        dosya dahil), çağıran betik depo içinde ve git'te izleniyor. Aksi hâlde `split.OnayOrtamiHatasi`;
+        kayda hiçbir şey yazılmıyor.
+      - Etkileşimli oturum ve `python -c` reddediliyor. Kayda 40 haneli commit hash'i ve betiğin depo içindeki
+        yolu yazılıyor. Temiz ağaç + izlenen betik: koşunun kodu kayıttaki commit'te.
+      - Yan sonuç: koşunun yazdığı satırlar ağacı kirletiyor. Bir sonraki koşu, önceki koşunun kayıt satırları
+        commit edilmeden açılamıyor.
+    - **KS3 D-B3: sonuç ve hata kaydı.**
+      - Koşu başına iki satır. Açılışta `durum=BASLADI`: tarih, küme, betik, commit, hipotez, koşu kimliği,
+        süreç, UTC başlangıç.
+      - Kapanışta UTC başlangıç ve bitişle:
+        - `durum=BITTI sonuc=<...>`: sonuç blok içinde `kosu.sonuc_bildir(...)` ile bildirildi;
+        - `durum=HATA hata=<sınıf>`: blok hata ile bitti (KeyboardInterrupt dahil), hata yeniden fırlatılıyor;
+        - `durum=HATA hata=OnaySonucuYok`: sonuç bildirilmedi; `split.OnaySonucuYok` fırlatılıyor.
+      - Süreç öldürülürse BASLADI satırı kalıyor.
+      - Kayıttaki her (hipotez, küme) çifti, durumu ne olursa olsun, harcanmış sayılıyor: ikinci koşu
+        `OnayTekrari`. Yarıda kalan koşu da buna dahil.
+      - Kayıt koşu sırasında değişirse (BASLADI satırı silinirse) erişim kapanıyor. Bitiş satırı yine yazılıyor,
+        sonra `OnayKorumasi`.
+      - Oku-denetle-yaz adımı süreçler arası bir kilit dosyasıyla tekil. Kilit asılı kalırsa koşu açılmıyor ve
+        ağaç kirli görünüyor.
+    - **KS3 D-C3:** `pencere.cikis_bari` (boş bar listesi; dönem içi bar eksik) ve `funding.pozisyon_fundingi`
+      (seri kararınkiyle aynı değil) artık `VeriHatasi` veriyor.
+
+    **Kalan atlatma yolları (düzeltilmedi; hepsi kasıtlı).** Depoda commit edilmiş kodda bunların çoğu tarama
+    testine takılır ve geçmişte görünür. Depo dışından ya da commit edilmemiş bir betikten yapıldığında iz
+    kalmaz.
+    1. **Önbelleği doğrudan okumak.** C1/C2 verisi `cache/` altında; `pd.read_parquet` ile ya da
+       `klines.ham_mumlari_yukle` / `funding.ham_funding_yukle` ile kapısız okunur. Ham yükleyiciler analiz
+       kodunda taramayla yasak (`HAM_ERISIM_DESENI`); `cache/` yolunun doğrudan okunması taranmıyor. Kayıt,
+       onay kümesine erişimi değil, onay koşusunu kaydeder: bu yolun kayıtla kapatılması mümkün değil.
+    2. **Onay kümesi tanımını değiştirmek.** `config.ONAY_KUMELERI`, `config.KUMELER`, `config.HIPOTEZLER` ve
+       küme tarihleri korunmuyor. Örneğin `config.ONAY_KUMELERI = ()` ile C1 onaysız açılır. Taramada yok.
+    3. **Veri yükleyicilerini yamalamak** (KS2 D-C3): `klines.mumlari_yukle`, `funding.funding_yukle`,
+       `pozisyon._veri_yukle`. Sonuncusu taramada (`KAYIT_DESENI`).
+    4. **Test kapısı.** `pytest` import edilip `PYTEST_CURRENT_TEST` ayarlanırsa `_test_kaydi_ayarla` kayıt
+       yolunu geçici dosyaya, git ortamını sahteye çevirir. Analiz kodunda taramayla yasak.
+    5. **Modül sözlüğü + gerçek kayıt.** `vars(split)` ile koşu kurup gerçek kayda bu sürecin BASLADI satırını
+       yazmak, sonra dosyayı eski hâline döndürmek. Kilitli dosyaya kasıtlı yazıp silmeyi gerektirir.
+    6. **Modülü değiştirmek.** `sys.modules["data.split"]` yerine sahte modül koymak ya da `split` içindeki
+       korunmayan yardımcıları (ör. `kume_tanimi`, `split_oku`) yamalamak.
+    7. **Geçmişi yeniden yazmak.** Kayıt satırlarını içeren commit'i `git commit --amend`/`rebase` ile
+       değiştirmek. Depo uzak bir kopyaya itilmediği sürece yerelde iz kalmaz.
+
+    **Kural 0 notları (tanımsız seçimler; karar verilmedi).**
+    - **Koşu sonucunun değer kümesi.** Ön-kayıt §9, satır 296–297: "Hipotez ancak **her iki kümede de**
+      aşağıdaki koşulların tamamını sağlarsa **GEÇTİ** sayılır"; satır 304: "Altındaysa hüküm **YETERSİZ GÜÇ**
+      olur, GEÇTİ sayılmaz."; satır 306: "Her koşunun sonucu, sonuç ne olursa olsun `ONAY_KAYDI.md` dosyasına
+      eklenir." GEÇTİ ve YETERSİZ GÜÇ hipotez hükmü olarak tanımlı; küme başına koşunun sonuç etiketi tanımlı
+      değil. Kod sonucu değer kümesiyle sınırlamıyor: tek satırlık, `|` içermeyen, en fazla 200 karakterlik
+      metin.
+    - **Kilitli dosyalardaki bayat metin.** `ONAY_KAYDI.md` başlığı "KOSU BASINA TEK SATIR ... Satir kosu
+      acilirken yazilir" diyor; artık iki satır yazılıyor. `CLAUDE.md` §5 "`data/split.py` içindeki
+      `onay_kaydet`" diyor; ad `_onay_kaydet` oldu ve yalnızca `onay_kosusu` içinden çağrılıyor. İkisi de
+      kilitli; kilit oturumunda güncellenmeli. Tablonun sütunları değişmedi, yeni alanlar Not sütununda.
+
+    **KS3 D-B5 (Rev.11 girdisi).** Fark:
+    - §14.21 listesi 14, girdi 12 bölümdü.
+    - Girdide olmayanlar: madde 9 (Rev.10 D-C5) ve madde 10 (Rev.10 D-C7 notu).
+    - Girdinin 9–12. bölümleri listenin 11–14. maddeleriydi.
+
+    Liste esas alındı. Girdi 17 bölüme çıktı ve numaraları listeyle aynı. 9 ve 10 alıntılarıyla eklendi; 15–17
+    listeye ve girdiye eklendi. Rev.9 D-C5'in 0 fiyat kısmı listeye eklenmedi (görevde yok; §14.21 tablosunda
+    "kod düzeltmesi" olarak duruyor).
+
+    **KS3 D-B4 (BTC rejimi):** ölçüldü, karar verilmedi; tur raporunda. BTCUSDT (ve ETHUSDT) B grubunda.
+    KEŞİF'te BTC rejimi dökümü, BTCUSDT'nin KEŞİF dönemi verisini gerektiriyor; bu veri tanımca C1'dir.
+
+    **KS2 D-B2:** denetçinin altı eksiği tur raporunda; uygulanmadı.
+
+    **Test güncellemeleri.**
+    - **Kayıt yolu:** `config.ONAY_KAYDI` monkeypatch'i 12 yerde `split._test_kaydi_ayarla` oldu. Dosyalar:
+      `test_f1_kapanis_saldirilari`, `test_f1k2_kume_none`, `test_ks3_kapi`, `test_ks_donem_kaydi`,
+      `test_kume_korumasi`, `test_sizinti_saldirilari`, `test_split`, `tur_saldirilari_k`, `l`, `m`, `n`.
+    - **Sonuç bildirimi:** erişim için açılan koşular `onay_yardimcisi.kosu` ile açılıyor; blok hatasız biterse
+      "TEST" sonucu bildiriliyor. Koşu semantiğini sınayan testler (iç içe, tekrar, geçersiz ad) değişmedi.
+    - **Beklentisi değişenler:**
+      - `test_split::test_onay_kosusu_kayit_dosyasina_tek_satir_ekler` ve
+        `test_kume_korumasi::test_kosu_basina_tek_satir_sembol_basina_degil`: kayıtta 1 satır → 2 satır
+        (BASLADI + BITTI). Sembol başına satır yazılmadığı iddiası aynı.
+      - `test_kume_korumasi::test_satirda_commit_ve_calisma_agaci_durumu_var`: eski `_git_commit` ve
+        `_calisma_agaci_durumu` yamaları kalktı. Kirli ağaçta koşu artık açılmıyor (`OnayOrtamiHatasi`), temiz
+        ağaçta commit 40 haneyle yazılıyor.
+      - `test_onay_kaydi`: `onay_kaydet(yol=)` yerine `onay_kosusu`. İddialar aynı: tablonun içine düşme, bayt
+        bayt koruma, tekrarın reddi, satır sonu stili, geçici dosya; satır sayıları iki katı.
+      - `tur_saldirilari_m`: `yol=` parametresi kaldırıldı.
+      - `tur_saldirilari_n` doğrudan atama testi: xfail kaldırıldı, atama `pytest.raises(OnayKorumasi)` içinde.
+        `monkeypatch.setattr` teardown'da korunan adı geri atamaya çalıştığı için düz `setattr` kullanıldı.
+    - Silinen ya da gevşetilen test yok.
+    - **Yeni:** `test_onay_kaydi_butunlugu` (58), `tests/onay_yardimcisi.py`.
+    - **Tam takım:** 1722 geçti, 4 xfail (önceki: 1663 geçti, 5 xfail).
+
+    **KS3 bulgularının durumu:**
+
+    | Bulgu | Durum |
+    |---|---|
+    | KS3 D-B1 `yol=`, `config.ONAY_KAYDI`, `_AKTIF_KOSU` | **kapandı** (`b2acfa3`); kalan kasıtlı yollar yukarıda |
+    | KS3 D-B2 kirli ağaçta koşu | **kapandı** (`b2acfa3`) |
+    | KS3 D-B3 sonuç kaydı | **kapandı** (`b2acfa3`); sonuç etiketleri kural 0 notu |
+    | KS3 D-B4 BTC rejimi | ölçüldü; Rev.11 kararı |
+    | KS3 D-B5 Rev.11 girdisi | **kapandı** (girdi 17 bölüm, liste 17 madde) |
+    | KS3 D-C3 düz `ValueError` | **kapandı** (`b2acfa3`) |
+    | KS3 D-C1, D-C2, D-C4, D-C6, D-C7 | açık (bu turun kapsamı dışında) |
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -2480,3 +2625,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   (KS2 D-B4) eklendi.
   **Güncellenen mevcut testler:** §14.23 "Test güncellemeleri". Silinen ya da gevşetilen test yok.
   xfail'den çıkan: `tur_saldirilari_m` hipotez uyuşmazlığı. Yeni: `test_ks3_kapi` (31).
+- 2026-09-29 (onay kaydı ve koşu bütünlüğü turu). §14.24 eklendi. Kod: `b2acfa3` (KS3 D-B1, D-B2, D-B3, D-C3).
+  Rev.11 listesine 15–17 eklendi; depo dışı Rev.11 girdisi listeyle eşitlendi (KS3 D-B5).
+  **Güncellenen mevcut testler:** §14.24 "Test güncellemeleri". Silinen ya da gevşetilen test yok. xfail'den
+  çıkan: `tur_saldirilari_n` doğrudan atama. Yeni: `test_onay_kaydi_butunlugu` (58).
