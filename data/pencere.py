@@ -774,7 +774,7 @@ def cikis_bari(
         raise ValueError(f"birincil_ufuk en az 1 bar olmali: {birincil_ufuk}")
     indeks = _zaman_dizisi_dogrula(zamanlar, "cikis_bari")
     if len(indeks) == 0:
-        raise ValueError("Bar listesi bos.")
+        raise VeriHatasi("Bar listesi bos.")  # denetci KS3 D-C3
     giris = utc_zamani(giris_zamani, "giris_zamani")
     if ayni_andaki_bar(indeks, giris) is None:
         raise KeyError(f"Giris bari seride yok: {giris}")
@@ -793,7 +793,7 @@ def cikis_bari(
             raise KumeSiniriHatasi(
                 f"{neden}; seri kume sonunda ({kume_son}) kesilmis ve donem kumeden sonra suruyor "
                 "(on-kayit §4 rev.8: cikis kume disinda, olay olusmaz).")
-        raise ValueError(f"{neden}; donem ici bar seride olmali (bozuk ya da eksik seri).")
+        raise VeriHatasi(f"{neden}; donem ici bar seride olmali (bozuk ya da eksik seri).")  # KS3 D-C3
 
     def _kume_icinde(sonuc: CikisSonucu) -> CikisSonucu:
         # Kume olcutu gercek cikis anina (tek uygulama `_cikis_odemesi_kume_disinda`);

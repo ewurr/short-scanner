@@ -22,6 +22,7 @@ from data import funding, pencere, pozisyon, split
 from kapi_yardimcisi import veri
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import esikler
+from onay_yardimcisi import kosu
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -38,7 +39,7 @@ T_SINYAL = T("2025-03-10 04:00")
 def gecici_kayit(tmp_path, monkeypatch):
     yol = tmp_path / "onay_gecici.md"
     yol.write_text("bas\n", encoding="utf-8")
-    monkeypatch.setattr(config, "ONAY_KAYDI", yol)
+    split._test_kaydi_ayarla(yol)
     return yol
 
 
@@ -52,18 +53,19 @@ def _c1_ortak(hipotez="H1"):
 # --- 1. `_AKTIF_KOSU` dogrudan atama -----------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU: split._AKTIF_KOSU'yu context manager disinda "
-                    "dogrudan atamak, ONAY_KAYDI.md'ye TEK SATIR bile yazilmadan C1 erisimini acar. "
-                    "`onay_baglami_dogrula` ve sentetik/gercek `kume_erisimi` yalnizca modul-global "
-                    "`_AKTIF_KOSU`nun DEGERINE bakar; kimin, hangi yoldan ayarladigini denetlemez "
-                    "(CLAUDE.md §3.3: 'her kosu ONAY_KAYDI.md dosyasina ... eklenir').")
+# SALDIRI BULGUSU (kapi sertlestirme turu 3, xfail idi): split._AKTIF_KOSU'yu context manager disinda dogrudan
+# atamak, onay kaydina TEK SATIR bile yazilmadan C1 erisimini aciyordu. Onay kaydi ve kosu butunlugu turunda
+# kapandi (denetci KS3 D-B1): `split` modulunun korunan adlari disaridan atanamaz (`OnayKorumasi`, `OnayGerekli`
+# alt sinifi). xfail isareti kaldirildi; atama satiri `pytest.raises` icine alindi, geri kalan iddia ayni.
 def test_aktif_kosu_dogrudan_atama_kayitsiz_onay_acar(gecici_kayit, monkeypatch):
     assert split.aktif_onay_kosusu() is None
     ortak, tanim = _c1_ortak("H1")
-    monkeypatch.setattr(split, "_AKTIF_KOSU", ("H1", "C1"))
-    # Ana oturum duzeltmesi: govde saldirinin BASARISINI iddia ediyordu (pozisyon onaylanir, kayit bos);
-    # xfail(strict) ile bu XPASS verir. xfail uzlasimina gore govde ISTENEN davranisi iddia eder: kayitsiz
-    # atanmis bir kosu C1 pozisyonu acamamali. Bulgu ayni; test bugun bu yuzden basarisiz (xfail).
+    # `monkeypatch.setattr` geri alma kaydini atamadan ONCE yazdigi icin teardown'da korunan adi geri atamaya
+    # calisip hata verir; ayni atama duz `setattr` ile denenir.
+    with pytest.raises(split.OnayKorumasi):
+        setattr(split, "_AKTIF_KOSU", ("H1", "C1"))
+    # Ana oturum duzeltmesi (tur 3): govde ISTENEN davranisi iddia eder: kayitsiz atanmis bir kosu C1 pozisyonu
+    # acamamali.
     assert gecici_kayit.read_text(encoding="utf-8") == "bas\n"
     with pytest.raises(split.OnayGerekli):
         pozisyon.olay_karari(T_SINYAL, tanim.birincil, tanim.bar, **ortak)
@@ -75,10 +77,10 @@ def test_aktif_kosu_dogrudan_atama_kayitsiz_onay_acar(gecici_kayit, monkeypatch)
 def test_ic_ice_kosu_disaridaki_aktif_kosuyu_bozmaz(gecici_kayit):
     """Ic ice kosu RuntimeError verir; disaridaki kosunun baglami (`_AKTIF_KOSU`) bu basarisiz
     denemeden ETKILENMEMELI (on-kayit §3, CLAUDE.md §3.3: 'Ic ice kosu acilamaz')."""
-    with split.onay_kosusu("H1", "C1"):
+    with kosu("H1", "C1"):
         assert split.aktif_onay_kosusu() == ("H1", "C1")
         with pytest.raises(RuntimeError):
-            with split.onay_kosusu("H2", "C2"):
+            with kosu("H2", "C2"):
                 pytest.fail("ic ice kosu acilmamali")
         assert split.aktif_onay_kosusu() == ("H1", "C1")
         ortak, tanim = _c1_ortak("H1")
@@ -93,16 +95,16 @@ def test_kosu_icinde_istisna_baglami_temizler(gecici_kayit):
     """Blok icinde beklenmeyen bir istisna firlarsa `_AKTIF_KOSU` yine de temizlenmeli (contextmanager
     `finally`); aksi halde bir sonraki kosu kalici olarak kilitli kalirdi."""
     with pytest.raises(ValueError, match="kasitli"):
-        with split.onay_kosusu("H1", "C1"):
+        with kosu("H1", "C1"):
             raise ValueError("kasitli hata")
     assert split.aktif_onay_kosusu() is None
     # Ayni cift tek atistir: kayit zaten yazildigi icin tekrar denemek OnayTekrari verir.
     with pytest.raises(split.OnayTekrari):
-        with split.onay_kosusu("H1", "C1"):
+        with kosu("H1", "C1"):
             pytest.fail("tekrar acilmamali")
     assert split.aktif_onay_kosusu() is None
     # Ama FARKLI bir cift sorunsuz acilabilir: baglam gercekten temiz.
-    with split.onay_kosusu("H2", "C1"):
+    with kosu("H2", "C1"):
         assert split.aktif_onay_kosusu() == ("H2", "C1")
     assert split.aktif_onay_kosusu() is None
 
@@ -114,15 +116,15 @@ def test_onay_tekrari_aktif_kosuyu_kirletmez(gecici_kayit):
     """Ayni (hipotez, kume) ciftinin ikinci kosusu `OnayTekrari` verir; bu reddedilen deneme
     `_AKTIF_KOSU`yu YANLIS bir degere sabitlememeli (kayit `onay_kaydet` icinde, `_AKTIF_KOSU`
     atamasindan ONCE basarisiz olmali)."""
-    with split.onay_kosusu("H1", "C2"):
+    with kosu("H1", "C2"):
         pass
     assert split.aktif_onay_kosusu() is None
     with pytest.raises(split.OnayTekrari):
-        with split.onay_kosusu("H1", "C2"):
+        with kosu("H1", "C2"):
             pytest.fail("tekrar acilmamali")
     assert split.aktif_onay_kosusu() is None
     # Baska bir hipotezle C2 hala acilabilir olmali (kilit kalici degil).
-    with split.onay_kosusu("H2", "C2"):
+    with kosu("H2", "C2"):
         assert split.aktif_onay_kosusu() == ("H2", "C2")
 
 
@@ -135,10 +137,10 @@ def test_mae_baska_hipotezin_acik_kosusunda_reddedilir(gecici_kayit):
     aktif kosu VAR ama pozisyonunkiyle eslesmiyor (yalnizca 'kosu kapali' durumunun degil, 'yanlis
     kosu acik' durumunun da yakalandigini sinar; denetci KS2 D-B1)."""
     ortak, tanim = _c1_ortak("H1")
-    with split.onay_kosusu("H1", "C1"):
+    with kosu("H1", "C1"):
         p = pozisyon.olay_karari(T_SINYAL, tanim.birincil, tanim.bar, **ortak)
         pozisyon.onay_dogrula(p)
-    with split.onay_kosusu("H2", "C1"):
+    with kosu("H2", "C1"):
         with pytest.raises(split.OnayUyusmazligi):
             pozisyon.mae(p)
         with pytest.raises(split.OnayUyusmazligi):
@@ -154,7 +156,7 @@ def test_numpy_str_hipotez_adi_kosu_acamaz(gecici_kayit):
     sahte = np.str_("H1")
     assert sahte == "H1" and isinstance(sahte, str) and type(sahte) is not str
     with pytest.raises(ValueError):
-        with split.onay_kosusu(sahte, "C1"):
+        with kosu(sahte, "C1"):
             pytest.fail("kosu acilmamali")
     assert split.aktif_onay_kosusu() is None
 
@@ -167,7 +169,7 @@ def test_config_hipotezler_monkeypatch_belgeleme(gecici_kayit, monkeypatch):
     kaynagidir (CLAUDE.md §5); onu calisma aninda degistirmek, kilitli dosyayi elle duzenlemeye
     esdeger kasitli bir mudahaledir. Burada yalnizca beklenen (kacinilmaz) davranis belgelenir."""
     monkeypatch.setattr(config, "HIPOTEZLER", config.HIPOTEZLER + ("SAHTE_HIPOTEZ",))
-    with split.onay_kosusu("SAHTE_HIPOTEZ", "C1"):
+    with kosu("SAHTE_HIPOTEZ", "C1"):
         assert split.aktif_onay_kosusu() == ("SAHTE_HIPOTEZ", "C1")
 
 

@@ -15,6 +15,7 @@ from data import pencere, pozisyon, split
 from kapi_yardimcisi import veri
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import esikler
+from onay_yardimcisi import kosu
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -105,7 +106,7 @@ def gecici_kayit(tmp_path, monkeypatch):
 
     yol = tmp_path / "onay_gecici.md"
     yol.write_text("bas\n", encoding="utf-8")
-    monkeypatch.setattr(config, "ONAY_KAYDI", yol)
+    split._test_kaydi_ayarla(yol)
     return yol
 
 
@@ -114,7 +115,7 @@ def _c1(hipotez="H1", **ek):
 
 
 def test_uyusmayan_hipotez_reddedilir_eslesen_onaylanir(gecici_kayit):
-    with split.onay_kosusu("H2", "C1"):
+    with kosu("H2", "C1"):
         with pytest.raises(split.OnayUyusmazligi):
             _c1("H1")
         pozisyon.onay_dogrula(_c1("H2"))
@@ -123,14 +124,14 @@ def test_uyusmayan_hipotez_reddedilir_eslesen_onaylanir(gecici_kayit):
 def test_onay_kumesi_kosu_disinda_ve_baska_kumenin_kosusunda_reddedilir(gecici_kayit):
     with pytest.raises(split.OnayUyusmazligi):
         _c1("H1")
-    with split.onay_kosusu("H1", "C2"):
+    with kosu("H1", "C2"):
         with pytest.raises(split.OnayUyusmazligi):
             _c1("H1")
 
 
 def test_acik_kosu_icinde_kesif_pozisyonu_reddedilir(gecici_kayit):
     pozisyon.onay_dogrula(_karar())
-    with split.onay_kosusu("H1", "C1"):
+    with kosu("H1", "C1"):
         with pytest.raises(split.OnayUyusmazligi):
             _karar()
 
@@ -138,7 +139,7 @@ def test_acik_kosu_icinde_kesif_pozisyonu_reddedilir(gecici_kayit):
 @pytest.mark.parametrize("hipotez", ["h2", "H2_b", " H2", "H2 ", "H4", "HTEST", "", None, b"H2"])
 def test_hipotez_adi_varyasyonlari_kosu_acamaz(gecici_kayit, hipotez):
     with pytest.raises(ValueError):
-        with split.onay_kosusu(hipotez, "C1"):
+        with kosu(hipotez, "C1"):
             pytest.fail("kosu acilmamali")
     assert gecici_kayit.read_text(encoding="utf-8") == "bas\n"
     assert split.aktif_onay_kosusu() is None
@@ -147,7 +148,7 @@ def test_hipotez_adi_varyasyonlari_kosu_acamaz(gecici_kayit, hipotez):
 @pytest.mark.parametrize("kume", ["c1", "C1 ", "KESIF", "C3", None])
 def test_onay_kumesi_varyasyonlari_kosu_acamaz(gecici_kayit, kume):
     with pytest.raises(ValueError):
-        with split.onay_kosusu("H2", kume):
+        with kosu("H2", kume):
             pytest.fail("kosu acilmamali")
 
 
@@ -156,7 +157,7 @@ def test_str_alt_sinifi_hipotez_adi_kosu_acamaz(gecici_kayit):
         pass
 
     with pytest.raises(ValueError):
-        with split.onay_kosusu(_Ad("H2"), "C1"):
+        with kosu(_Ad("H2"), "C1"):
             pytest.fail("kosu acilmamali")
 
 
@@ -168,7 +169,7 @@ def test_kapi_hipotezi_de_sabitlerden(gecici_kayit):
 def test_mae_ve_funding_onay_baglamini_ister(gecici_kayit):
     from data import funding
 
-    with split.onay_kosusu("H1", "C1"):
+    with kosu("H1", "C1"):
         p = _c1("H1")
         assert pozisyon.mae(p) == pozisyon.mae(p)
         funding.pozisyon_fundingi(p)

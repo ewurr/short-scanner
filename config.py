@@ -208,3 +208,36 @@ GIDIS_DONUS_MALIYET = 0.0020  # %0.20
 TOHUM = 20260911
 PERMUTASYON_TEKRAR = 10_000
 ALFA_BONFERRONI = 0.05 / 3  # uc hipotez icin Bonferroni = 0.0167
+
+# --- Calisma aninda degistirilemeyen adlar ------------------------------------
+#
+# ON-KAYIT DEGILDIR. Onay kaydi ve kosu butunlugu turu (denetci KS3 D-B1): onay kaydinin yolu calisma aninda
+# yeniden atanamaz (`config.ONAY_KAYDI = ...`, `monkeypatch.setattr(config, "ONAY_KAYDI", ...)`). Testler kayit
+# yolunu yalnizca `data.split._test_kaydi_ayarla` ile, kendi testleri suresince degistirir. Sinir: modul
+# sozlugune dogrudan yazim (`vars(config)`) engellenmez; `data.split` yolu yukleme aninda sabitler ve farki
+# yakalar.
+
+import sys as _sys  # noqa: E402
+import types as _types  # noqa: E402
+
+
+class SabitDegistirilemez(AttributeError):
+    """Calisma aninda degistirilemeyen bir config adi yeniden atanmak ya da silinmek istendi."""
+
+
+_DEGISMEZ_ADLAR = frozenset({"ONAY_KAYDI", "_DEGISMEZ_ADLAR"})
+
+
+class _SabitModul(_types.ModuleType):
+    def __setattr__(self, ad, deger):
+        if ad in _DEGISMEZ_ADLAR:
+            raise SabitDegistirilemez(f"config.{ad} calisma aninda yeniden atanamaz.")
+        super().__setattr__(ad, deger)
+
+    def __delattr__(self, ad):
+        if ad in _DEGISMEZ_ADLAR:
+            raise SabitDegistirilemez(f"config.{ad} silinemez.")
+        super().__delattr__(ad)
+
+
+_sys.modules[__name__].__class__ = _SabitModul

@@ -19,6 +19,7 @@ from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import C2, KESIF, kume_adi, kume_sinirlari
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import esikler, uygunluk
+from onay_yardimcisi import kosu
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -91,8 +92,8 @@ def test_sinyal_kumede_degilse_olay_olusmaz(tmp_path, monkeypatch):
         _karar("H2", kume="C2")
     kayit = tmp_path / "onay_gecici.md"
     kayit.write_text("bas\n", encoding="utf-8")
-    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
-    with split.onay_kosusu("H2", "C2"):
+    split._test_kaydi_ayarla(kayit)
+    with kosu("H2", "C2"):
         with pytest.raises(pencere.OlayOlusmaz):
             _karar("H2", kume="C2")
 

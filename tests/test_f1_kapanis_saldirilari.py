@@ -100,7 +100,7 @@ def test_kume_erisimi_onay_stringi_false_yetkisiz_erisimi_aciyor(tmp_path, monke
     kopya = tmp_path / "ONAY_KAYDI.md"
     kopya.write_bytes(config.ONAY_KAYDI.read_bytes())
     once = kopya.read_bytes()
-    monkeypatch.setattr(config, "ONAY_KAYDI", kopya)
+    split._test_kaydi_ayarla(kopya)
 
     with pytest.raises(PermissionError):
         split.kume_erisimi("ZZUSDT", "C1", onay="False")

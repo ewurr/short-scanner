@@ -23,6 +23,7 @@ from data import funding, pencere, pozisyon, split, universe
 from kapi_yardimcisi import donem, veri
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import esikler, uygunluk
+from onay_yardimcisi import kosu
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -96,8 +97,8 @@ def test_gercek_a_grubu_sembol_c1_kumesinde_reddedilir(tmp_path, monkeypatch):
     # Kapi sertlestirme turu 3: C1 cagrisi once onay baglamindan gecer; grup denetimi acik kosu icinde sinanir.
     kayit = tmp_path / "onay_gecici.md"
     kayit.write_text("bas\n", encoding="utf-8")
-    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
-    with split.onay_kosusu("H1", "C1"), pytest.raises(ValueError, match="kumesine ait degil"):
+    split._test_kaydi_ayarla(kayit)
+    with kosu("H1", "C1"), pytest.raises(ValueError, match="kumesine ait degil"):
         pozisyon.olay_karari(  # kapi sertlestirme turu 2: cerceve parametreleri kalkti
             T("2025-01-01"), tanim.birincil, tanim.bar, hipotez="H1",
             birincil_ufuk=tanim.birincil, kume="C1", sembol=sembol, donem_no=donem_no,
@@ -196,11 +197,11 @@ def test_gercek_fundingsiz_donem_uygun_funding_cercevesiyle_bile_atlatilamaz(tmp
     monkeypatch.setitem(SENTETIK_VERI, sembol, (_hazirla(mumlar, uygun_bas=bas, hacim=5e7, eksik_gunler=()), fr))
     kayit = tmp_path / "onay_gecici.md"
     kayit.write_text("bas\n", encoding="utf-8")
-    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
+    split._test_kaydi_ayarla(kayit)
     import contextlib
 
-    kosu = split.onay_kosusu("H1", kume) if kume in config.ONAY_KUMELERI else contextlib.nullcontext()
-    with kosu, pytest.raises(pozisyon.FundingTamDegil, match="evren tablosunda funding kaydi yok"):
+    baglam = kosu("H1", kume) if kume in config.ONAY_KUMELERI else contextlib.nullcontext()
+    with baglam, pytest.raises(pozisyon.FundingTamDegil, match="evren tablosunda funding kaydi yok"):
         pozisyon.olay_karari(
             t_sinyal, tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
             kume=kume, sembol=sembol, donem_no=donem_no, sinyal_degerleri=sinyal("H1"),

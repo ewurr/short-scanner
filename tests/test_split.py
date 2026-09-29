@@ -8,6 +8,7 @@ import pytest
 import config
 from conftest import sahte_4h
 from data import split
+from onay_yardimcisi import kosu
 
 
 def test_bolme_deterministik():
@@ -66,7 +67,7 @@ def ornek_split(tmp_path, monkeypatch):
 def kayit(tmp_path, monkeypatch):
     yol = tmp_path / "ONAY_KAYDI.md"
     yol.write_text("bas\n", encoding="utf-8")
-    monkeypatch.setattr(config, "ONAY_KAYDI", yol)
+    split._test_kaydi_ayarla(yol)
     return yol
 
 
@@ -96,17 +97,19 @@ def test_onay_kumesi_onaysiz_hata_verir_ve_kayit_yazmaz(ornek_split, kayit):
 
 
 def test_onay_kosusu_kayit_dosyasina_tek_satir_ekler(ornek_split, kayit):
-    with split.onay_kosusu("H1", "C1"):
+    with kosu("H1", "C1"):
         split.yukle("BBUSDT", config.BAR_4H, "C1", onay=True, mum_yukleyici=_yukleyici)
         split.yukle("AAUSDT", config.BAR_4H, "C1", onay=True, mum_yukleyici=_yukleyici)
     metin = kayit.read_text(encoding="utf-8")
     assert metin.startswith("bas\n")  # onceki icerik korunur, yalnizca eklenir
     satirlar = [s for s in metin.splitlines() if s.startswith("|")]
-    assert len(satirlar) == 1 and "| C1 |" in satirlar[0] and "hipotez=H1" in satirlar[0]
+    # Onay kaydi turu (KS3 D-B3): kosu basina iki satir (acilis BASLADI, kapanis BITTI); onceki beklenti tek satir.
+    assert len(satirlar) == 2 and all("| C1 |" in s and "hipotez=H1" in s for s in satirlar)
+    assert "durum=BASLADI" in satirlar[0] and "durum=BITTI" in satirlar[1]
 
 
 def test_c2_donemi_kesif_donemiyle_ortusmez(ornek_split, kayit):
-    with split.onay_kosusu("H1", "C2"):
+    with kosu("H1", "C2"):
         c2 = split.yukle("AAUSDT", config.BAR_4H, "C2", onay=True, mum_yukleyici=_yukleyici)
     assert c2["open_time"].min() >= pd.Timestamp(config.C2_BASI)
     assert c2["open_time"].max() <= pd.Timestamp(config.C2_SONU)

@@ -19,8 +19,8 @@ import pandas as pd
 import config
 from data import binance_vision as bv
 from data.pencere import (  # tek tanim: data/pencere.py (on-kayit §4 rev.8 "Zaman toleransi")
-    ODEME_TOLERANSI, ayni_an, ayni_an_basi, ayni_an_sonu, ayni_ya_da_once, ayni_ya_da_sonra, donem_kapanisi,
-    once, sonra,
+    ODEME_TOLERANSI, VeriHatasi, ayni_an, ayni_an_basi, ayni_an_sonu, ayni_ya_da_once, ayni_ya_da_sonra,
+    donem_kapanisi, once, sonra,
 )
 
 
@@ -548,7 +548,7 @@ def pozisyon_fundingi(pozisyon) -> float:
     _, funding = pozisyon_modulu._kume_verisi(pozisyon.sembol, pozisyon.kume, plan.kume_baslangic, plan.kume_bitis)
     toplam = _plan_fundingi(funding, plan)
     if not toplam == pozisyon.funding_toplami:
-        raise ValueError("funding serisi karar noktasindakiyle ayni degil: toplam "
+        raise VeriHatasi("funding serisi karar noktasindakiyle ayni degil: toplam "  # KS3 D-C3
                          f"{toplam!r} != onayli {pozisyon.funding_toplami!r}.")
     return toplam
 

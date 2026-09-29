@@ -26,6 +26,7 @@ from data import funding, pencere, pozisyon, split
 from kapi_yardimcisi import SENTETIK_VERI, veri
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import esikler
+from onay_yardimcisi import kosu
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -286,10 +287,10 @@ def test_donem_disi_sinyal_seride_var_olsa_da_reddedilir():
 # sinifi); xfail isareti kaldirildi, beklenti ayni.
 def test_onay_kosusu_hipotez_uyusmazligi_engellenmez(tmp_path, monkeypatch):
     kayit = tmp_path / "onay_gecici.md"
-    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
+    split._test_kaydi_ayarla(kayit)
     tanim = pencere.hipotez_ufuklari("H1")
     kayit_veri = veri(MUM, FUND, DB, B, uygun_bas=DB, grup="B")
-    with split.onay_kosusu("H2", "C1", yol=kayit):
+    with kosu("H2", "C1"):  # onay kaydi turu (KS3 D-B1): `yol=` parametresi kaldirildi
         with pytest.raises((ValueError, split.OnayGerekli)):
             p = pozisyon.olay_karari(
                 SINYAL_T["H1"], tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,

@@ -213,7 +213,7 @@ def test_gercek_onay_kaydina_onaysiz_erisim_dosyayi_degistirmez(tmp_path, monkey
     kopya = tmp_path / "ONAY_KAYDI.md"
     kopya.write_bytes(config.ONAY_KAYDI.read_bytes())
     once = kopya.read_bytes()
-    monkeypatch.setattr(config, "ONAY_KAYDI", kopya)
+    split._test_kaydi_ayarla(kopya)
 
     for kume in ("C1", "C2"):
         with pytest.raises(PermissionError):

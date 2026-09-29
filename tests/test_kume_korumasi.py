@@ -20,6 +20,7 @@ import pytest
 import config
 from data import funding, klines, split, universe
 from tarama_yardimcisi import ihlaller
+from onay_yardimcisi import kosu
 
 
 @pytest.fixture
@@ -50,7 +51,7 @@ def tablo(tmp_path, monkeypatch):
 def kayit(tmp_path, monkeypatch):
     yol = tmp_path / "ONAY_KAYDI.md"
     yol.write_text("bas\n", encoding="utf-8")
-    monkeypatch.setattr(config, "ONAY_KAYDI", yol)
+    split._test_kaydi_ayarla(yol)
     return yol
 
 
@@ -185,7 +186,7 @@ def test_onay_true_ama_kosu_yoksa_reddedilir_kayit_yazilmaz(yukleyici, kume, tab
 @pytest.mark.parametrize("deger", ["False", "True", 1, 0, None, "evet"])
 def test_onay_yalnizca_gercek_bool(deger, tablo, sahte_ham, kayit):
     """Bulgu 8: `onay="False"` gibi dogruluk degeri tasiyan her sey reddedilir."""
-    with split.onay_kosusu("H1", "C1"):
+    with kosu("H1", "C1"):
         with pytest.raises(PermissionError):
             klines.mumlari_yukle("BBUSDT", config.BAR_4H, "C1", onay=deger)
     with pytest.raises(PermissionError):
@@ -193,13 +194,13 @@ def test_onay_yalnizca_gercek_bool(deger, tablo, sahte_ham, kayit):
 
 
 def test_baska_kumenin_kosusu_kapiyi_acmaz(tablo, sahte_ham, kayit):
-    with split.onay_kosusu("H1", "C1"):
+    with kosu("H1", "C1"):
         with pytest.raises(PermissionError):
             klines.mumlari_yukle("AAUSDT", config.BAR_4H, "C2", onay=True)
 
 
 def test_kosu_kapaninca_erisim_kapanir(tablo, sahte_ham, kayit):
-    with split.onay_kosusu("H1", "C1"):
+    with kosu("H1", "C1"):
         assert not klines.mumlari_yukle("BBUSDT", config.BAR_4H, "C1", onay=True).empty
     assert split.aktif_onay_kosusu() is None
     with pytest.raises(PermissionError):
@@ -208,7 +209,7 @@ def test_kosu_kapaninca_erisim_kapanir(tablo, sahte_ham, kayit):
 
 def test_kosu_icinde_hata_olsa_da_kosu_kapanir(tablo, sahte_ham, kayit):
     with pytest.raises(RuntimeError, match="deneme"):
-        with split.onay_kosusu("H1", "C1"):
+        with kosu("H1", "C1"):
             raise RuntimeError("deneme")
     assert split.aktif_onay_kosusu() is None
 
@@ -217,53 +218,62 @@ def test_kosu_icinde_hata_olsa_da_kosu_kapanir(tablo, sahte_ham, kayit):
 
 
 def test_kosu_basina_tek_satir_sembol_basina_degil(tablo, sahte_ham, kayit):
-    with split.onay_kosusu("H2", "C1"):
+    with kosu("H2", "C1"):
         for yukleyici in YUKLEYICILER.values():
             for sembol in ("AAUSDT", "BBUSDT"):
                 yukleyici(sembol, "C1", onay=True)
 
     metin = kayit.read_text(encoding="utf-8")
     satirlar = [s for s in metin.splitlines() if s.startswith("|")]
-    assert len(satirlar) == 1
-    assert "| C1 |" in satirlar[0] and "hipotez=H2" in satirlar[0]
+    # Onay kaydi turu (KS3 D-B3): kosu basina iki satir (BASLADI + BITTI); onceki beklenti tek satirdi.
+    assert len(satirlar) == 2
+    assert all("| C1 |" in s and "hipotez=H2" in s for s in satirlar)
     assert "AAUSDT" not in metin and "BBUSDT" not in metin
     assert split.kayittaki_kosular(metin) == {("H2", "C1")}
 
 
-def test_satirda_commit_ve_calisma_agaci_durumu_var(tablo, kayit, monkeypatch):
-    monkeypatch.setattr(split, "_git_commit", lambda: "0123456789abcdef")
-    monkeypatch.setattr(split, "_calisma_agaci_durumu", lambda: "KIRLI")
-    with split.onay_kosusu("H1", "C2"):
+def test_satirda_commit_ve_calisma_agaci_durumu_var(tablo, kayit):
+    # Onay kaydi turu (KS3 D-B2): git ortami `split._test_kaydi_ayarla` ile sahtelenir (eski `_git_commit` ve
+    # `_calisma_agaci_durumu` yamalari kalkti). Kirli agacta kosu acilmaz; commit 40 haneyle yazilir.
+    commit = "0123456789abcdef" * 2 + "01234567"
+    split._test_kaydi_ayarla(kayit, head=commit, durum=" M data/split.py\n")
+    with pytest.raises(split.OnayOrtamiHatasi, match="temiz"):
+        with kosu("H1", "C2"):
+            pytest.fail("kirli agacta kosu acilmamali")
+    assert kayit.read_text(encoding="utf-8") == "bas\n"
+
+    split._test_kaydi_ayarla(kayit, head=commit)
+    with kosu("H1", "C2"):
         pass
     satir = [s for s in kayit.read_text(encoding="utf-8").splitlines() if s.startswith("|")][0]
     hucreler = [h.strip() for h in satir.strip("|").split("|")]
     assert hucreler[1] == "C2"
-    assert hucreler[3] == "0123456789ab (KIRLI)"
-    assert hucreler[4] == "hipotez=H1"
+    assert hucreler[3] == f"{commit} (temiz)"
+    assert hucreler[4].startswith("hipotez=H1 kosu=") and "durum=BASLADI" in hucreler[4]
 
 
 def test_ayni_hipotez_ve_kume_ikinci_kez_kosulamaz(tablo, sahte_ham, kayit):
-    with split.onay_kosusu("H2", "C1"):
+    with kosu("H2", "C1"):
         pass
     once = kayit.read_bytes()
     with pytest.raises(split.OnayTekrari):
-        with split.onay_kosusu("H2", "C1"):
+        with kosu("H2", "C1"):
             pytest.fail("ikinci kosu blogu calismamali")
     assert kayit.read_bytes() == once
     assert split.aktif_onay_kosusu() is None
 
     # Ayni hipotezin diger kumesi ve baska hipotezin ayni kumesi kosulabilir.
-    with split.onay_kosusu("H2", "C2"):
+    with kosu("H2", "C2"):
         pass
-    with split.onay_kosusu("H3", "C1"):
+    with kosu("H3", "C1"):
         pass
     assert split.kayittaki_kosular(kayit.read_text(encoding="utf-8")) == {("H2", "C1"), ("H2", "C2"), ("H3", "C1")}
 
 
 def test_ic_ice_kosu_acilamaz(tablo, kayit):
-    with split.onay_kosusu("H1", "C1"):
+    with kosu("H1", "C1"):
         with pytest.raises(RuntimeError):
-            with split.onay_kosusu("H1", "C2"):
+            with kosu("H1", "C2"):
                 pass
 
 
@@ -275,14 +285,14 @@ def test_ic_ice_kosu_acilamaz(tablo, kayit):
                                                ("HTEST", "C1"), ("H2", "c1"), ("H2", "C1 ")])
 def test_gecersiz_kosu_reddedilir(hipotez, kume, tablo, kayit):
     with pytest.raises(ValueError):
-        with split.onay_kosusu(hipotez, kume):
+        with kosu(hipotez, kume):
             pass
     assert kayit.read_text(encoding="utf-8") == "bas\n"
 
 
 def test_c2_donemi_c2_araligina_kesilir(tablo, sahte_ham, kayit):
     bas, _ = split.kume_araligi("C2")
-    with split.onay_kosusu("H1", "C2"):
+    with kosu("H1", "C2"):
         mumlar = klines.mumlari_yukle("AAUSDT", config.BAR_4H, "C2", onay=True)
         fund = funding.funding_yukle("BBUSDT", "C2", onay=True)
     assert mumlar["open_time"].min() >= bas

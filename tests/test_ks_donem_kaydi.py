@@ -16,6 +16,7 @@ from data import pencere, pozisyon, split, universe
 from kapi_yardimcisi import veri
 from sinyal_yardimcisi import sinyal
 from uygunluk_yardimcisi import esikler
+from onay_yardimcisi import kosu
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -108,8 +109,8 @@ def test_grup_kumeye_ait_olmali(tmp_path, monkeypatch):
 
     kayit = tmp_path / "onay_gecici.md"
     kayit.write_text("bas\n", encoding="utf-8")
-    monkeypatch.setattr(config, "ONAY_KAYDI", kayit)
-    with split.onay_kosusu("H1", "C1"):
+    split._test_kaydi_ayarla(kayit)
+    with kosu("H1", "C1"):
         # Kapi sertlestirme turu 3: onay baglami grup denetiminden once gelir; C1 grup denetimi (A sembolu)
         # artik acik kosu icinde sinaniyor (onceki: kosu disinda ValueError).
         with pytest.raises(ValueError, match="kumesine ait degil"):
