@@ -2649,6 +2649,58 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       sonucu.
     - Kod: `e616e61`. **Tam takım:** 1870 geçti, 24 xfail (önceki: 1822 geçti, 38 xfail; 14 xfail normal teste döndü).
 
+    **Doğrulama.** Tam denetim (`e09e295`, `a589620` temiz ağaçta, `--eski-evren`; 678/678) ve A1 (`19b01b4`) temiz
+    ağaçta: 64 çıktının 63'ü önceki çıktılarla bayt düzeyinde aynı; yalnızca ortam kayıtları farklı
+    (`karsilastirma_ok4_{calistir,a1}_tam.csv`). `calistir` iş parçacığı kullandığı ve A1 işçide kapılı yükleyici
+    kullandığı için izinle çalıştı.
+
+    **Tur sonu ajan bulguları (düzeltilmedi; yukarıdakilerden sonra geldi).** Denetçinin bulguları "OK4" önekiyle.
+
+    *Denetçinin cevabı:* evet, kazayla ya da bilmeden atlatılabilecek yollar kaldı; A düzeyinde bulgu yok. Önbellek
+    yardımcıları ve ham yükleyiciler üzerinden okuma tek iş parçacıklı kodda kapandı. Yukarıdaki kapsam paragrafının
+    "bilinen kazayla atlatma yolları kapatılmıştır" cümlesi D-B2, D-B3, D-B4 karşısında doğru değil; kalan yollar
+    tablosu eksik (D-B5).
+    - **OK4 D-B1:** izin süreç başına. `ProcessPoolExecutor` kullanan 7 F1 betiği (`f1k_kume_sonu`, `rev10_son`,
+      `rev10_hazirlik`, `rev8_etki`, `rev9_hazirlik`, `rev9_ritim`, `rev9_uygulama`) Windows'ta (`spawn`) işçide
+      izinsiz; ham yükleme `OnayVerisiKorumasi` ile düşer. Yön kapalı; bu betikler `e616e61`'de yeniden üretilemez.
+      "Süreç geneli sayaç" cümlesi yalnızca iş parçacıkları için doğru.
+    - **OK4 D-B2:** iş parçacığı yarışı: bir iş parçacığında kapılı yükleme sürerken başka iş parçacığı B ya da C2
+      verisi okuyabilir; `klines.ay_indir` hiçbir desende yok. Sızıntı R1 ölçtü.
+    - **OK4 D-B3:** `zip_indir` dışı ağ yolları (`requests.get` ile `data.binance.vision`, Binance REST/ccxt,
+      `bv._iste`) ne çalışma anında ne taramada engelleniyor; kazaya açık ("güncel veriyle göz atmak"). Sızıntı R3
+      ölçtü (3).
+    - **OK4 D-B4:** SETTLED indirme yolu grubu `<SEMBOL>SETTLED` adından hesaplıyor; temel sembol B iken ad A'ya
+      düşerse C1 verisi izinsiz iner. "`klines_settled` her zaman izin ister" yalnızca önbellek için doğru. Sızıntı R2
+      ölçtü.
+    - **OK4 D-B5:** tablolarda eksik: doğrudan HTTP, iş parçacığı yarışı, SETTLED indirme, `split.yukle(mum_yukleyici=)`,
+      adres denetiminin görmediği yönlendirmeler (`core.sshCommand`, `GIT_SSH_COMMAND`, `http.proxy`, `receivepack`,
+      depo içinde göreli yol), `UZAK_DEPO_ADRESI`'nin sıradan bir commit'le değişebilmesi. İzin `main()`'de değil
+      `__main__` bloğunda. K6'nın ".ipynb" okuması yanlış: `ONAY_ATLATMA_DESENI` yalnızca `.py` tarar (sızıntı R4).
+    - **OK4 D-C1:** `uzak_adresi_normal` şemasız ve `file://github.com/...` adresini kabul ediyor (git bunları yerel yol
+      sayar; kasıtlı, çok adımlı; sızıntı R6 ölçtü); SSH takma adlarını yanlışlıkla reddediyor. **D-C2:** itme denemesinin
+      yan etkileri (zaman aşımına rağmen uzağa ulaşan deneme; `fetch` sırasında index'e alınan değişikliğin deneme
+      commit'iyle gitmesi; BASLADI aşamasındaki ITILEMEDI + commit hatası artık testsiz). **D-C3:**
+      `split.yukle(mum_yukleyici=...)` verilen fonksiyonu izinle çalıştırır (sızıntı R5 ölçtü: B verisi KEŞİF
+      çağrısından döndü). **D-C4:** `onay_verisi_mi` grubu kuraldan hesaplıyor (D-B4'ün kökü). **D-C5:**
+      `UZAK_DEPO_ADRESI` kararı doğru; `config.py` docstring'inin istisna listesi güncellenmemiş, değer kilitli
+      dosyada değil. **D-C6:** test güncellemelerinde gevşetme yok; Q'daki `..._tek_atis_hakki_..._yanar_bulgu` adı ve
+      docstring'i bayat (test artık tersini iddia ediyor); izin çağrı noktalarını sayan test yok. **D-C7:** evren
+      önbelleği denetimsiz (fiyat verisi değil). **D-C8 (şüpheli):** `data/` ile başlamayan anahtar denetlenmiyor.
+      **D-C9:** `--full-history` doğru; yalnızca birleştirme commit'inde eklenen satır `-m` olmadan görünmez (kasıtlı).
+      **D-C10:** kontrol listesinin 1. maddesi kodda zorlanmıyor.
+    - Standart başlıklar: geleceğe bakış, pencere, dönem, veri bölmesi, tohum: yeni bulgu yok; onay verisi tanımı
+      ön-kayıt §3 tablosuyla uyumlu.
+
+    **Sızıntı testçisi** (`test_tur_saldirilari_r`, yalnızca yeni dosya). İlk çağrı 600 sn ilerlemeden durdu ve dosya
+    yazmadı; ikinci çağrı daraltılmış kapsamla yazdı. Testçi koşamadı; ana oturum koştu: 9 test, 9 xfail(strict).
+    - Testçinin savuşturulur tahmin ettiği R5 (`split.yukle(mum_yukleyici=...)`) koşuda başarılı çıktı (B verisi
+      döndü). Ana oturum gövdeye dokunmadan strict xfail işareti ekledi (dosyadaki uzlaşım).
+    - **Başarılı saldırılar:** R1 iş parçacığı yarışı; R2 SETTLED indirme; R3 doğrudan `requests.get`
+      (`data.binance.vision`), `bv._iste`, `fapi.binance.com` taranmıyor (3); R4 `.ipynb` içindeki `vars(split)`
+      varsayılan taramada görülmüyor; R5 `mum_yukleyici`; R6 şemasız ve `file://` adres beklenen adrese iniyor (2).
+    - Savuşturulan: yok (bu dosyada).
+    - **Tam takım:** 1870 geçti, 33 xfail (`e5ad07d`).
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
