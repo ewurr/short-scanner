@@ -2471,6 +2471,62 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 
     **Tam takım:** 1808 geçti, 20 xfail (önceki: 1788 geçti, 26 xfail).
 
+    **Doğrulama.** Tam denetim (`94270d7`, `ce1dc11` temiz ağaçta, `--eski-evren`; 678/678) ve A1 (`83e7b72`) temiz
+    ağaçta: 64 çıktının 63'ü önceki çıktılarla bayt düzeyinde aynı; yalnızca ortam kayıtları farklı
+    (`karsilastirma_ok3_{calistir,a1}_tam.csv`).
+
+    **Tur sonu ajan bulguları (düzeltilmedi; yukarıdakilerden sonra geldi).** Denetçinin bulguları "OK3" önekiyle.
+
+    *Denetçinin cevabı:* kapsam kararı kısmen doğru. Tek klonda OK2 D-B1 (a), (b), (c) kapandı (koddan yürütüldü; P-1…P-4
+    ölçüyor). "Kazayla atlatma yolları kapatılmıştır" ve "her biri iz bırakır" cümleleri aşağıdaki noktalarda yanlış;
+    listedeki "ayrı worktree, yeniden klonlama, bağımsız HEAD" ise zorla itmeyle birleşmedikçe artık kapalı (OK3 D-C1).
+    - **OK3 D-B1:** önbellek yardımcıları (`binance_vision.onbellek_yolu`, `onbellekten_oku`) hiçbir desene takılmıyor;
+      koşusuz C1/C2 erişimi kazayla olabilir. `ihlaller` yolunda "cache" geçen her dosyayı bütün taramalardan atlıyor.
+    - **OK3 D-B2:** koşu açmayan düz atama yolları (P-9…P-13) kayıt, commit ya da itme üretmiyor; uzakta iz yok.
+      `split.config =` gibi biçimler taranmıyor; `.ipynb` onay deseniyle taranmıyor. "Koşu içinde yapılırsa"
+      koşulu kapsam cümlesinde yok.
+    - **OK3 D-B3:** OK2 D-B2'nin kökü (`--full-history` yok) kapanmadı. İki klonda: X iter, Y'nin itmesi reddedilir,
+      Y `pull` edip çatışmayı kendi tarafına çözüp iter; uzak geçmiş denetimi X'in satırlarını görmez, yeni klon hiç
+      görmez. Kazayla olabilir. P-5 artık bu mekanizmayı sınamıyor; "gevşetilen test yok" cümlesi bu kapsam
+      daralmasını söylemiyor.
+    - **OK3 D-B4:** itme hatası (fetch başarılı, itme başarısız: anonim erişim, kimlik penceresinin 120 sn'yi aşması,
+      push protection, büyük dosya, dal koruması) veri okunmadan çifti kalıcı harcıyor. İlk koşu, hiç denenmemiş ve
+      yerel `main`'in bütün itilmemiş commit'lerini içeren bir itmeyi tek atışın içinde yapacak.
+    - **OK3 D-B5:** zorla itme uzak git geçmişinde iz bırakmıyor (fetch `+` refspec'i yeniden yazılmış uzağı sessizce
+      kabul ediyor); `remote set-url`, `pushurl`, `insteadOf`, `GIT_CONFIG_*`, `GIT_DIR`, PATH'te sahte `git` ile koşu
+      sahte uzağa itilebiliyor. Bunlar listede yok. Yalnızca yerelde yapılan körleştirmeler (P-6…P-8) ise ikinci
+      koşuyu gerçek uzağa ittiği için iz bırakıyor.
+    - **OK3 D-C2:** ITILEMEDI mesajı `git push origin main` öneriyor, kod HEAD'i itiyor. **D-C3:** başka daldan koşu o
+      dalın bütün commit'lerini uzak `main`'e itiyor. **D-C4:** kilit itme sırasında 120 sn'ye kadar tutuluyor, ikinci
+      süreç 10 sn bekliyor. **D-C5 (şüpheli):** Windows'ta zaman aşımı torun süreçle asılı kalabilir. **D-C6:**
+      ITILEMEDI commit hatası sessizce yutuluyor. **D-C7:** OK2 D-C2 açık. **D-C8:** gerçek ortam testi ağa çıkmıyor
+      (doğrulandı); izlenen betikten başlatılan pytest senaryosunda gerçek itme yapabilir (şüpheli). **D-C9:** bayat
+      metin (`split.py` modül docstring'i ve korumaya ilişkin yorum, P-5 docstring'leri, kilitli metinler).
+      **D-C10:** `_AG_SURESI` korunmuyor.
+
+    **Sızıntı testçisi** (`test_tur_saldirilari_q`, `5277cd0`, yalnızca yeni dosya): 32 test; testçi koşamadı, ana
+    oturum koştu: 14 geçti, 18 xfail(strict). İlk koşuda bir test kırmızıydı: testin `git checkout -- ONAY_KAYDI.md`
+    adımı, `git add` ile index'e alınmış ITILEMEDI satırını silmiyordu (ikinci turda belgelenen davranış; güvenli
+    yön). Ana oturum o satırı `git checkout HEAD --` yaptı ve yorumla işaretledi; test geçiyor.
+    - **Başarılı saldırılar:** `merge -s ours` ile tek tarafa çözülen birleştirme X'in koşusunu hem yerelde hem taze
+      klonda gizliyor (2; OK3 D-B3'ü ölçtü). `origin` yönlendirmesi (`set-url`, `pushurl`, `insteadOf`,
+      `GIT_CONFIG_*`; 4) sahte uzağa itilen koşuyu gerçek uzakta izsiz bırakıyor (OK3 D-B5). Zorla itme (taze klon ve
+      aynı depo; 2). `main` dışı daldan koşu açılıyor ve dalın commit'leri uzak `main`'e taşınıyor (1; OK3 D-C3).
+      Önbellek taraması: `bv.onbellek_yolu`/`onbellekten_oku` (2), `rglob('*.parquet')`, `"CACHE"`, `"Cache"` (5
+      kimlik), `.pyw` (1), `cache` adlı alt dizindeki analiz dosyası bütün taramalardan muaf (2; OK3 D-B1). ITILEMEDI
+      mesajındaki `git push origin main` bağımsız HEAD'de işe yaramıyor (1; OK3 D-C2).
+    - **Savuşturulanlar:** geride kalan klon aynı çifti `OnayTekrari`, başka çifti `OnayUzakHatasi` ile reddediyor;
+      taze klon itilmiş koşuyu görüyor; sunucuda `receive.denyNonFastForwards` varsa zorla itme reddediliyor (kod bunu
+      kurmuyor, doğrulamıyor); `deneme`'de harcanan çift `main`'de açılmıyor; `Path(KOK, 'cache')`, `os.path.join`,
+      f-string, değişken biçimleri yakalanıyor; BASLADI itilemeyince gövde çalışmıyor, veri okunmuyor; ITILEMEDI
+      commit'i de başarısız olunca yeni koşu `OnayKaydiCommitsiz`; BITTI itilemese de uzaktaki BASLADI çifti harcıyor;
+      `git push origin HEAD:main` bağımsız HEAD durumunu çözüyor.
+    - **Belgeleme (bulgu, xfail değil):** BASLADI itilemeyince çift veri okunmadan harcanıyor; elle itilince
+      `OnayTekrari`, kurtarma yolu yok (OK3 D-B4'ü ölçtü).
+    - **Yazılamayanlar:** gerçek kimlik bilgisi yokluğu (https; `pre-receive` reddiyle taklit edildi), eşzamanlı iki
+      itme, `GIT_DIR` yönlendirmesi (2–3. saldırılarla aynı sınıf).
+    - **Tam takım:** 1822 geçti, 38 xfail.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
