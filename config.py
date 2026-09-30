@@ -214,8 +214,8 @@ ALFA_BONFERRONI = 0.05 / 3  # uc hipotez icin Bonferroni = 0.0167
 # ON-KAYIT DEGILDIR. Onay kaydi ve kosu butunlugu turu (denetci KS3 D-B1): onay kaydinin yolu calisma aninda
 # yeniden atanamaz (`config.ONAY_KAYDI = ...`, `monkeypatch.setattr(config, "ONAY_KAYDI", ...)`). Testler kayit
 # yolunu yalnizca `data.split._test_kaydi_ayarla` ile, kendi testleri suresince degistirir. Sinir: modul
-# sozlugune dogrudan yazim (`vars(config)`) engellenmez; `data.split` yolu yukleme aninda sabitler ve farki
-# yakalar.
+# sozlugune dogrudan yazim (`vars(config)`) engellenmez; `data.split` kayit yolunu yukleme aninda sabitler ve
+# farki yakalar. Kume sabitleri icin sozluk yolu yakalanmaz; analiz kodunda taramayla yasaktir.
 
 import sys as _sys  # noqa: E402
 import types as _types  # noqa: E402
@@ -225,7 +225,13 @@ class SabitDegistirilemez(AttributeError):
     """Calisma aninda degistirilemeyen bir config adi yeniden atanmak ya da silinmek istendi."""
 
 
-_DEGISMEZ_ADLAR = frozenset({"ONAY_KAYDI", "_DEGISMEZ_ADLAR"})
+# Onay kaydi ikinci tur (denetci OK D-B2): kume sabitleri ve modul sinifi da. `config.ONAY_KUMELERI = ()` C1'i
+# onaysiz acardi; kume tarihlerinin "duyarlilik icin" degistirilmesi kazayla da olabilirdi.
+_DEGISMEZ_ADLAR = frozenset({
+    "ONAY_KAYDI", "_DEGISMEZ_ADLAR",
+    "KESIF_BASI", "KESIF_SONU", "C2_BASI", "C2_SONU", "KUMELER", "ONAY_KUMELERI",
+    "__class__",
+})
 
 
 class _SabitModul(_types.ModuleType):

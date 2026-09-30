@@ -101,9 +101,14 @@ KAYIT_DESENI = (r"\b_kayitlar\b|\bkapi_yardimcisi\b|\bSENTETIK_(DONEMLER|GRUPLAR
 # (kayda yalnizca `split.onay_kosusu` yazar). Ikincil savunma: `split` ve `config` korunan adlarin atanmasini
 # zaten reddeder; bu desen `vars(...)`/`__dict__` gibi korumanin gormedigi yollari ve test kapisini yakalar.
 # Sinir: adi parcalayip `getattr`/`importlib` ile kurulan bir erisim yakalanmaz.
+# Onay kaydi ikinci tur (denetci OK D-B2, OK D-C4): depodaki takma ad `split_modulu` (`vars(split_modulu)`,
+# `split_modulu.__dict__`, `pozisyon.split_modulu = ...`), korumayi atlayan `object.__setattr__` /
+# `ModuleType.__setattr__` ve `sys.modules` degisimi de.
 ONAY_ATLATMA_DESENI = (
     r"\b_AKTIF_KOSU\b|\b_TEST_AYARI\b|\b_test_kaydi_ayarla\b|\bPYTEST_CURRENT_TEST\b|\b_KAYIT_YOLU\b"
     r"|\b_Kosu\b|\b_onay_kaydet\b|\b_bitis_yaz\b|\b_kaydi_oku\b|\b_KORUNAN_ADLAR\b|\b_DEGISMEZ_ADLAR\b"
-    r"|\bonay_yardimcisi\b|\bvars\s*\(\s*(split|config)\b|\b(split|config)\s*\.\s*__(dict|class)__\b"
-    r"|\bONAY_KAYDI\b"
+    r"|\bonay_yardimcisi\b|\bvars\s*\(\s*(split|split_modulu|config)\b"
+    r"|\b(split|split_modulu|config)\s*\.\s*__(dict|class)__\b"
+    r"|\.\s*split_modulu\s*=(?!=)|\b(object|ModuleType)\s*\.\s*__(setattr|delattr)__|\bsys\s*\.\s*modules\b"
+    r"|\b_kaydi_commit_et\b|\b_gecmis_kaydi\b|\b_head_kaydi\b|\bONAY_KAYDI\b"
 )

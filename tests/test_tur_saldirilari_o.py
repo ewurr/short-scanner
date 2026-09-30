@@ -41,16 +41,11 @@ def _satirlar(yol) -> list[dict[str, str]]:
 # --- Korunan ad listesindeki delikler: split_oku, kume_araligi, ONAY_TABLO_BASLIGI -----------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="SALDIRI BULGUSU: split_oku KORUNAN_ADLAR listesinde degil; duz setattr ile B grubu bir "
-           "sembol A grubuymus gibi gosterilip KESIF kumesine sizdirilabilir (CLAUDE.md §3.2, "
-           "'Veri bolmesi dokunulmazdir').",
-)
 def test_split_oku_disaridan_yamalanip_grup_sizdirilamaz():
     """`split_oku` `_KORUNAN_ADLAR` listesinde yok (kaynakta dogrulandi). Istenen davranis: bolme
     tablosu calisma aninda degistirilemez, dolayisiyla B grubu bir sembol KESIF'e (yalniz A) giremez."""
-    assert "split_oku" not in split._KORUNAN_ADLAR  # bulgu: koruma listesinde yok
+    # Onay kaydi ikinci tur: bulgu kapandi, `split_oku` korunan adlarda; atama OnayKorumasi verir.
+    assert "split_oku" in split._KORUNAN_ADLAR
 
     gercek = split.split_oku()
     b_sembol = gercek.loc[gercek["grup"] == "B", "sembol"].iloc[0]
@@ -58,36 +53,29 @@ def test_split_oku_disaridan_yamalanip_grup_sizdirilamaz():
     sahte.loc[sahte["sembol"] == b_sembol, "grup"] = "A"
 
     eski = split.split_oku
-    setattr(split, "split_oku", lambda *a, **k: sahte)  # KORUNAN_ADLAR'da olmadigi icin reddedilmiyor
-    try:
-        izinli, _, _ = split.kume_erisimi(b_sembol, "KESIF", onay=False)
-    finally:
-        setattr(split, "split_oku", eski)
+    with pytest.raises(split.OnayKorumasi):
+        setattr(split, "split_oku", lambda *a, **k: sahte)
+    izinli, _, _ = split.kume_erisimi(b_sembol, "KESIF", onay=False)
+    assert split.split_oku is eski
 
     assert not izinli, f"{b_sembol} (gercekte B grubu) split_oku yamasiyla KESIF'e (A grubu) sizdi"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="SALDIRI BULGUSU: kume_araligi KORUNAN_ADLAR listesinde degil; duz setattr ile KESIF "
-           "kumesinin tarih siniri C2 donemine (2025-09-01 sonrasina) genisletilebilir "
-           "(on-kayit §3 donem korumasi).",
-)
 def test_kume_araligi_yamalanip_kesif_gelecek_tarihe_genisletilemez():
     """`kume_araligi` `_KORUNAN_ADLAR` listesinde yok. Istenen davranis: KESIF kumesinin sonu her
     zaman `config.KESIF_SONU` (2025-08-31); C2 donemi hicbir sekilde KESIF'e sizmaz."""
-    assert "kume_araligi" not in split._KORUNAN_ADLAR  # bulgu: koruma listesinde yok
+    # Onay kaydi ikinci tur: bulgu kapandi, `kume_araligi` korunan adlarda; atama OnayKorumasi verir.
+    assert "kume_araligi" in split._KORUNAN_ADLAR
 
     gercek = split.split_oku()
     a_sembol = gercek.loc[gercek["grup"] == "A", "sembol"].iloc[0]
     genis_araliktir = (pd.Timestamp(config.KESIF_BASI), pd.Timestamp(config.C2_SONU))
 
     eski = split.kume_araligi
-    setattr(split, "kume_araligi", lambda kume: genis_araliktir)
-    try:
-        _, bas, son = split.kume_erisimi(a_sembol, "KESIF", onay=False)
-    finally:
-        setattr(split, "kume_araligi", eski)
+    with pytest.raises(split.OnayKorumasi):
+        setattr(split, "kume_araligi", lambda kume: genis_araliktir)
+    _, bas, son = split.kume_erisimi(a_sembol, "KESIF", onay=False)
+    assert split.kume_araligi is eski
 
     assert son <= pd.Timestamp(config.KESIF_SONU), (
         f"KESIF kume sonu {son}, 2025-09-01 sonrasina (C2 donemine) sizdi"

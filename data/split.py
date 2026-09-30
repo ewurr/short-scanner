@@ -215,6 +215,11 @@ def kume_araligi(kume: str) -> tuple[pd.Timestamp, pd.Timestamp]:
 #     yazilan commit'tedir.
 #   - Kosu basina iki satir: acilirken BASLADI, kapanirken BITTI (sonucla) ya da HATA. Surec oldurulurse
 #     BASLADI satiri kalir; o (hipotez, kume) cifti yine harcanmis sayilir.
+#   - Kayit git'e baglidir (onay kaydi ikinci tur, denetci OK D-B1). Her kayit satiri yazildigi anda kosunun
+#     kendisi tarafindan commit edilir (yalnizca kayit dosyasi). Tek atis denetimi calisma agacina ek olarak git
+#     gecmisine bakar: bir kez commit edilmis her satir, sonradan silinse bile, cifti harcar (`--all --reflog`).
+#     Calisma agacindaki kayit HEAD'dekiyle ayni degilse yeni kosu acilmaz. Boylece `git checkout .`,
+#     `git stash`, `reset --hard` tek atisi geri getirmez; ancak gecmisi yeniden yazmak ve reflog'u silmek getirir.
 
 
 class OnayKorumasi(OnayGerekli):
@@ -225,6 +230,11 @@ class OnayKorumasi(OnayGerekli):
 class OnayOrtamiHatasi(OnayGerekli):
     """Onay kosusu temiz olmayan bir ortamda acilmak istendi: git yok, calisma agaci kirli ya da cagiran betik
     git'te izlenen bir depo dosyasi degil (denetci KS3 D-B2)."""
+
+
+class OnayKaydiCommitsiz(OnayOrtamiHatasi):
+    """Onay kaydinin calisma agacindaki satirlari HEAD'deki kayitla ayni degil ya da kosunun kayit satiri commit
+    edilemedi (onay kaydi ikinci tur, denetci OK D-B1). Commit edilmemis kayit satiri varken yeni kosu acilmaz."""
 
 
 class OnaySonucuYok(RuntimeError):
@@ -242,7 +252,8 @@ _KAYIT_YOLU: Path = Path(config.ONAY_KAYDI)
 def _git(*argumanlar: str) -> str | None:
     try:
         cikti = subprocess.run(
-            ["git", *argumanlar], cwd=config.KOK, capture_output=True, text=True, timeout=10
+            ["git", *argumanlar], cwd=_depo(), capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=30,
         )
     except Exception:
         return None
@@ -296,13 +307,16 @@ def ortam_karari(head: str | None, durum: str | None, betik: str | None, izleniy
 
 def _kosu_ortami() -> KosuOrtami:
     test = _test_ayari()
-    if test is not None:
+    if test is not None and test.depo is None:
         return ortam_karari(test.head, test.durum, test.betik, test.izleniyor)
     import __main__
 
     yol = getattr(__main__, "__file__", None)
     betik, izleniyor = None, False
-    if yol:
+    if test is not None:  # test deposu: git gercek, yalnizca cagiran betik testten gelir
+        betik = test.betik
+        izleniyor = betik is not None and _git("ls-files", "--error-unmatch", "--", betik) is not None
+    elif yol:
         try:
             betik = Path(yol).resolve().relative_to(Path(config.KOK).resolve()).as_posix()
         except ValueError:
@@ -323,6 +337,7 @@ class _TestAyari:
     durum: str | None
     betik: str | None
     izleniyor: bool
+    depo: Path | None
 
 
 _TEST_AYARI: _TestAyari | None = None
@@ -337,17 +352,26 @@ def _pytest_testi() -> str | None:
 
 
 def _test_kaydi_ayarla(yol, *, head: str | None = "0" * 40, durum: str | None = "",
-                       betik: str | None = "tests/onay_testi.py", izleniyor: bool = True) -> Path:
+                       betik: str | None = "tests/onay_testi.py", izleniyor: bool = True,
+                       depo=None) -> Path:
     """YALNIZCA TESTLER ICIN: bu pytest testi suresince kayit yolunu ve git ortamini degistirir.
 
     Ayar yalnizca onu kuran testin kimligiyle (`PYTEST_CURRENT_TEST`) gecerlidir; test bitince kendiliginden
     gecersizlesir. pytest disinda `OnayKorumasi`. Analiz kodunda bu adin gecmesi taramayla yasak
-    (`tests/tarama_yardimcisi.ONAY_ATLATMA_DESENI`)."""
+    (`tests/tarama_yardimcisi.ONAY_ATLATMA_DESENI`).
+
+    Iki kip:
+      - `depo=None` (sahte git): ortam `head`, `durum`, `betik`, `izleniyor` degerlerinden gelir; git gecmisi
+        okunmaz ve kayit commit edilmez, kayit her an commit edilmis sayilir (HEAD = calisma agaci).
+      - `depo=<gecici git deposu>` (gercek git): butun git islemleri o depoda gercekten yapilir (temiz agac,
+        HEAD, `ls-files`, gecmis, commit). Testten yalnizca cagiran betigin depo icindeki yolu (`betik`) gelir;
+        `head`, `durum`, `izleniyor` yok sayilir. `yol` deponun icinde olmalidir.
+    """
     global _TEST_AYARI
     test = _pytest_testi()
     if test is None:
         raise OnayKorumasi("Test kaydi yalnizca bir pytest testi icinde ayarlanabilir.")
-    _TEST_AYARI = _TestAyari(test, Path(yol), head, durum, betik, izleniyor)
+    _TEST_AYARI = _TestAyari(test, Path(yol), head, durum, betik, izleniyor, None if depo is None else Path(depo))
     return Path(yol)
 
 
@@ -356,6 +380,12 @@ def _test_ayari() -> _TestAyari | None:
     if ayar is None or _pytest_testi() != ayar.test:
         return None
     return ayar
+
+
+def _depo() -> Path:
+    """Git komutlarinin calistigi depo: gercekte `config.KOK`, test deposu kipinde o depo."""
+    test = _test_ayari()
+    return test.depo if test is not None and test.depo is not None else Path(config.KOK)
 
 
 # --- Kayit dosyasi -----------------------------------------------------------
@@ -470,6 +500,99 @@ def kayittaki_kosular(metin: str) -> set[tuple[str, str]]:
 
     BASLADI, BITTI ya da HATA fark etmez: kayitta satiri olan cift harcanmistir (tek atis)."""
     return {(s["hipotez"], s["kume"]) for s in kayit_satirlari(metin)}
+
+
+# --- Kaydin git'teki hali (onay kaydi ikinci tur, denetci OK D-B1) ------------
+
+
+def onay_satirlari(metin: str) -> list[str]:
+    """Kayittaki onay satirlari, bas ve sondaki bosluk ve satir sonu olmadan, sirasiyla. Saf."""
+    return [s.strip() for s in metin.splitlines() if kayit_satirlari(s)]
+
+
+def gecmis_satirlari(log_ciktisi: str) -> str:
+    """`git log -p` ciktisindan dosyaya eklenmis butun satirlar: hunk icindeki (`@@` satirindan sonra) `+` ile
+    baslayan satirlar. `diff --git` ile ilk `@@` arasindaki baslik (`+++ b/...`) atlanir. Saf."""
+    eklenen, baslikta = [], True
+    for satir in log_ciktisi.splitlines():
+        if satir.startswith("diff --git "):
+            baslikta = True
+        elif satir.startswith("@@"):
+            baslikta = False
+        elif not baslikta and satir.startswith("+"):
+            eklenen.append(satir[1:])
+    return "\n".join(eklenen)
+
+
+def _sahte_git() -> bool:
+    test = _test_ayari()
+    return test is not None and test.depo is None
+
+
+def _kayit_goreli() -> str:
+    """Kayit dosyasinin depo icindeki yolu."""
+    try:
+        return _kayit_yolu().resolve().relative_to(_depo().resolve()).as_posix()
+    except ValueError:
+        raise OnayOrtamiHatasi(f"Onay kaydi ({_kayit_yolu()}) git deposunun ({_depo()}) icinde degil.") from None
+
+
+def _head_kaydi() -> str:
+    """HEAD'deki kayit metni; kayit HEAD'de yoksa bos metin. Sahte git kipinde calisma agacindaki metin."""
+    if _sahte_git():
+        return _kaydi_oku()
+    goreli = _kayit_goreli()
+    agac = _git("ls-tree", "--name-only", "HEAD", "--", goreli)
+    if agac is None:
+        raise OnayOrtamiHatasi("Onay kaydi denetlenemedi: HEAD okunamadi.")
+    if not agac.strip():
+        return ""
+    metin = _git("cat-file", "blob", f"HEAD:{goreli}")
+    if metin is None:
+        raise OnayOrtamiHatasi(f"Onay kaydi denetlenemedi: HEAD:{goreli} okunamadi.")
+    return metin
+
+
+def _gecmis_kaydi() -> str:
+    """Kayda git gecmisinde bir kez eklenmis butun satirlar: butun referanslar (`--all`, stash dahil) ve reflog
+    (`--reflog`; `--amend`, `rebase`, `reset` ile birakilan commit'ler dahil). Sahte git kipinde calisma
+    agacindaki metin."""
+    if _sahte_git():
+        return _kaydi_oku()
+    cikti = _git("log", "--all", "--reflog", "-p", "--no-color", "--no-ext-diff", "--no-textconv", "--format=",
+                 "--", _kayit_goreli())
+    if cikti is None:
+        raise OnayOrtamiHatasi("Onay kaydi denetlenemedi: git gecmisi okunamadi.")
+    return gecmis_satirlari(cikti)
+
+
+def _kayit_commitli_denetle() -> None:
+    """Calisma agacindaki onay satirlari HEAD'dekilerle ayni olmali; degilse `OnayKaydiCommitsiz`."""
+    agac, head = onay_satirlari(_kaydi_oku()), onay_satirlari(_head_kaydi())
+    if agac != head:
+        eksik, fazla = [s for s in head if s not in agac], [s for s in agac if s not in head]
+        raise OnayKaydiCommitsiz(
+            f"Onay kaydinin calisma agacindaki satirlari HEAD'dekiyle ayni degil: {len(fazla)} commit edilmemis, "
+            f"{len(eksik)} silinmis satir. Commit edilmemis kayit satiri varken yeni kosu acilmaz; once kaydi "
+            "commit edin (silinen satirlar commit edilmis kayittan geri alinmali).")
+
+
+def _kaydi_commit_et(mesaj: str) -> None:
+    """Kayit dosyasini (yalnizca onu) commit eder; sonra HEAD'deki onay satirlari calisma agacindakilerle ayni
+    olmali. Olmazsa `OnayKaydiCommitsiz`. Sahte git kipinde bir sey yapmaz."""
+    if _sahte_git():
+        return
+    goreli = _kayit_goreli()
+    if _git("add", "--", goreli) is None or _git("commit", "--only", "--quiet", "-m", mesaj, "--", goreli) is None:
+        raise OnayKaydiCommitsiz(f"Onay kaydi commit edilemedi ({mesaj}). Kayit satiri calisma agacinda; elle "
+                                 "commit edilmeden yeni kosu acilmaz.")
+    _kayit_commitli_denetle()
+
+
+def harcanan_ciftler() -> set[tuple[str, str]]:
+    """Harcanmis (hipotez, kume) ciftleri: calisma agacindaki kayit ile git gecmisinde kayda bir kez eklenmis
+    satirlarin birlesimi (OK D-B1)."""
+    return kayittaki_kosular(_kaydi_oku()) | kayittaki_kosular(_gecmis_kaydi())
 
 
 def _hipotez_dogrula(hipotez) -> str:
@@ -606,13 +729,20 @@ class OnayKosusu:
 def _bitis_yaz(kosu: _Kosu, durum: str, alan: str) -> None:
     """Kosunun bitis satirini yazar (BITTI ya da HATA). Kayitta kosunun tek bir BASLADI satiri yoksa satir yine
     yazilir (iz kalir), sonra `OnayKorumasi`."""
+    commit_hatasi: OnayKaydiCommitsiz | None = None
     with _kayit_kilidi():
         eski = _kaydi_oku()
         onceki = [s.get("durum") for s in kayit_satirlari(eski) if s.get("kosu") == kosu.kimlik]
         _onay_kaydet(eski, kosu.satir(f"durum={durum} baslangic={kosu.baslangic} bitis={_iso_zaman()} {alan}"))
+        try:
+            _kaydi_commit_et(f"ONAY_KAYDI: {kosu.hipotez} {kosu.kume} {durum} (kosu={kosu.kimlik})")
+        except OnayKaydiCommitsiz as yakalanan:
+            commit_hatasi = yakalanan
     if onceki != ["BASLADI"]:
         raise OnayKorumasi(f"Onay kaydinda kosu {kosu.kimlik} icin beklenen tek BASLADI satiri yerine {onceki} "
-                           "bulundu; kayit kosu sirasinda degismis.")
+                           "bulundu; kayit kosu sirasinda degismis.") from commit_hatasi
+    if commit_hatasi is not None:
+        raise commit_hatasi
 
 
 @contextmanager
@@ -623,13 +753,17 @@ def onay_kosusu(hipotez: str, kume: str):
             ...
             kosu.sonuc_bildir("...")
 
+    - Calisma agacindaki kayit HEAD'dekiyle ayni degilse (commit edilmemis ya da silinmis kayit satiri)
+      `OnayKaydiCommitsiz`.
     - Yalnizca temiz calisma agacinda ve git'te izlenen bir depo betiginden acilir (`OnayOrtamiHatasi`).
-    - Ayni (hipotez, kume) kayitta varsa, hangi durumda olursa olsun, `OnayTekrari`; hicbir sey yazilmaz.
+    - Ayni (hipotez, kume) calisma agacindaki kayitta ya da git gecmisinde kayda bir kez eklenmisse, hangi
+      durumda olursa olsun, `OnayTekrari`; hicbir sey yazilmaz.
     - Acilirken kayda BASLADI satiri: tarih, kume, betik, commit hash'i, hipotez, kosu kimligi, surec numarasi,
-      UTC baslangic.
-    - Kapanirken kayda bitis satiri: UTC baslangic ve bitis ile
+      UTC baslangic. Satir hemen commit edilir; commit edilemezse kosu acilmaz (`OnayKaydiCommitsiz`).
+    - Kapanirken kayda bitis satiri (o da commit edilir): UTC baslangic ve bitis ile
         - sonuc bildirildiyse `durum=BITTI sonuc=<sonuc>`;
-        - blok hata ile biterse `durum=HATA hata=<hata sinifi>` (hata yeniden firlatilir);
+        - blok hata ile biterse `durum=HATA hata=<hata sinifi>`, sonuc bildirilmisse ardindan `sonuc=<sonuc>`
+          (hata yeniden firlatilir);
         - sonuc bildirilmediyse `durum=HATA hata=OnaySonucuYok` ve `OnaySonucuYok`.
     - Ic ice kosu acilamaz. Kayit yolu parametre olarak verilemez.
     """
@@ -638,15 +772,17 @@ def onay_kosusu(hipotez: str, kume: str):
     _onay_kumesi_dogrula(kume)
     if _AKTIF_KOSU is not None:
         raise RuntimeError(f"Zaten acik bir onay kosusu var: {_AKTIF_KOSU}. Ic ice kosu acilamaz.")
+    _kayit_commitli_denetle()
     ortam = _kosu_ortami()
     kosu = _Kosu(hipotez, kume, uuid.uuid4().hex[:12], ortam.commit, ortam.betik, _iso_zaman(), os.getpid())
     with _kayit_kilidi():
         eski = _kaydi_oku()
-        if (hipotez, kume) in kayittaki_kosular(eski):
+        if (hipotez, kume) in harcanan_ciftler():
             raise OnayTekrari(
-                f"{hipotez} icin {kume} onay kosusu zaten kayitli. Onay kumeleri her hipotez "
-                "icin BIR KEZ kosulur (CLAUDE.md §3.3, on-kayit §9).")
+                f"{hipotez} icin {kume} onay kosusu zaten kayitli (calisma agacinda ya da git gecmisinde). Onay "
+                "kumeleri her hipotez icin BIR KEZ kosulur (CLAUDE.md §3.3, on-kayit §9).")
         _onay_kaydet(eski, kosu.satir(f"durum=BASLADI baslangic={kosu.baslangic}"))
+        _kaydi_commit_et(f"ONAY_KAYDI: {hipotez} {kume} BASLADI (kosu={kosu.kimlik})")
 
     tutamak = OnayKosusu(kosu)
     _AKTIF_KOSU = kosu
@@ -660,7 +796,10 @@ def onay_kosusu(hipotez: str, kume: str):
         _AKTIF_KOSU = None
         tutamak._acik = False
         if hata is not None:
-            _bitis_yaz(kosu, "HATA", f"hata={type(hata).__name__}")
+            # Sonuc bildirildikten sonra gelen hata: kayda hem hata hem sonuc (onay kaydi ikinci tur, OK D-C1).
+            # `sonuc=` son alandir (`not_alanlari`).
+            sonuc = "" if tutamak.sonuc is None else f" sonuc={tutamak.sonuc}"
+            _bitis_yaz(kosu, "HATA", f"hata={type(hata).__name__}{sonuc}")
         elif tutamak.sonuc is None:
             _bitis_yaz(kosu, "HATA", f"hata={OnaySonucuYok.__name__}")
             raise OnaySonucuYok(f"Onay kosusu ({hipotez}, {kume}) sonuc bildirilmeden bitti; kayda HATA yazildi. "
@@ -752,8 +891,16 @@ def yukle(
 # Onay kosusu durumu ve kosu yolundaki adlar modul disindan atanamaz ya da silinemez: `split._AKTIF_KOSU = ...`,
 # `monkeypatch.setattr(split, "_AKTIF_KOSU", ...)` ve kayit yolunu, git ortamini ya da kosu denetimini degistiren
 # yama `OnayKorumasi` verir. Modul ici `global` atamasi (yalnizca `onay_kosusu` ve `_test_kaydi_ayarla`) modul
-# sozlugune dogrudan yazar ve bu korumadan gecmez. Sinir: `vars(split)` ya da `split.__dict__` uzerinden yazim
-# engellenmez; bu yolla kurulan bir kosu `_acik_kosu`'nun kayit denetimine takilir.
+# sozlugune dogrudan yazar ve bu korumadan gecmez.
+#
+# Onay kaydi ikinci tur (denetci OK D-B2, sizinti testcisi O): bolme ve kume tanimi (`split_oku`, `kume_tanimi`,
+# `kume_araligi`), git'e bagli kayit adlari ve `__class__` da korunur; `split.__class__ = types.ModuleType`
+# korumayi kaldiramaz. Config'teki kume sabitleri `config._DEGISMEZ_ADLAR`da.
+#
+# Sinir: ayni surec icinden mutlak koruma mumkun degildir. `vars(split)` / `split.__dict__` uzerinden yazim,
+# `object.__setattr__` / `types.ModuleType.__setattr__` ve `sys.modules` degisimi engellenmez. Amac kazayla
+# atlatmayi imkansiz, kasitli atlatmayi gorunur kilmaktir: bu yollar analiz kodunda taramayla yasaktir
+# (`tests/tarama_yardimcisi.ONAY_ATLATMA_DESENI`).
 
 _KORUNAN_ADLAR = frozenset({
     "_AKTIF_KOSU", "_TEST_AYARI", "_KAYIT_YOLU", "_KORUNAN_ADLAR", "_Kosu", "OnayKosusu", "KosuOrtami",
@@ -762,6 +909,11 @@ _KORUNAN_ADLAR = frozenset({
     "kayda_satir_ekle", "not_alanlari", "kayit_satirlari", "kayittaki_kosular", "_hipotez_dogrula",
     "_onay_kumesi_dogrula", "_sonuc_dogrula", "aktif_onay_kosusu", "onay_baglami_dogrula", "onay_kosusu",
     "kume_erisimi",
+    # Onay kaydi ikinci tur: bolme ve kume tanimi (OK D-B2, sizinti O), git'e bagli kayit (OK D-B1), sinif.
+    "split_oku", "kume_tanimi", "kume_araligi",
+    "_depo", "_sahte_git", "_kayit_goreli", "_head_kaydi", "_gecmis_kaydi", "_kayit_commitli_denetle",
+    "_kaydi_commit_et", "harcanan_ciftler", "onay_satirlari", "gecmis_satirlari",
+    "__class__",
 })
 
 
@@ -769,7 +921,7 @@ class _KorunanModul(types.ModuleType):
     def __setattr__(self, ad, deger):
         if ad in _KORUNAN_ADLAR:
             raise OnayKorumasi(f"split.{ad} modul disindan atanamaz; onay kosusu yalnizca `onay_kosusu` ile "
-                               "acilir ve kapanir (CLAUDE.md §3.3).")
+                               "acilir ve kapanir, bolme ve kume tanimi degistirilemez (CLAUDE.md §3.2-3.3).")
         super().__setattr__(ad, deger)
 
     def __delattr__(self, ad):

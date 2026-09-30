@@ -57,7 +57,8 @@ def test_kume_araligi_kume_tanimindan_turetilir(monkeypatch):
     """Sinir kume_tanimi'ndan okunur; baska yerde elle yazilmis bir kopya yoktur."""
     sahte_bas = pd.Timestamp("2021-01-01", tz="UTC")
     sahte_son = pd.Timestamp("2021-06-30 23:59:59", tz="UTC")
-    monkeypatch.setattr(split, "kume_tanimi", lambda kume: (("A",), sahte_bas, sahte_son))
+    # Onay kaydi ikinci tur: `kume_tanimi` korunan ad (setattr OnayKorumasi verir); yama modul sozlugunden.
+    monkeypatch.setitem(vars(split), "kume_tanimi", lambda kume: (("A",), sahte_bas, sahte_son))
 
     assert split.kume_araligi("KESIF") == (sahte_bas, sahte_son)
     t = pd.Timestamp("2021-06-30 16:00", tz="UTC") - 18 * DORT_SAAT  # cikis kapanisi 20:00
