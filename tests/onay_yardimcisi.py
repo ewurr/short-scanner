@@ -37,10 +37,14 @@ def git(depo, *argumanlar) -> str:
 
 def gecici_depo(kok):
     """`kok/depo` altinda gercek bir git deposu kurar (kayit dosyasi ve izlenen bir betik commit edilmis) ve bu
-    test suresince onay kaydini oraya yonlendirir. Doner: depo yolu. Kayit: `depo / "ONAY_KAYDI.md"`."""
+    test suresince onay kaydini oraya yonlendirir. Doner: depo yolu. Kayit: `depo / "ONAY_KAYDI.md"`.
+
+    Onay kaydi kapanis turu: `kok/uzak.git` ciplak bir depo `origin` olarak eklenir ve `main` oraya itilir (dosya
+    yolu uzerinden; aga cikilmaz). Uzak depo: `uzak_depo(depo)`."""
     depo = kok / "depo"
     (depo / "analysis").mkdir(parents=True)
     git(depo, "init", "-q")
+    git(depo, "checkout", "-q", "-b", "main")
     for anahtar, deger in [("user.name", "Test"), ("user.email", "test@example.invalid"),
                            ("core.autocrlf", "false"), ("commit.gpgsign", "false"), ("core.hooksPath", ".git/hooks")]:
         git(depo, "config", anahtar, deger)
@@ -48,8 +52,18 @@ def gecici_depo(kok):
     (depo / DEPO_BETIGI).write_text("# onay betigi (test)\n", encoding="utf-8")
     git(depo, "add", ".")
     git(depo, "commit", "-q", "-m", "ilk")
+    uzak = kok / "uzak.git"
+    git(kok, "init", "-q", "--bare", str(uzak))
+    git(depo, "remote", "add", "origin", str(uzak))
+    git(depo, "push", "-q", "origin", "main")
+    git(depo, "fetch", "-q", "origin")
     split._test_kaydi_ayarla(depo / "ONAY_KAYDI.md", depo=depo, betik=DEPO_BETIGI)
     return depo
+
+
+def uzak_depo(depo):
+    """`gecici_depo`nun ciplak uzak deposu."""
+    return depo.parent / "uzak.git"
 
 
 @contextmanager

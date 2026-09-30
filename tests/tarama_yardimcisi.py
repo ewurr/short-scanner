@@ -16,12 +16,12 @@ KOK = Path(__file__).resolve().parents[1]
 IZINLI_ALTLAR = ("data", "tests", "analysis/00_veri_denetimi", ".claude")
 
 
-def ihlaller(desen: str, kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR) -> list[str]:
-    """`kok` altindaki .py dosyalarindan, izinli dizinler DISINDA `desen` gecenleri doner."""
+def ihlaller(desen: str, kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR, uzantilar=(".py",)) -> list[str]:
+    """`kok` altindaki `uzantilar` dosyalarindan (varsayilan .py), izinli dizinler DISINDA `desen` gecenleri doner."""
     derli = re.compile(desen)
     izinli = {kok / alt for alt in izinli_altlar}
     bulunan = []
-    for yol in sorted(kok.rglob("*.py")):
+    for yol in sorted(y for u in uzantilar for y in kok.rglob(f"*{u}")):
         if any(p in izinli for p in yol.parents) or "cache" in yol.parts:
             continue
         if derli.search(yol.read_text(encoding="utf-8", errors="replace")):
@@ -112,3 +112,10 @@ ONAY_ATLATMA_DESENI = (
     r"|\.\s*split_modulu\s*=(?!=)|\b(object|ModuleType)\s*\.\s*__(setattr|delattr)__|\bsys\s*\.\s*modules\b"
     r"|\b_kaydi_commit_et\b|\b_gecmis_kaydi\b|\b_head_kaydi\b|\bONAY_KAYDI\b"
 )
+
+# Onbellege dogrudan erisim (onay kaydi kapanis turu; §14.25 tablo satir 1, kazayla olabilir): C1/C2 verisi
+# `cache/` altindaki parquet dosyalarindadir; kume kapisini atlayip onbellegi dogrudan okumak onay kosusu acmadan
+# veriye bakmaktir. Analiz kodu (.py ve .ipynb) onbellek dizininin adini ve `cache` yol parcasini anmaz; veri
+# yalnizca kapili yukleyicilerle okunur. Sinir: yolu parcalayip kurmak (`"ca" + "che"`) yakalanmaz.
+ONBELLEK_DESENI = r"\bONBELLEK_DIZINI\b|[\"'/\\]cache[\"'/\\]"
+ONBELLEK_UZANTILARI = (".py", ".ipynb")

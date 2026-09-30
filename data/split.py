@@ -219,7 +219,18 @@ def kume_araligi(kume: str) -> tuple[pd.Timestamp, pd.Timestamp]:
 #     kendisi tarafindan commit edilir (yalnizca kayit dosyasi). Tek atis denetimi calisma agacina ek olarak git
 #     gecmisine bakar: bir kez commit edilmis her satir, sonradan silinse bile, cifti harcar (`--all --reflog`).
 #     Calisma agacindaki kayit HEAD'dekiyle ayni degilse yeni kosu acilmaz. Boylece `git checkout .`,
-#     `git stash`, `reset --hard` tek atisi geri getirmez; ancak gecmisi yeniden yazmak ve reflog'u silmek getirir.
+#     `git stash`, `reset --hard` tek atisi geri getirmez.
+#   - Kayit uzak depoya baglidir (onay kaydi kapanis turu). Kosu acilmadan once `origin/main` alinir (ag yoksa
+#     kosu acilmaz, yerel kipe dusulmez); HEAD'deki kayitta `origin/main`'e itilmemis satir varsa ya da HEAD
+#     `origin/main`'i icermiyorsa kosu acilmaz. BASLADI ve bitis satirlari commit edildikleri anda
+#     `origin/main`'e itilir; itilemezse kayda `durum=ITILEMEDI` satiri yazilir (yerelde commit edilir) ve hata
+#     verilir. Tek atis denetimi `origin/main` gecmisine de bakar. Yerel gecmis sahibince yeniden yazilabilir;
+#     uzak depodaki commit yazilamaz. Kalan yollar (ayri worktree, yeniden klonlama, bagimsiz HEAD, birlestirmede
+#     tek tarafa cozum, gecmisi yeniden yazip zorla itme, duz atamayla modul degistirme) kasitli ve cok adimlidir;
+#     itme sayesinde her biri uzak depoda iz birakir (RESULTS §14.26).
+#   - Sinir (koruma olcutu): ayni surec icinden mutlak koruma mumkun degildir; amac kazayla atlatmayi imkansiz,
+#     kasitli atlatmayi gorunur kilmaktir. `split`'in modul bagimliliklari (`config`, `subprocess`, `klines`,
+#     `split_dogrula`, ...) bu yuzden korunmaz; koruma listesi sonsuza kadar uzayamaz.
 
 
 class OnayKorumasi(OnayGerekli):
@@ -237,23 +248,37 @@ class OnayKaydiCommitsiz(OnayOrtamiHatasi):
     edilemedi (onay kaydi ikinci tur, denetci OK D-B1). Commit edilmemis kayit satiri varken yeni kosu acilmaz."""
 
 
+class OnayUzakHatasi(OnayOrtamiHatasi):
+    """Onay kaydi uzak depoya (`origin/main`) baglanamadi (onay kaydi kapanis turu): `origin/main` alinamadi (ag
+    yok), HEAD'deki kayitta itilmemis satir var, HEAD `origin/main`'i icermiyor ya da kosunun kayit commit'i
+    itilemedi. Kosu yerel kipe dusmez."""
+
+
 class OnaySonucuYok(RuntimeError):
     """Onay kosusu blogu sonuc bildirilmeden bitti (denetci KS3 D-B3). Kayda HATA satiri yazilir."""
 
 
 ONAY_TABLO_BASLIGI = "| Tarih (UTC) |"
-KOSU_DURUMLARI = ("BASLADI", "BITTI", "HATA")
+KOSU_DURUMLARI = ("BASLADI", "BITTI", "HATA", "ITILEMEDI")
 _SONUC_AZAMI_UZUNLUK = 200
+
+# Uzak depo ve dal (onay kaydi kapanis turu). ON-KAYIT DEGILDIR.
+UZAK_DEPO = "origin"
+UZAK_DAL = "main"
+_UZAK_REF = f"refs/remotes/{UZAK_DEPO}/{UZAK_DAL}"
+_AG_SURESI = 120  # sn; fetch ve push
 
 # Tek kaynak: config.ONAY_KAYDI (yukleme anindaki deger).
 _KAYIT_YOLU: Path = Path(config.ONAY_KAYDI)
 
 
-def _git(*argumanlar: str) -> str | None:
+def _git(*argumanlar: str, sure: int = 30) -> str | None:
+    # GIT_TERMINAL_PROMPT=0: kimlik bilgisi istenirse beklemek yerine hata (ag islemleri).
+    ortam = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
     try:
         cikti = subprocess.run(
             ["git", *argumanlar], cwd=_depo(), capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=30,
+            timeout=sure, env=ortam,
         )
     except Exception:
         return None
@@ -589,10 +614,67 @@ def _kaydi_commit_et(mesaj: str) -> None:
     _kayit_commitli_denetle()
 
 
+# --- Kaydin uzak depodaki hali (onay kaydi kapanis turu) ---------------------
+
+
+def _uzagi_getir() -> None:
+    """`origin/main`'i alir. Alinamazsa (ag yok, uzak depo yok, kimlik bilgisi yok) `OnayUzakHatasi`; yerel kipe
+    dusulmez. Sahte git kipinde bir sey yapmaz."""
+    if _sahte_git():
+        return
+    if _git("fetch", "--quiet", "--no-tags", UZAK_DEPO, f"+refs/heads/{UZAK_DAL}:{_UZAK_REF}", sure=_AG_SURESI) is None:
+        raise OnayUzakHatasi(f"{UZAK_DEPO}/{UZAK_DAL} alinamadi (ag yok ya da uzak depoya erisilemiyor). Onay kosusu "
+                             "yalnizca uzak depoya baglanabildiginde acilir; yerel kipe dusulmez.")
+
+
+def _uzak_gecmis_kaydi() -> str:
+    """`origin/main` gecmisinde kayda bir kez eklenmis butun satirlar. Sahte git kipinde calisma agacindaki metin."""
+    if _sahte_git():
+        return _kaydi_oku()
+    cikti = _git("log", _UZAK_REF, "-p", "--no-color", "--no-ext-diff", "--no-textconv", "--format=", "--",
+                 _kayit_goreli())
+    if cikti is None:
+        raise OnayUzakHatasi(f"{UZAK_DEPO}/{UZAK_DAL} gecmisi okunamadi.")
+    return gecmis_satirlari(cikti)
+
+
+def _itilmemis_denetle() -> None:
+    """HEAD'deki kayitta `origin/main`'e itilmemis onay satiri varsa `OnayUzakHatasi`. Sahte git kipinde bir sey
+    yapmaz."""
+    if _sahte_git():
+        return
+    uzak = set(onay_satirlari(_uzak_gecmis_kaydi()))
+    itilmemis = [s for s in onay_satirlari(_head_kaydi()) if s not in uzak]
+    if itilmemis:
+        raise OnayUzakHatasi(
+            f"Onay kaydinda {UZAK_DEPO}/{UZAK_DAL}'e itilmemis {len(itilmemis)} satir var (ornek: {itilmemis[0]}). "
+            "Itilmemis kayit satiri varken yeni kosu acilmaz; once kaydi itin.")
+
+
+def _ileri_sarma_denetle() -> None:
+    """HEAD `origin/main`'i icermiyorsa (kayit commit'i ileri sarma olarak itilemez) `OnayUzakHatasi`. Tek atis
+    denetiminden sonra cagrilir: harcanmis cift once `OnayTekrari` verir. Sahte git kipinde bir sey yapmaz."""
+    if _sahte_git():
+        return
+    if _git("merge-base", "--is-ancestor", _UZAK_REF, "HEAD") is None:
+        raise OnayUzakHatasi(f"HEAD {UZAK_DEPO}/{UZAK_DAL}'i icermiyor; kosunun kayit commit'leri ileri sarma olarak "
+                             "itilemez. Once uzak depoyla birlestirin.")
+
+
+def _kaydi_it() -> bool:
+    """HEAD'i `origin/main`'e iter (yalnizca ileri sarma; zorla itme yok). Basarida True. Sahte git kipinde True."""
+    if _sahte_git():
+        return True
+    return _git("push", "--quiet", UZAK_DEPO, f"HEAD:refs/heads/{UZAK_DAL}", sure=_AG_SURESI) is not None
+
+
 def harcanan_ciftler() -> set[tuple[str, str]]:
-    """Harcanmis (hipotez, kume) ciftleri: calisma agacindaki kayit ile git gecmisinde kayda bir kez eklenmis
-    satirlarin birlesimi (OK D-B1)."""
-    return kayittaki_kosular(_kaydi_oku()) | kayittaki_kosular(_gecmis_kaydi())
+    """Harcanmis (hipotez, kume) ciftleri: calisma agacindaki kayit, yerel git gecmisinde (OK D-B1) ve
+    `origin/main` gecmisinde (kapanis turu) kayda bir kez eklenmis satirlarin birlesimi."""
+    ciftler = kayittaki_kosular(_kaydi_oku()) | kayittaki_kosular(_gecmis_kaydi())
+    if not _sahte_git():
+        ciftler |= kayittaki_kosular(_uzak_gecmis_kaydi())
+    return ciftler
 
 
 def _hipotez_dogrula(hipotez) -> str:
@@ -726,10 +808,28 @@ class OnayKosusu:
         self._sonuc = _sonuc_dogrula(sonuc)
 
 
+def _it_ya_da_kaydet(kosu: _Kosu, asama: str) -> OnayUzakHatasi | None:
+    """Kayit commit'ini `origin/main`'e iter. Itilemezse kayda `durum=ITILEMEDI asama=<...>` satiri yazar ve yerelde
+    commit eder (commit de olmazsa satir calisma agacinda kalir); donen hata cagiranca firlatilir. `_kayit_kilidi`
+    icinde cagrilir. Itilmemis satir varken yeni kosu acilmaz (`_itilmemis_denetle`)."""
+    if _kaydi_it():
+        return None
+    _onay_kaydet(_kaydi_oku(), kosu.satir(f"durum=ITILEMEDI asama={asama} zaman={_iso_zaman()}"))
+    try:
+        _kaydi_commit_et(f"ONAY_KAYDI: {kosu.hipotez} {kosu.kume} ITILEMEDI ({asama}, kosu={kosu.kimlik})")
+    except OnayKaydiCommitsiz:
+        pass
+    return OnayUzakHatasi(
+        f"Onay kosusunun ({kosu.hipotez}, {kosu.kume}, kosu={kosu.kimlik}) {asama} kaydi {UZAK_DEPO}/{UZAK_DAL}'e "
+        "itilemedi; kayda ITILEMEDI yazildi. Bunu kosu raporuna yazin ve kaydi elle itin "
+        f"(`git push {UZAK_DEPO} {UZAK_DAL}`); itilmeden yeni kosu acilmaz.")
+
+
 def _bitis_yaz(kosu: _Kosu, durum: str, alan: str) -> None:
-    """Kosunun bitis satirini yazar (BITTI ya da HATA). Kayitta kosunun tek bir BASLADI satiri yoksa satir yine
-    yazilir (iz kalir), sonra `OnayKorumasi`."""
+    """Kosunun bitis satirini yazar (BITTI ya da HATA), commit eder ve iter. Kayitta kosunun tek bir BASLADI satiri
+    yoksa satir yine yazilir (iz kalir), sonra `OnayKorumasi`. Itilemezse `OnayUzakHatasi` (kayitta ITILEMEDI)."""
     commit_hatasi: OnayKaydiCommitsiz | None = None
+    uzak_hatasi: OnayUzakHatasi | None = None
     with _kayit_kilidi():
         eski = _kaydi_oku()
         onceki = [s.get("durum") for s in kayit_satirlari(eski) if s.get("kosu") == kosu.kimlik]
@@ -738,11 +838,15 @@ def _bitis_yaz(kosu: _Kosu, durum: str, alan: str) -> None:
             _kaydi_commit_et(f"ONAY_KAYDI: {kosu.hipotez} {kosu.kume} {durum} (kosu={kosu.kimlik})")
         except OnayKaydiCommitsiz as yakalanan:
             commit_hatasi = yakalanan
+        else:
+            uzak_hatasi = _it_ya_da_kaydet(kosu, durum)
     if onceki != ["BASLADI"]:
         raise OnayKorumasi(f"Onay kaydinda kosu {kosu.kimlik} icin beklenen tek BASLADI satiri yerine {onceki} "
-                           "bulundu; kayit kosu sirasinda degismis.") from commit_hatasi
+                           "bulundu; kayit kosu sirasinda degismis.") from (commit_hatasi or uzak_hatasi)
     if commit_hatasi is not None:
         raise commit_hatasi
+    if uzak_hatasi is not None:
+        raise uzak_hatasi
 
 
 @contextmanager
@@ -756,11 +860,15 @@ def onay_kosusu(hipotez: str, kume: str):
     - Calisma agacindaki kayit HEAD'dekiyle ayni degilse (commit edilmemis ya da silinmis kayit satiri)
       `OnayKaydiCommitsiz`.
     - Yalnizca temiz calisma agacinda ve git'te izlenen bir depo betiginden acilir (`OnayOrtamiHatasi`).
-    - Ayni (hipotez, kume) calisma agacindaki kayitta ya da git gecmisinde kayda bir kez eklenmisse, hangi
-      durumda olursa olsun, `OnayTekrari`; hicbir sey yazilmaz.
+    - `origin/main` alinamazsa (ag yok), HEAD'deki kayitta itilmemis satir varsa ya da HEAD `origin/main`'i
+      icermiyorsa `OnayUzakHatasi`; yerel kipe dusulmez.
+    - Ayni (hipotez, kume) calisma agacindaki kayitta, yerel git gecmisinde ya da `origin/main` gecmisinde kayda
+      bir kez eklenmisse, hangi durumda olursa olsun, `OnayTekrari`; hicbir sey yazilmaz.
     - Acilirken kayda BASLADI satiri: tarih, kume, betik, commit hash'i, hipotez, kosu kimligi, surec numarasi,
-      UTC baslangic. Satir hemen commit edilir; commit edilemezse kosu acilmaz (`OnayKaydiCommitsiz`).
-    - Kapanirken kayda bitis satiri (o da commit edilir): UTC baslangic ve bitis ile
+      UTC baslangic. Satir hemen commit edilir ve itilir; commit edilemezse (`OnayKaydiCommitsiz`) ya da
+      itilemezse (`OnayUzakHatasi`, kayitta ITILEMEDI) kosu acilmaz.
+    - Kapanirken kayda bitis satiri (o da commit edilir ve itilir; itilemezse kayitta ITILEMEDI ve
+      `OnayUzakHatasi`): UTC baslangic ve bitis ile
         - sonuc bildirildiyse `durum=BITTI sonuc=<sonuc>`;
         - blok hata ile biterse `durum=HATA hata=<hata sinifi>`, sonuc bildirilmisse ardindan `sonuc=<sonuc>`
           (hata yeniden firlatilir);
@@ -773,16 +881,23 @@ def onay_kosusu(hipotez: str, kume: str):
     if _AKTIF_KOSU is not None:
         raise RuntimeError(f"Zaten acik bir onay kosusu var: {_AKTIF_KOSU}. Ic ice kosu acilamaz.")
     _kayit_commitli_denetle()
-    ortam = _kosu_ortami()
+    ortam = _kosu_ortami()  # yerel denetimler once: ag islemi yalnizca temiz, izlenen bir ortamda
+    _uzagi_getir()
+    _itilmemis_denetle()
     kosu = _Kosu(hipotez, kume, uuid.uuid4().hex[:12], ortam.commit, ortam.betik, _iso_zaman(), os.getpid())
     with _kayit_kilidi():
         eski = _kaydi_oku()
         if (hipotez, kume) in harcanan_ciftler():
             raise OnayTekrari(
-                f"{hipotez} icin {kume} onay kosusu zaten kayitli (calisma agacinda ya da git gecmisinde). Onay "
-                "kumeleri her hipotez icin BIR KEZ kosulur (CLAUDE.md §3.3, on-kayit §9).")
+                f"{hipotez} icin {kume} onay kosusu zaten kayitli (calisma agacinda, yerel git gecmisinde ya da "
+                f"{UZAK_DEPO}/{UZAK_DAL} gecmisinde). Onay kumeleri her hipotez icin BIR KEZ kosulur "
+                "(CLAUDE.md §3.3, on-kayit §9).")
+        _ileri_sarma_denetle()
         _onay_kaydet(eski, kosu.satir(f"durum=BASLADI baslangic={kosu.baslangic}"))
         _kaydi_commit_et(f"ONAY_KAYDI: {hipotez} {kume} BASLADI (kosu={kosu.kimlik})")
+        uzak_hatasi = _it_ya_da_kaydet(kosu, "BASLADI")
+    if uzak_hatasi is not None:
+        raise uzak_hatasi
 
     tutamak = OnayKosusu(kosu)
     _AKTIF_KOSU = kosu
@@ -914,6 +1029,11 @@ _KORUNAN_ADLAR = frozenset({
     "_depo", "_sahte_git", "_kayit_goreli", "_head_kaydi", "_gecmis_kaydi", "_kayit_commitli_denetle",
     "_kaydi_commit_et", "harcanan_ciftler", "onay_satirlari", "gecmis_satirlari",
     "__class__",
+    # Kapanis turu: uzak depo baglantisi. Modul bagimliliklari (`config`, `subprocess`, `klines`, `split_dogrula`,
+    # `grup`, `varlik_anahtari`, `hashlib`, ...) bilincli olarak korunmaz (RESULTS §14.26): koruma listesi sonsuza
+    # kadar uzayamaz; olcut kazayla atlatmayi imkansiz, kasitli atlatmayi gorunur kilmaktir.
+    "UZAK_DEPO", "UZAK_DAL", "_UZAK_REF", "_uzagi_getir", "_uzak_gecmis_kaydi", "_itilmemis_denetle", "_ileri_sarma_denetle", "_kaydi_it",
+    "_it_ya_da_kaydet",
 })
 
 

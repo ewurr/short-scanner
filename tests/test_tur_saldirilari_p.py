@@ -92,8 +92,7 @@ def test_bagimsiz_head_kosusu_reflog_varken_cift_harcanmis(depo):
     _tekrar_reddedilmeli("H1", "C1")
 
 
-@pytest.mark.xfail(reason="P-1: detached HEAD kosusu + `git reflog expire --expire-unreachable=now --all` "
-                          "(30 gunluk sure dolmasinin taklidi) cifti geri getirir", **_BASARILI)
+# Kapanis turu: kayit uzak depoya bagli; saldiri savusturuldu, xfail kaldirildi (RESULTS §14.26).
 def test_bagimsiz_head_kosusu_reflog_suresi_dolunca_cift_yeniden_acilmamali(depo):
     """Kural: CLAUDE.md §3.3 tek atis. Saldiri: `checkout --detach` -> kosu -> `checkout <dal>` -> `reflog expire
     --expire-unreachable=now --all`. Kayit commit'leri yalnizca reflog'da tutuldugu icin (dal yok) reflog suresi
@@ -111,8 +110,7 @@ def test_bagimsiz_head_kosusu_reflog_suresi_dolunca_cift_yeniden_acilmamali(depo
 # --- Saldiri 2: git worktree -------------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="P-2: ayri worktree'de detached HEAD kosusu ana depodan gorunmez (HEAD reflog'u "
-                          "worktree'ye ozel; `git worktree remove` onu siler)", **_BASARILI)
+# Kapanis turu: kayit uzak depoya bagli; saldiri savusturuldu, xfail kaldirildi (RESULTS §14.26).
 def test_worktree_detached_kosusu_ana_depoda_cifti_harcamali(depo, tmp_path):
     """Kural: CLAUDE.md §3.3 tek atis. Saldiri: `git worktree add --detach`, kayit yolunu o worktree'ye
     yonlendirip kosu, `git worktree remove --force`. Commit'ler yalnizca worktree'nin kendi HEAD'indedir; ana
@@ -140,8 +138,7 @@ def test_worktree_dal_kosusu_worktree_silinince_dal_uzerinden_gorunur(depo, tmp_
     _tekrar_reddedilmeli("H1", "C1")
 
 
-@pytest.mark.xfail(reason="P-3: worktree'de dal kosusu + worktree sil + `git branch -D` (reflog expire bile "
-                          "gerekmez) cifti geri getirir", **_BASARILI)
+# Kapanis turu: kayit uzak depoya bagli; saldiri savusturuldu, xfail kaldirildi (RESULTS §14.26).
 def test_worktree_dal_kosusu_dal_silinince_cift_yeniden_acilmamali(depo, tmp_path):
     """Kural: tek atis. Saldiri: `worktree add -b dal2` -> kosu -> `worktree remove` -> `branch -D dal2`. Dalin
     reflog'u dalla, worktree'nin HEAD reflog'u worktree'yle silinir; ana depoda reflog girdisi da kalmaz.
@@ -172,8 +169,7 @@ def test_dal_birlestirilmeden_silinince_reflog_cifti_hala_harcanmis_tutar(depo):
     _tekrar_reddedilmeli("H1", "C1")
 
 
-@pytest.mark.xfail(reason="P-4: kosu dali `branch -D` + `reflog expire --expire-unreachable=now --all` cifti "
-                          "geri getirir", **_BASARILI)
+# Kapanis turu: kayit uzak depoya bagli; saldiri savusturuldu, xfail kaldirildi (RESULTS §14.26).
 def test_dal_silinip_reflog_suresi_dolunca_cift_yeniden_acilmamali(depo):
     """Kural: tek atis. Saldiri: `checkout -b gecici` -> kosu -> `checkout <ana>` -> `branch -D gecici` ->
     `reflog expire --expire-unreachable=now --all` (30 gun sonra `gc --auto`'nun yapacagi sey). Guvenli
@@ -212,10 +208,12 @@ def _iki_dal_kur_ve_birlestir(depo, strateji):
         pass
     git(depo, "checkout", "-q", ana)
     git(depo, "checkout", "-q", "-b", "dalA")
-    with kosu("H1", "C1"):
-        pass
-    git(depo, "merge", "-q", *strateji, "--no-edit", "dalB")
-    assert ("H2", "C1") not in split.kayittaki_kosular(_kayit(depo)), "on kosul: birlestirme dalB satirlarini dusurmeli"
+    # Kapanis turu: dalB'nin kosusu origin/main'e itildi; dalA origin/main'i icermedigi icin dalA'da kosu acilmaz.
+    # Saldirinin on kosulu (iki dalda paralel kosu) artik kurulamiyor; birlestirme yine yapilir.
+    with pytest.raises(split.OnayUzakHatasi):
+        with kosu("H1", "C1"):
+            pass
+    git(depo, "merge", "-q", *strateji, "--no-ff", "--no-edit", "dalB")
 
 
 @pytest.mark.parametrize("strateji", [["-X", "ours"], ["-s", "ours"]], ids=["X-ours", "s-ours"])
@@ -227,9 +225,7 @@ def test_ours_birlestirmesi_dal_silinse_de_reflog_varken_cift_harcanmis(depo, st
     _tekrar_reddedilmeli("H2", "C1")
 
 
-@pytest.mark.xfail(reason="P-5: `git log -p -- <dosya>` varsayilan tarih sadelestirmesi (--full-history yok) "
-                          "`-X ours`/`-s ours` birlestirmesinde ikinci ebeveyni atlar; dal + reflog silinince "
-                          "dalB'nin kosusu gecmis denetiminde gorunmez", **_BASARILI)
+# Kapanis turu: kayit uzak depoya bagli; saldiri savusturuldu, xfail kaldirildi (RESULTS §14.26).
 @pytest.mark.parametrize("strateji", [["-X", "ours"], ["-s", "ours"]], ids=["X-ours", "s-ours"])
 def test_ours_birlestirmesi_dal_ve_reflog_silinince_diger_dalin_cifti_harcanmali(depo, strateji):
     """Kural: tek atis; `_gecmis_kaydi` butun gecmisi taramali. Saldiri: dalA (H1) ve dalB (H2); dalB `ours`
@@ -285,6 +281,9 @@ def test_info_attributes_ile_kayit_ikili_isaretlenince_gecmis_denetimi_kor_olmam
     with kosu("H1", "C1"):
         pass
     git(depo, "reset", "--hard", "-q", ilk)
+    # Kapanis turu: HEAD origin/main'i icermeli; saldiri bir adim daha ister (kayitsiz birlestirme). Kosu
+    # itildigi icin ikinci kosu uzak depoda iz birakir.
+    git(depo, "merge", "-q", "-s", "ours", "--no-edit", "origin/main")
     assert split.kayit_satirlari(_kayit(depo)) == []
     _tekrar_reddedilmeli("H1", "C1")
 
@@ -305,6 +304,9 @@ def test_git_replace_ile_kayit_commitleri_gizlenince_cift_yeniden_acilmamali(dep
     kayit_commitleri = git(depo, "rev-list", f"{ilk}..HEAD").split()
     assert len(kayit_commitleri) == 2
     git(depo, "reset", "--hard", "-q", ilk)
+    # Kapanis turu: HEAD origin/main'i icermeli; saldiri bir adim daha ister (kayitsiz birlestirme). Kosu
+    # itildigi icin ikinci kosu uzak depoda iz birakir.
+    git(depo, "merge", "-q", "-s", "ours", "--no-edit", "origin/main")
     for sha in kayit_commitleri:
         git(depo, "replace", "-f", sha, ilk)
     _tekrar_reddedilmeli("H1", "C1")
@@ -339,6 +341,9 @@ def test_split_subprocess_atamasi_gecmis_denetimini_korlestirmemeli(depo):
     with kosu("H1", "C1"):
         pass
     git(depo, "reset", "--hard", "-q", ilk)
+    # Kapanis turu: HEAD origin/main'i icermeli; saldiri bir adim daha ister (kayitsiz birlestirme). Kosu
+    # itildigi icin ikinci kosu uzak depoda iz birakir.
+    git(depo, "merge", "-q", "-s", "ours", "--no-edit", "origin/main")
     with pytest.raises((split.OnayKorumasi, split.OnayTekrari)):
         with _ham_ata(split, "subprocess", _git_log_bos_donen_subprocess()):
             with kosu("H1", "C1"):

@@ -15,7 +15,7 @@ import pytest
 
 import config
 from data import split
-from onay_yardimcisi import gecici_depo, gecici_kayit, git, kosu
+from onay_yardimcisi import gecici_depo, gecici_kayit, git, kosu, uzak_depo
 from tarama_yardimcisi import ONAY_ATLATMA_DESENI, ihlaller
 
 COMMIT = "0123456789abcdef" * 2 + "01234567"
@@ -122,18 +122,105 @@ def test_reset_ile_geri_alinan_commitler_reflogdan_sayilir(depo):
             pytest.fail("reflog'daki commit cifti harcamis olmali")
 
 
-def test_sinir_gecmisi_ve_reflogu_silmek_tek_atisi_geri_getirir(depo):
-    """BELGELEME (sinir): gecmisi yeniden yazmak ve reflog'u silmek tek atisi geri getirir. Bu, kasitli ve birden
-    fazla adim isteyen bir islemdir; kazayla olmaz (RESULTS §14.25)."""
+def test_itilmis_cift_yerel_gecmis_silinse_de_harcanmis(depo):
+    """Kapanis turu: itilmis bir cift, yerel gecmis (dal, reflog, nesneler ve uzak izleme referansi) silinse de
+    harcanmis sayilir; kosu `origin/main`'i yeniden alir. (Ikinci tur surumu bu adimlarla cifti geri getiriyordu.)"""
     ilk = git(depo, "rev-parse", "HEAD").strip()
     with kosu("H1", "C1"):
         pass
+    assert _durumlar(git(depo, "show", "origin/main:ONAY_KAYDI.md")) == [("H1", "C1", "BASLADI"), ("H1", "C1", "BITTI")]
+    assert _durumlar(git(uzak_depo(depo), "show", "main:ONAY_KAYDI.md"))[-1] == ("H1", "C1", "BITTI")
     git(depo, "reset", "--hard", "-q", ilk)
+    git(depo, "update-ref", "-d", "refs/remotes/origin/main")
     git(depo, "reflog", "expire", "--expire=now", "--all")
     git(depo, "gc", "-q", "--prune=now")
+    assert "H1" not in git(depo, "log", "--all", "--reflog", "-p", "--format=", "--", "ONAY_KAYDI.md")
+    with pytest.raises(split.OnayTekrari):
+        with split.onay_kosusu("H1", "C1"):
+            pytest.fail("itilmis cift yeniden acilmamali")
+
+
+# --- Kapanis turu: kayit uzak depoya bagli --------------------------------------------------------------------
+
+
+def _itmeyi_engelle(depo):
+    """Uzak deponun `pre-receive` kancasi `engel` dosyasi varken itmeyi reddeder."""
+    uzak = uzak_depo(depo)
+    kanca = uzak / "hooks" / "pre-receive"
+    kanca.write_text("#!/bin/sh\nif [ -f engel ]; then exit 1; fi\nexit 0\n", encoding="utf-8", newline="\n")
+    kanca.chmod(0o755)
+    (uzak / "engel").write_text("", encoding="utf-8")
+
+
+def _itme_engelini_kaldir(depo):
+    (uzak_depo(depo) / "engel").unlink()
+
+
+def test_kosu_iki_satiri_da_iter(depo):
+    with kosu("H2", "C2"):
+        # BASLADI blok calismadan once itilmis.
+        assert _durumlar(git(uzak_depo(depo), "show", "main:ONAY_KAYDI.md")) == [("H2", "C2", "BASLADI")]
+    assert git(depo, "rev-parse", "HEAD") == git(uzak_depo(depo), "rev-parse", "main")
+    assert git(depo, "status", "--porcelain") == ""
+
+
+def test_itilmemis_kayit_varken_kosu_reddedilir(depo):
+    """BASLADI itilemedi: kosu acilmaz, kayda ITILEMEDI yazilir (yerelde commit edilir). Itilmemis satirlar varken
+    baska cift icin de kosu acilmaz; elle itilince acilir. Cift harcanmis kalir (veri okunmadi ama BASLADI
+    commit edildi: muhafazakar yon)."""
+    _itmeyi_engelle(depo)
+    with pytest.raises(split.OnayUzakHatasi, match="itilemedi"):
+        with split.onay_kosusu("H1", "C1"):
+            pytest.fail("BASLADI itilemeyince kosu acilmamali")
+    assert _durumlar(_head_kaydi(depo)) == [("H1", "C1", "BASLADI"), ("H1", "C1", "ITILEMEDI")]
+    assert split.aktif_onay_kosusu() is None
+    _itme_engelini_kaldir(depo)
+    with pytest.raises(split.OnayUzakHatasi, match="itilmemis 2 satir"):
+        with split.onay_kosusu("H2", "C1"):
+            pytest.fail("itilmemis kayit varken kosu acilmamali")
+    git(depo, "push", "-q", "origin", "main")
+    with pytest.raises(split.OnayTekrari):
+        with split.onay_kosusu("H1", "C1"):
+            pytest.fail("cift harcanmis")
+    with kosu("H2", "C1"):
+        pass
+
+
+def test_bitis_itilemezse_kayda_itilemedi_yazilir_ve_hata_verilir(depo):
+    with pytest.raises(split.OnayUzakHatasi, match="BITTI kaydi"):
+        with split.onay_kosusu("H3", "C2") as k:
+            k.sonuc_bildir("KALDI")
+            _itmeyi_engelle(depo)
+    satirlar = split.kayit_satirlari(_head_kaydi(depo))
+    assert [s["durum"] for s in satirlar] == ["BASLADI", "BITTI", "ITILEMEDI"]
+    assert satirlar[-1]["asama"] == "BITTI" and satirlar[1]["sonuc"] == "KALDI"
+    assert _durumlar(git(uzak_depo(depo), "show", "main:ONAY_KAYDI.md")) == [("H3", "C2", "BASLADI")]
+    _itme_engelini_kaldir(depo)
+    with pytest.raises(split.OnayUzakHatasi, match="itilmemis"):
+        with split.onay_kosusu("H1", "C2"):
+            pytest.fail("kosu acilmamali")
+
+
+def test_ag_yoksa_kosu_acilmaz_ve_hicbir_sey_yazilmaz(depo):
+    git(depo, "remote", "set-url", "origin", str(depo.parent / "olmayan.git"))
+    once = _kayit(depo)
+    with pytest.raises(split.OnayUzakHatasi, match="alinamadi"):
+        with split.onay_kosusu("H1", "C1"):
+            pytest.fail("ag yokken kosu acilmamali")
+    assert _kayit(depo) == once and git(depo, "status", "--porcelain") == ""
+
+
+def test_head_uzak_dali_icermiyorsa_kosu_acilmaz(depo):
+    """Uzak depoya baska bir kopyadan kayit itilmis; yerel HEAD geride. Kosu, cift farkliysa bile acilmaz."""
     with kosu("H1", "C1"):
         pass
-    assert len(split.kayit_satirlari(_kayit(depo))) == 2
+    git(depo, "reset", "--hard", "-q", "HEAD~2")
+    with pytest.raises(split.OnayUzakHatasi, match="icermiyor"):
+        with split.onay_kosusu("H2", "C2"):
+            pytest.fail("kosu acilmamali")
+    git(depo, "merge", "-q", "--ff-only", "origin/main")
+    with kosu("H2", "C2"):
+        pass
 
 
 # --- OK D-B1: commit edilmemis kayit satiri varken yeni kosu acilmaz ------------------------------------------
@@ -150,6 +237,7 @@ def test_commit_edilmemis_bitis_satiri_varken_yeni_kosu_reddedilir(depo):
             pytest.fail("commit edilmemis kayit varken kosu acilmamali")
     assert _kayit(depo) == once
     git(depo, "commit", "-q", "-am", "bitis satiri elle commit edildi")
+    git(depo, "push", "-q", "origin", "main")  # kapanis turu: itilmemis kayit varken de kosu acilmaz
     with kosu("H3", "C1"):
         pass
     assert ("H3", "C1", "BITTI") in _durumlar(_head_kaydi(depo))
