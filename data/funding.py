@@ -87,7 +87,9 @@ def funding_yukle(
     evren = universe.evren_yukle()
     if not (evren["sembol"] == sembol).any():
         raise KeyError(f"{sembol} universe.csv icinde yok.")
-    tum = ham_funding_yukle(sembol, yenile=yenile)
+    # Kapidan gecildi; ham okuma (butun aylar) onay verisi izniyle, ardindan kume araligina kesilir.
+    with bv.onay_verisi_izni(f"funding.funding_yukle({sembol}, {kume})"):
+        tum = ham_funding_yukle(sembol, yenile=yenile)
     if tum.empty:
         return tum
     tum = donem_sonrasi_kayitlari_at(tum, universe.sembol_donemleri(evren, sembol), config.BAR_4H)

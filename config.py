@@ -26,6 +26,11 @@ SPLIT_CSV = VERI_DIZINI / "split.csv"
 # Listeleme donemleri; split.csv gibi sabit (on-kayit §2 rev.4, rev.7).
 UNIVERSE_CSV = VERI_DIZINI / "universe.csv"
 ONAY_KAYDI = KOK / "ONAY_KAYDI.md"
+# Onay kaydinin itildigi uzak depo (onay kaydi kapanisinin son turu). ON-KAYIT DEGILDIR: on-kayitta uzak depo
+# tanimli degil; bu deger tek atis kaydinin butunlugu icindir. `split.onay_kosusu`, `origin`in okuma ve itme
+# adreslerinin bu depo oldugunu denetler (https ya da ssh bicimi; `.git` soneki ve buyuk/kucuk harf fark etmez).
+# Calisma aninda degistirilemez (`_DEGISMEZ_ADLAR`).
+UZAK_DEPO_ADRESI = "github.com/ewurr/short-scanner"
 # exchangeInfo anlik goruntusu. ON-KAYIT DEGILDIR (on-kayitta tanimli degil;
 # 2026-09-18'de F1 denetimi icin alindi). Delist siniflandirmasi, deliveryDate
 # denetimi ve evren kurulumundaki sozlesme/dayanak tipi canli uc noktadan degil bu
@@ -228,7 +233,7 @@ class SabitDegistirilemez(AttributeError):
 # Onay kaydi ikinci tur (denetci OK D-B2): kume sabitleri ve modul sinifi da. `config.ONAY_KUMELERI = ()` C1'i
 # onaysiz acardi; kume tarihlerinin "duyarlilik icin" degistirilmesi kazayla da olabilirdi.
 _DEGISMEZ_ADLAR = frozenset({
-    "ONAY_KAYDI", "_DEGISMEZ_ADLAR",
+    "ONAY_KAYDI", "_DEGISMEZ_ADLAR", "UZAK_DEPO_ADRESI",
     "KESIF_BASI", "KESIF_SONU", "C2_BASI", "C2_SONU", "KUMELER", "ONAY_KUMELERI",
     "__class__",
 })

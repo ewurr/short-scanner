@@ -221,7 +221,8 @@ def test_ham_mumlari_yukle_cakisan_zaman_damgasini_sessizce_cozer(tmp_path, monk
     yol = bv.onbellek_yolu("klines", sembol, bar, "2021-01.parquet")
     bozuk_onbellek.to_parquet(yol, index=False)
 
-    with pytest.raises(pencere.ZamanDizisiHatasi):
+    # Kapanisin son turu: TESTUSDT B grubu (onay verisi); ham yukleyici testi acik izinle okur. Iddia degismedi.
+    with pytest.raises(pencere.ZamanDizisiHatasi), bv.onay_verisi_izni("test: ham yukleyici"):
         klines.ham_mumlari_yukle(sembol, bar)
 
 
@@ -298,7 +299,9 @@ def test_ham_funding_yukle_yakin_ms_farkli_kayitlari_saate_yuvarlamaz(tmp_path, 
 
     from data import funding as funding_modulu
 
-    sonuc = funding_modulu.ham_funding_yukle(sembol)
+    # Kapanisin son turu: TESTUSDT B grubu (onay verisi); ham yukleyici testi acik izinle okur. Iddia degismedi.
+    with bv.onay_verisi_izni("test: ham yukleyici"):
+        sonuc = funding_modulu.ham_funding_yukle(sembol)
     assert len(sonuc) == 3, "yukleyici kayik kaydi sessizce birlestirmemeli ya da silmemeli"
 
     with pytest.raises(pencere.ZamanDizisiHatasi):

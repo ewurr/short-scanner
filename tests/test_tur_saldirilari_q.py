@@ -183,8 +183,7 @@ def _ours_ile_gizle(depo, tmp_path):
     return y
 
 
-@pytest.mark.xfail(reason="`merge -s ours` birlestirmesi git log sadelestirmesiyle X'in kosu commit'lerini gizler; "
-                          "`--full-history`/`-m` yok", **_BASARILI)
+# Kapanisin son turu: `--full-history` eklendi; saldiri savusturuldu, xfail kaldirildi (RESULTS §14.27).
 def test_ours_birlestirmesiyle_x_in_kosusu_yerel_gecmisten_silinemez(depo, tmp_path):
     """Kural: CLAUDE.md §3.3 tek atis; git gecmisindeki her satir cifti harcar. Saldiri: Y, X'in itilmis kosusunu
     `merge -s ours` ile "cozer" (X'in satirlari agactan cikar, commit'ler ise birlestirmenin ikinci ebeveyninde
@@ -198,7 +197,7 @@ def test_ours_birlestirmesiyle_x_in_kosusu_yerel_gecmisten_silinemez(depo, tmp_p
     _reddedilmeli("H1", "C1", split.OnayTekrari)
 
 
-@pytest.mark.xfail(reason="`merge -s ours` birlestirmesi itildikten sonra TAZE klon X'in kosusunu gormez", **_BASARILI)
+# Kapanisin son turu: `--full-history` eklendi; saldiri savusturuldu, xfail kaldirildi (RESULTS §14.27).
 def test_ours_birlestirmesi_sonrasi_yeni_klon_cifti_gorur(depo, tmp_path):
     """Kural: CLAUDE.md §3.3 tek atis, uzak depo tek gercek kaynak. Saldiri: Y `merge -s ours` ile X'in kosusunu
     kendi agacindan cikarip uzak `main`'e iter; sonra TAZE bir klon (Z; reflog'u yalniz klonlama girdisi) ayni cifti
@@ -214,7 +213,9 @@ def test_ours_birlestirmesi_sonrasi_yeni_klon_cifti_gorur(depo, tmp_path):
 
 
 @pytest.mark.parametrize("yol", ["set-url", "pushurl", "insteadOf", "ortam"])
-@pytest.mark.xfail(reason="origin'in kimligi dogrulanmaz; sahte uzaga itilen kosu gercek uzakta iz birakmaz", **_BASARILI)
+# Kapanisin son turu: `origin` adresi denetleniyor (`split._uzak_adresi_denetle`); yonlendirilmis origin'le kosu
+# acilmaz. xfail kaldirildi; yonlendirmeli kosu adimi artik `OnayUzakHatasi` bekler, sahtede hicbir sey kayitli
+# degildir (RESULTS §14.27). Son iddia buna gore degisti: cift hic harcanmadigi icin geri alininca acilir.
 def test_origin_sahte_uzaga_yonlendirilip_geri_alininca_cift_yeniden_acilmamali(depo, tmp_path, monkeypatch, yol):
     """Kural: kapanis turu 'itme sayesinde her yol uzak depoda iz birakir'; CLAUDE.md §3.3 tek atis. Saldiri
     (yol=set-url: `git remote set-url`; pushurl: `remote.origin.pushurl`; insteadOf: `url.<sahte>.insteadOf`;
@@ -243,10 +244,13 @@ def test_origin_sahte_uzaga_yonlendirilip_geri_alininca_cift_yeniden_acilmamali(
         monkeypatch.setenv("GIT_CONFIG_KEY_0", "remote.origin.url")
         monkeypatch.setenv("GIT_CONFIG_VALUE_0", str(sahte))
 
-    with kosu("H1", "C1"):
-        pass
-    # Saldirinin on kosulu: kosu sahtede kayitli, gercek uzak degismemis (hala `ilk`).
-    assert "H1 C1 BITTI" in _uzak_mesajlari(sahte)
+    once = _kayit(depo)
+    with pytest.raises(split.OnayUzakHatasi, match="beklenen depoya"):
+        with kosu("H1", "C1"):
+            pytest.fail("yonlendirilmis origin'le kosu acilmamali")
+    # Hicbir yere hicbir sey yazilmadi, itilmedi.
+    assert _kayit(depo) == once and git(depo, "rev-parse", "HEAD").strip() == ilk
+    assert "ONAY_KAYDI" not in _uzak_mesajlari(sahte)
     assert git(uzak, "rev-parse", "main").strip() == ilk
 
     if yol == "ortam":
@@ -255,8 +259,9 @@ def test_origin_sahte_uzaga_yonlendirilip_geri_alininca_cift_yeniden_acilmamali(
     else:
         with ayar.open("w", encoding="utf-8", newline="") as f:
             f.write(yedek)
-    _hepsini_unut(depo, ilk)
-    _reddedilmeli("H1", "C1", split.OnayTekrari)
+    # Yonlendirme geri alininca cift hic harcanmamis oldugu icin acilir; bu kez gercek uzaga itilir.
+    _acilmali("H1", "C1")
+    assert "H1 C1 BITTI" in _uzak_mesajlari(uzak)
 
 
 # --- Saldiri 4: zorla itme ile uzak gecmisi yeniden yazmak ---------------------------------------------------
@@ -351,7 +356,9 @@ def _tara(tmp_path, dosya, metin, desen=ONBELLEK_DESENI, uzantilar=ONBELLEK_UZAN
     return ihlaller(desen, kok=tmp_path, uzantilar=uzantilar)
 
 
-_XF = pytest.mark.xfail(reason="ONBELLEK_DESENI bu biciminde onbellege erisimi yakalamiyor", **_BASARILI)
+# Kapanisin son turu: ONBELLEK_DESENI genisletildi ve `ihlaller`'in "cache" muafiyeti kalkti; asagidaki saldirilar
+# savusturuldu. Isaret bos birakildi (xfail kaldirildi, RESULTS §14.27); parametre listeleri degismedi.
+_XF = ()
 
 
 @pytest.mark.parametrize("metin", [
@@ -388,7 +395,6 @@ def test_onbellek_deseni_dolayli_onbellek_erisimini_yakalamali(tmp_path, metin):
     assert _tara(tmp_path, "study/k.py", metin) == ["study/k.py"]
 
 
-@_XF
 def test_onbellek_taramasi_pyw_uzantisini_kapsar(tmp_path):
     """Kural: kapanis turu onbellek taramasi. Saldiri: analiz betigini `.pyw` uzantisiyla yazmak (python calistirir;
     `ONBELLEK_UZANTILARI` yalniz `.py` ve `.ipynb`). Guvenli davranis: dogrudan onbellek okuyan `.pyw` yakalanir.
@@ -396,7 +402,7 @@ def test_onbellek_taramasi_pyw_uzantisini_kapsar(tmp_path):
     assert _tara(tmp_path, "study/k.pyw", "pd.read_parquet('cache/klines/x.parquet')\n") == ["study/k.pyw"]
 
 
-@pytest.mark.xfail(reason="`ihlaller` yol parcalarinda 'cache' gecen her dosyayi tum taramalardan muaf tutar", **_BASARILI)
+# Kapanisin son turu: xfail kaldirildi (RESULTS §14.27).
 def test_cache_adli_alt_dizindeki_analiz_dosyasi_taramadan_muaf_olmamali(tmp_path):
     """Kural: kapanis turu onbellek taramasi (`ihlaller` `"cache" in yol.parts` dosyalari atlar). Saldiri: analiz
     kodunu `study/cache/k.py` (ya da `analysis/h2/cache/k.py`) altina koymak; dosyanin kendisi `cache/` yolunu
@@ -405,8 +411,7 @@ def test_cache_adli_alt_dizindeki_analiz_dosyasi_taramadan_muaf_olmamali(tmp_pat
     assert _tara(tmp_path, "study/cache/k.py", "pd.read_parquet('cache/klines/x.parquet')\n") == ["study/cache/k.py"]
 
 
-@pytest.mark.xfail(reason="`ihlaller` cache/ altindaki .py dosyalarini tum taramalardan (onay atlatma dahil) muaf tutar",
-                   **_BASARILI)
+# Kapanisin son turu: xfail kaldirildi (RESULTS §14.27).
 def test_cache_dizinindeki_py_dosyasi_onay_atlatma_taramasindan_muaf_olmamali(tmp_path):
     """Kural: onay kaydi ve kosu butunlugu turu `ONAY_ATLATMA_DESENI`. Saldiri: onay kosusu durumunu bozan kodu
     (`split._AKTIF_KOSU = ...`) `cache/k.py` icine koymak (cache/ git'e girmez ama kod calisir). Guvenli davranis:
@@ -428,13 +433,14 @@ def test_push_reddedilirse_kosu_acilmaz_kayda_itilemedi_yazilir_ve_veri_kapali_k
     _hook_kur(uzak, depo)
     _reddi_ac(uzak)
     girildi = False
-    with pytest.raises(split.OnayUzakHatasi, match="ITILEMEDI"):
+    # Kapanisin son turu: itme kosu acilmadan denenir; basarisizsa kayda satir yazilmaz (ITILEMEDI de yok). Beklenti
+    # buna gore degisti (RESULTS §14.27); govdenin calismadigi, verinin kapali ve uzagin degismedigi iddialari ayni.
+    with pytest.raises(split.OnayUzakHatasi, match="Itme denemesi"):
         with kosu("H1", "C1"):
             girildi = True
     assert not girildi
-    satirlar = split.kayit_satirlari(_kayit(depo))
-    assert [s["durum"] for s in satirlar] == ["BASLADI", "ITILEMEDI"]
-    assert satirlar[1]["asama"] == "BASLADI"
+    assert split.kayit_satirlari(_kayit(depo)) == []
+    assert git(depo, "rev-parse", "HEAD").strip() == ilk  # yerel deneme commit'i geri alindi
     with pytest.raises(split.OnayGerekli):
         split.kume_erisimi(B_SEMBOLU, "C1", onay=True)
     assert git(depo, "status", "--porcelain").strip() == ""
@@ -454,9 +460,9 @@ def test_basladi_itilemeyince_tek_atis_hakki_veri_okunmadan_yanar_bulgu(depo):
         with kosu("H1", "C1"):
             pass
     _reddi_kapat(uzak)
-    _reddedilmeli("H1", "C1", split.OnayUzakHatasi)  # itilmemis satirlar: once itilmeli
-    git(depo, "push", "-q", "origin", "HEAD:refs/heads/main")
-    _reddedilmeli("H1", "C1", split.OnayTekrari)  # veri okunmadan harcanmis
+    # Kapanisin son turu (denetci OK3 D-B4): itme kosu acilmadan denendigi icin cift artik HARCANMAZ; itme sorunu
+    # giderilince ayni cift acilir. Beklenti buna gore degisti (RESULTS §14.27).
+    _acilmali("H1", "C1")
     _acilmali("H2", "C1")
 
 
@@ -474,12 +480,13 @@ def test_itilemedi_commiti_de_basarisiz_olursa_kayit_commitsiz_kalir_ve_yeni_kos
     hook.write_text('#!/bin/sh\nif git diff --cached | grep -q "durum=ITILEMEDI"; then exit 1; fi\nexit 0\n',
                     encoding="utf-8", newline="\n")
     hook.chmod(0o755)
-    girildi = False
+    _reddi_kapat(uzak)
+    # Kapanisin son turu: itme kosu acilmadan denendigi icin ITILEMEDI yolu artik yalnizca kosu ortasinda (bitis
+    # itmesinde) olusur. Senaryo buna gore degisti (RESULTS §14.27): ret, kosu acildiktan sonra acilir.
     with pytest.raises(split.OnayUzakHatasi):
         with kosu("H1", "C1"):
-            girildi = True
-    assert not girildi
-    assert [s["durum"] for s in split.kayit_satirlari(_kayit(depo))] == ["BASLADI", "ITILEMEDI"]
+            _reddi_ac(uzak)
+    assert [s["durum"] for s in split.kayit_satirlari(_kayit(depo))] == ["BASLADI", "BITTI", "ITILEMEDI"]
     assert git(depo, "status", "--porcelain").strip() != ""  # ITILEMEDI satiri commitsiz
     hook.unlink()
     _reddi_kapat(uzak)
@@ -487,7 +494,7 @@ def test_itilemedi_commiti_de_basarisiz_olursa_kayit_commitsiz_kalir_ve_yeni_kos
     # SALDIRI ADIMI: ITILEMEDI satirini at. (Ana oturum: satir `git add` ile index'te oldugu icin duz
     # `checkout -- <dosya>` onu silmez; niyet HEAD'e donmek oldugundan `checkout HEAD --` kullanildi.)
     git(depo, "checkout", "HEAD", "--", "ONAY_KAYDI.md")
-    _reddedilmeli("H2", "C1", split.OnayUzakHatasi)  # HEAD'deki BASLADI hala itilmemis
+    _reddedilmeli("H2", "C1", split.OnayUzakHatasi)  # HEAD'deki BITTI hala itilmemis
     _reddedilmeli("H1", "C1", split.OnayUzakHatasi, split.OnayTekrari)
 
 

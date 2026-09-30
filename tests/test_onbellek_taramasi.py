@@ -18,6 +18,13 @@ def test_analiz_kodunda_onbellege_dogrudan_erisim_yok():
     ("k.py", "p = config.ONBELLEK_DIZINI / 'x'\n"),
     ("k.py", r"open('D:\Projeler\short_scanner\cache\a.parquet')" + "\n"),
     ("k.ipynb", '{"cells": [{"source": ["pd.read_parquet(\\"cache/klines/x.parquet\\")"]}]}\n'),
+    # Kapanisin son turu: onbellek yardimcilari ve onay verisi izni.
+    ("k.py", "from data import binance_vision as bv\n"),
+    ("k.py", "from data.klines import bv\ndf = bv.onbellekten_oku(p)\n"),
+    ("k.py", "with bv.onay_verisi_izni('x'):\n    pass\n"),
+    ("k.py", "bv._IZIN['sayac'] = 1\n"),
+    ("k.py", "govde = zip_indir(anahtar)\n"),
+    ("k.pyw", "df = pd.read_parquet(p)\n"),
 ])
 def test_onbellek_deseni_yakalar(tmp_path, ad, metin):
     (tmp_path / "study").mkdir()

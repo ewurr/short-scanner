@@ -27,10 +27,13 @@ def depo(tmp_path):
     return gecici_depo(tmp_path)
 
 
-def _engelle(depo):
-    """Deponun sonraki commit'lerini `pre-commit` kancasiyla reddettirir (`.git/engel` varken)."""
+def _engelle(depo, desen: str | None = None):
+    """Deponun sonraki commit'lerini `pre-commit` kancasiyla reddettirir (`.git/engel` varken). `desen` verilirse
+    yalnizca hazirlanan farki bu metni iceren commit'ler reddedilir (kapanisin son turu: bos itme denemesi commit'i
+    gecsin, kayit satiri commit'i reddedilsin)."""
     kanca = depo / ".git" / "hooks" / "pre-commit"
-    kanca.write_text("#!/bin/sh\nif [ -f .git/engel ]; then exit 1; fi\nexit 0\n", encoding="utf-8", newline="\n")
+    kosul = "[ -f .git/engel ]" if desen is None else f'[ -f .git/engel ] && git diff --cached | grep -q "{desen}"'
+    kanca.write_text(f"#!/bin/sh\nif {kosul}; then exit 1; fi\nexit 0\n", encoding="utf-8", newline="\n")
     kanca.chmod(0o755)
     (depo / ".git" / "engel").write_text("", encoding="utf-8")
 
@@ -64,7 +67,8 @@ def test_kosu_iki_satiri_da_commit_eder_ve_agac_temiz_kalir(depo):
     assert _durumlar(_head_kaydi(depo)) == [("H2", "C1", "BASLADI"), ("H2", "C1", "BITTI")]
     assert git(depo, "status", "--porcelain") == ""
     mesajlar = git(depo, "log", "--format=%s", f"{ilk}..HEAD").splitlines()
-    assert mesajlar == [f"ONAY_KAYDI: H2 C1 BITTI (kosu={k.kimlik})", f"ONAY_KAYDI: H2 C1 BASLADI (kosu={k.kimlik})"]
+    assert mesajlar == [f"ONAY_KAYDI: H2 C1 BITTI (kosu={k.kimlik})", f"ONAY_KAYDI: H2 C1 BASLADI (kosu={k.kimlik})",
+                        f"ONAY_KAYDI: itme denemesi (kosu={k.kimlik})"]  # kapanisin son turu: bos deneme commit'i
     # Kayda yazilan commit, kosuyu acan kodun commit'i (kayit commit'lerinden once).
     assert {s["commit"] for s in split.kayit_satirlari(_kayit(depo))} == {ilk}
     # Commit'ler yalnizca kayit dosyasini icerir.
@@ -165,14 +169,14 @@ def test_kosu_iki_satiri_da_iter(depo):
 
 
 def test_itilmemis_kayit_varken_kosu_reddedilir(depo):
-    """BASLADI itilemedi: kosu acilmaz, kayda ITILEMEDI yazilir (yerelde commit edilir). Itilmemis satirlar varken
-    baska cift icin de kosu acilmaz; elle itilince acilir. Cift harcanmis kalir (veri okunmadi ama BASLADI
-    commit edildi: muhafazakar yon)."""
-    _itmeyi_engelle(depo)
+    """Kosu ortasinda itme bozuldu: BITTI itilemedi, kayda ITILEMEDI yazildi (yerelde commit edildi). Itilmemis
+    satirlar varken baska cift icin de kosu acilmaz; elle itilince acilir. Cift harcanmis kalir (BASLADI itilmisti;
+    veriye bakildi). (Kapanisin son turu: BASLADI oncesi itme denemesi eklendigi icin senaryo kosu ortasina tasindi.)"""
     with pytest.raises(split.OnayUzakHatasi, match="itilemedi"):
-        with split.onay_kosusu("H1", "C1"):
-            pytest.fail("BASLADI itilemeyince kosu acilmamali")
-    assert _durumlar(_head_kaydi(depo)) == [("H1", "C1", "BASLADI"), ("H1", "C1", "ITILEMEDI")]
+        with kosu("H1", "C1"):
+            _itmeyi_engelle(depo)
+    assert _durumlar(_head_kaydi(depo)) == [("H1", "C1", "BASLADI"), ("H1", "C1", "BITTI"),
+                                            ("H1", "C1", "ITILEMEDI")]
     assert split.aktif_onay_kosusu() is None
     _itme_engelini_kaldir(depo)
     with pytest.raises(split.OnayUzakHatasi, match="itilmemis 2 satir"):
@@ -184,6 +188,80 @@ def test_itilmemis_kayit_varken_kosu_reddedilir(depo):
             pytest.fail("cift harcanmis")
     with kosu("H2", "C1"):
         pass
+
+
+# --- Kapanisin son turu: itme kosudan once denenir -----------------------------------------------------------
+
+
+def test_itme_yapilamayan_ortamda_kosu_acilmaz_satir_yazilmaz_cift_harcanmaz(depo):
+    """Itme yetenegi kosu acilmadan denenir (bos deneme commit'i). Uzak itmeyi reddediyorsa kosu acilmaz, kayda
+    satir yazilmaz, yerel deneme commit'i geri alinir, uzak degismez; itme duzelince ayni cift acilir."""
+    ilk = git(depo, "rev-parse", "HEAD").strip()
+    once = _kayit(depo)
+    _itmeyi_engelle(depo)
+    with pytest.raises(split.OnayUzakHatasi, match="Itme denemesi"):
+        with split.onay_kosusu("H1", "C1"):
+            pytest.fail("itme yapilamazken kosu acilmamali")
+    assert _kayit(depo) == once and split.kayit_satirlari(_head_kaydi(depo)) == []
+    assert git(depo, "rev-parse", "HEAD").strip() == ilk
+    assert git(depo, "status", "--porcelain") == ""
+    assert git(uzak_depo(depo), "rev-parse", "main").strip() == ilk
+    assert "H1" not in git(depo, "log", "--all", "--reflog", "-p", "--format=", "--", "ONAY_KAYDI.md")
+    _itme_engelini_kaldir(depo)
+    with kosu("H1", "C1"):
+        pass
+
+
+def test_itme_denemesi_uzakta_gorunur_ve_kosuyu_onceler(depo):
+    with kosu("H3", "C1") as k:
+        mesajlar = git(uzak_depo(depo), "log", "main", "--format=%s").splitlines()
+        assert mesajlar[:2] == [f"ONAY_KAYDI: H3 C1 BASLADI (kosu={k.kimlik})",
+                                f"ONAY_KAYDI: itme denemesi (kosu={k.kimlik})"]
+
+
+# --- Kapanisin son turu: origin denetimi ------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("yol", ["set-url", "pushurl", "insteadOf", "ortam"])
+def test_origin_beklenen_depo_degilse_kosu_acilmaz(depo, tmp_path, monkeypatch, yol):
+    sahte = tmp_path / "sahte.git"
+    git(tmp_path, "init", "-q", "--bare", str(sahte))
+    if yol == "set-url":
+        git(depo, "remote", "set-url", "origin", str(sahte))
+    elif yol == "pushurl":
+        git(depo, "config", "remote.origin.pushurl", str(sahte))
+    elif yol == "insteadOf":
+        git(depo, "config", f"url.{sahte}.insteadOf", str(uzak_depo(depo)))
+    else:
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "remote.origin.pushurl")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", str(sahte))
+    once = _kayit(depo)
+    ilk = git(depo, "rev-parse", "HEAD").strip()
+    with pytest.raises(split.OnayUzakHatasi, match="beklenen depoya"):
+        with split.onay_kosusu("H1", "C1"):
+            pytest.fail("kosu acilmamali")
+    assert _kayit(depo) == once and git(depo, "rev-parse", "HEAD").strip() == ilk
+
+
+@pytest.mark.parametrize(("adres", "dogru"), [
+    ("https://github.com/ewurr/short-scanner.git", True),
+    ("https://github.com/ewurr/short-scanner", True),
+    ("git@github.com:ewurr/short-scanner.git", True),
+    ("ssh://git@github.com/ewurr/short-scanner.git", True),
+    ("https://token@GitHub.com/ewurr/Short-Scanner/", True),
+    ("https://github.com/ewurr/short-scanner-yedek.git", False),
+    ("https://github.com/baskasi/short-scanner.git", False),
+    ("https://gitlab.com/ewurr/short-scanner.git", False),
+    ("D:/yedek/short-scanner.git", False),
+])
+def test_uzak_adresi_normal(adres, dogru):
+    assert (split.uzak_adresi_normal(adres) == config.UZAK_DEPO_ADRESI) is dogru
+
+
+def test_uzak_depo_adresi_degistirilemez():
+    with pytest.raises(config.SabitDegistirilemez):
+        config.UZAK_DEPO_ADRESI = "github.com/baska/depo"
 
 
 def test_bitis_itilemezse_kayda_itilemedi_yazilir_ve_hata_verilir(depo):
@@ -202,7 +280,9 @@ def test_bitis_itilemezse_kayda_itilemedi_yazilir_ve_hata_verilir(depo):
 
 
 def test_ag_yoksa_kosu_acilmaz_ve_hicbir_sey_yazilmaz(depo):
-    git(depo, "remote", "set-url", "origin", str(depo.parent / "olmayan.git"))
+    # Kapanisin son turu: adres degistirilirse origin denetimi yakalar; ag yoklugu, adres ayni kalip uzak
+    # erisilemez yapilarak taklit edilir.
+    uzak_depo(depo).rename(depo.parent / "erisilemez.git")
     once = _kayit(depo)
     with pytest.raises(split.OnayUzakHatasi, match="alinamadi"):
         with split.onay_kosusu("H1", "C1"):
@@ -214,7 +294,7 @@ def test_head_uzak_dali_icermiyorsa_kosu_acilmaz(depo):
     """Uzak depoya baska bir kopyadan kayit itilmis; yerel HEAD geride. Kosu, cift farkliysa bile acilmaz."""
     with kosu("H1", "C1"):
         pass
-    git(depo, "reset", "--hard", "-q", "HEAD~2")
+    git(depo, "reset", "--hard", "-q", "HEAD~3")  # itme denemesi + BASLADI + BITTI
     with pytest.raises(split.OnayUzakHatasi, match="icermiyor"):
         with split.onay_kosusu("H2", "C2"):
             pytest.fail("kosu acilmamali")
@@ -263,8 +343,9 @@ def test_elle_eklenen_commitsiz_satir_ve_commitsiz_silme_kosuyu_acmaz(depo):
 def test_basladi_commit_edilemezse_kosu_acilmaz(depo):
     """BASLADI satiri commit edilemezse kosu acilmaz (blok calismaz, veriye erisilmez). Satir calisma agacinda
     kalir ve commit edilene kadar yeni kosuyu engeller. BELGELEME: bu satir kazayla silinirse cift yeniden
-    acilabilir; o cift icin hicbir veri okunmamistir."""
-    _engelle(depo)
+    acilabilir; o cift icin hicbir veri okunmamistir. (Kapanisin son turu: kanca yalnizca BASLADI iceren commit'i
+    reddeder; bos itme denemesi commit'i gecer ve itilir.)"""
+    _engelle(depo, "durum=BASLADI")
     with pytest.raises(split.OnayKaydiCommitsiz):
         with split.onay_kosusu("H1", "C1"):
             pytest.fail("kosu acilmamali")

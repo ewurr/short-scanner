@@ -42,12 +42,18 @@ def _sahte_onbellek(monkeypatch, tmp_path, kategori, aylar_ve_cerceveler, bar=No
     return sembol
 
 
+# Kapanisin son turu: TESTUSDT bolme kuralina gore B grubu; onbellegi onay verisidir. Bu testler ham yukleyicinin
+# (veri katmani) davranisini sinar; okuma veri katmanindaki gibi acik izinle yapilir. Iddialar degismedi.
+def _izin():
+    return bv.onay_verisi_izni("test: ham yukleyici tekrar davranisi")
+
+
 def test_ay_sinirinda_tekrarlanan_4h_bar_hata_verir(monkeypatch, tmp_path):
     ocak = sahte_4h("2021-01-31 00:00", 6)
     subat = sahte_4h("2021-01-31 20:00", 6)  # ilk bari ocak dosyasinin son bariyla ayni
     sembol = _sahte_onbellek(monkeypatch, tmp_path, "klines", [("2021-01", ocak), ("2021-02", subat)], bar=config.BAR_4H)
 
-    with pytest.raises(pencere.ZamanDizisiHatasi):
+    with pytest.raises(pencere.ZamanDizisiHatasi), _izin():
         klines.ham_mumlari_yukle(sembol, config.BAR_4H)
 
 
@@ -58,7 +64,7 @@ def test_celisen_tekrar_da_sessizce_secilmez(monkeypatch, tmp_path):
     sembol = _sahte_onbellek(
         monkeypatch, tmp_path, "klines", [("2021-01", pd.concat([temel, celisen], ignore_index=True))], bar=config.BAR_4H
     )
-    with pytest.raises(pencere.ZamanDizisiHatasi):
+    with pytest.raises(pencere.ZamanDizisiHatasi), _izin():
         klines.ham_mumlari_yukle(sembol, config.BAR_4H)
 
 
@@ -67,7 +73,8 @@ def test_tekrarsiz_parcalar_normal_birlesir(monkeypatch, tmp_path):
     subat = sahte_4h("2021-02-01 00:00", 6)
     sembol = _sahte_onbellek(monkeypatch, tmp_path, "klines", [("2021-02", subat), ("2021-01", ocak)], bar=config.BAR_4H)
 
-    tum = klines.ham_mumlari_yukle(sembol, config.BAR_4H)
+    with _izin():
+        tum = klines.ham_mumlari_yukle(sembol, config.BAR_4H)
     assert len(tum) == 12
     assert tum["open_time"].is_monotonic_increasing
 
@@ -77,5 +84,5 @@ def test_birincil_1d_tekrari_da_hata_verir(monkeypatch, tmp_path):
     sembol = _sahte_onbellek(
         monkeypatch, tmp_path, "birincil", [("2021-01", gunluk), ("2021-02", gunluk.iloc[[-1]])]
     )
-    with pytest.raises(pencere.ZamanDizisiHatasi):
+    with pytest.raises(pencere.ZamanDizisiHatasi), _izin():
         klines.ham_birincil_gunluk_indir(sembol)

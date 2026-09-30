@@ -22,7 +22,9 @@ def ihlaller(desen: str, kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR, uzantilar
     izinli = {kok / alt for alt in izinli_altlar}
     bulunan = []
     for yol in sorted(y for u in uzantilar for y in kok.rglob(f"*{u}")):
-        if any(p in izinli for p in yol.parents) or "cache" in yol.parts:
+        # Kapanisin son turu (sizinti Q): yolunda "cache" gecen dosyalar artik muaf degil; `cache/` altindaki ya da
+        # `cache` adli bir alt dizindeki calistirilabilir dosya da taranir.
+        if any(p in izinli for p in yol.parents):
             continue
         if derli.search(yol.read_text(encoding="utf-8", errors="replace")):
             bulunan.append(yol.relative_to(kok).as_posix())
@@ -117,5 +119,14 @@ ONAY_ATLATMA_DESENI = (
 # `cache/` altindaki parquet dosyalarindadir; kume kapisini atlayip onbellegi dogrudan okumak onay kosusu acmadan
 # veriye bakmaktir. Analiz kodu (.py ve .ipynb) onbellek dizininin adini ve `cache` yol parcasini anmaz; veri
 # yalnizca kapili yukleyicilerle okunur. Sinir: yolu parcalayip kurmak (`"ca" + "che"`) yakalanmaz.
-ONBELLEK_DESENI = r"\bONBELLEK_DIZINI\b|[\"'/\\]cache[\"'/\\]"
-ONBELLEK_UZANTILARI = (".py", ".ipynb")
+#
+# Kapanisin son turu (denetci OK3 D-B1, sizinti Q): onbellek ve indirme yardimcilari (`binance_vision` modulu ve
+# `binance_*` adlari, `onbellek_yolu`, `onbellekten_oku`, `onbellege_yaz`, `zip_indir`), onay verisi izni
+# (`onay_verisi_izni`), parquet okuma (`read_parquet`, `.parquet`), buyuk/kucuk harf duyarsiz `cache` ve `.pyw`
+# uzantisi da. Calisma aninda da engellenir: `binance_vision` onay verisini (B grubu, C2 donemi) izin disinda okumaz.
+ONBELLEK_DESENI = (
+    r"\bONBELLEK_DIZINI\b|[\"'/\\](?i:cache)[\"'/\\]"
+    r"|\bbinance_\w+|\bonbellek(_yolu|ten_oku|e_yaz)\b|\bzip_indir\b|\bonay_verisi_izni\b|\b_IZIN\b"
+    r"|\bread_parquet\b|\.parquet\b"
+)
+ONBELLEK_UZANTILARI = (".py", ".ipynb", ".pyw")

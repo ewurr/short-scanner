@@ -245,7 +245,9 @@ def test_revert_ile_geri_alinan_kayit_commitleri_cifti_harcanmis_birakir(depo):
     ilk = git(depo, "rev-parse", "HEAD").strip()
     with kosu("H1", "C1"):
         pass
-    git(depo, "revert", "--no-edit", f"{ilk}..HEAD")
+    # Kapanisin son turu: ilk..HEAD bos itme denemesi commit'ini de icerir (bos commit revert edilemez); kosunun iki
+    # kayit commit'i geri alinir.
+    git(depo, "revert", "--no-edit", "HEAD~2..HEAD")
     assert split.kayit_satirlari(_kayit(depo)) == []
     _tekrar_reddedilmeli("H1", "C1")
 
@@ -302,7 +304,7 @@ def test_git_replace_ile_kayit_commitleri_gizlenince_cift_yeniden_acilmamali(dep
     with kosu("H1", "C1"):
         pass
     kayit_commitleri = git(depo, "rev-list", f"{ilk}..HEAD").split()
-    assert len(kayit_commitleri) == 2
+    assert len(kayit_commitleri) == 3  # kapanisin son turu: itme denemesi + BASLADI + BITTI
     git(depo, "reset", "--hard", "-q", ilk)
     # Kapanis turu: HEAD origin/main'i icermeli; saldiri bir adim daha ister (kayitsiz birlestirme). Kosu
     # itildigi icin ikinci kosu uzak depoda iz birakir.

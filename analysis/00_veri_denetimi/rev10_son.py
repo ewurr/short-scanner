@@ -209,7 +209,11 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     try:
-        main()
+        # F1 veri denetimi butun gecmisi olcer (anayasa §3.1): onay verisi izniyle (kapanisin son turu).
+        from data import binance_vision as _bv
+
+        with _bv.onay_verisi_izni("F1 veri denetimi: " + Path(__file__).name):
+            main()
     except KosuKilidiHatasi as hata:
         print(f"HATA: {hata}", file=sys.stderr)
         sys.exit(2)

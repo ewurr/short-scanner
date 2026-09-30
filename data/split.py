@@ -363,6 +363,7 @@ class _TestAyari:
     betik: str | None
     izleniyor: bool
     depo: Path | None
+    uzak: Path | None = None
 
 
 _TEST_AYARI: _TestAyari | None = None
@@ -378,7 +379,7 @@ def _pytest_testi() -> str | None:
 
 def _test_kaydi_ayarla(yol, *, head: str | None = "0" * 40, durum: str | None = "",
                        betik: str | None = "tests/onay_testi.py", izleniyor: bool = True,
-                       depo=None) -> Path:
+                       depo=None, uzak=None) -> Path:
     """YALNIZCA TESTLER ICIN: bu pytest testi suresince kayit yolunu ve git ortamini degistirir.
 
     Ayar yalnizca onu kuran testin kimligiyle (`PYTEST_CURRENT_TEST`) gecerlidir; test bitince kendiliginden
@@ -391,12 +392,18 @@ def _test_kaydi_ayarla(yol, *, head: str | None = "0" * 40, durum: str | None = 
       - `depo=<gecici git deposu>` (gercek git): butun git islemleri o depoda gercekten yapilir (temiz agac,
         HEAD, `ls-files`, gecmis, commit). Testten yalnizca cagiran betigin depo icindeki yolu (`betik`) gelir;
         `head`, `durum`, `izleniyor` yok sayilir. `yol` deponun icinde olmalidir.
+    `uzak` (gercek git kipi): beklenen uzak depo (yerel ciplak depo yolu; `config.UZAK_DEPO_ADRESI` yerine).
+    Verilmezse ayni testin onceki ayarindaki deger kalir (klonlar ayni uzak depoya yonlendirilirken).
     """
     global _TEST_AYARI
     test = _pytest_testi()
     if test is None:
         raise OnayKorumasi("Test kaydi yalnizca bir pytest testi icinde ayarlanabilir.")
-    _TEST_AYARI = _TestAyari(test, Path(yol), head, durum, betik, izleniyor, None if depo is None else Path(depo))
+    onceki = _test_ayari()
+    if uzak is None and onceki is not None:
+        uzak = onceki.uzak
+    _TEST_AYARI = _TestAyari(test, Path(yol), head, durum, betik, izleniyor, None if depo is None else Path(depo),
+                             None if uzak is None else Path(uzak))
     return Path(yol)
 
 
@@ -580,12 +587,13 @@ def _head_kaydi() -> str:
 
 def _gecmis_kaydi() -> str:
     """Kayda git gecmisinde bir kez eklenmis butun satirlar: butun referanslar (`--all`, stash dahil) ve reflog
-    (`--reflog`; `--amend`, `rebase`, `reset` ile birakilan commit'ler dahil). Sahte git kipinde calisma
-    agacindaki metin."""
+    (`--reflog`; `--amend`, `rebase`, `reset` ile birakilan commit'ler dahil). `--full-history` (kapanisin son
+    turu): tek tarafa cozulen bir birlestirmenin ikinci ebeveynindeki kayit commit'leri de yurunur; varsayilan
+    tarih sadelestirmesi onlari atliyordu (denetci OK2 D-B2, OK3 D-B3). Sahte git kipinde calisma agacindaki metin."""
     if _sahte_git():
         return _kaydi_oku()
-    cikti = _git("log", "--all", "--reflog", "-p", "--no-color", "--no-ext-diff", "--no-textconv", "--format=",
-                 "--", _kayit_goreli())
+    cikti = _git("log", "--all", "--reflog", "--full-history", "-p", "--no-color", "--no-ext-diff", "--no-textconv",
+                 "--format=", "--", _kayit_goreli())
     if cikti is None:
         raise OnayOrtamiHatasi("Onay kaydi denetlenemedi: git gecmisi okunamadi.")
     return gecmis_satirlari(cikti)
@@ -628,11 +636,12 @@ def _uzagi_getir() -> None:
 
 
 def _uzak_gecmis_kaydi() -> str:
-    """`origin/main` gecmisinde kayda bir kez eklenmis butun satirlar. Sahte git kipinde calisma agacindaki metin."""
+    """`origin/main` gecmisinde kayda bir kez eklenmis butun satirlar (`--full-history`: birlestirmelerin butun
+    ebeveynleri). Sahte git kipinde calisma agacindaki metin."""
     if _sahte_git():
         return _kaydi_oku()
-    cikti = _git("log", _UZAK_REF, "-p", "--no-color", "--no-ext-diff", "--no-textconv", "--format=", "--",
-                 _kayit_goreli())
+    cikti = _git("log", _UZAK_REF, "--full-history", "-p", "--no-color", "--no-ext-diff", "--no-textconv",
+                 "--format=", "--", _kayit_goreli())
     if cikti is None:
         raise OnayUzakHatasi(f"{UZAK_DEPO}/{UZAK_DAL} gecmisi okunamadi.")
     return gecmis_satirlari(cikti)
@@ -666,6 +675,70 @@ def _kaydi_it() -> bool:
     if _sahte_git():
         return True
     return _git("push", "--quiet", UZAK_DEPO, f"HEAD:refs/heads/{UZAK_DAL}", sure=_AG_SURESI) is not None
+
+
+def uzak_adresi_normal(adres: str) -> str:
+    """Uzak depo adresinin karsilastirma bicimi: `github.com/<sahip>/<depo>` (kucuk harf, `.git` ve sondaki `/`
+    olmadan). https (`https://[kullanici@]github.com/...`), ssh (`ssh://git@github.com/...`) ve scp bicimi
+    (`git@github.com:...`) ayni bicime iner; baska bicimler oldugu gibi (kucuk harf) doner. Saf."""
+    a = adres.strip()
+    a = re.sub(r"^[a-z+]+://", "", a, flags=re.I)  # sema
+    a = re.sub(r"^[^@/]+@", "", a)  # kullanici
+    a = re.sub(r"^([^/:]+):(?!\d)", r"\1/", a)  # scp bicimi host:yol
+    a = re.sub(r"^([^/:]+):\d+/", r"\1/", a)  # port
+    a = a.rstrip("/")
+    a = a[:-4] if a.lower().endswith(".git") else a
+    return a.lower()
+
+
+def _uzak_adresi_denetle() -> None:
+    """`origin`in okuma adresi ve butun itme adresleri (`insteadOf`, `pushurl`, `GIT_CONFIG_*` dahil, git'in
+    cozdugu hali) beklenen depo olmali: `config.UZAK_DEPO_ADRESI` (test deposu kipinde testin ciplak deposu).
+    Degilse `OnayUzakHatasi`: kayit baska bir depoya itilmez. Sahte git kipinde bir sey yapmaz."""
+    if _sahte_git():
+        return
+    okuma = _git("remote", "get-url", UZAK_DEPO)
+    itme = _git("remote", "get-url", "--push", "--all", UZAK_DEPO)
+    if okuma is None or itme is None:
+        raise OnayUzakHatasi(f"`{UZAK_DEPO}` uzak deposu tanimli degil.")
+    adresler = [a for a in [okuma.strip(), *itme.split()] if a]
+    test = _test_ayari()
+    if test is not None and test.uzak is not None:
+        def dogru(a: str) -> bool:
+            try:
+                return Path(a).resolve() == test.uzak.resolve()
+            except (OSError, ValueError):
+                return False
+        beklenen = str(test.uzak)
+    else:
+        def dogru(a: str) -> bool:
+            return uzak_adresi_normal(a) == config.UZAK_DEPO_ADRESI.lower()
+        beklenen = config.UZAK_DEPO_ADRESI
+    yanlis = [a for a in adresler if not dogru(a)]
+    if yanlis:
+        raise OnayUzakHatasi(f"`{UZAK_DEPO}` beklenen depoya ({beklenen}) gitmiyor: {yanlis}. Onay kaydi yalnizca "
+                             "beklenen uzak depoya itilir; kosu acilmaz.")
+
+
+def _itme_denemesi(kimlik: str) -> None:
+    """Kosu acilmadan (kayda satir yazilmadan) itme yetenegini dener: bos bir deneme commit'i
+    (`ONAY_KAYDI: itme denemesi (kosu=...)`) olusturup `origin/main`'e iter. Deneme commit'i her zaman gercek bir
+    guncellemedir; kimlik bilgisi, dal korumasi ve uzak kancalar sinanir. Itilemezse yerel deneme commit'i geri
+    alinir (`reset --soft HEAD~1`; agac temiz oldugu icin kayip yok) ve `OnayUzakHatasi`: kosu acilmaz, kayda satir
+    yazilmaz, cift harcanmaz. Sahte git kipinde bir sey yapmaz."""
+    if _sahte_git():
+        return
+    once = _git("rev-parse", "HEAD")
+    if once is None or _git("commit", "--allow-empty", "--quiet", "-m",
+                            f"ONAY_KAYDI: itme denemesi (kosu={kimlik})") is None:
+        raise OnayUzakHatasi("Itme denemesi icin bos commit olusturulamadi; kosu acilmadi.")
+    if _kaydi_it():
+        return
+    geri = _git("reset", "--soft", "--quiet", once.strip())
+    raise OnayUzakHatasi(
+        f"Itme denemesi basarisiz: {UZAK_DEPO}/{UZAK_DAL}'e itilemiyor (kimlik bilgisi, dal korumasi, uzak kanca ya da "
+        "ag). Kosu acilmadi, kayda satir yazilmadi, cift harcanmadi."
+        + ("" if geri is not None else " UYARI: yerel deneme commit'i geri alinamadi; HEAD'i elle duzeltin."))
 
 
 def harcanan_ciftler() -> set[tuple[str, str]]:
@@ -882,6 +955,7 @@ def onay_kosusu(hipotez: str, kume: str):
         raise RuntimeError(f"Zaten acik bir onay kosusu var: {_AKTIF_KOSU}. Ic ice kosu acilamaz.")
     _kayit_commitli_denetle()
     ortam = _kosu_ortami()  # yerel denetimler once: ag islemi yalnizca temiz, izlenen bir ortamda
+    _uzak_adresi_denetle()
     _uzagi_getir()
     _itilmemis_denetle()
     kosu = _Kosu(hipotez, kume, uuid.uuid4().hex[:12], ortam.commit, ortam.betik, _iso_zaman(), os.getpid())
@@ -893,6 +967,7 @@ def onay_kosusu(hipotez: str, kume: str):
                 f"{UZAK_DEPO}/{UZAK_DAL} gecmisinde). Onay kumeleri her hipotez icin BIR KEZ kosulur "
                 "(CLAUDE.md §3.3, on-kayit §9).")
         _ileri_sarma_denetle()
+        _itme_denemesi(kosu.kimlik)  # itilemiyorsa kosu acilmaz, satir yazilmaz, cift harcanmaz
         _onay_kaydet(eski, kosu.satir(f"durum=BASLADI baslangic={kosu.baslangic}"))
         _kaydi_commit_et(f"ONAY_KAYDI: {hipotez} {kume} BASLADI (kosu={kosu.kimlik})")
         uzak_hatasi = _it_ya_da_kaydet(kosu, "BASLADI")
@@ -998,7 +1073,12 @@ def yukle(
         return _bos_mum_cercevesi()
 
     yukleyici = klines.ham_mumlari_yukle if mum_yukleyici is None else mum_yukleyici
-    return klines.donem_kes(yukleyici(sembol, bar), bas, son)
+    from data import binance_vision as bv
+
+    # Kapidan gecildi; ham okuma (butun aylar) onay verisi izniyle, ardindan kume araligina kesilir.
+    with bv.onay_verisi_izni(f"split.yukle({sembol}, {bar}, {kume})"):
+        ham = yukleyici(sembol, bar)
+    return klines.donem_kes(ham, bas, son)
 
 
 # --- Modul korumasi (denetci KS3 D-B1) ---------------------------------------
@@ -1033,7 +1113,7 @@ _KORUNAN_ADLAR = frozenset({
     # `grup`, `varlik_anahtari`, `hashlib`, ...) bilincli olarak korunmaz (RESULTS §14.26): koruma listesi sonsuza
     # kadar uzayamaz; olcut kazayla atlatmayi imkansiz, kasitli atlatmayi gorunur kilmaktir.
     "UZAK_DEPO", "UZAK_DAL", "_UZAK_REF", "_uzagi_getir", "_uzak_gecmis_kaydi", "_itilmemis_denetle", "_ileri_sarma_denetle", "_kaydi_it",
-    "_it_ya_da_kaydet",
+    "_it_ya_da_kaydet", "uzak_adresi_normal", "_uzak_adresi_denetle", "_itme_denemesi",
 })
 
 

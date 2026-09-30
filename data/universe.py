@@ -289,8 +289,10 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
         if not gerekce and haric_mi(sembol, haric_liste):
             gerekce = "kesin haric listesi (on-kayit rev.2)"
 
-        mumlar = donem_modulu.toplam_doneme_kes(klines.ham_mumlari_yukle(sembol, config.BAR_4H), "open_time")
-        fund = donem_modulu.toplam_doneme_kes(funding.ham_funding_yukle(sembol), "odeme_zamani")
+        # Evren kurulumu butun gecmisi (B grubu, C2 donemi dahil) olcer: onay verisi izniyle (CLAUDE.md §3.1).
+        with bv.onay_verisi_izni(f"universe.evren_kur({sembol})"):
+            mumlar = donem_modulu.toplam_doneme_kes(klines.ham_mumlari_yukle(sembol, config.BAR_4H), "open_time")
+            fund = donem_modulu.toplam_doneme_kes(funding.ham_funding_yukle(sembol), "odeme_zamani")
         funding_dosyalari = [d for d in bv.funding_dosyalari(sembol)
                              if donem_modulu.ay_toplam_donemde(bv.dosya_ayi(d))]
         ortak = {

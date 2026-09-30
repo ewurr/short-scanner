@@ -57,7 +57,8 @@ def gecici_depo(kok):
     git(depo, "remote", "add", "origin", str(uzak))
     git(depo, "push", "-q", "origin", "main")
     git(depo, "fetch", "-q", "origin")
-    split._test_kaydi_ayarla(depo / "ONAY_KAYDI.md", depo=depo, betik=DEPO_BETIGI)
+    # Kapanisin son turu: beklenen uzak depo (`config.UZAK_DEPO_ADRESI` yerine) bu ciplak depodur.
+    split._test_kaydi_ayarla(depo / "ONAY_KAYDI.md", depo=depo, betik=DEPO_BETIGI, uzak=uzak)
     return depo
 
 

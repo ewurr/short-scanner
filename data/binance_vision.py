@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import re
 import threading
 import time
 import xml.etree.ElementTree as ET
@@ -66,6 +67,102 @@ _YEREL = threading.local()
 
 class VeriYok(Exception):
     """Istenen dosya kaynakta bulunmuyor (404)."""
+
+
+# --- 0) Onay verisi okuma izni (onay kaydi kapanisinin son turu) --------------
+#
+# Onbellek ve indirme yardimcilari kume kapisi tasimaz. Onay verisi (B grubu sembollerin her ayi ve butun
+# sembollerin C2 donemindeki aylari; on-kayit §3) bu yardimcilarla YALNIZCA acik bir izin baglaminda okunur:
+#   - kume kapisindan (`split.kume_erisimi`) gecmis yukleyiciler: `split.yukle`, `funding.funding_yukle`,
+#     `klines.birincil_gunluk_indir` (veriyi ardindan kume araligina keserler);
+#   - evren kurulumu (`universe`) ve F1 veri denetimi betikleri (`analysis/00_veri_denetimi`; CLAUDE.md §3.1:
+#     kapsama ve butunluk denetimi serbesttir).
+# Izin disinda onay verisi okuma denemesi `OnayVerisiKorumasi` verir; boylece analiz kodunda kolaylik icin yazilan
+# `bv.onbellekten_oku(...)` ya da `klines.ham_mumlari_yukle(...)` kazayla onay verisi okuyamaz. `onay_verisi_izni`
+# adi analiz kodunda taramayla yasaktir (`tests/tarama_yardimcisi.ONBELLEK_DESENI`). Izin surec genelidir (is
+# parcaciklari gorur: F1 denetimi paralel indirir); kasitli bir atlatma (izni analiz kodunda acmak, `_IZIN`i
+# degistirmek) taramaya takilir ya da kodda gorunur.
+
+
+class OnayVerisiKorumasi(PermissionError):
+    """Onay verisi (B grubu ya da C2 donemi) izin baglami disinda onbellekten ya da kaynaktan okunmak istendi."""
+
+
+_IZIN_KILIDI = threading.Lock()
+_IZIN = {"sayac": 0}
+_ONBELLEK_TURLERI = ("klines", "funding", "klines_birincil_1d")  # <tur>/<SEMBOL>/.../<YYYY-MM>.parquet
+
+
+class onay_verisi_izni:  # noqa: N801  (baglam yoneticisi; `with bv.onay_verisi_izni("neden"):`)
+    """Onay verisinin okunmasina izin veren baglam. YALNIZCA veri katmani (kapidan gecmis yukleyiciler, evren
+    kurulumu) ve F1 veri denetimi icindir; analiz kodunda taramayla yasaktir."""
+
+    def __init__(self, neden: str):
+        if not isinstance(neden, str) or not neden.strip():
+            raise ValueError("onay_verisi_izni bir neden ister.")
+        self.neden = neden
+
+    def __enter__(self):
+        with _IZIN_KILIDI:
+            _IZIN["sayac"] += 1
+        return self
+
+    def __exit__(self, *_):
+        with _IZIN_KILIDI:
+            _IZIN["sayac"] -= 1
+        return False
+
+
+def onay_verisi_mi(sembol: str, ay: str) -> bool:
+    """(sembol, ay) onay verisi mi: ay C2 doneminde (`config.C2_BASI` ve sonrasi) ya da sembol B grubunda (on-kayit
+    §3 bolme kurali, varlik anahtariyla). Ay ayristirilamazsa True (kapali yon). Saf."""
+    from data import split  # split bu katmani dolayli import eder; dongu onlenir
+
+    try:
+        donem = pd.Period(ay, freq="M")
+    except (ValueError, TypeError):
+        return True
+    if donem >= pd.Period(config.C2_BASI.strftime("%Y-%m"), freq="M"):
+        return True
+    return split.grup(split.varlik_anahtari(sembol)) == "B"
+
+
+def _onay_verisi_denetle(sembol: str, ay: str, kaynak: str) -> None:
+    if _IZIN["sayac"] > 0 or not onay_verisi_mi(sembol, ay):
+        return
+    raise OnayVerisiKorumasi(
+        f"{kaynak}: {sembol} {ay} onay verisidir (B grubu ya da C2 donemi); onbellek ve indirme yardimcilari onu "
+        "yalnizca kume kapisindan gecen yukleyicilerle (`klines.mumlari_yukle`, `funding.funding_yukle`; C1/C2 icin "
+        "acik bir `split.onay_kosusu` icinde) okur (CLAUDE.md §3.2-3.3).")
+
+
+def _anahtar_denetle(anahtar: str) -> None:
+    """Bucket anahtari `data/futures/um/<monthly|daily>/<tur>/<SEMBOL>/...<YYYY-MM>...zip` ise (sembol, ay) denetlenir;
+    ay dosya adindaki ilk `YYYY-MM`dir (gunluk dosyalar dahil). `data/` ile baslayip bu bicime uymayan anahtar onay
+    verisi sayilir (kapali yon). `data/` ile baslamayan anahtar bucket anahtari degildir; denetlenmez."""
+    if not anahtar.startswith("data/"):
+        return
+    parcalar = anahtar.split("/")
+    ay = re.search(r"\d{4}-\d{2}", parcalar[-1])
+    if len(parcalar) < 7 or parcalar[:3] != ["data", "futures", "um"] or ay is None:
+        _onay_verisi_denetle("", "", f"zip_indir({anahtar})")
+        return
+    _onay_verisi_denetle(parcalar[5], ay.group(0), f"zip_indir({anahtar})")
+
+
+def _onbellek_yolu_denetle(yol: Path) -> None:
+    """Onbellek yolundan (tur, sembol, ay) cikarir ve denetler. `klines_settled` her zaman onay verisi sayilir (yalnizca
+    denetim). Onbellek disi ya da tanimsiz turdeki yollar (ör. evren onbellegi) denetlenmez."""
+    try:
+        parcalar = Path(yol).resolve().relative_to(Path(config.ONBELLEK_DIZINI).resolve()).parts
+    except ValueError:
+        return
+    if not parcalar:
+        return
+    if parcalar[0] == "klines_settled":
+        _onay_verisi_denetle("", "", f"onbellekten_oku({yol})")
+    elif parcalar[0] in _ONBELLEK_TURLERI and len(parcalar) >= 3:
+        _onay_verisi_denetle(parcalar[1], Path(parcalar[-1]).stem, f"onbellekten_oku({yol})")
 
 
 def _oturum() -> requests.Session:
@@ -151,7 +248,9 @@ def dosya_ayi(anahtar: str) -> str:
 
 
 def zip_indir(anahtar: str, checksum_dogrula: bool = True) -> bytes:
-    """Zip'i indirir ve yanindaki .CHECKSUM ile SHA256 dogrulamasi yapar."""
+    """Zip'i indirir ve yanindaki .CHECKSUM ile SHA256 dogrulamasi yapar. Onay verisi izin disinda indirilemez
+    (`OnayVerisiKorumasi`; anahtar `data/futures/um/monthly/<tur>/<SEMBOL>/...-<YYYY-MM>.zip`)."""
+    _anahtar_denetle(anahtar)
     govde = _iste(f"{INDIRME_KOKU}/{anahtar}").content
     if checksum_dogrula:
         beklenen = _iste(f"{INDIRME_KOKU}/{anahtar}.CHECKSUM").text.split()[0].strip()
@@ -203,6 +302,8 @@ def onbellek_yolu(*parcalar: str) -> Path:
 
 
 def onbellekten_oku(yol: Path) -> pd.DataFrame | None:
+    """Onbellek dosyasini okur. Onay verisi izin disinda okunamaz (`OnayVerisiKorumasi`)."""
+    _onbellek_yolu_denetle(yol)
     if yol.exists():
         return pd.read_parquet(yol)
     return None

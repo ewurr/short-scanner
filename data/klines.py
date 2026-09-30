@@ -260,7 +260,10 @@ def birincil_gunluk_indir(
     izinli, bas, son = split_modulu.kume_erisimi(sembol, kume, onay=onay)
     if not izinli:
         return pd.DataFrame(columns=[s for s in bv.MUM_SUTUNLARI if s != "ignore"])
-    return donem_kes(ham_birincil_gunluk_indir(sembol, yenile=yenile), bas, son)
+    # Kapidan gecildi; ham okuma onay verisi izniyle, ardindan kume araligina kesilir.
+    with bv.onay_verisi_izni(f"klines.birincil_gunluk_indir({sembol}, {kume})"):
+        ham = ham_birincil_gunluk_indir(sembol, yenile=yenile)
+    return donem_kes(ham, bas, son)
 
 
 def ham_birincil_gunluk_indir(sembol: str, yenile: bool = False) -> pd.DataFrame:
