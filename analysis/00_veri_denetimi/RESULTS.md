@@ -2324,6 +2324,70 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       içinde; erişimin sızdırmadığı iddiası aynı.
     - Yeni: `tests/test_onay_kaydi_git.py` (44), `onay_yardimcisi.gecici_depo` ve `git`.
     - Silinen ya da gevşetilen test yok.
+    - **Tam takım:** 1772 geçti, 4 xfail (önceki: 1726 geçti, 6 xfail).
+
+    **Doğrulama.** Tam denetim (`4d5a3de`, `1c78994` temiz ağaçta, `--eski-evren`; 678/678 sembol) ve A1 (`821cb1b`)
+    temiz ağaçta. İkisinde de 64 çıktının 63'ü önceki çıktılarla bayt düzeyinde aynı; yalnızca ortam kayıtları farklı
+    (`karsilastirma_ok2_{calistir,a1}_tam.csv`).
+
+    **Tur sonu ajan bulguları (düzeltilmedi; yukarıdakilerden sonra geldi).** Denetçinin bulguları "OK2" önekiyle.
+
+    *Denetçinin cevabı:* evet, kazayla atlatılabilecek yol kaldı. Kök: tek atış, koşunun yapıldığı kopyanın yerel git
+    grafiğine ve reflog'una bağlı; kayıt commit'leri kalıcı bir referansa bağlanmıyor. Yukarıdaki "Kalan atlatma
+    yolları" tablosu bu bakımdan eksik; "geri getiren yalnızca geçmişi yeniden yazmak ve reflog'u silmek" cümlesi yanlış.
+    - **OK2 D-B1:** `ortam_karari` bağımsız HEAD'i, her dalı, worktree'yi ve klonu kabul ediyor. (a) Geçici worktree'de
+      koşup `git worktree remove`: çift hemen yeniden açılır, iz kalmaz. (b) İtilmemiş kayıt commit'leriyle yeniden
+      klonlama: iz kalmaz. (c) Bağımsız HEAD'de koşup dala dönmek, `git bisect`, birleştirilmeden `branch -D`,
+      `reset --hard origin/main`: commit'ler yalnızca erişilemeyen reflog'da kalır, 30 gün + `git gc` sonrası çift
+      geri gelir.
+    - **OK2 D-B2:** `git log -p -- ONAY_KAYDI.md` `--full-history` olmadan çalışıyor; çatışması tek tarafa çözülen
+      (`-X ours`, "Accept Current") birleştirmede öbür tarafın koşusu, o tarafın referansı ve reflog'u gidince
+      görünmez. Tablonun 10. satırındaki "kayıtta iki koşu görünür" bu durumda yanlış.
+    - **OK2 D-B3:** korunan fonksiyonların modül bağımlılıkları korunmuyor ve taranmıyor (kasıtlı): `split.subprocess`
+      (geçmiş denetimi kör), `split.config` (C1 koşusuz), `split.klines` (kırpma kalkar), `split.split_dogrula`.
+    - **OK2 D-C1:** bitiş commit'i, koşu sırasında kayıtta yapılmış ekleme dışı değişikliği de koşu mesajıyla commit
+      ediyor ("yalnızca ekleme" güvencesi HEAD'e değil çalışma ağacına göre).
+    - **OK2 D-C2:** `raise ... from commit_hatasi` `None` iken asıl hatayı traceback'te gizliyor (yalnızca teşhis).
+    - **OK2 D-C3 (şüpheli):** 30 sn git zaman aşımı commit'e de uygulanıyor; `gc --auto` ya da kanca uzarsa commit
+      yapılmış olsa da hata dönebilir; yarım `index.lock` sonraki koşuları kapatır (kapalı yönde).
+    - **OK2 D-C4:** test deposu gerçek yapılandırmadan farklı (`autocrlf`, kancalar, gpgsign); sahte git kipinde
+      commit, geçmiş ve ortam denetimleri atlanıyor; bağımsız HEAD, worktree, birleştirme için test yoktu.
+    - **OK2 D-C5 (kasıtlı):** `.git/info/attributes`'ta `ONAY_KAYDI.md binary` geçmiş denetimini kör ediyor; `_git`
+      `GIT_DIR`, `GIT_INDEX_FILE`, `GIT_CONFIG_*` değişkenlerini temizlemiyor.
+    - **OK2 D-C6 (şüpheli):** OK D-C7 senaryosunda gerçek ortama dokunan olumsuz test gerçek depoya commit de atabilir.
+    - **OK2 D-C7:** bayat metin. Kilitli: `CLAUDE.md:54` (`--onay`), `:102-104` ("Henüz onay koşusu yok"),
+      `:107` (`onay_kaydet`, otomatik commit anılmıyor), `ONAY_KAYDI.md:6-10`, `:15`. Kilitsiz: `split.py` yorumları
+      (eski ölçüt, "yalnızca geçmişi yeniden yazmak"), hook yorumu (`onay_kaydet`).
+    - Tablo değerlendirmesi: 1, 2, 4–8, 11–14 doğru (2'ye `.ipynb` eklenmeli); 3–4 düz atamaları kapsamıyor; 9'un
+      tetikleyicileri eksik; 10'un görünürlüğü yanlış. Eksik satırlar: geçici worktree, itilmemiş klon, tek tarafa
+      çözülen birleştirme (üçü kazayla olabilir), bağımlılığa düz atama, öznitelik ve `GIT_*` (kasıtlı).
+    - Ön-kayıt, küme tarihleri, geleceğe bakış, tohum: yeni bulgu yok. Kilitli dosyalar bu turda değişmedi (ana oturum
+      `git diff cf6122b 1c78994` ile doğruladı).
+
+    **Sızıntı testçisi** (`test_tur_saldirilari_p`, `671822e`, yalnızca yeni dosya; mevcut dosyalarda değişiklik yok):
+    38 test; testçi koşamadı, ana oturum koştu: 16 geçti, 22 xfail(strict, `raises=(AssertionError, Failed)`).
+    Testçi raporunda 21 xfail diyordu; koşuda 22.
+    - **Başarılı saldırılar (xfail):**
+      - P-1 bağımsız HEAD + `reflog expire --expire-unreachable=now`; P-4 dal `-D` + aynı: çift yeniden açılıyor.
+      - P-2 bağımsız HEAD'li worktree + `worktree remove`; P-3 dallı worktree + `branch -D` (reflog expire bile
+        gerekmiyor): çift ana depoda yeniden açılıyor. OK2 D-B1'i ölçtü.
+      - P-5 (`-X ours`, `-s ours`) birleştirme + dal ve reflog silme: öbür dalın koşusu görünmüyor. OK2 D-B2'yi ölçtü.
+      - P-6 (`binary`, `-diff`) `.git/info/attributes`: geçmiş denetimi kör. P-7 `git replace`: kayıt commit'leri
+        gizleniyor.
+      - P-8 `split.subprocess`, P-9 `split.config`, P-10 `split.klines`, P-11 (`split_dogrula`, `grup`,
+        `varlik_anahtari`, `hashlib`) düz atamayla: geçmiş denetimi kör, C1 koşusuz, C2 barları KEŞİF'e, B coini KEŞİF'e.
+      - P-12 `config.BOLME_TUZU`, P-13 `config.YENIDEN_ADLANDIRMA` (yerinde değişen sözlük) + sahte tablo: bölme kayıyor.
+        P-14 `config.HIPOTEZLER`'e ad eklemek ek tek atış hakkı açıyor.
+      - P-15 `gecmis_satirlari` ikili fark satırlarını hata vermeden boş sayıyor.
+      - P-16 koşu sırasında eski satır silinirse bitiş commit'i silmeyi de commit ediyor (OK2 D-C1'i ölçtü; çift yine
+        geçmişten harcanmış).
+    - **Savuşturulanlar:** reflog duruyorken bağımsız HEAD, dal silme, `ours` birleştirmesi; dallı worktree silinince
+      dal üzerinden görünme; iki dalda aynı çift; `git revert`; `git rm`; ayrıştırıcı kenar durumları (çok commit,
+      `\ No newline`, silinip yeniden oluşan dosya, hunk içinde başlık taklidi, CRLF); koşunun kendi BASLADI satırını
+      silmesi.
+    - **Yazılamayanlar:** `config.KOK` değişimi (gerçek depoyu gerektirir), ikinci klon (tasarım sınırı), `split.os`,
+      `split.time`, `split.uuid` (aynı türden).
+    - **Tam takım:** 1788 geçti, 26 xfail.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
