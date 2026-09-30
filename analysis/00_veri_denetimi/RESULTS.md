@@ -2397,11 +2397,25 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 26. **Onay kaydı kapanış turu (2026-09-30).** Ön-kayda ve kilitli dosyalara dokunulmadı; getiri hesaplanmadı;
     F2'ye geçilmedi. Onay kaydı çalışması bu turda kapanıyor.
 
-    **Kapsam kararı.** Tek atış korumasının hedefi kazayla atlatmayı imkânsız, kasıtlı atlatmayı görünür kılmaktır.
-    Kazayla atlatma yolları kapatılmıştır. Kalan yollar (ayrı worktree, yeniden klonlama, bağımsız HEAD,
-    birleştirmede tek tarafa çözüm, geçmişi yeniden yazıp zorla itme, düz atamayla modül değiştirme) kasıtlı ve çok
-    adımlı eylemlerdir; kayıt commit'lerinin uzak depoya itilmesiyle her biri iz bırakır. Bunlar açık nokta olarak
-    kayıtlıdır ve F2'yi engellemez.
+    **Kapsam kararı** (kapanışın son turunda iki cümlesi bugünkü kodla düzeltildi; ayrıntılı liste §14.27).
+    Tek atış korumasının hedefi kazayla atlatmayı imkânsız, kasıtlı atlatmayı görünür kılmaktır. Bilinen kazayla
+    atlatma yolları kapatılmıştır; adlarıyla: commit edilmemiş kayıt satırını `checkout`/`stash`/`reset` ile silmek,
+    ayrı worktree'de koşup worktree'yi silmek, itilmemiş commit'le yeniden klonlamak, bağımsız HEAD'de koşup
+    erişilemeyen reflog'un süresinin dolması, iki dalda ya da iki klonda koşup birleştirmede tek tarafa çözmek,
+    önbellek yardımcılarıyla ya da ham yükleyicilerle koşusuz onay verisi okumak, itme hatasının çifti veri okunmadan
+    harcaması (§14.27). Kalan yollar kasıtlı ve çok adımlıdır; iz durumları yola göre farklıdır (§14.27 tablosu):
+    - uzak depoda iz bırakanlar (ikinci koşu ya da silme itilir): `.git/info/attributes` ile geçmişi kör etmek,
+      `git replace`, koşu içinde kayıttan eski satır silmek, koşu içinde düz atamayla modül değiştirmek;
+    - git'te iz bırakmayanlar: zorla itmeyle uzak geçmişi yeniden yazmak (uzak depoda dal koruması yoksa), koşu
+      açmadan düz atamayla modül değiştirmek (ör. bir not defterinde `split.config = ...`), `GIT_DIR` ya da PATH'te
+      sahte `git` ile git'in kendisini değiştirmek;
+    - tarama testine takılanlar (commit edilmiş analiz kodunda): `vars(...)`, `object.__setattr__`, `sys.modules`,
+      test kapısı, `onay_verisi_izni` ya da `_IZIN` kullanımı.
+    Bunlar açık nokta olarak kayıtlıdır ve F2'yi engellemez.
+    Eski metin (bu turda yazılan, iki cümlesi denetçi OK3 D-B1, D-B2, D-B3, D-B5 ile yanlış çıktı): "Kazayla atlatma
+    yolları kapatılmıştır. Kalan yollar (ayrı worktree, yeniden klonlama, bağımsız HEAD, birleştirmede tek tarafa
+    çözüm, geçmişi yeniden yazıp zorla itme, düz atamayla modül değiştirme) kasıtlı ve çok adımlı eylemlerdir; kayıt
+    commit'lerinin uzak depoya itilmesiyle her biri iz bırakır."
 
     **Kod (`472a541`): kayıt uzak depoya bağlı.**
     - Koşu açılmadan önce `origin/main` alınır (`git fetch`). Alınamazsa (ağ yok, uzak depo erişilemez, kimlik bilgisi
@@ -2526,6 +2540,114 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     - **Yazılamayanlar:** gerçek kimlik bilgisi yokluğu (https; `pre-receive` reddiyle taklit edildi), eşzamanlı iki
       itme, `GIT_DIR` yönlendirmesi (2–3. saldırılarla aynı sınıf).
     - **Tam takım:** 1822 geçti, 38 xfail.
+
+27. **Onay kaydı kapanışının son turu (2026-09-30).** Ön-kayda ve kilitli dosyalara dokunulmadı; getiri
+    hesaplanmadı; F2'ye geçilmedi.
+
+    **Kod.**
+    - **Önbellek ve indirme yardımcıları onay verisini izin dışında okumaz** (OK3 D-B1, sızıntı Q).
+      - Onay verisi: B grubu sembollerin her ayı ve bütün sembollerin C2 dönemindeki (2025-09 ve sonrası) ayları
+        (`binance_vision.onay_verisi_mi`; grup bölme kuralından, varlık anahtarıyla).
+      - `binance_vision.onbellekten_oku` (önbellek yolundan tür, sembol, ay) ve `zip_indir` (bucket anahtarından
+        sembol ve dosya adındaki ilk `YYYY-MM`) izin dışında onay verisini `OnayVerisiKorumasi` ile reddeder.
+        Ham yükleyiciler bu iki yardımcıdan geçtiği için onlar da korunur. `klines_settled` her zaman izin ister;
+        ayrıştırılamayan ay ve `data/` ile başlayıp biçime uymayan anahtar kapalı yönde onay verisi sayılır.
+      - İzin (`binance_vision.onay_verisi_izni(neden)`): küme kapısından geçmiş yükleyiciler (`split.yukle`,
+        `funding.funding_yukle`, `klines.birincil_gunluk_indir`; ardından küme aralığına keserler), evren kurulumu
+        (`universe.evren_kur`) ve F1 denetim betiklerinin `main()` çağrısı (`analysis/00_veri_denetimi`, 11 betik;
+        CLAUDE.md §3.1: veri denetimi serbest). İzin süreç geneli bir sayaçtır (F1 denetimi paralel indirir).
+      - Açık bir onay koşusu tek başına izin vermez: koşu içinde de onay verisine yalnızca kapılı yükleyicilerle
+        erişilir.
+      - Tarama (`ONBELLEK_DESENI`): `binance_*` adları, `onbellek_yolu/onbellekten_oku/onbellege_yaz`, `zip_indir`,
+        `onay_verisi_izni`, `_IZIN`, `read_parquet`, `.parquet`, büyük/küçük harf duyarsız `cache` yol parçası;
+        uzantılar `.py`, `.ipynb`, `.pyw`. `ihlaller` artık yolunda "cache" geçen dosyaları muaf tutmuyor.
+    - **`--full-history`** (OK2 D-B2, OK3 D-B3, sızıntı Q): yerel ve `origin/main` geçmiş denetimi birleştirmelerin
+      bütün ebeveynlerini yürür; tek tarafa çözülen birleştirmenin öbür tarafındaki koşu görünür.
+    - **İtme koşudan önce denenir** (OK3 D-B4). Tek atış ve ileri sarma denetimlerinden sonra, kayda satır
+      yazılmadan: boş bir deneme commit'i (`ONAY_KAYDI: itme denemesi (kosu=...)`) oluşturulup `origin/main`'e
+      itilir. Deneme her zaman gerçek bir güncellemedir: kimlik bilgisi, dal koruması ve uzak kancalar sınanır.
+      Başarısızsa yerel deneme commit'i geri alınır (`reset --soft`), `OnayUzakHatasi`: koşu açılmaz, kayda satır
+      yazılmaz, çift harcanmaz. Başarılıysa deneme commit'i uzakta kalır (koşunun ilk izi).
+    - **Koşu ortasında itme başarısız olursa çift harcanmış sayılmaya devam eder** (davranış değişmedi). Gerekçe:
+      BASLADI satırı itildikten sonra blok çalışır ve veriye bakılmış olabilir; bitiş itmesi başarısız olsa da
+      uzaktaki BASLADI çifti harcar. Bu hâlde çifti serbest bırakmak, veriye bakıldıktan sonra ikinci atışa izin
+      vermek olur (CLAUDE.md §3.3). Itme denemesi, bu durumu yalnızca koşu sırasında bozulan bir itmeye (ağ
+      kesintisi, koşu sırasında değişen izinler) indirir. Kayıtta `ITILEMEDI` satırı, elle itilene kadar yeni koşu
+      açılmaz.
+    - **`origin` denetimi.** `origin`'in okuma adresi ve bütün itme adresleri (git'in çözdüğü hâliyle: `insteadOf`,
+      `pushurl`, `GIT_CONFIG_*` dahil) `config.UZAK_DEPO_ADRESI` (`github.com/ewurr/short-scanner`) olmalı; https,
+      ssh ve scp biçimleri, `.git` soneki ve büyük/küçük harf fark etmez (`split.uzak_adresi_normal`). Değilse
+      `OnayUzakHatasi`, ağa çıkılmadan. `UZAK_DEPO_ADRESI` çalışma anında değiştirilemez. **Kural 0 notu:** görev
+      adresin "ön-kayıt kaynaklı config bölümünde" tutulmasını istedi; ön-kayıtta uzak depo tanımlı değil. Adres
+      config'te onay kaydı yolunun yanına, "ON-KAYIT DEGILDIR" etiketiyle ve değiştirilemez sabit olarak kondu.
+    - Sıra: yerel denetimler → `origin` adresi → `fetch` → itilmemiş satır → tek atış → ileri sarma → itme
+      denemesi → BASLADI (commit, it) → blok → bitiş (commit, it).
+
+    **Kapanan yollar (adıyla; hangi turda, hangi ölçümle).**
+
+    | # | Yol | Kazayla? | Kapanış | Ölçen test |
+    |---|---|---|---|---|
+    | 1 | Commit edilmemiş kayıt satırını `checkout .`/`stash`/`reset --hard` ile silmek | evet | ikinci tur: satır yazılır yazılmaz commit | `test_onay_kaydi_git::test_commit_edilmeden_silinen_...` |
+    | 2 | Ayrı worktree'de koşup worktree'yi silmek | evet | kapanış turu: itme | P-2, P-3 |
+    | 3 | İtilmemiş commit'le yeniden klonlamak | evet | kapanış turu: BASLADI itilmeden blok çalışmaz | `test_itilmis_cift_yerel_gecmis_silinse_de_harcanmis`, Q taze klon |
+    | 4 | Bağımsız HEAD, `bisect`, birleştirilmeden silinen dal, `reset --hard origin/main` sonrası reflog süresinin dolması | evet | kapanış turu: itme | P-1, P-4 |
+    | 5 | İki dalda ya da iki klonda koşu, birleştirmede tek tarafa çözüm (`merge -s ours`, "Accept Current") | evet | kapanış turu: ileri sarma şartı; son tur: `--full-history` | P-5; Q ours (2) |
+    | 6 | Önbellek yardımcılarıyla (`bv.onbellekten_oku`) ya da ham yükleyicilerle koşusuz onay verisi okumak | evet | son tur: çalışma anı engeli + tarama | `test_onay_verisi_izni`; Q önbellek (2) |
+    | 7 | `cache/` yolunu elle yazmak (`read_parquet`, `rglob('*.parquet')`, `CACHE`, `.pyw`, `cache` adlı alt dizin) | evet | kapanış turu + son tur: tarama; çalışma anı engeli yardımcılarda (doğrudan `pd.read_parquet` çalışma anında engellenmez) | `test_onbellek_taramasi`; Q (6) |
+    | 8 | İtme hatasının çifti veri okunmadan harcaması | evet | son tur: itme denemesi | `test_itme_yapilamayan_ortamda_...`; Q |
+    | 9 | `origin`'i başka depoya yönlendirmek (`set-url`, `pushurl`, `insteadOf`, `GIT_CONFIG_*`) | hayır (kasıtlı) | son tur: adres denetimi | `test_origin_beklenen_depo_degilse_...` (4); Q (4) |
+    | 10 | Ağ yokken yerel kipe düşmek | evet | kapanış turu | `test_ag_yoksa_...` |
+    | 11 | `config` küme sabitleri, `split_oku`, `kume_tanimi`, `kume_araligi`, `__class__` ataması | evet (küme tarihleri) | ikinci tur: korunan adlar | `test_onay_kaydi_git`, `tur_saldirilari_o` |
+    | 12 | `yol=` parametresi, `config.ONAY_KAYDI`, `_AKTIF_KOSU` ataması, kirli ağaçta koşu | evet | onay kaydı turu | `test_onay_kaydi_butunlugu` |
+
+    **Kalan yollar (hepsi kasıtlı ve çok adımlı; adıyla ve iz durumuyla).**
+
+    | # | Yol | İz | Ölçen test |
+    |---|---|---|---|
+    | K1 | Zorla itmeyle uzak geçmişi yeniden yazmak (`push --force origin <eski>:main`) + yerel geçmiş ve reflog silme | git'te iz yok; uzak depoda dal koruması (zorla itme reddi) açılırsa kapanır. GitHub'ın etkinlik kaydı doğrulanmadı | Q zorla itme (2 xfail) |
+    | K2 | Koşu açmadan düz atamayla modül değiştirmek (`split.config`, `split.klines`, `split.subprocess`, `split_dogrula`, `grup`, `varlik_anahtari`, `hashlib`, `config.BOLME_TUZU`, `YENIDEN_ADLANDIRMA`, `HIPOTEZLER`) | koşu dışında (ör. not defteri) iz yok; koşu içinde commit edilmiş koddan çalışır ve kayıt itilir | P-8…P-14 (10 xfail) |
+    | K3 | `.git/info/attributes` ile kayıt farkını ikili göstermek; `git replace` | ikinci koşu itilir: uzakta aynı çift için iki BASLADI | P-6, P-7, P-15 (5 xfail) |
+    | K4 | Koşu içinde kayıttan eski satırı silmek | silme koşu mesajlı commit'le itilir; tek atış bozulmaz | P-16 (xfail) |
+    | K5 | `GIT_DIR`/`GIT_WORK_TREE`, PATH'te sahte `git` ile git'in kendisini değiştirmek | iz yok | test yok (OK3 D-B5) |
+    | K6 | `vars(split)`, `object.__setattr__`, `sys.modules`, test kapısı, `onay_verisi_izni`/`_IZIN` kullanımı | commit edilmiş analiz kodunda tarama testine takılır | tarama testleri |
+    | K7 | Tarama desenini parçalı adla (`importlib`, dize birleştirme) ya da değişkenle taşınan değerle atlatmak | koşu içindeyse commit edilmiş kod; değilse iz yok | eski g, j xfail |
+    | K8 | Doğrudan `pd.read_parquet(<önbellek yolu>)` (tarama dışı bir yolla kurulmuş yol) | çalışma anında engellenmez; tarama `read_parquet`/`.parquet`/`cache` metnini yakalar | Q önbellek |
+
+    Ayrıca (atlatma değil, bulgu): `main` dışı daldan koşu açılıyor ve dalın commit'leri uzak `main`'e itiliyor
+    (Q xfail, OK3 D-C3); ITILEMEDI mesajındaki `git push origin main` bağımsız HEAD'de işe yaramıyor (Q xfail,
+    OK3 D-C2).
+
+    **F2 öncesi kontrol listesi.**
+    1. Yerel `main` ile `origin/main` eşit olmalı (`git rev-list --count origin/main..main` = 0 ve
+       `git rev-list --count main..origin/main` = 0). İlk onay koşusu ancak bundan sonra açılabilir: ilk koşunun itme
+       denemesi aksi hâlde itilmemiş bütün commit'leri tek atışın hemen öncesinde iter.
+    2. **Bugün:** yerel `main`, `origin/main`'in (`f7009e5`, `git ls-remote` ile doğrulandı) **75 commit** önünde
+       (bu turun commit'lerinden önce; tur sonu sayısı tur raporunda). `origin/main` yerelin gerisinde değil (0).
+    3. Kilit oturumundaki metinler (CLAUDE.md §3.3, §5, §7; ONAY_KAYDI.md 6–10, 15) uygulanmış ve itilmiş olmalı.
+    4. İsteğe bağlı: uzak depoda `main` için zorla itme reddi (dal koruması) açılırsa K1 kapanır.
+
+    **Testler.**
+    - Yeni: `tests/test_onay_verisi_izni.py` (onay verisi tanımı; önbellek, ham yükleyici ve indirme engeli; izin;
+      kapılı yükleyicinin KEŞİF'te C2 aylarını izinle okuyup kesmesi; B sembolünün KEŞİF'te hiç okunmaması).
+      `test_onay_kaydi_git`'e itme denemesi (2), origin denetimi (4 + adres biçimleri 9 + sabit), itme yapılamayan
+      ortam testi. `test_onbellek_taramasi`'na 6 yeni biçim.
+    - Güncellenen (davranış değiştiği için; iddialar aşağıda):
+      - `test_onay_kaydi_git`: `test_itilmemis_kayit_varken_kosu_reddedilir` senaryosu koşu ortasına taşındı (BASLADI
+        öncesi itme denemesi eklendi); `test_ag_yoksa_...` ağ yokluğunu adres değiştirmeden (uzak depo dizini
+        erişilemez) taklit ediyor; commit sayan iki test deneme commit'ini sayıyor; `test_basladi_commit_edilemezse_...`
+        kancası yalnızca BASLADI içeren commit'i reddediyor.
+      - `test_klines_tekrar` (4) ve `test_f1_kapanis_saldirilari` (2): `TESTUSDT` B grubu olduğu için ham yükleyici
+        çağrıları açık izinle; iddialar değişmedi.
+      - `test_tur_saldirilari_q` (sızıntı testçisinin dosyası): önbellek (8), `ours` (2), origin (4) xfail'leri
+        kaldırıldı. Origin testinde yönlendirmeli koşu adımı artık `OnayUzakHatasi` bekliyor; son iddia "çift
+        harcanmadığı için geri alınınca açılır" oldu. `test_push_reddedilirse_...` ve
+        `test_basladi_itilemeyince_..._bulgu`: itme denemesi yüzünden beklentiler değişti (satır yazılmıyor, çift
+        harcanmıyor). `test_itilemedi_commiti_de_...` senaryosu koşu ortasına taşındı.
+      - `test_tur_saldirilari_p`: commit sayısı 3 (deneme + BASLADI + BITTI); revert testi yalnızca iki kayıt
+        commit'ini geri alıyor (boş commit revert edilemez).
+    - Silinen test yok. Gevşetilen iddia: yok; değişen beklentiler yukarıda, her biri davranış değişikliğinin
+      sonucu.
+    - Kod: `e616e61`. **Tam takım:** 1870 geçti, 24 xfail (önceki: 1822 geçti, 38 xfail; 14 xfail normal teste döndü).
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
@@ -2979,3 +3101,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   **Güncellenen mevcut testler:** §14.26 "Testler". Silinen ya da gevşetilen test yok; `tur_saldirilari_p`'de P-5
   kurulumunun ön koşul iddiası kaldırıldı (kurulum artık reddediliyor, bu ret iddia ediliyor). xfail'den çıkan:
   P-1…P-5 (6 kimlik). Yeni: `test_onbellek_taramasi` (9), `test_onay_kaydi_git`'e 5.
+- 2026-09-30 (onay kaydı kapanışının son turu). §14.27 eklendi (kapanan ve kalan yollar adıyla, F2 öncesi kontrol
+  listesi). §14.26 kapsam kararının iki cümlesi bugünkü kodla düzeltildi (eski metin madde içinde alıntılı). Kod:
+  `e616e61` (önbellek yardımcılarında onay verisi izni, `--full-history`, itme denemesi, `origin` denetimi).
+  **Güncellenen mevcut testler:** §14.27 "Testler". Silinen test yok. xfail'den çıkan: Q önbellek (8), `ours` (2),
+  origin (4). Yeni: `test_onay_verisi_izni`.
