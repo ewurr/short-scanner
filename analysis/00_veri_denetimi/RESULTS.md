@@ -2277,8 +2277,13 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       - Koşu açılmadan önce çalışma ağacındaki onay satırları HEAD'dekiyle aynı olmalı; commit edilmemiş ya da
         commit edilmeden silinmiş kayıt satırı varken yeni koşu açılmaz (`OnayKaydiCommitsiz`).
       - Sonuç: `git checkout .`, `git checkout HEAD -- .`, `git stash -u`, `git reset --hard` tek atışı geri
-        getirmez; `reset --hard <eski commit>` de getirmez (reflog). Geri getiren: geçmişi yeniden yazmak **ve**
-        reflog'u silmek (`reflog expire --expire=now --all`; ölçüldü, sınır testi).
+        getirmez; `reset --hard <eski commit>` de getirmez (reflog). **(Kapanış turunda düzeltildi, §14.26.)** Eski
+        cümle: "Geri getiren: geçmişi yeniden yazmak **ve** reflog'u silmek (`reflog expire --expire=now --all`;
+        ölçüldü, sınır testi)." Yanlıştı: bu turun koduyla tek atışı geri getiren başka, kazayla olabilecek yollar
+        da vardı (ayrı worktree'yi silmek, itilmemiş commit'le yeniden klonlamak; bağımsız HEAD, birleştirilmeden
+        silinen dal ya da `reset --hard origin/main` sonrası erişilemeyen reflog girdilerinin süresinin dolması;
+        tek tarafa çözülen birleştirme). OK2 D-B1, D-B2; sızıntı P-1…P-5 ölçtü. Bu yollar kapanış turunda kayıt
+        uzak depoya bağlanarak kapandı (§14.26).
     - **OK D-B2 ve sızıntı testçisi O: korunan adlar.**
       - `split`: `split_oku`, `kume_tanimi`, `kume_araligi`, git'e bağlı kayıt adları ve `__class__` korunan
         adlarda. `split.__class__ = types.ModuleType` artık `OnayKorumasi`.
@@ -2388,6 +2393,83 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     - **Yazılamayanlar:** `config.KOK` değişimi (gerçek depoyu gerektirir), ikinci klon (tasarım sınırı), `split.os`,
       `split.time`, `split.uuid` (aynı türden).
     - **Tam takım:** 1788 geçti, 26 xfail.
+
+26. **Onay kaydı kapanış turu (2026-09-30).** Ön-kayda ve kilitli dosyalara dokunulmadı; getiri hesaplanmadı;
+    F2'ye geçilmedi. Onay kaydı çalışması bu turda kapanıyor.
+
+    **Kapsam kararı.** Tek atış korumasının hedefi kazayla atlatmayı imkânsız, kasıtlı atlatmayı görünür kılmaktır.
+    Kazayla atlatma yolları kapatılmıştır. Kalan yollar (ayrı worktree, yeniden klonlama, bağımsız HEAD,
+    birleştirmede tek tarafa çözüm, geçmişi yeniden yazıp zorla itme, düz atamayla modül değiştirme) kasıtlı ve çok
+    adımlı eylemlerdir; kayıt commit'lerinin uzak depoya itilmesiyle her biri iz bırakır. Bunlar açık nokta olarak
+    kayıtlıdır ve F2'yi engellemez.
+
+    **Kod (`472a541`): kayıt uzak depoya bağlı.**
+    - Koşu açılmadan önce `origin/main` alınır (`git fetch`). Alınamazsa (ağ yok, uzak depo erişilemez, kimlik bilgisi
+      istenir) koşu açılmaz (`split.OnayUzakHatasi`); yerel kipe düşülmez. Kimlik bilgisi istemi kapalı
+      (`GIT_TERMINAL_PROMPT=0`); ağ işlemlerinin zaman aşımı 120 sn.
+    - HEAD'deki kayıtta `origin/main` geçmişinde bulunmayan (itilmemiş) onay satırı varsa koşu açılmaz.
+    - Tek atış denetimi çalışma ağacı ve yerel geçmişe (§14.25) ek olarak `origin/main` geçmişine de bakar.
+    - Tek atış denetiminden sonra: HEAD `origin/main`'i içermiyorsa (kayıt commit'i ileri sarma olarak itilemez)
+      koşu açılmaz. Harcanmış çift önce `OnayTekrari` verir.
+    - BASLADI satırı commit edilince hemen itilir (`git push origin HEAD:refs/heads/main`, zorla itme yok); bitiş
+      satırı da öyle. İtilemezse kayda `durum=ITILEMEDI asama=<BASLADI|BITTI|HATA> zaman=<UTC>` satırı yazılır ve
+      yerelde commit edilir, `OnayUzakHatasi` verilir; mesaj sonucun koşu raporuna yazılmasını ve kaydın elle
+      itilmesini ister. BASLADI itilemezse koşu açılmaz (veri okunmaz), ama çift harcanmış kalır (muhafazakâr yön).
+      İtilmemiş satırlar itilene kadar yeni koşu açılmaz.
+    - Sırası: yerel denetimler (commit'li kayıt, temiz ağaç, izlenen betik) → `fetch` → itilmemiş satır → tek atış →
+      ileri sarma → BASLADI yaz, commit, it → blok → bitiş yaz, commit, it. Ağa yalnızca temiz, izlenen bir
+      ortamda çıkılır; gerçek ortama dokunan olumsuz test ağa çıkmadan reddedilir.
+    - Not: yerel `main` şu an `origin/main`'in 69 commit önünde. İlk gerçek onay koşusu bu commit'leri de iter.
+    - Gerekçe: yerel git geçmişi sahibi tarafından yeniden yazılabilir; uzak depodaki commit'in zaman damgası
+      yazılamaz.
+
+    **Testler.** `onay_yardimcisi.gecici_depo` artık `origin` olarak çıplak bir geçici depo ekler (dosya yolu; ağa
+    çıkılmaz).
+    - Yeni (`test_onay_kaydi_git`): iki satır da itiliyor; itilmemiş kayıt varken koşu reddediliyor, elle itilince
+      açılıyor; bitiş itilemezse kayıtta ITILEMEDI; ağ yoksa koşu açılmıyor ve hiçbir şey yazılmıyor; HEAD
+      `origin/main`'i içermiyorsa koşu açılmıyor; **itilmiş çift, yerel dal, reflog, nesneler ve uzak izleme
+      referansı silinse de harcanmış** (§14.25'teki "geçmişi yeniden yazıp reflog'u silmek geri getirir" sınır
+      testinin yerine).
+    - Güncellenen: `test_commit_edilmemis_bitis_satiri_varken_yeni_kosu_reddedilir` elle commit'ten sonra
+      `git push` yapıyor.
+    - `test_tur_saldirilari_p` (sızıntı testçisinin dosyası; davranış değiştiği için güncellendi):
+      - P-1…P-4 (bağımsız HEAD, worktree, dal silme + reflog süresi) XPASS verdi: xfail işaretleri kaldırıldı,
+        gövdeler değişmedi.
+      - P-5 (`ours` birleştirmesi, 2 kimlik) ve eşi savuşturulan test: iki dalda paralel koşu kurulamıyor (ikinci
+        dalda `OnayUzakHatasi`). Yardımcı `_iki_dal_kur_ve_birlestir` bu reddi iddia ediyor ve birleştirmeyi
+        `--no-ff` ile yapıyor; "birleştirme dalB satırlarını düşürmeli" ön koşulu kaldırıldı (`-X ours` artık
+        çatışmasız birleşiyor). P-5'in xfail işareti kaldırıldı; son iddia (`OnayTekrari`) aynı.
+      - P-6 (`info/attributes`, 2 kimlik), P-7 (`git replace`), P-8 (`split.subprocess`): `reset --hard <ilk>`
+        sonrasına `git merge -s ours origin/main` adımı eklendi (HEAD `origin/main`'i içermeli). Saldırı hâlâ
+        başarılı (xfail); bir adım uzadı ve ikinci koşu uzak depoya itildiği için iz bırakıyor.
+    - Yeni: `tests/test_onbellek_taramasi.py` (9).
+
+    **`cache/` taraması.** `tarama_yardimcisi.ONBELLEK_DESENI`: analiz kodu (`.py` ve `.ipynb`; izinli dizinler
+    dışında) `ONBELLEK_DIZINI` adını ve `cache` yol parçasını anamaz. `config.py` tanımı taşıdığı için muaf.
+    `ihlaller` isteğe bağlı `uzantilar` parametresi aldı. Sınır: yolu parçalayıp kurmak yakalanmaz.
+
+    **`split`'in modül bağımlılıkları korunmuyor (karar).** `split.config`, `split.subprocess`, `split.klines`,
+    `split_dogrula`, `grup`, `varlik_anahtari`, `hashlib`, `os`, `time`, `uuid` ve config'teki `BOLME_TUZU`,
+    `YENIDEN_ADLANDIRMA`, `HIPOTEZLER` düz atamayla değiştirilebilir (OK2 D-B3; sızıntı P-8…P-14). Gerekçe: koruma
+    listesi sonsuza kadar uzayamaz; her korunan fonksiyonun her bağımlılığı yeni bir ad getirir. Ölçüt kapsam
+    kararındaki cümledir: bu değişiklikler kasıtlı ve adı açık atamalardır (kazayla olmaz); koşu içinde yapılırsa
+    kod temiz ağaçtan, commit edilmiş betikten çalışır ve kayıt commit'leri itilir. `HIPOTEZLER`'e ad eklemek kayıtta
+    o adla görünür. Sızıntı testçisinin P-8…P-14 xfail'leri bu sınırın belgesi olarak kalır.
+
+    **Test yardımcısının sınırı (belgelenmiş).** `onay_yardimcisi.kosu` gerçek `split.onay_kosusu`'yu çağırır; iki
+    farkı var:
+    - Blok sonuç bildirmeden biterse yardımcı "TEST" sonucunu bildirir; gerçek koşu `OnaySonucuYok` verip kayda HATA
+      yazar. İkinci turda ölçüldü: `kosu` üzerinden koşan 76 testin 47'sinde sonuç yardımcıdan geldi. Bu tur
+      (sızıntı P testleri ve yeni git testleriyle): 101 testin 72'sinde.
+    - `gecici_kayit` (sahte git) kipinde git'e dokunulmaz: ortam (`rev-parse`, `status --porcelain`, `ls-files`,
+      `__main__.__file__`, `relative_to(KOK)`) testten gelen değerlerle; HEAD ve geçmiş = çalışma ağacı; commit,
+      `fetch`, itme ve uzak denetimleri atlanır. `kosu` üzerinden koşan testlerin 68'i bu kipte (ikinci turda da 68);
+      33'ü gerçek git kipinde (`gecici_depo`; git ve uzak depo gerçek, yalnızca çağıran betiğin yolu testten gelir;
+      `autocrlf=false`, yerel kanca dizini, `gpgsign=false`).
+    - Bu farklar bilinçli: onay kümesi erişimini sınayan testler git ortamından bağımsız kalsın. Git ve uzak depo
+      davranışı `gecici_depo` testlerinde sınanır. Gerçek ortamın olumlu yolu (`__main__`, gerçek `origin`) testsizdir.
+
+    **Tam takım:** 1808 geçti, 20 xfail (önceki: 1788 geçti, 26 xfail).
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
@@ -2835,3 +2917,9 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   düzeltildi (eski metin madde içinde alıntılı).
   **Güncellenen mevcut testler:** §14.25 "Test güncellemeleri". Silinen ya da gevşetilen test yok. xfail'den
   çıkan: `tur_saldirilari_o` `split_oku` ve `kume_araligi`. Yeni: `test_onay_kaydi_git` (44).
+- 2026-09-30 (onay kaydı kapanış turu). §14.26 eklendi (kapsam kararı; onay kaydı çalışması kapandı). Kod: `472a541`
+  (kayıt uzak depoya bağlı, `cache/` taraması). §14.25'teki "geri getiren: geçmişi yeniden yazmak ve reflog'u
+  silmek" cümlesi düzeltildi (eski metin madde içinde alıntılı).
+  **Güncellenen mevcut testler:** §14.26 "Testler". Silinen ya da gevşetilen test yok; `tur_saldirilari_p`'de P-5
+  kurulumunun ön koşul iddiası kaldırıldı (kurulum artık reddediliyor, bu ret iddia ediliyor). xfail'den çıkan:
+  P-1…P-5 (6 kimlik). Yeni: `test_onbellek_taramasi` (9), `test_onay_kaydi_git`'e 5.
