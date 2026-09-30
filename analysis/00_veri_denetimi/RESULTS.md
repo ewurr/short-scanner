@@ -2121,8 +2121,14 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
        `pozisyon._veri_yukle`. Sonuncusu taramada (`KAYIT_DESENI`).
     4. **Test kapısı.** `pytest` import edilip `PYTEST_CURRENT_TEST` ayarlanırsa `_test_kaydi_ayarla` kayıt
        yolunu geçici dosyaya, git ortamını sahteye çevirir. Analiz kodunda taramayla yasak.
-    5. **Modül sözlüğü + gerçek kayıt.** `vars(split)` ile koşu kurup gerçek kayda bu sürecin BASLADI satırını
-       yazmak, sonra dosyayı eski hâline döndürmek. Kilitli dosyaya kasıtlı yazıp silmeyi gerektirir.
+    5. **Modül sözlüğü üzerinden fonksiyon değiştirmek** (onay kaydı ikinci turda düzeltildi, §14.25; denetçi
+       OK D-B2). `vars(split)["aktif_onay_kosusu"]` ya da `vars(split)["_acik_kosu"]` bir fonksiyonla
+       değiştirilirse C1 kayda satır yazılmadan ve dosyaya dokunulmadan açılır; tek satır yeter
+       (`test_onay_kaydi_git::test_sinir_modul_sozlugunden_fonksiyon_degistirmek_erisim_acar` ölçtü). Yalnızca
+       `vars(split)["_AKTIF_KOSU"]` ile durum kurmak kayıt denetimine takılır; o yol gerçek kayda bu sürecin
+       BASLADI satırını yazıp silmeyi gerektirir. Eski metin: "Modül sözlüğü + gerçek kayıt. `vars(split)` ile
+       koşu kurup gerçek kayda bu sürecin BASLADI satırını yazmak, sonra dosyayı eski hâline döndürmek. Kilitli
+       dosyaya kasıtlı yazıp silmeyi gerektirir." Bu yalnızca `_AKTIF_KOSU` için doğruydu.
     6. **Modülü değiştirmek.** `sys.modules["data.split"]` yerine sahte modül koymak ya da `split` içindeki
        korunmayan yardımcıları (ör. `kume_tanimi`, `split_oku`) yamalamak.
     7. **Geçmişi yeniden yazmak.** Kayıt satırlarını içeren commit'i `git commit --amend`/`rebase` ile
@@ -2248,6 +2254,76 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       yanıltmıyor; koşu sırasında kayıt dosyasının silinmesi iz bırakan bir hata veriyor ve çift harcanmış kalıyor.
     - Testçi raporunda 7 test diyordu; dosyada 6 test var.
     - **Tam takım:** 1726 geçti, 6 xfail.
+
+25. **Onay kaydı ikinci tur (2026-09-30).** Ön-kayda ve kilitli dosyalara dokunulmadı; getiri hesaplanmadı;
+    F2'ye geçilmedi.
+
+    **Koruma sınırı.** Aynı süreç içinden mutlak koruma mümkün değildir: Python'da modül sözlüğü, `object.__setattr__`
+    ve `sys.modules` her zaman yazılabilir. Amaç, onay kaydını **kazayla atlatmayı imkânsız**, **kasıtlı atlatmayı
+    görünür** kılmaktır. "Görünür": yol, depoda commit edilmiş analiz kodunda tarama testine takılır ya da git
+    geçmişinde (kayıt satırı, commit) iz bırakır. §14.24'teki ölçütün ("iz bırakmayan bir yolla yapılamasın")
+    yerine bu ölçüt geçer; §14.24 ölçütü aynı süreç içinde karşılanamıyordu (OK D-B2).
+
+    **Kod.**
+    - **OK D-B1: kayıt git'e bağlı.**
+      - Koşu her kayıt satırını yazdığı anda kendisi commit eder, yalnızca kayıt dosyasını
+        (`git add` + `git commit --only -- ONAY_KAYDI.md`; mesaj `ONAY_KAYDI: <hipotez> <küme> <durum> (kosu=...)`).
+        BASLADI satırı blok çalışmadan önce commit edilir; commit edilemezse koşu açılmaz
+        (`split.OnayKaydiCommitsiz`, `OnayOrtamiHatasi` alt sınıfı). Bitiş satırı commit edilemezse hata yine
+        yüksek sesle verilir; satır çalışma ağacında ve index'te kalır. Kancalar atlanmaz (`--no-verify` yok).
+      - Tek atış denetimi (`split.harcanan_ciftler`) çalışma ağacındaki kayıt ile git geçmişinde kayda bir kez
+        eklenmiş bütün satırların birleşimine bakar: `git log --all --reflog -p -- ONAY_KAYDI.md`. Stash,
+        başka dallar ve reflog'daki (`reset`, `--amend`, `rebase` ile bırakılan) commit'ler dahildir.
+      - Koşu açılmadan önce çalışma ağacındaki onay satırları HEAD'dekiyle aynı olmalı; commit edilmemiş ya da
+        commit edilmeden silinmiş kayıt satırı varken yeni koşu açılmaz (`OnayKaydiCommitsiz`).
+      - Sonuç: `git checkout .`, `git checkout HEAD -- .`, `git stash -u`, `git reset --hard` tek atışı geri
+        getirmez; `reset --hard <eski commit>` de getirmez (reflog). Geri getiren: geçmişi yeniden yazmak **ve**
+        reflog'u silmek (`reflog expire --expire=now --all`; ölçüldü, sınır testi).
+    - **OK D-B2 ve sızıntı testçisi O: korunan adlar.**
+      - `split`: `split_oku`, `kume_tanimi`, `kume_araligi`, git'e bağlı kayıt adları ve `__class__` korunan
+        adlarda. `split.__class__ = types.ModuleType` artık `OnayKorumasi`.
+      - `config`: `KESIF_BASI`, `KESIF_SONU`, `C2_BASI`, `C2_SONU`, `KUMELER`, `ONAY_KUMELERI` ve `__class__`
+        yeniden atanamaz ve silinemez (`SabitDegistirilemez`).
+      - Tarama (`ONAY_ATLATMA_DESENI`): `vars(split_modulu)`, `split_modulu.__dict__/__class__`,
+        `<modül>.split_modulu = ...`, `object.__setattr__`, `ModuleType.__setattr__`, `sys.modules` ve yeni kayıt
+        yazıcıları eklendi. `split_modulu.split_oku()` gibi meşru kullanım yakalanmıyor (testli).
+    - **OK D-C1:** sonuç bildirildikten sonra blok hata ile biterse bitiş satırı
+      `durum=HATA hata=<sınıf> sonuc=<sonuç>` olur; sonuç bildirilmemişse `sonuc` alanı yazılmaz.
+    - **Test yardımcısı:** `onay_yardimcisi.gecici_depo` gerçek bir geçici git deposu kurar; bu kipte bütün git
+      işlemleri gerçek (yalnızca çağıran betiğin yolu testten gelir). Eski kip (`gecici_kayit`, sahte git) kaydı
+      her an commit edilmiş sayar, geçmişe bakmaz ve commit etmez.
+
+    **Kalan atlatma yolları, yeni ölçütle.**
+
+    | # | Yol | Kazayla? | Kasıtlıysa görünür mü? |
+    |---|---|---|---|
+    | 1 | Önbelleği doğrudan okumak (`pd.read_parquet("cache/...")`), bir not defterinde ya da koşu dışı betikte | **olabilir** (koşu açılmadan C1/C2 dosyası okunur) | hayır: `cache/` yolu taranmıyor, `.ipynb` taranmıyor; kayıt koşuyu kaydeder, erişimi değil |
+    | 2 | Ham yükleyiciler (`ham_mumlari_yukle`, `ham_funding_yukle`) | hayır (adı açık) | evet, analiz kodunda `HAM_ERISIM_DESENI`; `analysis/00_veri_denetimi` muaf |
+    | 3 | Modül sözlüğü: `vars(split)["aktif_onay_kosusu"] = ...` (§14.24 madde 5, düzeltilmiş) | hayır | evet (`split`, `split_modulu`, `config` adlarıyla); başka ad ya da `vars(pozisyon)["split_modulu"]` yakalanmaz |
+    | 4 | `object.__setattr__`, `ModuleType.__setattr__`, `sys.modules` değişimi | hayır | evet (tarama) |
+    | 5 | Yükleyicileri yamalamak (`klines.mumlari_yukle`, `funding.funding_yukle`) | hayır | kısmen: `pozisyon._veri_yukle` taramada, diğerleri değil |
+    | 6 | Test kapısı (`PYTEST_CURRENT_TEST` + `_test_kaydi_ayarla`) | hayır | evet (tarama) |
+    | 7 | Korunmayan config adları: `SPLIT_CSV`, `BOLME_TUZU`, `YENIDEN_ADLANDIRMA` (içeriği değişebilir), `HIPOTEZLER` | hayır: tek başına biri `split_dogrula`'da hata verir; sızıntı en az iki kasıtlı değişiklik ister. `HIPOTEZLER`'e ad eklemek yeni çift açar ama kayda o adla yazılır | tarama yok; `HIPOTEZLER` yolu kayıtta görünür |
+    | 8 | Geçmişi yeniden yazıp reflog'u silmek | hayır (iki kasıtlı adım) | hayır, yerelde iz kalmaz |
+    | 9 | Kayıt commit'lerini daldan çıkarıp (`reset --hard <eski>`) reflog'un kendiliğinden dolmasını beklemek | **olabilir, yavaş**: erişilemeyen reflog girdileri varsayılan olarak 30 gün sonra `git gc` ile silinir | hayır |
+    | 10 | Başka bir klon ya da çalışma kopyası: kayıt yerel git geçmişine bağlı; iki kopya birbirinin koşusunu görmez | **olabilir** (birden fazla kopya varsa) | kopyalar birleştirilince kayıtta iki koşu görünür |
+    | 11 | BASLADI commit edilemedi, satır sonra silindi | olabilir; ama koşu açılmadı, veri okunmadı: tek atış harcanmadı | — |
+    | 12 | Bitiş satırı commit edilemedi, satır sonra silindi | olabilir; çift harcanmış kalır (BASLADI commit'li), yalnızca sonuç kaybolur | — |
+    | 13 | Yanıltıcı iz: `__main__.__file__`, `config.KOK`, izlenen betiğin depo dışı kod yüklemesi (OK D-C3) | hayır | iz var ama yanlış |
+    | 14 | Tarama muafiyetleri: `analysis/00_veri_denetimi`, `.ipynb` (OK D-C4) | — | muaf yerde kasıtlı yol taramaya takılmaz; commit edilmişse geçmişte görünür |
+
+    **Açık kalanlar (bu turda istenmedi):** `ONAY_TABLO_BASLIGI` korunmuyor (OK D-C2; biçim bozulur, tek atış
+    bozulmaz). OK D-C5 (bitiş satırı yazılamazsa sonuç kaybı), OK D-C6 (kilitsiz okuma), OK D-C7 (gerçek
+    ortamda `__main__` ve `relative_to(KOK)` yolu hâlâ testsiz; git tarafı artık gerçek depoda sınanıyor).
+
+    **Test güncellemeleri.**
+    - `test_kume_siniri::test_kume_araligi_kume_tanimindan_turetilir`: `monkeypatch.setattr(split, "kume_tanimi")`
+      → `monkeypatch.setitem(vars(split), "kume_tanimi")` (ad artık korunuyor). İddia aynı.
+    - `test_tur_saldirilari_o`: iki xfail (`split_oku`, `kume_araligi`) normal teste döndü. Değişiklik: xfail
+      işareti kalktı, "korunan adlarda değil" iddiası "korunan adlarda" oldu, atama `pytest.raises(OnayKorumasi)`
+      içinde; erişimin sızdırmadığı iddiası aynı.
+    - Yeni: `tests/test_onay_kaydi_git.py` (44), `onay_yardimcisi.gecici_depo` ve `git`.
+    - Silinen ya da gevşetilen test yok.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
@@ -2690,3 +2766,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   Rev.11 listesine 15–17 eklendi; depo dışı Rev.11 girdisi listeyle eşitlendi (KS3 D-B5).
   **Güncellenen mevcut testler:** §14.24 "Test güncellemeleri". Silinen ya da gevşetilen test yok. xfail'den
   çıkan: `tur_saldirilari_n` doğrudan atama. Yeni: `test_onay_kaydi_butunlugu` (58).
+- 2026-09-30 (onay kaydı ikinci tur). §14.25 eklendi. Kod: kayıt git'e bağlı (OK D-B1), korunan adlar ve tarama
+  (OK D-B2, sızıntı testçisi O), sonuç ve hata birlikte (OK D-C1). §14.24 "Kalan atlatma yolları" 5. madde
+  düzeltildi (eski metin madde içinde alıntılı).
+  **Güncellenen mevcut testler:** §14.25 "Test güncellemeleri". Silinen ya da gevşetilen test yok. xfail'den
+  çıkan: `tur_saldirilari_o` `split_oku` ve `kume_araligi`. Yeni: `test_onay_kaydi_git` (44).
