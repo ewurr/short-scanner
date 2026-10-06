@@ -2397,21 +2397,15 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
 26. **Onay kaydı kapanış turu (2026-09-30).** Ön-kayda ve kilitli dosyalara dokunulmadı; getiri hesaplanmadı;
     F2'ye geçilmedi. Onay kaydı çalışması bu turda kapanıyor.
 
-    **Kapsam kararı** (kapanışın son turunda iki cümlesi bugünkü kodla düzeltildi; ayrıntılı liste §14.27).
-    Tek atış korumasının hedefi kazayla atlatmayı imkânsız, kasıtlı atlatmayı görünür kılmaktır. Bilinen kazayla
-    atlatma yolları kapatılmıştır; adlarıyla: commit edilmemiş kayıt satırını `checkout`/`stash`/`reset` ile silmek,
-    ayrı worktree'de koşup worktree'yi silmek, itilmemiş commit'le yeniden klonlamak, bağımsız HEAD'de koşup
-    erişilemeyen reflog'un süresinin dolması, iki dalda ya da iki klonda koşup birleştirmede tek tarafa çözmek,
-    önbellek yardımcılarıyla ya da ham yükleyicilerle koşusuz onay verisi okumak, itme hatasının çifti veri okunmadan
-    harcaması (§14.27). Kalan yollar kasıtlı ve çok adımlıdır; iz durumları yola göre farklıdır (§14.27 tablosu):
-    - uzak depoda iz bırakanlar (ikinci koşu ya da silme itilir): `.git/info/attributes` ile geçmişi kör etmek,
-      `git replace`, koşu içinde kayıttan eski satır silmek, koşu içinde düz atamayla modül değiştirmek;
-    - git'te iz bırakmayanlar: zorla itmeyle uzak geçmişi yeniden yazmak (uzak depoda dal koruması yoksa), koşu
-      açmadan düz atamayla modül değiştirmek (ör. bir not defterinde `split.config = ...`), `GIT_DIR` ya da PATH'te
-      sahte `git` ile git'in kendisini değiştirmek;
-    - tarama testine takılanlar (commit edilmiş analiz kodunda): `vars(...)`, `object.__setattr__`, `sys.modules`,
-      test kapısı, `onay_verisi_izni` ya da `_IZIN` kullanımı.
-    Bunlar açık nokta olarak kayıtlıdır ve F2'yi engellemez.
+    **Kapsam kararı** (kapanışta, §14.28, üçüncü kez yazıldı; genel hüküm içermiyor).
+    Tek atış korumasının hedefi kazayla atlatmayı imkânsız, kasıtlı atlatmayı görünür kılmaktır. Bu hedefin bugün
+    nerede tutulduğu yalnızca adıyla sayılan yollarda geçerlidir; üç liste §14.27'de:
+    - **kapatılan yollar:** §14.27 "Kapatılan yollar" tablosu (1–12; adıyla, kapanış turuyla ve ölçen testiyle);
+    - **kasıtlı ve çok adımlı oldukları için kapatılmayanlar:** §14.27 K1–K13 (adıyla ve iz durumuyla);
+    - **kazayla tetiklenebilir olduğu halde kapatılmayanlar:** §14.27 KK1–KK4 (adıyla ve nedeniyle: iş parçacığı
+      kapsamı, doğrudan ağ çağrıları, SETTLED dizin grubu, `split.yukle` özel yükleyicisi).
+    Son iki liste açık nokta olarak kayıtlıdır ve F2'yi engellemez. Genel bir "kazayla atlatma yolları kapatıldı"
+    hükmü verilmiyor: kapatılmış yol, tabloda adı geçen yoldur.
     Eski metin (bu turda yazılan, iki cümlesi denetçi OK3 D-B1, D-B2, D-B3, D-B5 ile yanlış çıktı): "Kazayla atlatma
     yolları kapatılmıştır. Kalan yollar (ayrı worktree, yeniden klonlama, bağımsız HEAD, birleştirmede tek tarafa
     çözüm, geçmişi yeniden yazıp zorla itme, düz atamayla modül değiştirme) kasıtlı ve çok adımlı eylemlerdir; kayıt
@@ -2554,8 +2548,10 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
         ayrıştırılamayan ay ve `data/` ile başlayıp biçime uymayan anahtar kapalı yönde onay verisi sayılır.
       - İzin (`binance_vision.onay_verisi_izni(neden)`): küme kapısından geçmiş yükleyiciler (`split.yukle`,
         `funding.funding_yukle`, `klines.birincil_gunluk_indir`; ardından küme aralığına keserler), evren kurulumu
-        (`universe.evren_kur`) ve F1 denetim betiklerinin `main()` çağrısı (`analysis/00_veri_denetimi`, 11 betik;
-        CLAUDE.md §3.1: veri denetimi serbest). İzin süreç geneli bir sayaçtır (F1 denetimi paralel indirir).
+        (`universe.evren_kur`) ve F1 denetim betiklerinin `__main__` bloğu (`main()` değil;
+        `analysis/00_veri_denetimi`, 11 betik; CLAUDE.md §3.1: veri denetimi serbest). İzin bu turda süreç içindeki bir
+        sayaçtı: iş parçacıkları görür (F1 denetimi paralel indirir), alt süreçler görmezdi (OK4 D-B1; kapanışta
+        ortam değişkeniyle alt süreçlere de taşındı, §14.28).
       - Açık bir onay koşusu tek başına izin vermez: koşu içinde de onay verisine yalnızca kapılı yükleyicilerle
         erişilir.
       - Tarama (`ONBELLEK_DESENI`): `binance_*` adları, `onbellek_yolu/onbellekten_oku/onbellege_yaz`, `zip_indir`,
@@ -2600,7 +2596,8 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     | 11 | `config` küme sabitleri, `split_oku`, `kume_tanimi`, `kume_araligi`, `__class__` ataması | evet (küme tarihleri) | ikinci tur: korunan adlar | `test_onay_kaydi_git`, `tur_saldirilari_o` |
     | 12 | `yol=` parametresi, `config.ONAY_KAYDI`, `_AKTIF_KOSU` ataması, kirli ağaçta koşu | evet | onay kaydı turu | `test_onay_kaydi_butunlugu` |
 
-    **Kalan yollar (hepsi kasıtlı ve çok adımlı; adıyla ve iz durumuyla).**
+    **Kapatılmayan yollar 1: kasıtlı ve çok adımlı oldukları için (adıyla ve iz durumuyla).** K9–K13 kapanışta
+    (§14.28) eklendi; o turda da kapatılmadılar.
 
     | # | Yol | İz | Ölçen test |
     |---|---|---|---|
@@ -2609,9 +2606,28 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     | K3 | `.git/info/attributes` ile kayıt farkını ikili göstermek; `git replace` | ikinci koşu itilir: uzakta aynı çift için iki BASLADI | P-6, P-7, P-15 (5 xfail) |
     | K4 | Koşu içinde kayıttan eski satırı silmek | silme koşu mesajlı commit'le itilir; tek atış bozulmaz | P-16 (xfail) |
     | K5 | `GIT_DIR`/`GIT_WORK_TREE`, PATH'te sahte `git` ile git'in kendisini değiştirmek | iz yok | test yok (OK3 D-B5) |
-    | K6 | `vars(split)`, `object.__setattr__`, `sys.modules`, test kapısı, `onay_verisi_izni`/`_IZIN` kullanımı | commit edilmiş analiz kodunda tarama testine takılır | tarama testleri |
+    | K6 | `vars(split)`, `object.__setattr__`, `sys.modules`, test kapısı, `onay_verisi_izni`/`_IZIN` kullanımı | commit edilmiş analiz kodunda tarama testine takılır; onay atlatma taraması yalnızca `.py` bakar (`.ipynb` için K12) | tarama testleri |
     | K7 | Tarama desenini parçalı adla (`importlib`, dize birleştirme) ya da değişkenle taşınan değerle atlatmak | koşu içindeyse commit edilmiş kod; değilse iz yok | eski g, j xfail |
     | K8 | Doğrudan `pd.read_parquet(<önbellek yolu>)` (tarama dışı bir yolla kurulmuş yol) | çalışma anında engellenmez; tarama `read_parquet`/`.parquet`/`cache` metnini yakalar | Q önbellek |
+    | K9 | Adres denetiminin görmediği yönlendirmeler: `core.sshCommand`, `GIT_SSH_COMMAND`, `http.proxy`, `remote.origin.receivepack`, depo içinde göreli yol | yerel git yapılandırmasında iz; uzak depoda iz yok | test yok (OK4 D-B5) |
+    | K10 | Şemasız (`github.com/ewurr/short-scanner`) ya da `file://github.com/...` adres: git bunları yerel göreli yol sayar, `split.uzak_adresi_normal` beklenen adres sanar | yerelde iz; gerçek uzak depoda iz yok | R6 (2 xfail; OK4 D-C1) |
+    | K11 | `config.UZAK_DEPO_ADRESI`'ni sıradan bir commit'le başka depoya çevirmek | commit edilmiş kodda görünür; değer kilitli dosyada değil | test yok (OK4 D-B5, D-C5) |
+    | K12 | `vars(split)` gibi bir satırı `.ipynb` içine yazmak: onay atlatma taraması yalnızca `.py` bakar | not defteri commit edilirse dosyada görünür, tarama uyarmaz | R4 (xfail; OK4 D-B5) |
+    | K13 | Kayıt satırını yalnızca birleştirme commit'inde eklemek ("evil merge"): `git log` `-m` olmadan göstermez | uzakta birleştirme commit'inde iz | test yok (OK4 D-C9) |
+
+    **Kapatılmayan yollar 2: kazayla tetiklenebilir olduğu halde kapatılmayanlar (adıyla ve nedeniyle).** Dördü de
+    kapanışta (§14.28) gözden geçirildi ve kapatılmadı.
+
+    | # | Yol | Neden kazayla tetiklenebilir | Ölçen test |
+    |---|---|---|---|
+    | KK1 | **İş parçacığı kapsamı:** izin iş parçacığına değil sürece bağlıdır; bir iş parçacığında kapılı yükleme sürerken başka bir iş parçacığının `klines.ay_indir` çağrısı B grubu ya da C2 ayını indirebilir | eş zamanlı indirme bu depoda olağan (`calistir --is-parcaci`); `ay_indir` hiçbir taramada yok, sonuç belirsiz ve iz bırakmaz | R1 (xfail; OK4 D-B2) |
+    | KK2 | **Doğrudan ağ çağrıları:** `requests.get("https://data.binance.vision/...")`, `bv._iste(...)`, `fapi.binance.com` ya da ccxt (Binance REST); çalışma anında yalnızca `binance_vision.zip_indir` korunur | "güncel veriyle göz atmak" tek satırda yazılır; ne çalışma anında ne taramada yakalanır | R3 (3 xfail; OK4 D-B3) |
+    | KK3 | **SETTLED dizin grubu:** indirme yolunda grup `<SEMBOL>SETTLED` adından hesaplanır, temel sembolden değil; temel sembolü B olan bir dizin adı varlık anahtarıyla A'ya düşerse C1 verisi izinsiz iner | önbellekten okuma her zaman izin ister, indirme istemez; `ham_settled_*` taramada, `ay_indir` değil | R2 (xfail; OK4 D-B4) |
+    | KK4 | **`split.yukle` özel yükleyicisi:** `split.yukle(..., mum_yukleyici=<fonksiyon>)` verilen her fonksiyonu izin bağlamı içinde çalıştırır; fonksiyon KEŞİF çağrısından B verisi döndürebilir | kapıdan geçtiği için güvenli görünür; parametre veri katmanının kendi testleri için var | R5 (xfail; OK4 D-C3) |
+
+    Bu yollar F2'nin tek süreçli akışında kendiliğinden tetiklenmez; korunmaları, projenin kendi doğrulama
+    betiklerini kullanılamaz hâle getirecek kadar geniş bir kapsam gerektirir. Açık nokta olarak kayıtlıdırlar ve
+    F2'yi engellemezler. Onay verisine elle göz atmamak kod değil, çalışma disiplini meselesidir.
 
     Ayrıca (atlatma değil, bulgu): `main` dışı daldan koşu açılıyor ve dalın commit'leri uzak `main`'e itiliyor
     (Q xfail, OK3 D-C3); ITILEMEDI mesajındaki `git push origin main` bağımsız HEAD'de işe yaramıyor (Q xfail,
@@ -2700,6 +2716,79 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       varsayılan taramada görülmüyor; R5 `mum_yukleyici`; R6 şemasız ve `file://` adres beklenen adrese iniyor (2).
     - Savuşturulan: yok (bu dosyada).
     - **Tam takım:** 1870 geçti, 33 xfail (`e5ad07d`).
+
+28. **Onay kaydı çalışmasının kapanışı (2026-10-06).** Ön-kayda ve kilitli dosyalara dokunulmadı; getiri
+    hesaplanmadı; F2'ye geçilmedi; ajan çalıştırılmadı. Bu tur yeni koruma eklemedi ve hiçbir ajan bulgusunu
+    kapatmadı; tek kod değişikliği projenin kendi doğrulama betiklerini yeniden koşulabilir kılmak içindir
+    (OK4 D-B1; "doğrulama araçlarının çalışır kalması korumadan önceliklidir").
+
+    **Kod (`544939e`): onay verisi izni alt süreçlere taşınır.**
+    - Sorun (OK4 D-B1): izin süreç içinde bir sayaçtı. `ProcessPoolExecutor` kullanan F1 betiklerinin işçi
+      süreçleri Windows'ta `spawn` ile baştan başlar, sayacı görmez ve işçideki ham yükleme
+      `OnayVerisiKorumasi` ile düşer. Yön kapalıydı (veri sızmıyordu), ama sekiz betik yeniden üretilemiyordu.
+    - Çözüm: izin bağlamı açılırken `SHORT_LAB_ONAY_VERISI_IZNI` ortam değişkeni açan sürecin pid'ine ayarlanır,
+      bağlam kapanırken eski değerine döner (iç içe bağlamlarda yalnızca en dış bağlam yazar). Yeni süreç import
+      anında değişkeni görür ve değer **kendi üst sürecinin** pid'i ise izni devralır; devralan süreç değeri kendi
+      pid'iyle güncelleyerek torun süreçlere de taşır. Pid denetimi bayat ya da kabukta elle ayarlanmış bir
+      değişkenin korumayı tümden kapatmasını önler; kararlı bir atlatmayı (değişkeni kendi kabuk pid'iyle
+      ayarlayıp betik çalıştırmak) önlemez — kilit gibi, dikkatsizliğe karşıdır.
+    - Tarama (`ONBELLEK_DESENI`): değişkenin adı ve devralma yardımcıları (`_IZIN_ORTAM_ADI`, `_DEVRALINAN_IZIN`,
+      `_izni_devral`) desene eklendi; analiz kodu izni bir alt süreç başlatarak da açamaz.
+    - Testler (yeni, `tests/test_onay_verisi_izni.py`): ortam değişkeninin bağlamla ayarlanıp geri alınması; izin
+      bağlamında başlatılan alt sürecin izni devralması; izin dışında başlatılan alt sürecin reddedilmesi;
+      bayat ve sayı olmayan değişkenin izin vermemesi; gerçek `ProcessPoolExecutor` işçilerinin (F1 deseni)
+      devralması. `test_onbellek_taramasi`'na 4 yeni biçim. Silinen ya da gevşetilen test yok.
+    - **Tam takım:** 1879 geçti, 33 xfail (önceki: 1870 geçti, 33 xfail; yeni 9 test).
+
+    **Doğrulama koşuları (temiz ağaçta, `karsilastir.py` ile).**
+
+    | Betik | Koşu | Önceki ref | Sonuç |
+    |---|---|---|---|
+    | `f1k_kume_sonu` | `580d6a6` (`544939e` temiz ağaçta) | `544939e` | ölçüm çıktıları (`rev10_kume_sonu_kesif`, `_sinir`) bayt düzeyinde aynı; yalnızca `rev10_kume_sonu_ortam_tam.csv` farklı |
+    | `rev8_etki` | `8494549` (`580d6a6` temiz ağaçta) | `580d6a6` | `rev8_etki_donem_sonu_tam.csv`'de **tek hücre** farklı (aşağıda); `_baslangic`, `_zaman` aynı; `_ortam` farklı |
+    | `rev9_hazirlik`, `rev9_ritim`, `rev9_uygulama`, `rev10_hazirlik`, `rev10_son`, `rev10_uygulama` | koşulmadı | — | `rev8_etki` farkı üzerine durduruldu (görev: "fark varsa dur ve raporla"); kullanıcı kararı bekliyor |
+
+    **`rev8_etki` farkının nedeni (ölçüldü, kod değişikliğinden değil).** Fark: BNXUSDT dönem 0,
+    `funding_yok_evren` `False` → `True` (karşılaştırma: `degisen_sutunlar=funding_yok_evren:1`). Bu sütun
+    `universe.csv`'deki `donem_funding_yok` değerinden gelir (`rev8_etki.main`, `fy` eşlemi). `82a0465`
+    ("universe.csv: BNXUSDT d0 funding'siz (rev.8 sayım penceresi)", 2026-09-22 23:24) tam bu hücreyi
+    `False`→`True` yaptı; `rev8_etki`'nin önceki koşusu ise o commit'ten önceydi (2026-09-22 06:57, `09857aa`).
+    Yani eski çıktı bayattı, yeni çıktı bugünkü evren tablosuyla tutarlıdır. Koşunun özet satırı da buna uyuyor:
+    "funding'siz: evren 3, rev.8 3" (önceki koşuda evren 2). İzin değişikliğiyle ilgisi yok: fark yalnızca evren
+    tablosundan okunan bir bayrakta, ham mum ya da funding verisinden hesaplanan hiçbir sütunda değil.
+
+    **Kapsam kararı.** §14.26 ve §14.27 bu turda genel hükümden arındırıldı; üç liste §14.27'de:
+    "Kapatılan yollar" (1–12), "Kapatılmayan yollar 1: kasıtlı ve çok adımlı" (K1–K13; K9–K13 bu turda eklendi) ve
+    "Kapatılmayan yollar 2: kazayla tetiklenebilir olduğu halde kapatılmayanlar" (KK1–KK4: iş parçacığı kapsamı,
+    doğrudan ağ çağrıları, SETTLED dizin grubu, `split.yukle` özel yükleyicisi). KK listesinin gerekçesi §14.27'de
+    yazılıdır. Hiçbir yeni koruma eklenmedi; KK1–KK4 ve K9–K13 açık nokta olarak kayıtlıdır ve F2'yi engellemez.
+
+    **xfail envanteri (33; üç grup).**
+    - **Rev.11 kararı bekleyen (1):** `f1_kapanis::test_gunluge_cevir_nan_hacimli_bari_tam_gun_sayar_kismi_toplar`
+      (NaN hacim; A6, Rev.11 madde 17).
+    - **Belgelenmiş sınır (24).** Önceki 15: `tur_d` eş zamanlı yazma (koruma koşu kilidinde), `tur_g` parçalı ad
+      (K7), `tur_j` değişkenle taşınan `None` (K7), `tur_p` P-8…P-14 (10; K2), `tur_q` zorla itme (2; K1).
+      Bu turda bu gruba taşınan 9'u (hepsi kapanış kararıyla açık noktaya döndü; §14.27'deki bağlandığı madde):
+      `tur_r` R1 iş parçacığı yarışı → **KK1**; R3a/R3b/R3c doğrudan ağ (3) → **KK2**; R2 SETTLED indirme → **KK3**;
+      R5 `mum_yukleyici` → **KK4**; R6 şemasız ve `file://` adres (2) → **K10**; R4 `.ipynb` onay taraması → **K12**.
+    - **Kapanmayı bekleyen (8).** `tur_p` P-6 `info/attributes` (2; ucuz düzeltme `git log --text`), P-7 `git replace`
+      (`--no-replace-objects`), P-15 ikili fark (2), P-16 koşu içinde satır silme; `tur_q` `main` dışı daldan koşu
+      (OK3 D-C3), ITILEMEDI mesajındaki push önerisi (OK3 D-C2). Bunlar K3/K4 yollarının ölçümleridir; ucuz
+      düzeltmeleri var ve bu tur bulgu kapatmadığı için açık bırakıldı.
+
+    **F2 öncesi kontrol listesi (bugünkü durum).**
+    1. **Yerel `main` itilmeli.** Bugün yerel `main`, `origin/main`'in (`f7009e5`) **84 commit** önünde;
+       `origin/main` yerelin gerisinde değil (0). İlk onay koşusu ancak eşitlikten sonra açılabilir: ilk koşunun
+       itme denemesi aksi hâlde itilmemiş bütün commit'leri tek atışın hemen öncesinde iter. (Sayı bu turun
+       commit'lerini içerir; tur raporundaki `git log` ile karşılaştırılabilir.)
+    2. **Zorla itme koruması.** GitHub'da `main` için zorla itme reddi (dal koruması) açılacak — kullanıcı yapacak.
+       Açıldığında §14.27 K1 kapanır. Depo dışı bir ayardır, kodla zorlanamaz.
+    3. **Kilit oturumu bekliyor** (kilitli dosyalar; `SHORT_LAB_KILIT_ACIK=1` ile, kullanıcının açık izniyle):
+       - CLAUDE.md §3.3, §5, §7 metinleri (onay kaydının git ve uzak depo bağı, izin ve tarama, `KILIT.md`);
+       - `KILIT.md`'nin kilitli dosya listesine eklenmesi;
+       - ONAY_KAYDI.md 6–10 ve 15. maddeleri;
+       - ONAY_KAYDI.md başlığındaki "Henuz onay kosusu yok." yer tutucu satırının silinmesi.
+    4. Bu listenin 1. maddesi kodda zorlanmıyor (OK4 D-C10); elle doğrulanır.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
@@ -3153,6 +3242,13 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   **Güncellenen mevcut testler:** §14.26 "Testler". Silinen ya da gevşetilen test yok; `tur_saldirilari_p`'de P-5
   kurulumunun ön koşul iddiası kaldırıldı (kurulum artık reddediliyor, bu ret iddia ediliyor). xfail'den çıkan:
   P-1…P-5 (6 kimlik). Yeni: `test_onbellek_taramasi` (9), `test_onay_kaydi_git`'e 5.
+- 2026-10-06 (onay kaydı çalışmasının kapanışı). §14.28 eklendi (izin alt süreçlere taşındı, doğrulama
+  koşuları, xfail envanteri, F2 öncesi kontrol listesi). §14.26 kapsam paragrafı genel hükümden arındırıldı ve üç
+  listeye bağlandı; §14.27'de izin kapsamı cümlesi düzeltildi (`__main__` bloğu; süreç içi sayaç), kalan yollar
+  tablosu "kasıtlı ve çok adımlı" (K1–K13) ve "kazayla tetiklenebilir olduğu halde kapatılmayan" (KK1–KK4) olarak
+  ikiye ayrıldı. Kod: `544939e`. Çıktılar: `580d6a6` (f1k_kume_sonu), `8494549` (rev8_etki; tek hücre farkı
+  `82a0465`'in evren düzeltmesinden). **Güncellenen mevcut testler:** yok (yalnızca yeni test ve 4 yeni tarama
+  biçimi). Silinen ya da gevşetilen test yok. xfail sayısı değişmedi (33).
 - 2026-09-30 (onay kaydı kapanışının son turu). §14.27 eklendi (kapanan ve kalan yollar adıyla, F2 öncesi kontrol
   listesi). §14.26 kapsam kararının iki cümlesi bugünkü kodla düzeltildi (eski metin madde içinde alıntılı). Kod:
   `e616e61` (önbellek yardımcılarında onay verisi izni, `--full-history`, itme denemesi, `origin` denetimi).
