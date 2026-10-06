@@ -8,6 +8,11 @@ gecici dizindedir; aga cikilmaz.
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -120,3 +125,85 @@ def test_kapili_yukleyici_b_sembolunu_kesifte_okumaz(onbellek, monkeypatch):
 def test_izin_neden_ister():
     with pytest.raises(ValueError):
         bv.onay_verisi_izni("  ")
+
+
+# --- Iznin alt sureclere tasinmasi (denetci OK4 D-B1) -------------------------
+
+KOK = Path(__file__).resolve().parents[1]
+
+# Alt surecte onay verisi denetimi: izin devralinmissa gecer, devralinmamissa `OnayVerisiKorumasi` verir.
+ALT_SUREC_KODU = f"""
+import sys
+sys.path.insert(0, r"{KOK}")
+from data import binance_vision as bv
+bv._onay_verisi_denetle("{B_SEMBOLU}", "2021-01", "alt surec")
+print("IZIN", bv._DEVRALINAN_IZIN["var"])
+"""
+
+
+def _alt_surec(ortam=None):
+    return subprocess.run([sys.executable, "-c", ALT_SUREC_KODU], capture_output=True, text=True,
+                          env=ortam if ortam is not None else os.environ.copy())
+
+
+def test_izin_baglami_ortam_degiskenini_ayarlar_ve_geri_alir():
+    assert bv._IZIN_ORTAM_ADI not in os.environ
+    with bv.onay_verisi_izni("test"):
+        assert os.environ[bv._IZIN_ORTAM_ADI] == str(os.getpid())
+        with bv.onay_verisi_izni("ic icinde"):  # ic baglam degeri bozmaz
+            assert os.environ[bv._IZIN_ORTAM_ADI] == str(os.getpid())
+        assert os.environ[bv._IZIN_ORTAM_ADI] == str(os.getpid())
+    assert bv._IZIN_ORTAM_ADI not in os.environ
+
+
+def test_izin_baglaminda_baslatilan_alt_surec_izni_devralir():
+    with bv.onay_verisi_izni("test"):
+        sonuc = _alt_surec()
+    assert sonuc.returncode == 0, sonuc.stderr
+    assert sonuc.stdout.strip() == "IZIN True"
+
+
+def test_izin_disinda_baslatilan_alt_surec_onay_verisini_okumaz():
+    sonuc = _alt_surec()
+    assert sonuc.returncode != 0
+    assert "OnayVerisiKorumasi" in sonuc.stderr
+
+
+def test_bayat_ya_da_elle_ayarlanmis_ortam_degiskeni_izin_vermez():
+    """Deger ust surecin pid'i degilse devralinmaz (kabukta elle ayarlanmis ya da bayat degisken)."""
+    ortam = os.environ.copy()
+    ortam[bv._IZIN_ORTAM_ADI] = str(os.getpid() + 7919)
+    sonuc = _alt_surec(ortam)
+    assert sonuc.returncode != 0
+    assert "OnayVerisiKorumasi" in sonuc.stderr
+    ortam[bv._IZIN_ORTAM_ADI] = "izin"  # sayi olmayan deger
+    assert "OnayVerisiKorumasi" in _alt_surec(ortam).stderr
+
+
+HAVUZ_KODU = f"""
+import sys
+sys.path.insert(0, r"{KOK}")
+from concurrent.futures import ProcessPoolExecutor
+from data import binance_vision as bv
+
+
+def isci(_):
+    \"\"\"Isci surecte (Windows'ta spawn) onay verisi okunabiliyor mu.\"\"\"
+    bv._onay_verisi_denetle("{B_SEMBOLU}", "2021-01", "isci")
+    return bv._DEVRALINAN_IZIN["var"]
+
+
+if __name__ == "__main__":
+    with bv.onay_verisi_izni("F1 veri denetimi: havuz"):
+        with ProcessPoolExecutor(max_workers=2) as havuz:
+            print("ISCI", list(havuz.map(isci, range(2))))
+"""
+
+
+def test_process_havuzu_iscileri_izni_devralir(tmp_path):
+    """F1 betiklerinin deseni: izin baglami icinde acilan `ProcessPoolExecutor`. Gercek surec baslatir."""
+    betik = tmp_path / "havuz_betigi.py"
+    betik.write_text(HAVUZ_KODU, encoding="utf-8")
+    sonuc = subprocess.run([sys.executable, str(betik)], capture_output=True, text=True, env=os.environ.copy())
+    assert sonuc.returncode == 0, sonuc.stderr
+    assert sonuc.stdout.strip() == "ISCI [True, True]"

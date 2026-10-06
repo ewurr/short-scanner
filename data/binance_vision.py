@@ -80,8 +80,9 @@ class VeriYok(Exception):
 # Izin disinda onay verisi okuma denemesi `OnayVerisiKorumasi` verir; boylece analiz kodunda kolaylik icin yazilan
 # `bv.onbellekten_oku(...)` ya da `klines.ham_mumlari_yukle(...)` kazayla onay verisi okuyamaz. `onay_verisi_izni`
 # adi analiz kodunda taramayla yasaktir (`tests/tarama_yardimcisi.ONBELLEK_DESENI`). Izin surec genelidir (is
-# parcaciklari gorur: F1 denetimi paralel indirir); kasitli bir atlatma (izni analiz kodunda acmak, `_IZIN`i
-# degistirmek) taramaya takilir ya da kodda gorunur.
+# parcaciklari gorur: F1 denetimi paralel indirir) ve baglam icinde baslatilan alt sureclere ortam degiskeniyle
+# tasinir (asagidaki not; `ProcessPoolExecutor` kullanan F1 betikleri); kasitli bir atlatma (izni analiz kodunda
+# acmak, `_IZIN`i ya da ortam degiskenini degistirmek) taramaya takilir ya da kodda gorunur.
 
 
 class OnayVerisiKorumasi(PermissionError):
@@ -92,25 +93,66 @@ _IZIN_KILIDI = threading.Lock()
 _IZIN = {"sayac": 0}
 _ONBELLEK_TURLERI = ("klines", "funding", "klines_birincil_1d")  # <tur>/<SEMBOL>/.../<YYYY-MM>.parquet
 
+# Izin alt sureclere tasinir (denetci OK4 D-B1): F1 denetim betiklerinin yedisi `ProcessPoolExecutor` kullanir ve
+# Windows'ta isci surecler `spawn` ile bastan baslar; surec icinde tutulan sayac onlara gecmez, isci icindeki ham
+# yukleme `OnayVerisiKorumasi` ile duserdi. Izin bu yuzden ortam degiskeniyle de tasinir: baglam acilirken
+# `SHORT_LAB_ONAY_VERISI_IZNI` acan surecin pid'ine ayarlanir, baglam kapanirken eski degerine doner. Yeni surec
+# (spawn ortami devralir) import aninda degiskeni gorur ve DEGER KENDI UST SURECININ pid'i ise izni devralir;
+# devralan surec degeri kendi pid'iyle gunceller, boylece torun surecler de devralir.
+#
+# Pid denetimi, kabukta elle ayarlanmis ya da bayat bir degiskenin korumayi tumden kapatmasini onler; kararli bir
+# atlatmayi (degiskeni kendi kabuk pid'iyle ayarlayip betik calistirmak) onlemez. Degiskenin adi analiz kodunda
+# taramayla yasaktir (`tests/tarama_yardimcisi.ONBELLEK_DESENI`).
+_IZIN_ORTAM_ADI = "SHORT_LAB_ONAY_VERISI_IZNI"
+_DEVRALINAN_IZIN = {"var": False}
+
+
+def _izni_devral() -> None:
+    """Import aninda bir kez: ust surec izin baglami icinde bu sureci baslattiysa izni devralir. Yan etkili."""
+    deger = os.environ.get(_IZIN_ORTAM_ADI)
+    if not deger:
+        return
+    try:
+        acan = int(deger)
+    except ValueError:
+        return
+    if acan != os.getppid():  # bayat ya da elle ayarlanmis degisken
+        return
+    _DEVRALINAN_IZIN["var"] = True
+    os.environ[_IZIN_ORTAM_ADI] = str(os.getpid())  # torun surecler de devralsin
+
 
 class onay_verisi_izni:  # noqa: N801  (baglam yoneticisi; `with bv.onay_verisi_izni("neden"):`)
     """Onay verisinin okunmasina izin veren baglam. YALNIZCA veri katmani (kapidan gecmis yukleyiciler, evren
-    kurulumu) ve F1 veri denetimi icindir; analiz kodunda taramayla yasaktir."""
+    kurulumu) ve F1 veri denetimi icindir; analiz kodunda taramayla yasaktir. Baglam icinde baslatilan alt
+    surecler izni devralir (yukaridaki not)."""
 
     def __init__(self, neden: str):
         if not isinstance(neden, str) or not neden.strip():
             raise ValueError("onay_verisi_izni bir neden ister.")
         self.neden = neden
+        self._onceki_ortam = None
 
     def __enter__(self):
         with _IZIN_KILIDI:
             _IZIN["sayac"] += 1
+            if _IZIN["sayac"] == 1:
+                self._onceki_ortam = os.environ.get(_IZIN_ORTAM_ADI)
+                os.environ[_IZIN_ORTAM_ADI] = str(os.getpid())
         return self
 
     def __exit__(self, *_):
         with _IZIN_KILIDI:
             _IZIN["sayac"] -= 1
+            if _IZIN["sayac"] == 0:
+                if self._onceki_ortam is None:
+                    os.environ.pop(_IZIN_ORTAM_ADI, None)
+                else:
+                    os.environ[_IZIN_ORTAM_ADI] = self._onceki_ortam
         return False
+
+
+_izni_devral()  # import aninda: bu surec bir izin baglami icinde baslatildiysa izin devralinir
 
 
 def onay_verisi_mi(sembol: str, ay: str) -> bool:
@@ -128,7 +170,7 @@ def onay_verisi_mi(sembol: str, ay: str) -> bool:
 
 
 def _onay_verisi_denetle(sembol: str, ay: str, kaynak: str) -> None:
-    if _IZIN["sayac"] > 0 or not onay_verisi_mi(sembol, ay):
+    if _IZIN["sayac"] > 0 or _DEVRALINAN_IZIN["var"] or not onay_verisi_mi(sembol, ay):
         return
     raise OnayVerisiKorumasi(
         f"{kaynak}: {sembol} {ay} onay verisidir (B grubu ya da C2 donemi); onbellek ve indirme yardimcilari onu "

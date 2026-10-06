@@ -25,6 +25,11 @@ def test_analiz_kodunda_onbellege_dogrudan_erisim_yok():
     ("k.py", "bv._IZIN['sayac'] = 1\n"),
     ("k.py", "govde = zip_indir(anahtar)\n"),
     ("k.pyw", "df = pd.read_parquet(p)\n"),
+    # Kapanis (OK4 D-B1): izin alt sureclere ortam degiskeniyle tasiniyor; degiskeni analiz kodu ayarlayamaz.
+    ("k.py", 'os.environ["SHORT_LAB_ONAY_VERISI_IZNI"] = str(os.getpid())\n'),
+    ("k.py", "os.environ[bv._IZIN_ORTAM_ADI] = str(os.getpid())\n"),
+    ("k.py", "bv._izni_devral()\n"),
+    ("k.py", "bv._DEVRALINAN_IZIN['var'] = True\n"),
 ])
 def test_onbellek_deseni_yakalar(tmp_path, ad, metin):
     (tmp_path / "study").mkdir()

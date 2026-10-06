@@ -128,5 +128,8 @@ ONBELLEK_DESENI = (
     r"\bONBELLEK_DIZINI\b|[\"'/\\](?i:cache)[\"'/\\]"
     r"|\bbinance_\w+|\bonbellek(_yolu|ten_oku|e_yaz)\b|\bzip_indir\b|\bonay_verisi_izni\b|\b_IZIN\b"
     r"|\bread_parquet\b|\.parquet\b"
+    # Kapanis (denetci OK4 D-B1): izin alt sureclere ortam degiskeniyle tasinir; degiskenin adi ve devralma
+    # yardimcilari da desende (analiz kodu izni bir alt surec baslatarak da acamaz).
+    r"|\bSHORT_LAB_ONAY_VERISI_IZNI\b|\b_IZIN_ORTAM_ADI\b|\b_DEVRALINAN_IZIN\b|\b_izni_devral\b"
 )
 ONBELLEK_UZANTILARI = (".py", ".ipynb", ".pyw")
