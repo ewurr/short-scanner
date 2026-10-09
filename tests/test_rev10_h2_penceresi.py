@@ -6,6 +6,9 @@ payiyla). Capa pencere basinda ya da oncesinde kalan son kayittir ve donem basi 
 gec olanindan once olamaz. Zincir capadan pencere sonuna kadar; ilk ciftte taban pencere basi. Son
 kosulu uygulanmaz. Her kaydin araligi sonlu ve > 0. t'nin kapanisindan sonraki hicbir kayit
 okunmaz. Pencerenin tamami kumenin icinde olmali; kume siniri karsilastirmalari toleransla.
+Rev.11 (madde 8) buna AYRI bir kosul ekledi: pencere sonu kume sonundan sonraysa, o ana denk
+gelen kayit sonraki kumeye ait olacagi icin okunmaz ve deger hesaplanmaz (kumenin son barlari
+duser). Iki kosul ayri sutunlardir: `kume_icinde` (toleransli) ve `kume_sonu_kaydi_disarida`.
 
 Testlerdeki oranlar sentetiktir (gercek veri okunmaz). Aga cikmaz.
 """
@@ -168,29 +171,46 @@ def test_pencere_basi_donem_basindan_onceyse_nan():
     assert np.isnan(_ort(fund, donem_baslangic=BAS + pd.Timedelta(minutes=1)))
 
 
-def test_kumenin_son_bari_dusmez():
-    """KESIF sonu 23:59:59; son barin (20:00) kapanisi 00:00. Fark 1 sn: ayni an; bar dusmez."""
+def test_kumenin_son_bari_kume_icinde_sayilir_ama_rev11_kuraliyla_duser():
+    """Rev.10'un `kume_icinde` kosulu TOLERANSLIDIR ve kumenin son barini DUSURMEZ: KESIF sonu
+    23:59:59, son barin (20:00) kapanisi 00:00, fark 1 sn, ayni an.
+
+    REV.11 (madde 8) bu barlari AYRI bir kosulla dusurur: pencere sonuna denk gelen kayit
+    sonraki kumeye aittir ve okunmaz ("Bu, kesif kumesinin son barlarini dusurur"). Yani iki
+    kosul ayri ayri okunur: `kume_icinde` hala True, `hesaplanabilir` False. Rev.11 oncesi bu
+    test `_ort(...)`'in NaN OLMADIGINI sabitliyordu; on-kayit o okumayi degistirdi."""
     kume_son = T0.floor("D") + H(24) - SN(1)
     assert kume_son == T("2030-06-10 23:59:59")
     fund = _sekiz_saatlik()
-    assert not np.isnan(_ort(fund, kume_bitis=kume_son))
+    a = funding.sinyal_penceresi_ayrintisi(fund, [T0], config.BAR_4H, saat=24, kume_baslangic=None,
+                                           kume_bitis=kume_son, donem_baslangic=DB).iloc[0]
+    assert bool(a["kume_icinde"]), "rev.10'un toleransli kosulu son bari dusurmez"
+    assert not bool(a["kume_sonu_kaydi_disarida"]) and not bool(a["hesaplanabilir"])
+    assert np.isnan(_ort(fund, kume_bitis=kume_son))
     assert np.isnan(_ort(fund, kume_bitis=KAPANIS - pd.Timedelta(minutes=1)))
     assert np.isnan(_ort(fund, kume_bitis=KAPANIS - H(4)))
+    # Bir onceki bar (16:00; kapanisi 20:00) kume sonundan once biter ve hesaplanir.
+    assert not np.isnan(_ort(fund, T0 - H(4), kume_bitis=kume_son))
 
 
-def test_gercek_kesif_siniri_ile_son_bar_kume_icinde():
-    """KESIF'in son bari (08-31 20:00) gercek kume sinirlariyla kume icinde sayilir ve hesaplanir.
+def test_gercek_kesif_siniri_ile_son_bar_kume_icinde_ama_hesaplanamaz():
+    """KESIF'in son bari (08-31 20:00) gercek kume sinirlariyla KUME ICINDE sayilir; Rev.11'den
+    beri hesaplanamaz.
 
     Veri katmani (`funding_yukle`) funding'i kumeye HAM karsilastirmayla keser; 09-01 00:00 kaydi
     (C2'nin ilk kaydi) KESIF serisinde yoktur. Bu kaydin pencereye girip girmedigi on-kayitta iki
-    bicimde okunabildigi icin veri katmani degistirilmedi (Rev.10 uygulama raporu, madde 1); bu test
-    yalnizca pencerenin kume icinde sayildigini sabitler."""
+    bicimde okunabiliyordu ve veri katmani degistirilmemisti (Rev.10 uygulama raporu, madde 1;
+    denetci Rev.10 D-C1). ON-KAYIT REV.11 (madde 8) kurali yazdi: o kayit sonraki kumeye aittir,
+    okunmaz ve o barda deger hesaplanmaz. Kural kaydin VARLIGINA bakmaz (seri kesilmis olsa da
+    uygulanir), boylece kumeler arasi veri odunc alinmamasi (on-kayit §3) verinin kesilmis
+    olmasina dayanmaz."""
     k_bas, k_son = config.KESIF_BASI, config.KESIF_SONU
     t = T("2025-08-31 20:00")
     fund = _seri(pd.date_range(T("2025-08-25"), T("2025-08-31 16:00"), freq="8h"))
     a = funding.sinyal_penceresi_ayrintisi(fund, [t], config.BAR_4H, saat=24, kume_baslangic=k_bas,
                                            kume_bitis=k_son, donem_baslangic=DB - pd.Timedelta(days=4000)).iloc[0]
-    assert bool(a["kume_icinde"]) and bool(a["hesaplanabilir"])
+    assert bool(a["kume_icinde"])
+    assert not bool(a["kume_sonu_kaydi_disarida"]) and not bool(a["hesaplanabilir"])
 
 
 # --- Zorunluluk ve tek uygulama ---------------------------------------------------------------------

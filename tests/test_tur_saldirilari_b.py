@@ -354,26 +354,49 @@ def test_d_kurali_olc_ikinci_donem_kayitlari_birinci_donemin_hesabina_sizmaz():
 
 
 def test_d_kurali_olc_oran_sutunu_olmadan_sayim_degismez():
-    """SALDIRI: `d_kurali_olc` yalniz zaman damgasi ve aralik kullanmali; 'oran'
-    sutunu hic yoksa ya da NaN'sa disarida_kalan/tamlik sayimlari DEGISMEMELI
-    (bu bir olcum betigidir, deger hesaplamaz -- CLAUDE.md §3.1)."""
+    """SALDIRI: `d_kurali_olc` yalniz zaman damgasi ve aralik kullanmali; 'oran' sutunu hic
+    yoksa ya da oranlarin DEGERI ne olursa olsun disarida_kalan/tamlik sayimlari DEGISMEMELI
+    (bu bir olcum betigidir, deger hesaplamaz -- anayasa §3.1).
+
+    REV.11 NOTU (madde 8): on-kayit §4 "Gecerli oran" tamlik kuralina kayit duzeyinde bir oran
+    kosulu ekledi: "Pozisyonun funding penceresine giren her kaydin oran degeri sonlu bir sayi
+    olmalidir." Bu yuzden NaN oranli seri artik tamligi DEGISTIRIR ve testin NaN kolu ayri bir
+    teste tasindi (asagida). Oranin DEGERI hala okunmaz; okunan sey sonlu olup olmadigidir --
+    bu bir tamlik bilgisidir, §3.1'in yasakladigi deger analizi degildir."""
     bitis0 = T("2025-04-14 08:00")
     donem0 = Donem(T("2025-04-01 00:00"), bitis0, 80, 80)
     zamanlar = _ritim("2025-04-12 00:00", "2025-04-14 12:00", 4)
 
     fund_normal = _fund(zamanlar, oran=[0.0002] * len(zamanlar))
+    fund_buyuk = _fund(zamanlar, oran=[-5.0] * len(zamanlar))  # sonlu ama cok farkli DEGER
     fund_oransiz = pd.DataFrame({
         "odeme_zamani": pd.DatetimeIndex(sorted(zamanlar)), "aralik_saat": 4.0,
     })  # 'oran'/'oran_8h' sutunlari YOK
-    fund_nan_oran = _fund(zamanlar, oran=[float("nan")] * len(zamanlar))
 
     satir_normal = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"], fund_normal)[0]
+    satir_buyuk = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"], fund_buyuk)[0]
     satir_oransiz = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"], fund_oransiz)[0]
-    satir_nan = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"], fund_nan_oran)[0]
 
     for anahtar in ("disarida_kalan", "tamlik", "capa_var", "aralik_gecerli", "zincir_tam",
                     "son_tam"):  # Rev.9 kosul adlari
-        assert satir_normal[anahtar] == satir_oransiz[anahtar] == satir_nan[anahtar], anahtar
+        assert satir_normal[anahtar] == satir_buyuk[anahtar] == satir_oransiz[anahtar], anahtar
+
+
+def test_d_kurali_olc_nan_oran_rev11den_beri_tamligi_degistirir():
+    """Rev.11 madde 8 ("Gecerli oran"): NaN oranli bir kayit pozisyonun funding'ini TAM OLMAYAN
+    yapar. Olcum betigi gercek tamlik kodunu cagirdigi icin sayim da degisir. Bu, kuralin
+    beklenen sonucudur; betik yine oranin DEGERINI okumaz."""
+    bitis0 = T("2025-04-14 08:00")
+    donem0 = Donem(T("2025-04-01 00:00"), bitis0, 80, 80)
+    zamanlar = _ritim("2025-04-12 00:00", "2025-04-14 12:00", 4)
+    normal = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"],
+                             _fund(zamanlar, oran=[0.0002] * len(zamanlar)))[0]
+    nan_satir = a1.d_kurali_olc("X", [donem0], ["delist_SETTLING"],
+                                _fund(zamanlar, oran=[float("nan")] * len(zamanlar)))[0]
+    assert nan_satir["tamlik"] != normal["tamlik"]
+    # Rev.9 kosullari degismedi: dusuren kural yalnizca yeni oran kosuludur.
+    for anahtar in ("capa_var", "aralik_gecerli", "zincir_tam", "son_tam"):
+        assert nan_satir[anahtar] == normal[anahtar], anahtar
 
 
 def test_donem_sonu_turleri_dolgu_ile_bitisik_uzun_boslukta_dolgu_onceliklidir():

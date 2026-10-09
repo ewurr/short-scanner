@@ -138,18 +138,25 @@ def test_1d_sinyal_gunu_eksikse_olay_olusmaz():
 
 
 def test_funding_kaydinda_inf_oran_pozisyonu_reddeder():
-    """Pozisyon penceresi icindeki (giristen sonraki) bir kayitta oran = inf: onaylanmaz."""
+    """Pozisyon penceresi icindeki (giristen sonraki) bir kayitta oran = inf: onaylanmaz.
+
+    REV.11 madde 8 ("Gecerli oran") bu durumu TANIMLADI: "NaN, +sonsuz ya da -sonsuz oran
+    tasiyan pozisyonun funding'i tam degildir ve pozisyon olusmaz." Yani bu bir VeriHatasi
+    degil bir RET GEREKCESIDIR; denetim kayit duzeyinde (`oran_gecerli`) yapilir ve kapi
+    `_sonlu`ya hic ulasmaz. Rev.11 oncesi beklenti "funding toplami sonlu degil" (ValueError)
+    idi."""
     p = _karar()
     icerde = FUND.index[(FUND["odeme_zamani"] > p.plan.giris) & (FUND["odeme_zamani"] <= p.plan.cikis_ani)]
     for deger in (float("inf"), float("-inf")):
         fr = FUND.copy()
         fr.loc[icerde[0], "oran"] = deger
-        with pytest.raises(ValueError, match="funding toplami sonlu degil"):
+        with pytest.raises(pozisyon.FundingTamDegil):
             _karar(fr=fr)
 
 
 def test_nan_oran_funding_tam_degil_olarak_kalir():
-    """NaN oran onceki davranisinda kalir (FundingTamDegil; Rev.10 D-C5 Rev.11'i bekliyor)."""
+    """NaN oran onceki davranisinda kalir (FundingTamDegil). Rev.11 madde 8 bunu on-kayita
+    yazdi ve ayni gerekceyi +-sonsuza da genisletti (yukaridaki test)."""
     p = _karar()
     fr = FUND.copy()
     fr.loc[FUND.index[FUND["odeme_zamani"] > p.plan.giris][0], "oran"] = float("nan")

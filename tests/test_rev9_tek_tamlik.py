@@ -85,7 +85,12 @@ def test_capa_duzeltme_vektorel_sonucu_gercek_kodla_ayni():
     sonlar = [g + pd.Timedelta(hours=h) for g, h in zip(girisler, [0, 4, 6, 8, 12, 16, 20, 24, 28, 30])]
     cd = r9.capa_duzeltme_tamlik_ayrintisi(seri, girisler, sonlar, [BAS] * 10)
     g = funding_modulu.funding_tamlik_ayrintisi(seri, girisler, sonlar, donem_baslari=[BAS] * 10)
-    for k in (*funding_modulu.TAMLIK_KOSULLARI, "tam", "kuyruk_kismi", "kuyruk_sifir", "son_esitlik_affi"):
+    # `oran_gecerli` Rev.11'de (madde 8) eklendi ve Rev.9 doneminin olcum yeniden kurulumunda
+    # yok; karsilastirma Rev.9'un kosullariyla yapilir. `tam` yine karsilastirilir: bu fiksturde
+    # butun oranlar sonlu oldugu icin yeni kosul `tam`i degistirmez.
+    rev9_kosullari = tuple(k for k in funding_modulu.TAMLIK_KOSULLARI if k != "oran_gecerli")
+    assert "oran_gecerli" not in cd
+    for k in (*rev9_kosullari, "tam", "kuyruk_kismi", "kuyruk_sifir", "son_esitlik_affi"):
         assert cd[k].tolist() == g[k].tolist(), k
 
 

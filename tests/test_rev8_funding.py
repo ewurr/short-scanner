@@ -215,11 +215,44 @@ def test_vektorel_ayrinti_tekil_sonucla_ayni():
 
 
 def test_tamlik_kodu_oran_okumaz():
-    """Oran sutununa yalnizca toplama icin (`pozisyon_fundingi`) erisilir; tamlik kodu okumaz."""
-    for fonk in (funding.funding_tamlik_ayrintisi, funding.pozisyon_funding_tam_mi, funding.funding_penceresi_sonu,
-                 funding.donemde_funding_var, funding.donem_sonrasi_kayitlari_at):
+    """Oran sutununa yalnizca toplama icin (`pozisyon_fundingi`) erisilir; tamlik kodunun geri
+    kalani okumaz.
+
+    REV.11 NOTU: on-kayit §4 "Funding tamligi / Gecerli oran" (rev.11) tamlik kuralina kayit
+    duzeyinde bir oran kosulu ekledi ("Pozisyonun funding penceresine giren her kaydin oran
+    degeri sonlu bir sayi olmalidir"). Bu yuzden `funding_tamlik_ayrintisi` ve onu cagiran
+    `pozisyon_funding_tam_mi` artik `oran` sutununa dokunur; bu iki fonksiyon listeden cikarildi
+    ve yerine asagidaki DAVRANIS testi geldi: oranin DEGERI tamligi degistirmez, yalnizca sonlu
+    olup olmadigi degistirir. Davranis testi AST taramasindan daha guclu bir iddiadir."""
+    for fonk in (funding.funding_penceresi_sonu, funding.donemde_funding_var,
+                 funding.donem_sonrasi_kayitlari_at):
         agac = ast.parse(textwrap.dedent(inspect.getsource(fonk)))
         belge = ast.get_docstring(agac.body[0])
         sabitler = {d.value for d in ast.walk(agac) if isinstance(d, ast.Constant) and isinstance(d.value, str)
                     and d.value != belge}
         assert not (sabitler & {"oran", "oran_8h"}), fonk.__name__
+
+
+def test_tamlik_sonlu_oran_degerinden_bagimsiz():
+    """`funding_tamlik_ayrintisi` oranin DEGERINI okumaz: sonlu oranlar ne olursa olsun butun
+    tamlik sutunlari ayni kalir (on-kayit §4 rev.11 "Gecerli oran": denetim yalnizca sonlu bir
+    sayi olup olmadigidir, "toplamin isaretine ya da buyuklugune bakilmaz")."""
+    zamanlar = pd.date_range(T("2025-01-01"), T("2025-01-10"), freq="8h")
+    giris = [T("2025-01-02 00:00")]
+    sonlar = [T("2025-01-05 00:00")]
+    baslar = [T("2025-01-01")]
+    taban = funding.funding_tamlik_ayrintisi(_kayit(zamanlar, oran=1e-4), giris, sonlar, donem_baslari=baslar)
+    rng = np.random.default_rng(0)
+    for oran in (0.0, -5.0, 1e6, 1e-12):
+        kayit = _kayit(zamanlar, oran=oran)
+        pd.testing.assert_frame_equal(
+            funding.funding_tamlik_ayrintisi(kayit, giris, sonlar, donem_baslari=baslar), taban)
+    kayit = _kayit(zamanlar)
+    kayit["oran"] = rng.normal(0, 1.0, len(kayit))  # rastgele ama SONLU oranlar
+    pd.testing.assert_frame_equal(
+        funding.funding_tamlik_ayrintisi(kayit, giris, sonlar, donem_baslari=baslar), taban)
+    # Sonlu OLMAYAN oran ise tamligi bozar (ayni fonksiyon, ayni pencere).
+    kayit = _kayit(zamanlar)
+    kayit.loc[kayit["odeme_zamani"] == T("2025-01-03 00:00"), "oran"] = float("inf")
+    bozuk = funding.funding_tamlik_ayrintisi(kayit, giris, sonlar, donem_baslari=baslar)
+    assert not bool(bozuk["oran_gecerli"].iloc[0]) and not bool(bozuk["tam"].iloc[0])

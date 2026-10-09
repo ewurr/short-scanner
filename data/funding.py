@@ -197,14 +197,17 @@ def donemde_funding_var(funding: pd.DataFrame, donem, bar: str) -> bool:
 # iki kural girdi (kume sonundaki kayit ve sonlu olmayan oran); ikisi de bu bolumde uygulanir.
 SINYAL_PENCERESI_REVIZYONU = 11
 
-SINYAL_PENCERESI_SUTUNLARI = ("hesaplanabilir", "kume_icinde", "capa_var", "aralik_gecerli", "zincir_tam",
-                              "kayit_var", "ilk", "son")
+SINYAL_PENCERESI_SUTUNLARI = ("hesaplanabilir", "kume_icinde", "kume_sonu_kaydi_disarida", "capa_var",
+                              "aralik_gecerli", "zincir_tam", "kayit_var", "ilk", "son")
 
 
 def sinyal_penceresi_ayrintisi(funding: pd.DataFrame, t_ler, bar: str, *, saat: int, kume_baslangic,
                                kume_bitis, donem_baslangic) -> pd.DataFrame:
     """H2 funding sinyal penceresinin kurallari, t basina (vektorel). Yalnizca odeme ZAMANI ve ARALIGI
-    okunur; oran okunmaz. `funding_ortalamasi` degeri bunun ustune kurar.
+    okunur; oran bu fonksiyonun hicbir kararina girmez. (Cagirdigi `funding_tamlik_ayrintisi`
+    Rev.11'den beri oranin SONLU olup olmadigini da hesaplar -- `oran_gecerli` --, ama bu
+    fonksiyon o sutunu okumaz: sinyal penceresinin oran kosulu `funding_ortalamasi`dedir.)
+    `funding_ortalamasi` degeri bunun ustune kurar.
 
     On-kayit §4 "Funding sinyal penceresinin tamligi" (rev.9, rev.10):
       - Pencere t barinin kapanisinda biter ve `saat` saat geriye uzanir; YARI ACIKTIR: pencere
@@ -220,6 +223,17 @@ def sinyal_penceresi_ayrintisi(funding: pd.DataFrame, t_ler, bar: str, *, saat: 
         taban pencere basi; dizideki her kaydin araligi sonlu ve > 0 ("Gecerli aralik", rev.10).
         **Son kosulu uygulanmaz** (`son_tam` okunmaz).
       - `kayit_var`: pencerede en az bir kayit (ortalama tanimli).
+      - `kume_sonu_kaydi_disarida` (rev.11): "Pencere sonuna denk gelen kayit yalnizca AYNI
+        KUMEYE aitse ortalamaya girer: sonraki kumenin ilk kaydi, tolerans payiyla pencere sonuna
+        denk gelse bile okunmaz ve o barda deger hesaplanmaz, cunku §3 geregi kumeler arasi veri
+        odunc alinmaz." Pencere sonuna denk gelen kaydin hangi kumeye ait oldugu TAKVIMLE
+        belirlenir: pencere sonu (t barinin kapanisi) kume sonundan sonraysa (TOLERANSSIZ
+        karsilastirma) o ana denk gelen kayit sonraki kumenin kaydidir ve pencere hesaplanamaz.
+        Bu kosul `kume_icinde`den ayridir: `kume_icinde` rev.10'un kuralidir ve toleransli
+        kalir (kumenin son barinin kapanisi ile kume sonu arasindaki bir saniye ayni andir), bu
+        yuzden kumenin son barini dusurmez; rev.11'in kosulu ise tam o barlari dusurur
+        ("Bu, kesif kumesinin son barlarini dusurur"). Kume sonu verilmemisse (None) kosul
+        uygulanmaz.
     `hesaplanabilir` = hepsi. Kapanistan sonraki kayitlar karara girmez (zincir ve aralik yalnizca
     capadan pencere sonuna); `funding_ortalamasi` seriyi ayrica kapanista keser. Sinirlar zorunlu
     anahtar sozcuktur; donem basi None olamaz, kume siniri yoksa acikca None. Saf.
@@ -249,6 +263,15 @@ def sinyal_penceresi_ayrintisi(funding: pd.DataFrame, t_ler, bar: str, *, saat: 
         kume_icinde &= ~np.asarray(once(bas, kume_bas), dtype=bool)
     if kume_son is not None:
         kume_icinde &= ~np.asarray(sonra(kapanis, kume_son), dtype=bool)
+    # Kume sonundaki kayit (rev.11): pencere sonu kume sonundan sonraysa, pencere sonuna denk
+    # gelen kayit SONRAKI kumeye aittir ve okunamaz. Karsilastirma TOLERANSSIZ: §4 "Zaman
+    # toleransi" iki ani ayni sayar, ama kume UYELIGI takvim sorusudur (KESIF 23:59:59'da biter,
+    # C2 00:00:00'da baslar) ve on-kayit bu kaydin "tolerans payiyla pencere sonuna denk gelse
+    # bile" okunmayacagini yazar.
+    if kume_son is not None:
+        kume_sonu_kaydi_disarida = ~np.asarray(kapanis > kume_son, dtype=bool)
+    else:
+        kume_sonu_kaydi_disarida = np.ones(n, dtype=bool)
 
     taban = donem_bas if kume_bas is None else max(donem_bas, kume_bas)
     tamlik = funding_tamlik_ayrintisi(funding, bas, kapanis, donem_baslari=[taban] * n)
@@ -263,6 +286,7 @@ def sinyal_penceresi_ayrintisi(funding: pd.DataFrame, t_ler, bar: str, *, saat: 
         son = np.full(n, -1, dtype=int)
     sonuc = pd.DataFrame({
         "kume_icinde": kume_icinde,
+        "kume_sonu_kaydi_disarida": kume_sonu_kaydi_disarida,
         "capa_var": tamlik["capa_var"].to_numpy(dtype=bool),
         "aralik_gecerli": tamlik["aralik_gecerli"].to_numpy(dtype=bool),
         "zincir_tam": tamlik["zincir_tam"].to_numpy(dtype=bool),
@@ -270,8 +294,8 @@ def sinyal_penceresi_ayrintisi(funding: pd.DataFrame, t_ler, bar: str, *, saat: 
         "ilk": np.asarray(ilk, dtype=int),
         "son": np.asarray(son, dtype=int),
     })
-    sonuc.insert(0, "hesaplanabilir", sonuc["kume_icinde"] & sonuc["capa_var"] & sonuc["aralik_gecerli"]
-                 & sonuc["zincir_tam"] & sonuc["kayit_var"])
+    sonuc.insert(0, "hesaplanabilir", sonuc["kume_icinde"] & sonuc["kume_sonu_kaydi_disarida"]
+                 & sonuc["capa_var"] & sonuc["aralik_gecerli"] & sonuc["zincir_tam"] & sonuc["kayit_var"])
     return sonuc
 
 
@@ -291,8 +315,10 @@ def funding_ortalamasi(
     Pencere kurallari `sinyal_penceresi_ayrintisi`dir (on-kayit §4 "Funding sinyal penceresinin
     tamligi", rev.9 + rev.10): yari acik pencere (basa denk gelen kayit girmez, sona denk gelen girer),
     capa, zincir (ilk ciftte taban pencere basi), gecerli aralik, son kosulu yok, pencerenin tamami
-    kumenin icinde. "t barinin kapanisindan sonraki hicbir kayit okunmaz": seri, hicbir denetimden
-    once kapanisla ayni an ya da once olan kayitlara kesilir. Penceredeki bir oran NaN ise NaN.
+    kumenin icinde, pencere sonundaki kaydin ayni kumeye ait olmasi (rev.11). "t barinin
+    kapanisindan sonraki hicbir kayit okunmaz": seri, hicbir denetimden once kapanisla ayni an ya
+    da once olan kayitlara kesilir. Penceredeki bir oran sayi degilse ya da sonlu degilse (NaN,
+    +-sonsuz) deger hesaplanmaz (rev.11).
     Bir dakikadan yakin iki kayit bozuk veridir -> `ZamanDizisiHatasi`.
 
     Tum sinirlar zorunlu anahtar sozcuktur (kume sonu Rev.10 ile eklendi). Donem basi None olamaz;
@@ -312,14 +338,17 @@ def funding_ortalamasi(
     if not bool(a["hesaplanabilir"]):
         return float("nan")
     oran = pd.to_numeric(gecmis["oran_8h"].iloc[int(a["ilk"]):int(a["son"]) + 1], errors="coerce")
-    if oran.isna().any():
+    # On-kayit §4 rev.11: "Penceredeki kayitlarin oranlarindan biri sayi degilse ya da sonlu
+    # degilse ortalama hesaplanmaz." NaN'in yaninda +-sonsuz da elenir (rev.11'den once yalnizca
+    # NaN denetleniyordu; sonsuz bir oran ortalamayi sonsuz yapiyordu).
+    if not bool(np.isfinite(oran.to_numpy(dtype=float)).all()):
         return float("nan")
     return float(oran.mean())
 
 
 # --- Pozisyon funding'i (on-kayit §4 rev.8, tamlik rev.9) ---------------------
 
-TAMLIK_KOSULLARI = ("capa_var", "aralik_gecerli", "zincir_tam", "son_tam")
+TAMLIK_KOSULLARI = ("capa_var", "aralik_gecerli", "zincir_tam", "son_tam", "oran_gecerli")
 # Bilinen sinirlarin bayraklari ve ritim etiketleri (on-kayit §4 rev.9); `tam`a girmez.
 TAMLIK_BAYRAKLARI = ("kuyruk_kismi", "kuyruk_sifir", "son_esitlik_affi", "capa_aralik_saat", "son_aralik_saat",
                      "tek_ritim", "funding_ritmi_saat", "karisik_ritim", "ritim_sinifi")
@@ -394,7 +423,8 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     """Pozisyon funding tamliginin TEK uygulamasi, kosul kosul (on-kayit §4 rev.9
     "Funding tamligi"; pencere: §4 "Funding odemesinin sinirlari", "Donem sonu
     istisnasi"). Vektorel: `girisler[i]`, `pencere_sonlari[i]` ve `donem_baslari[i]`
-    bir pozisyondur. Yalnizca odeme ZAMANI ve ARALIGI okunur; oran okunmaz.
+    bir pozisyondur. Odeme ZAMANI ve ARALIGI okunur; oranin DEGERI okunmaz, yalnizca sonlu bir
+    sayi olup olmadigi denetlenir (rev.11 "Gecerli oran").
 
     Kural odeme ani TAHMIN ETMEZ; yalnizca kayitlar arasindaki bosluklari olcer. Bes madde (rev.10):
       - `capa_var` (**Capa**): giris aninda ya da oncesinde kalan son donem ici kayit
@@ -408,6 +438,15 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
         yoksa dizinin son kaydi capadir (rev.9 "hic kayit yok" cumlesini kaldirdi).
       - `aralik_gecerli` (**Gecerli aralik**, rev.10): capadan son kayda kadar her kaydin
         araligi sonlu ve > 0; aralik olmadan zincir ve son maddeleri olculemez.
+      - `oran_gecerli` (**Gecerli oran**, rev.11): "Pozisyonun funding penceresine giren her
+        kaydin oran degeri sonlu bir sayi olmalidir; NaN, +sonsuz ya da -sonsuz oran tasiyan
+        pozisyonun funding'i tam degildir ve pozisyon olusmaz. Toplamin isaretine ya da
+        buyuklugune bakilmaz; denetim kayit duzeyindedir." Denetlenen kayitlar POZISYONUN
+        ODEME PENCERESINE girenlerdir: giris anindan SONRA, pencere sonuna kadar (dahil) --
+        yani toplama giren kayitlar (§4 "Funding odemesinin sinirlari"). Capanin orani toplama
+        girmedigi icin denetlenmez; "pencereye giren kayit" ifadesinin capayi da kapsayacak
+        okumasi, sonucu etkilemeyen veriyle pozisyon dusururdu (rapora acik nokta olarak
+        yazildi). Bu madde oranin DEGERINI degil yalnizca sonlu bir sayi olup olmadigini okur.
     "Beklenen odeme ani yukaridaki maddeler disinda hicbir yerde uretilmez." Butun zaman
     karsilastirmalari §4 "Zaman toleransi"na gore (`pencere.ayni_an` ve turevleri):
     tolerans payi ayni an tanimidir, tam 1 dakikalik fark ayni an degildir.
@@ -450,6 +489,13 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
         return sonuc
     zamanlar = _zaman_dizisi(funding, "funding_tamlik_ayrintisi")
     aralik = pd.to_numeric(funding["aralik_saat"], errors="coerce").to_numpy(dtype=float)
+    # Gecerli oran (rev.11): yalnizca sonlu olup olmadigi okunur, deger okunmaz. `oran` sutunu
+    # bulunmayan cerceve (yalnizca zaman ve aralik tasiyan olcum girdileri) bu kosuldan gecer:
+    # denetlenecek oran yoktur.
+    if "oran" in funding:
+        oran_kotu = ~np.isfinite(pd.to_numeric(funding["oran"], errors="coerce").to_numpy(dtype=float))
+    else:
+        oran_kotu = np.zeros(len(funding), dtype=bool)
     iyi = np.isfinite(aralik) & (aralik > 0)
     a_saat = np.where(iyi, aralik, 0.0)
     aralik_td = pd.to_timedelta(a_saat, unit="h")
@@ -488,12 +534,17 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     # Son: son kayit + araligi pencere sonundan ONCE olamaz (esitlik yeterli).
     sonraki = zamanlar[son_i] + aralik_td[son_i]
     son_tam = capa_var & aralik_gecerli & ~np.asarray(pencere_modulu.once(sonraki, sonlar), dtype=bool)
-    tam = capa_var & aralik_gecerli & zincir_tam & son_tam
+    # Gecerli oran (rev.11): odeme penceresindeki kayitlar [jj + 1, son_i]; capa (jj) haric.
+    p_oran = np.r_[0, np.cumsum(oran_kotu)]
+    ilk_odeme = np.minimum(jj + 1, son_i + 1)
+    oran_gecerli = capa_var & ((p_oran[son_i + 1] - p_oran[ilk_odeme]) == 0)
+    tam = capa_var & aralik_gecerli & zincir_tam & son_tam & oran_gecerli
 
     sonuc["capa_var"] = capa_var
     sonuc["aralik_gecerli"] = aralik_gecerli
     sonuc["zincir_tam"] = zincir_tam
     sonuc["son_tam"] = son_tam
+    sonuc["oran_gecerli"] = oran_gecerli
     sonuc["tam"] = tam
     dolmamis = tam & np.asarray(pencere_modulu.sonra(sonraki, sonlar), dtype=bool)
     son_kayit_sonda = np.asarray(pencere_modulu.ayni_an(zamanlar[son_i], sonlar), dtype=bool)

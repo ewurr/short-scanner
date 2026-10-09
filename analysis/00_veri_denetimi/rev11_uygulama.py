@@ -16,6 +16,20 @@ Olcumler (`--olcum`):
    Ciktilar: `rev11_hucre_tam.csv` (sembol basina), `rev11_hucre_barlar_tam.csv` (bozuk hucreli
    her bar: sembol, t, sutun), `rev11_hucre_ortam_tam.csv`.
 
+2. `kume_sonu` — Rev.11 madde 8 (on-kayit §4 "Funding sinyal penceresinin tamligi": pencere
+   sonuna denk gelen kayit yalnizca ayni kumeye aitse ortalamaya girer).
+   Her A grubu sembolun KESIF 4h barlarinda, H2 funding sinyal penceresi gercek kodla
+   (`funding.sinyal_penceresi_ayrintisi`) kurulur ve YALNIZCA bayraklar okunur; oran sutunlari
+   fonksiyona verilmeden once, NaN olup olmadiklari korunarak sabit 0 ile degistirilir
+   (`degersiz`), yani hicbir funding DEGERI hesaba girmez. Kuralin DUSURDUGU bar: diger butun
+   kosullar saglanirken (kume icinde, capa, aralik, zincir, kayit var) yalnizca yeni kosulun
+   (`kume_sonu_kaydi_disarida`) dusurdugu bar. Her dusen bar icin karar noktasinin plan adimi
+   (`pencere.pozisyon_plani`, gercek kod) uc 4h ufkunda (config.UFUKLAR) ret gerekcesini verir;
+   boylece barlarin zaten giris bari bulunmadigi icin reddedildigi dogrulanir.
+   Ciktilar: `rev11_kume_sonu_tam.csv` (sembol basina sayilar),
+   `rev11_kume_sonu_barlar_tam.csv` (her dusen bar: sembol, t ve ufuk basina ret gerekcesi),
+   `rev11_kume_sonu_ortam_tam.csv`.
+
 Kullanim:
     python analysis/00_veri_denetimi/rev11_uygulama.py --olcum hucre --is-parcaci 8
 """
@@ -37,6 +51,7 @@ sys.path.insert(0, str(BU_DIZIN))
 
 import config  # noqa: E402
 from calistir import KosuKilidiHatasi, csv_yaz, git_durumu, kosu_kilidi, ortam_kaydi  # noqa: E402
+from data import funding as funding_modulu  # noqa: E402
 from data import klines as klines_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import split as split_modulu  # noqa: E402
@@ -114,7 +129,87 @@ def hucre_kosusu(secilen, donemler, is_parcaci: int, cikti: Path) -> str:
             f"dusen gun {int(cerceve['dusen_gun'].sum())}")
 
 
-OLCUMLER = {"hucre": ("rev11_hucre", hucre_kosusu)}
+# --- 2. Kume sonu kaydi (Rev.11 madde 8) ------------------------------------------------------
+
+
+def degersiz(fund: pd.DataFrame) -> pd.DataFrame:
+    """Oran sutunlarini, yalnizca NaN olup olmadiklarini koruyarak 0 yapar. Saf.
+    (`rev10_uygulama.degersiz` ile ayni; olcum hicbir funding DEGERI okumaz.)"""
+    kopya = fund.copy()
+    for sutun in ("oran", "oran_8h"):
+        if sutun in kopya:
+            kopya[sutun] = np.where(pd.isna(kopya[sutun]), np.nan, 0.0)
+    return kopya
+
+
+def _ret(fonk) -> str:
+    """Plan adiminin ret gerekcesi; olay olusursa "olustu"."""
+    try:
+        fonk()
+    except P.OlayOlusmaz as hata:
+        return P.ret_gerekcesi(hata)
+    except P.DonemDisiSinyal:
+        return "donem_disi_sinyal"
+    return "olustu"
+
+
+def kume_sonu_olc(sembol: str, donemler, k_bas, k_son):
+    mumlar = klines_modulu.mumlari_yukle(sembol, config.BAR_4H, KUME)
+    fund = degersiz(funding_modulu.funding_yukle(sembol, KUME))
+    if mumlar.empty or not donemler:
+        return [], []
+    zamanlar = pd.DatetimeIndex(mumlar["open_time"])
+    ozet, barlar = [], []
+    for d in donemler:
+        maske = np.asarray(P.donem_ici_4h_maskesi(
+            zamanlar, donem_baslangic=d.baslangic, donem_bitis=d.bitis), dtype=bool)
+        t_ler = zamanlar[maske & (zamanlar >= k_bas) & (zamanlar <= k_son)]
+        if not len(t_ler):
+            continue
+        a = funding_modulu.sinyal_penceresi_ayrintisi(
+            fund, t_ler, config.BAR_4H, saat=config.H2_FUNDING_PENCERESI_SAAT,
+            kume_baslangic=k_bas, kume_bitis=k_son, donem_baslangic=d.baslangic)
+        diger = (a["kume_icinde"] & a["capa_var"] & a["aralik_gecerli"] & a["zincir_tam"]
+                 & a["kayit_var"]).to_numpy(dtype=bool)
+        dusen = diger & ~a["kume_sonu_kaydi_disarida"].to_numpy(dtype=bool)
+        ozet.append({"sembol": sembol, "donem_baslangic": d.baslangic, "bar": int(len(t_ler)),
+                     "hesaplanabilir": int(a["hesaplanabilir"].sum()), "dusen_bar": int(dusen.sum())})
+        for t in t_ler[dusen]:
+            satir = {"sembol": sembol, "t": t}
+            for ufuk in config.UFUKLAR[config.BAR_4H]:
+                satir[f"ret_{ufuk}"] = _ret(lambda u=ufuk: P.pozisyon_plani(
+                    zamanlar, t, u, config.BAR_4H, birincil_ufuk=config.BIRINCIL_UFUK[config.BAR_4H],
+                    kume_baslangic=k_bas, kume_bitis=k_son, donem_baslangic=d.baslangic,
+                    donem_bitis=d.bitis))
+            barlar.append(satir)
+    return ozet, barlar
+
+
+def kume_sonu_kosusu(secilen, donemler, is_parcaci: int, cikti: Path) -> str:
+    k_bas, k_son = split_modulu.kume_araligi(KUME)
+    ozetler, barlar = [], []
+    with ProcessPoolExecutor(max_workers=is_parcaci) as havuz:
+        for is_ in [havuz.submit(kume_sonu_olc, s, donemler[s], k_bas, k_son) for s in secilen]:
+            o, b = is_.result()
+            ozetler += o
+            barlar += b
+    cerceve = pd.DataFrame(ozetler, columns=["sembol", "donem_baslangic", "bar", "hesaplanabilir",
+                                             "dusen_bar"])
+    ret_sutunlari = [f"ret_{u}" for u in config.UFUKLAR[config.BAR_4H]]
+    bar_cercevesi = pd.DataFrame(barlar, columns=["sembol", "t", *ret_sutunlari])
+    csv_yaz(cerceve, cikti / "rev11_kume_sonu_tam.csv")
+    csv_yaz(bar_cercevesi, cikti / "rev11_kume_sonu_barlar_tam.csv")
+    if cerceve.empty:
+        return "KESIF: sembol yok"
+    gerekceler = {s: sorted(bar_cercevesi[s].unique()) for s in ret_sutunlari} if len(bar_cercevesi) else {}
+    return (f"KESIF sembol {cerceve['sembol'].nunique()} | donem ici bar {int(cerceve['bar'].sum())} | "
+            f"dusen bar {int(cerceve['dusen_bar'].sum())} ({len(bar_cercevesi)} satir, "
+            f"{bar_cercevesi['sembol'].nunique() if len(bar_cercevesi) else 0} sembol) | "
+            f"plan ret gerekceleri {gerekceler}")
+
+
+OLCUMLER = {"hucre": ("rev11_hucre", hucre_kosusu),
+            "kume_sonu": ("rev11_kume_sonu", kume_sonu_kosusu)}
 
 
 def main(argv: list[str] | None = None) -> None:

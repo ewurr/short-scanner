@@ -55,14 +55,19 @@ def _karar_h1(fr=TAM_FUND, mumlar=MUM, donem_bas=DB, donem_son=B, **sinir):
 # anindaki odemeyi pozisyon disinda tutar, bu yuzden toplam sonluydu ve test yanlis nedenle xfail
 # oluyordu. Kayit giris anindan KESIN SONRAKI kayda (pencere_ici[1]) alindi; beklenti ValueError.
 def test_sonsuz_orani_olan_funding_kaydi_pozisyonu_sonsuz_toplamla_onaylatamaz():
-    """`olay_karari`, `_plan_fundingi`nin dondurdugu toplami yalnizca `math.isnan` ile denetler
-    (data/pozisyon.py, `if math.isnan(toplam): raise FundingTamDegil`). `math.isnan(float('inf'))`
-    False'tur; `funding_tamlik_ayrintisi` de yalnizca odeme ZAMANI ve ARALIGINI okur, `oran`
-    degerine bakmaz (docstring: 'Yalnizca odeme ZAMANI ve ARALIGI okunur; oran okunmaz'). Boylece
-    bozuk/asiri bir `oran = inf` kaydi tamligi bozmadan `funding_toplami = inf` olan bir
-    `OnaylanmisPozisyon` uretebilir; net getiri hesabi sonsuz/NaN'a doner (on-kayit §4: 'NaN
-    yalnizca VERI EKSIKLIGIDIR' kurali sonsuz degeri kapsamiyor). Beklenen: reddedilmeli
-    (`FundingTamDegil` ya da benzeri); GOZLENEN: `OnaylanmisPozisyon` sessizce olusuyor."""
+    """`oran = inf` tasiyan bir kayit `funding_toplami = inf` olan bir `OnaylanmisPozisyon`
+    uretememeli.
+
+    GECMIS. Saldiri ilk turda basariliydi (xfail): `olay_karari` toplami yalnizca `math.isnan`
+    ile denetliyordu ve tamlik kodu orani hic okumuyordu. Kapi sertlestirme turu 2'de
+    `pozisyon._sonlu` ile kapandi: sonlu olmayan toplam acik `VeriHatasi` (ValueError) veriyordu.
+
+    REV.11 MADDE 8 ile beklenti DEGISTI: on-kayit §4 "Funding tamligi / Gecerli oran" (rev.11)
+    artik bu durumu TANIMLIYOR -- "NaN, +sonsuz ya da -sonsuz oran tasiyan pozisyonun funding'i
+    tam degildir ve pozisyon olusmaz" -- yani bu bir veri hatasi degil bir RET GEREKCESIDIR.
+    Kayit duzeyinde denetim `funding_tamlik_ayrintisi.oran_gecerli`de; kapi `FundingTamDegil`
+    veriyor ve `_sonlu`ya hic ulasilmiyor. Iddianin cekirdegi ayni: boyle bir kayitla onayli
+    pozisyon OLUSMAZ."""
     fr = TAM_FUND.copy()
     pencere_ici = fr.index[(fr["odeme_zamani"] > T_SINYAL_H1)
                            & (fr["odeme_zamani"] <= T_SINYAL_H1 + pd.Timedelta(days=3))]
@@ -70,8 +75,9 @@ def test_sonsuz_orani_olan_funding_kaydi_pozisyonu_sonsuz_toplamla_onaylatamaz()
     assert fr.loc[pencere_ici[1], "odeme_zamani"] > T_SINYAL_H1 + pd.Timedelta(hours=4)  # giristen sonra
     fr.loc[pencere_ici[1], "oran"] = float("inf")
 
-    with pytest.raises(ValueError, match="sonlu degil"):
+    with pytest.raises(pozisyon.FundingTamDegil) as hata:
         _karar_h1(fr=fr)
+    assert pencere.ret_gerekcesi(hata.value) == "funding_tam_degil"
 
 
 # --- Saldiri 2: gercek A/B grubu semboller yanlis kumede reddedilmeli (savusturuldu) ---------------------
