@@ -2,8 +2,10 @@
 
 1. `close_time` sutunu NaT olan cerceve 4h (ve 1d) denetiminden gecmez (on-kayit §4 "Fiyat okuma
    tabani"; sizinti testcisinin Rev.10 hazirlik bulgusu 2).
-2. Sinyal degeri olarak enum uyesi (IntEnum, IntFlag, Enum) kabul edilmez; bool icin yapilanin aynisi
-   (on-kayit §2 "Tamlik sarti", denetci bulgusu D-C1; sizinti bulgusu 3).
+2. Sinyal degeri artik CAGIRANDAN ALINMAZ (Rev.11 madde 4): `sinyal_degerleri` anahtar sozcugu
+   kabul edilmez. Enum uyesinin (IntEnum, IntFlag, Enum) bir kosul sonucunu pencere degeri gibi
+   gecirme yolu boylece kapandi (on-kayit §2 "Tamlik sarti", denetci bulgusu D-C1; sizinti
+   bulgusu 3).
 3. `funding_ortalamasi`nin korumasiz kullanimina karsi iki koruma:
    - Tarama: analiz kodu (events/, study/, F2 analizleri) funding oranina (`oran_8h`, `oran`
      sutunu, `sekiz_saate_normallestir`) dogrudan erismez; H2 ortalamasinin tek yolu
@@ -26,7 +28,7 @@ import pytest
 import config
 from data import funding, pozisyon
 from tarama_yardimcisi import FUNDING_ORAN_DESENI, KOK, ihlaller
-from sinyal_yardimcisi import sinyal as _tam_sinyal
+from sinyal_yardimcisi import kontrol, olay, yapilandirma
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, gunluk, uygunluk
@@ -101,22 +103,23 @@ _FZ = pd.date_range(DB, B + H4, freq="8h")
 FUND = pd.DataFrame({"odeme_zamani": _FZ, "aralik_saat": 8.0, "oran": 0.0, "oran_8h": 0.0})
 
 
-def _karar(degerler):
+def _karar(**ek):
     return pozisyon.olay_karari(T("2025-03-05 04:00"), 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
                                 kume=kume_adi(T('2025-03-05 04:00')), **veri(MUM, FUND, DB, B, uygun_bas=DB),
-                                sinyal_degerleri=degerler, **esikler(config.BAR_4H))
+                                **ek, **esikler(config.BAR_4H))
 
 
+# Rev.11 madde 4: sinyal degerleri cagirandan alinmaz. Enum (ve bool) bir kosul sonucunu pencere
+# degeri gibi gecirme yolu oldugu icin reddediliyordu; yol artik yok. Iddia "parametre kabul
+# edilmez"e tasindi, enum ornekleri korunarak.
 @pytest.mark.parametrize("deger", [_Kosul.YANLIS, _Kosul.DOGRU, _Bayrak.YOK, _Bayrak.VAR, _FloatKosul.SIFIR])
-def test_enum_uyesi_reddedilir(deger):
-    with pytest.raises(TypeError, match="enum"):
-        _karar({"x": 1.0, "kosul": deger})
+def test_enum_uyesi_tasiyan_sinyal_degerleri_kabul_edilmez(deger):
+    with pytest.raises(TypeError, match="sinyal_degerleri"):
+        _karar(**kontrol("H1"), sinyal_degerleri={"x": 1.0, "kosul": deger})
 
 
-@pytest.mark.parametrize("deger", [1.0, 0, 7, np.float64(0.2), np.int64(3)])
-def test_sayisal_degerler_kabul_edilir(deger):
-    # F1 kapanis turu (denetci D-B1): kapi hipotezin butun sinyal degerlerini ister.
-    assert _karar(_tam_sinyal("H1", pump_dip=deger)).plan.ufuk == 18
+def test_kontrol_rolu_kabul_edilir():
+    assert _karar(**kontrol("H1")).plan.ufuk == 18
 
 
 # --- 3. funding_ortalamasi korumasi -------------------------------------------------------------

@@ -16,7 +16,7 @@ import pytest
 from data import funding, pencere, pozisyon
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, ihlaller
 from uygunluk_yardimcisi import esikler, uygunluk
 
@@ -38,7 +38,7 @@ def _plan():
 
 def _onayli():
     return pozisyon.olay_karari(T_SINYAL, 18, "4h", hipotez="H1", birincil_ufuk=18,
-                                sinyal_degerleri=sinyal("H1"), kume=kume_adi(T_SINYAL), **veri(MUM, FUND, DB, B, uygun_bas=DB),
+                                **kontrol("H1"), kume=kume_adi(T_SINYAL), **veri(MUM, FUND, DB, B, uygun_bas=DB),
                                 **esikler("4h"))
 
 

@@ -37,7 +37,7 @@ from data import funding as funding_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, ihlaller  # noqa: E402
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, UYGUN_ONCELIK, uygunluk  # noqa: E402
@@ -311,7 +311,7 @@ def test_onaylanmis_pozisyon_f2_bayraklari_replace_ile_sahtelenemez():
         plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
         **veri(sahte_4h("2024-01-01 00:00", len(zamanlar)), fund, donem_bas, donem_bitis, uygun_bas=donem_bas),
-        sinyal_degerleri=sinyal("H1"),
+        **kontrol("H1"),
         **esikler(config.BAR_4H),
     )
     sahte1 = replace(onayli, kuyruk_kismi=not onayli.kuyruk_kismi)

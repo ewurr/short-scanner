@@ -15,7 +15,7 @@ import pytest
 import config
 from data import eligibility, pencere, pozisyon
 from tarama_yardimcisi import DONEM_NONE_DESENI, ihlaller
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from kapi_yardimcisi import veri
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, uygunluk
@@ -34,7 +34,7 @@ def test_karar_noktasi_donem_sinirini_none_ile_kabul_etmez(sinir):
     # okur). Serbest donem siniri (None ya da deger) verilemez; sembol / donem numarasi None olamaz.
     sinirlar = {"donem_baslangic": BAS, "donem_bitis": B, sinir: None}
     # Kapi sertlestirme turu 2: cerceve parametreleri kalkti; veri `kapi_yardimcisi.veri` kaydindan.
-    ortak = dict(hipotez="H1", birincil_ufuk=18, kume=kume_adi(T('2025-03-05 04:00')), sinyal_degerleri=sinyal("H1"),
+    ortak = dict(hipotez="H1", birincil_ufuk=18, kume=kume_adi(T('2025-03-05 04:00')), **kontrol("H1"),
                  **esikler(config.BAR_4H))
     kayit = veri(MUM, FUND, BAS, B, uygun_bas=BAS)
     pozisyon.onay_dogrula(pozisyon.olay_karari(T("2025-03-05 04:00"), 6, config.BAR_4H, **ortak, **kayit))

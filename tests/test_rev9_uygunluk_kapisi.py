@@ -19,7 +19,7 @@ import pytest
 import config
 from data import eligibility, pencere, pozisyon
 from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, KOK, UYGUNLUK_ADLARI, ihlaller
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from kapi_yardimcisi import veri
 from kume_yardimcisi import kume_adi, kume_sinirlari
 from uygunluk_yardimcisi import esikler
@@ -45,7 +45,7 @@ def _karar(t=T_SINYAL, bar=config.BAR_4H, db=DB, mum=MUM, hacim=5e7, eksik_gunle
         t, 6 if bar == config.BAR_4H else 7, bar,  # Rev.10: on-kayit ufku (1d'de onceki 3)
         hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
         kume=kume_adi(t), **veri(mum, FUND, db, B, uygun_bas=db, hacim=hacim, eksik_gunler=eksik_gunler),
-        sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"), **esik, **ek)
+        **kontrol("H1" if bar == config.BAR_4H else "H3"), **esik, **ek)
 
 
 # --- Uygunluk karar noktasinin icinde ------------------------------------------------------
@@ -58,7 +58,7 @@ def test_uygun_bar_onaylanir():
 def test_uygunluk_girdisi_olmadan_onayli_pozisyon_uretilemez():
     with pytest.raises(TypeError):
         pozisyon.olay_karari(T_SINYAL, 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume=kume_adi(T_SINYAL),
-                             **veri(MUM, FUND, DB, B, uygun_bas=DB), sinyal_degerleri=sinyal("H1"))
+                             **veri(MUM, FUND, DB, B, uygun_bas=DB), **kontrol("H1"))
     with pytest.raises(ValueError):  # elle kurulan onay reddedilir (karar noktasi atlanamaz)
         pozisyon.pozisyon_fiyatlari(pozisyon.OnaylanmisPozisyon(_karar().plan, 1.0, 1.0, 0.0))
 

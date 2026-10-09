@@ -36,7 +36,7 @@ from data import funding  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from tarama_yardimcisi import FUNDING_ORAN_DESENI  # noqa: E402
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, uygunluk  # noqa: E402
@@ -329,7 +329,7 @@ def _onayli_pozisyon(bas_str: str):
     onayli = pozisyon_modulu.olay_karari(
         plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
-        **veri(sahte_4h(bas_str, len(zamanlar)), fund, donem_bas, donem_bitis, uygun_bas=donem_bas), sinyal_degerleri=sinyal("H1"),
+        **veri(sahte_4h(bas_str, len(zamanlar)), fund, donem_bas, donem_bitis, uygun_bas=donem_bas), **kontrol("H1"),
         **esikler(config.BAR_4H),
     )
     return onayli, zamanlar, bas_str

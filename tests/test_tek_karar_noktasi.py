@@ -16,7 +16,7 @@ import pytest
 import config
 from data import funding, pencere, pozisyon
 from kapi_yardimcisi import veri
-from sinyal_yardimcisi import sinyal as _tam_sinyal
+from sinyal_yardimcisi import kontrol, olay, yapilandirma
 from uygunluk_yardimcisi import UYGUN_ONCELIK, esikler
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -30,8 +30,6 @@ MUM = pd.DataFrame({"open_time": Z, "open": np.arange(len(Z)) + 0.25, "high": np
 # Kapi sertlestirme turu: donem sinirlari evren kaydindan okunur; turu 2: kapi veriyi kendisi yukler,
 # sentetik veri ve donem `kapi_yardimcisi.veri` ile kaydedilir.
 DONEM_BAS = BAS - UYGUN_ONCELIK
-# F1 kapanis turu (denetci D-B1): kapi hipotezin butun sinyal degerlerini ister; varsayilan tam kume.
-SINYAL = None
 
 
 def _fund(bas=BAS, son=B + H4, aralik=8):
@@ -39,13 +37,17 @@ def _fund(bas=BAS, son=B + H4, aralik=8):
     return pd.DataFrame({"odeme_zamani": z, "aralik_saat": float(aralik), "oran": 1e-4, "oran_8h": 1e-4})
 
 
-def _karar(t, ufuk=18, bar=config.BAR_4H, fr=None, mum=MUM, sinyal=SINYAL, donem_bas=DONEM_BAS, donem_bitis=B):
-    if sinyal is None:
-        sinyal = _tam_sinyal("H1" if bar == config.BAR_4H else "H3")
-    return pozisyon.olay_karari(t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18,
+def _karar(t, ufuk=18, bar=config.BAR_4H, fr=None, mum=MUM, rol="K1", donem_bas=DONEM_BAS, donem_bitis=B,
+           **ek):
+    """Rev.11 madde 4/5: kapi sinyal degerlerini kendisi hesaplar; bu dosya sinyal kurallarini
+    degil karar noktasinin OTEKI adimlarini (plan, cikis, uygunluk, funding tamligi) sinar, bu
+    yuzden varsayilan rol K1'dir: kontrol barinda hipotezin sinyal kosullari aranmaz
+    (on-kayit §6 rev.11) ve duz sentetik seri kapidan gecer."""
+    hipotez = "H1" if bar == config.BAR_4H else "H3"
+    return pozisyon.olay_karari(t, ufuk, bar, hipotez=hipotez, birincil_ufuk=18,
                                 kume="KESIF", **veri(mum, _fund() if fr is None else fr, donem_bas, donem_bitis,
                                                      uygun_bas=DONEM_BAS),
-                                sinyal_degerleri=sinyal, **esikler(bar))
+                                **kontrol(hipotez, rol), **ek, **esikler(bar))
 
 
 def test_onayli_pozisyon_plan_fiyat_ve_funding_tasir():
@@ -84,16 +86,26 @@ def test_funding_siz_donem_ve_gec_baslayan_funding():
     assert _karar(T("2025-01-12 04:00"), fr=gec).cikis_turu == "olagan"
 
 
-@pytest.mark.parametrize("deger", [float("nan"), None, float("inf")])
-def test_sinyal_penceresi_tam_degilse_olusmaz(deger):
+def test_sinyal_penceresi_tam_degilse_olusmaz():
+    """On-kayit §2 "Tamlik sarti". Rev.11 madde 4'ten beri deger CAGIRANDAN alinmaz, bu yuzden
+    iddia veriye tasindi: tepe penceresindeki bir bar eksikse K2 kontrolu de olay da olusmaz.
+    (Eski kurgu `sinyal_degerleri=...` ile NaN/None/inf veriyordu; o parametre kalkti.)"""
+    t = T("2025-01-05 04:00")
+    capa = t - 2 * H4
+    z = pd.DatetimeIndex(MUM["open_time"])
+    mum = MUM.loc[z != t - H4].reset_index(drop=True)  # tepe penceresi [capa .. t-1] icinde
     with pytest.raises(pozisyon.SinyalPenceresiTamDegil) as hata:
-        _karar(T("2025-01-05 04:00"), sinyal=_tam_sinyal("H1", tepe=deger))
+        pozisyon.olay_karari(t, 18, config.BAR_4H, hipotez="H1", birincil_ufuk=18, kume="KESIF",
+                             **veri(mum, _fund(), DONEM_BAS, B, uygun_bas=DONEM_BAS),
+                             **olay("H1", capa=capa), **esikler(config.BAR_4H))
     assert pencere.ret_gerekcesi(hata.value) == "sinyal_penceresi_tam_degil"
 
 
-def test_sinyal_degerleri_bos_olamaz():
-    with pytest.raises(TypeError):
-        _karar(T("2025-01-05 04:00"), sinyal={})
+def test_sinyal_degerleri_anahtar_sozcugu_kabul_edilmez():
+    """Rev.11 madde 4: "Sinyal degerleri disaridan verilemesin." (Eski iddia: bos eslem
+    reddedilir; artik eslemin kendisi verilemez.)"""
+    with pytest.raises(TypeError, match="sinyal_degerleri"):
+        _karar(T("2025-01-05 04:00"), sinyal_degerleri={})
 
 
 def test_diger_kurallar_ayni_noktadan_gerekceyle():

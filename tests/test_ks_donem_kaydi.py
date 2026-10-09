@@ -14,7 +14,7 @@ import pytest
 
 from data import pencere, pozisyon, split, universe
 from kapi_yardimcisi import veri
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler
 from onay_yardimcisi import kosu
 
@@ -31,7 +31,7 @@ T_SINYAL = T("2025-03-10 04:00")
 
 def _karar(kume="KESIF", **kayit):
     return pozisyon.olay_karari(T_SINYAL, 18, "4h", hipotez="H1", birincil_ufuk=18, kume=kume,
-                                sinyal_degerleri=sinyal("H1"), **kayit, **esikler("4h"))
+                                **kontrol("H1"), **kayit, **esikler("4h"))
 
 
 def _veri(**ek):

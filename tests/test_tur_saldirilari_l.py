@@ -21,7 +21,7 @@ import pytest
 import config
 from data import funding, pencere, pozisyon, split, universe
 from kapi_yardimcisi import donem, veri
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler, uygunluk
 from onay_yardimcisi import kosu
 
@@ -42,7 +42,7 @@ def _karar_h1(fr=TAM_FUND, mumlar=MUM, donem_bas=DB, donem_son=B, **sinir):
     s.update(sinir)
     return pozisyon.olay_karari(T_SINYAL_H1, tanim.birincil, tanim.bar, hipotez="H1",
                                 birincil_ufuk=tanim.birincil, **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas),
-                                sinyal_degerleri=sinyal("H1"), **s, **esikler(tanim.bar))
+                                **kontrol("H1"), **s, **esikler(tanim.bar))
 
 
 # --- Saldiri 1: oran = inf iceren bir funding kaydi sonsuz funding_toplami uretebilir -------------------
@@ -102,7 +102,7 @@ def test_gercek_a_grubu_sembol_c1_kumesinde_reddedilir(tmp_path, monkeypatch):
         pozisyon.olay_karari(  # kapi sertlestirme turu 2: cerceve parametreleri kalkti
             T("2025-01-01"), tanim.birincil, tanim.bar, hipotez="H1",
             birincil_ufuk=tanim.birincil, kume="C1", sembol=sembol, donem_no=donem_no,
-            sinyal_degerleri=sinyal("H1"), asgari_hacim=1.0, asgari_listeleme_yasi_gun=1)
+            **kontrol("H1"), asgari_hacim=1.0, asgari_listeleme_yasi_gun=1)
 
 
 def test_gercek_b_grubu_sembol_kesifte_reddedilir_uctan_uca():
@@ -115,7 +115,7 @@ def test_gercek_b_grubu_sembol_kesifte_reddedilir_uctan_uca():
         pozisyon.olay_karari(  # kapi sertlestirme turu 2: cerceve parametreleri kalkti
             T("2025-01-01"), tanim.birincil, tanim.bar, hipotez="H1",
             birincil_ufuk=tanim.birincil, kume="KESIF", sembol=sembol, donem_no=donem_no,
-            sinyal_degerleri=sinyal("H1"), asgari_hacim=1.0, asgari_listeleme_yasi_gun=1)
+            **kontrol("H1"), asgari_hacim=1.0, asgari_listeleme_yasi_gun=1)
 
 
 # --- Saldiri 3: yeniden adlandirma zincirinin iki ucu farkli gruba dusurulemez (veri butunlugu) ----------
@@ -204,7 +204,7 @@ def test_gercek_fundingsiz_donem_uygun_funding_cercevesiyle_bile_atlatilamaz(tmp
     with baglam, pytest.raises(pozisyon.FundingTamDegil, match="evren tablosunda funding kaydi yok"):
         pozisyon.olay_karari(
             t_sinyal, tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
-            kume=kume, sembol=sembol, donem_no=donem_no, sinyal_degerleri=sinyal("H1"),
+            kume=kume, sembol=sembol, donem_no=donem_no, **kontrol("H1"),
             **esikler(tanim.bar))
 
 
@@ -233,7 +233,7 @@ def test_donem_sonrasi_asiri_fiyatli_barlar_cikis_fiyatina_sizamaz():
     p = pozisyon.olay_karari(
         t_sinyal, tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
         kume="KESIF", **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas),
-        sinyal_degerleri=sinyal("H1"), **esikler(tanim.bar))
+        **kontrol("H1"), **esikler(tanim.bar))
 
     assert p.plan.donem_sonu_mu, "test kurulumu: ufuk (18 bar) donem sonunu asmali (kirpma bekleniyordu)"
     assert p.plan.cikis.zaman == donem_son

@@ -24,7 +24,7 @@ import pytest
 import config
 from data import funding, pencere, pozisyon, split
 from kapi_yardimcisi import SENTETIK_VERI, veri
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler
 from onay_yardimcisi import kosu
 
@@ -43,7 +43,7 @@ def _karar(hipotez="H1", mum=MUM, fr=FUND, t=None, **ek):
     tanim = pencere.hipotez_ufuklari(hipotez)
     return pozisyon.olay_karari(SINYAL_T[hipotez] if t is None else t, tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, kume="KESIF",
-                                **veri(mum, fr, DB, B, uygun_bas=DB, **ek), sinyal_degerleri=sinyal(hipotez),
+                                **veri(mum, fr, DB, B, uygun_bas=DB, **ek), **kontrol(hipotez),
                                 **esikler(tanim.bar))
 
 
@@ -61,7 +61,7 @@ def _karar_ham(m: pd.DataFrame, fr: pd.DataFrame = FUND, hipotez: str = "H1"):
     kayit = veri(m, fr, DB, B, ham=True)
     return pozisyon.olay_karari(SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, kume="KESIF", **kayit,
-                                sinyal_degerleri=sinyal(hipotez), **esikler(tanim.bar))
+                                **kontrol(hipotez), **esikler(tanim.bar))
 
 
 # --- 1. Yuklenen 4h mum cercevesinin bicim/bozukluk denetimi (kapi sertlestirme turu 2) --------------
@@ -275,7 +275,7 @@ def test_donem_disi_sinyal_seride_var_olsa_da_reddedilir():
     tanim = pencere.hipotez_ufuklari("H1")
     with pytest.raises(pencere.DonemDisiSinyal):
         pozisyon.olay_karari(t_disi, tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
-                             kume="KESIF", **kayit, sinyal_degerleri=sinyal("H1"), **esikler(tanim.bar))
+                             kume="KESIF", **kayit, **kontrol("H1"), **esikler(tanim.bar))
 
 
 # --- 6. Onay kosusu hipotez-kume eslesmesi (CLAUDE.md §3.3, on-kayit "tek atis") ---------------------
@@ -294,5 +294,5 @@ def test_onay_kosusu_hipotez_uyusmazligi_engellenmez(tmp_path, monkeypatch):
         with pytest.raises((ValueError, split.OnayGerekli)):
             p = pozisyon.olay_karari(
                 SINYAL_T["H1"], tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
-                kume="C1", **kayit_veri, sinyal_degerleri=sinyal("H1"), **esikler(tanim.bar))
+                kume="C1", **kayit_veri, **kontrol("H1"), **esikler(tanim.bar))
             pozisyon.onay_dogrula(p)

@@ -20,7 +20,7 @@ import pytest
 import config
 from data import funding, pencere, pozisyon, split
 from kapi_yardimcisi import veri
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler
 from onay_yardimcisi import kosu
 
@@ -47,7 +47,7 @@ def _c1_ortak(hipotez="H1"):
     tanim = pencere.hipotez_ufuklari(hipotez)
     kayit = veri(MUM, FUND, DB, B, uygun_bas=DB, grup="B")
     return dict(hipotez=hipotez, birincil_ufuk=tanim.birincil, kume="C1", **kayit,
-                sinyal_degerleri=sinyal(hipotez), **esikler(tanim.bar)), tanim
+                **kontrol(hipotez), **esikler(tanim.bar)), tanim
 
 
 # --- 1. `_AKTIF_KOSU` dogrudan atama -----------------------------------------------------------------
@@ -230,7 +230,7 @@ def test_ikincil_ufuk_kume_sinirina_takilir_birincil_basaridir():
     tanim = pencere.hipotez_ufuklari("H1")
     kayit = veri(mum4, fr4, db4, bitis4, uygun_bas=db4)
     ortak = dict(hipotez="H1", birincil_ufuk=tanim.birincil, kume="KESIF", **kayit,
-                 sinyal_degerleri=sinyal("H1"), **esikler(tanim.bar))
+                 **kontrol("H1"), **esikler(tanim.bar))
     p18 = pozisyon.olay_karari(t, 18, tanim.bar, **ortak)
     pozisyon.onay_dogrula(p18)
     with pytest.raises(pencere.KumeSiniriHatasi):
@@ -246,7 +246,7 @@ def test_ikincil_cagrida_birincilin_ret_gerekcesi_korunur():
     eksik = MUM.loc[MUM["open_time"] != giris_ani]
     kayit = veri(eksik, FUND, DB, B, uygun_bas=DB)
     ortak = dict(hipotez="H1", birincil_ufuk=tanim.birincil, kume="KESIF", **kayit,
-                 sinyal_degerleri=sinyal("H1"), **esikler(tanim.bar))
+                 **kontrol("H1"), **esikler(tanim.bar))
     with pytest.raises(pencere.GirisBariYok) as birincil_hata:
         pozisyon.olay_karari(T_SINYAL, 18, tanim.bar, **ortak)
     with pytest.raises(pencere.GirisBariYok) as ikincil_hata:
@@ -270,7 +270,7 @@ def test_h3_ikincil_ufuklar_7_ve_30_kendi_kurallarina_tabidir():
     def _karar_h3(ufuk):
         kayit = veri(MUM, fr, DB, B, uygun_bas=DB)
         return pozisyon.olay_karari(t3, ufuk, config.BAR_1D, hipotez="H3", birincil_ufuk=tanim.birincil,
-                                    kume="KESIF", **kayit, sinyal_degerleri=sinyal("H3"),
+                                    kume="KESIF", **kayit, **kontrol("H3"),
                                     **esikler(config.BAR_1D))
 
     p14 = _karar_h3(14)

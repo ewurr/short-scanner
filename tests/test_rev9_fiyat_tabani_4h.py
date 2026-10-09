@@ -16,7 +16,7 @@ import pytest
 import config
 from data import klines, pozisyon, split
 from data.donem import Donem
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, uygunluk
@@ -58,7 +58,7 @@ def _karar(mumlar, bar=config.BAR_1D, t=T("2024-03-10")):
     return pozisyon.olay_karari(
         t, 14 if bar == config.BAR_1D else 18, bar,
         hipotez="H3" if bar == config.BAR_1D else "H1", birincil_ufuk=14 if bar == config.BAR_1D else 18, kume=kume_adi(t),
-        **veri(mumlar, _fund(), BAS, B, uygun_bas=BAS), sinyal_degerleri=sinyal("H3" if bar == config.BAR_1D else "H1"), **esikler(bar))
+        **veri(mumlar, _fund(), BAS, B, uygun_bas=BAS), **kontrol("H3" if bar == config.BAR_1D else "H1"), **esikler(bar))
 
 
 def test_mumlari_yukle_1d_ciktisi_karar_noktasinda_hata_verir(sembol):

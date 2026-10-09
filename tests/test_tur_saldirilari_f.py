@@ -30,7 +30,7 @@ from data import klines as klines_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
 from data.donem import Donem  # noqa: E402
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, UYGUN_ONCELIK, uygunluk  # noqa: E402
@@ -624,7 +624,7 @@ def test_mae_dataclasses_replace_ile_degistirilmis_pozisyonu_reddeder():
         plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
         **veri(_cerceve(zamanlar), fund, plan.donem_baslangic, plan.donem_bitis, uygun_bas=plan.donem_baslangic),
-        sinyal_degerleri=sinyal("H1"),
+        **kontrol("H1"),
         **esikler(config.BAR_4H),  # Rev.9 §4: uygunluk karar noktasinda
     )
     sahte = replace(onayli, p0=0.0001)  # imza artik tutarsiz
@@ -654,25 +654,30 @@ def test_funding_tam_olmayan_olay_brut_dahil_hicbir_hesapta_olusmaz():
             plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
             hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
             **veri(_cerceve(zamanlar), bos_funding, donem_bas, donem_bitis, uygun_bas=donem_bas),
-            sinyal_degerleri=sinyal("H1"),
+            **kontrol("H1"),
             **esikler(config.BAR_4H),  # Rev.9 §4: uygunluk karar noktasinda
         )
 
 
-def test_nan_sinyal_degeri_pozisyon_planindan_once_reddedilir():
-    """`sinyal_degerleri` icinde NaN varsa `SinyalPenceresiTamDegil` firlatilmali
-    ve `pozisyon_plani`ya HIC ULASILMAMALI (bozuk/eksik zaman dizisiyle bile
-    cagirsak once bu kontrolden donmeli; aksi halde alt katmanlarda coker ya da
-    yanlislikla ilerler)."""
-    bozuk_zamanlar = pd.DatetimeIndex([])  # boyle bir seriyle pozisyon_plani cokerdi
-    with pytest.raises(pozisyon_modulu.SinyalPenceresiTamDegil):
+def test_bos_seri_plan_adiminda_hatasiz_reddedilir():
+    """Rev.11 oncesi bu test "NaN sinyal degeri `pozisyon_plani`dan ONCE reddedilir" diyordu:
+    kapi degerleri cagirandan aliyordu ve tamligi plandan once denetleyebiliyordu.
+
+    REV.11 MADDE 4 ile sira degisti ve bu degisiklik ON-KAYITTAN gelir: sinyal pencereleri kume
+    ve donem sinirlarini plandan okur (on-kayit §5 "Pencere sinirlari"; §3 "Kume siniri ve geriye
+    bakis"), bu yuzden tamlik artik plandan SONRA denetlenir. Iddianin korunan cekirdegi: bozuk
+    ya da bos bir zaman dizisiyle cagrildiginda kapi alt katmanlarda COKMEZ, bir ret gerekcesiyle
+    (`OlayOlusmaz`) doner."""
+    bozuk_zamanlar = pd.DatetimeIndex([])
+    with pytest.raises(pencere_modulu.OlayOlusmaz) as hata:
         pozisyon_modulu.olay_karari(
             T("2025-06-01 00:00"), 6, config.BAR_4H,  # Rev.10: on-kayit ufku
             hipotez="H1", birincil_ufuk=18, kume=kume_adi(T('2025-06-01 00:00')),
             **veri(_cerceve(bozuk_zamanlar), _funding([]), T("2025-06-01 00:00"), T("2025-06-10 00:00"), uygun_bas=T("2025-06-01 00:00")),
-            sinyal_degerleri=sinyal("H1", pump_dip=float("nan")),  # F1 kapanis turu: tam sinyal kumesi
+            **kontrol("H1"),
             **esikler(config.BAR_4H),  # Rev.9 §4
         )
+    assert pencere_modulu.ret_gerekcesi(hata.value) == "giris_bari_yok"
 
 
 def test_onaylanmis_pozisyon_replace_ile_funding_toplamini_sahteleyemez():
@@ -685,7 +690,7 @@ def test_onaylanmis_pozisyon_replace_ile_funding_toplamini_sahteleyemez():
         plan.sinyal_zamani, plan.ufuk, config.BAR_4H,
         hipotez="H1", birincil_ufuk=plan.birincil_ufuk, kume=kume_adi(plan.sinyal_zamani),
         **veri(_cerceve(zamanlar), fund, plan.donem_baslangic, plan.donem_bitis, uygun_bas=plan.donem_baslangic),
-        sinyal_degerleri=sinyal("H1"),
+        **kontrol("H1"),
         **esikler(config.BAR_4H),  # Rev.9 §4: uygunluk karar noktasinda
     )
     sahte = replace(onayli, funding_toplami=999.0)

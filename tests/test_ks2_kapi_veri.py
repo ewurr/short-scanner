@@ -24,7 +24,7 @@ import pytest
 import config
 from data import eligibility, funding, pencere, pozisyon
 from kapi_yardimcisi import SENTETIK_VERI, veri
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -42,7 +42,7 @@ def _karar(hipotez="H1", mum=MUM, fr=FUND, t=None, **ek):
     tanim = pencere.hipotez_ufuklari(hipotez)
     return pozisyon.olay_karari(SINYAL_T[hipotez] if t is None else t, tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, kume="KESIF",
-                                **veri(mum, fr, DB, B, uygun_bas=DB, **ek), sinyal_degerleri=sinyal(hipotez),
+                                **veri(mum, fr, DB, B, uygun_bas=DB, **ek), **kontrol(hipotez),
                                 **esikler(tanim.bar))
 
 
@@ -62,7 +62,7 @@ def test_cerceve_anahtar_sozcukle_de_verilemez(ad):
     with pytest.raises(TypeError, match="unexpected keyword"):
         tanim = pencere.hipotez_ufuklari("H1")
         pozisyon.olay_karari(SINYAL_T["H1"], tanim.birincil, tanim.bar, hipotez="H1", birincil_ufuk=tanim.birincil,
-                             kume="KESIF", **veri(MUM, FUND, DB, B, uygun_bas=DB), sinyal_degerleri=sinyal("H1"),
+                             kume="KESIF", **veri(MUM, FUND, DB, B, uygun_bas=DB), **kontrol("H1"),
                              **esikler(tanim.bar), **{ad: pd.DataFrame()})
 
 
@@ -91,7 +91,7 @@ def test_kume_sonrasi_veri_kapida_kesilir():
     with pytest.raises(pencere.GirisBariYok):
         pozisyon.olay_karari(T("2025-08-31 20:00"), tanim.birincil, tanim.bar, hipotez="H1",
                              birincil_ufuk=tanim.birincil, kume="KESIF",
-                             **veri(mum, fr, db, T("2025-09-10 20:00"), uygun_bas=db), sinyal_degerleri=sinyal("H1"),
+                             **veri(mum, fr, db, T("2025-09-10 20:00"), uygun_bas=db), **kontrol("H1"),
                              **esikler(tanim.bar))
 
 
@@ -106,7 +106,7 @@ def test_bir_4h_bari_eksik_gun_uygunluk_penceresinde_eksik_sayilir():
     m, f = SENTETIK_VERI[tam["sembol"]]
     tanim = pencere.hipotez_ufuklari("H1")
     kayit = veri(m.loc[m["open_time"] != eksik_bar], f, DB, B, ham=True)
-    ortak = dict(hipotez="H1", birincil_ufuk=tanim.birincil, kume="KESIF", sinyal_degerleri=sinyal("H1"),
+    ortak = dict(hipotez="H1", birincil_ufuk=tanim.birincil, kume="KESIF", **kontrol("H1"),
                  **esikler(tanim.bar))
     pozisyon.onay_dogrula(pozisyon.olay_karari(SINYAL_T["H1"], tanim.birincil, tanim.bar, **ortak, **tam))
     with pytest.raises(pozisyon.UygunDegil):
@@ -173,11 +173,19 @@ def test_sonlu_olmayan_fiyat_reddedilir(yer, deger):
 
 
 def test_sonsuz_sinyal_degeri_tamlik_kapisinda_kalir():
+    """Rev.11 madde 4: sonsuz bir sinyal degeri artik CAGIRANDAN verilemez; deger kapida
+    hesaplanir. Iddia veriye tasindi: funding oraninda +sonsuz varsa H2 ortalamasi hesaplanmaz
+    (on-kayit §4 rev.11 "Penceredeki kayitlarin oranlarindan biri ... sonlu degilse ortalama
+    hesaplanmaz") ve o barda ne olay ne K2 kontrolu olusur."""
     tanim = pencere.hipotez_ufuklari("H2")
+    fr = FUND.copy()
+    pencere_ici = (fr["odeme_zamani"] > SINYAL_T["H2"] + H(4) - H(config.H2_FUNDING_PENCERESI_SAAT))         & (fr["odeme_zamani"] <= SINYAL_T["H2"] + H(4))
+    assert int(pencere_ici.sum()) >= 1
+    fr.loc[fr.index[pencere_ici][0], "oran_8h"] = float("inf")
     with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
         pozisyon.olay_karari(SINYAL_T["H2"], tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
-                             kume="KESIF", **veri(MUM, FUND, DB, B, uygun_bas=DB),
-                             sinyal_degerleri=sinyal("H2", funding_24s=float("inf")), **esikler(tanim.bar))
+                             kume="KESIF", **veri(MUM, fr, DB, B, uygun_bas=DB),
+                             **kontrol("H2", "K2"), **esikler(tanim.bar))
 
 
 # --- 3. UTC (KS D-B5) ----------------------------------------------------------------------------------------

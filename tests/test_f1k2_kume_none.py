@@ -17,7 +17,7 @@ import config
 from data import pencere, pozisyon, split
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import C2, KESIF, kume_adi, kume_sinirlari
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler, uygunluk
 from onay_yardimcisi import kosu
 
@@ -32,12 +32,11 @@ FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B + H(4), freq="8h"), "ar
 SINYAL_T = {"H1": T("2025-03-10 04:00"), "H2": T("2025-03-10 04:00"), "H3": T("2025-03-10")}
 
 
-def _karar(hipotez, degerler=None, **kume):
+def _karar(hipotez, **kume):
     tanim = pencere.hipotez_ufuklari(hipotez)
     return pozisyon.olay_karari(SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, **veri(MUM, FUND, DB, B, uygun_bas=DB),
-                                sinyal_degerleri=sinyal(hipotez) if degerler is None else degerler, **kume,
-                                **esikler(tanim.bar))
+                                **kontrol(hipotez), **kume, **esikler(tanim.bar))
 
 
 @pytest.mark.parametrize("hipotez", ["H1", "H2", "H3"])
@@ -76,11 +75,16 @@ def test_serbest_sinir_cifti_kabul_edilmez(sinirlar):
 
 
 def test_none_reddi_diger_denetimlerden_once():
-    """Sinyal degeri NaN olsa bile once kume reddedilir: gecersiz kume hicbir ret gerekcesine (`OlayOlusmaz`)
-    donusup sessizce sayilmaz. NaT icin de ayni (onceki turda NaT plan adiminda reddediliyordu)."""
+    """Gecersiz kume, sinyal pencereleri HIC hesaplanmadan reddedilir: hicbir ret gerekcesine
+    (`OlayOlusmaz`) donusup sessizce sayilmaz. NaT icin de ayni (onceki turda NaT plan adiminda
+    reddediliyordu).
+
+    Rev.11 madde 4: `sinyal_degerleri` anahtar sozcugu kalkti, bu yuzden eski kurgu (NaN bir
+    sinyal degeri verip kume reddinin once geldigini gostermek) artik kurulamaz. Iddia ayni
+    kaldi ve daha genis: kume denetimi veri yuklemesinden ve pencere hesabindan oncedir."""
     for kume in (None, pd.NaT):
         with pytest.raises(TypeError):
-            _karar("H1", degerler=sinyal("H1", pump_dip=float("nan")), kume=kume)
+            _karar("H1", kume=kume)
 
 
 def test_sinyal_kumede_degilse_olay_olusmaz(tmp_path, monkeypatch):

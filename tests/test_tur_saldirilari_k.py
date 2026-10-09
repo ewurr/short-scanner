@@ -32,7 +32,7 @@ import config
 from data import pencere, pozisyon, split
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler, uygunluk
 from onay_yardimcisi import kosu
 
@@ -47,15 +47,31 @@ TAM_FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B + H(4), freq="8h"),
 SINYAL_T = {"H1": T("2025-03-10 04:00"), "H2": T("2025-03-10 04:00"), "H3": T("2025-03-10")}
 
 
-def _karar(hipotez, degerler=None, mumlar=MUM, fr=TAM_FUND, donem_bas=DB, donem_son=B, **sinir):
+def _karar(hipotez, mumlar=MUM, fr=TAM_FUND, donem_bas=DB, donem_son=B, **sinir):
+    """Rev.11 madde 4/5: sinyal degerleri cagirandan alinmaz; bu dosyanin saldirilari kume
+    sinirlarini hedefler, bu yuzden rol K1'dir (kontrol barinda sinyal kosullari aranmaz)."""
     tanim = pencere.hipotez_ufuklari(hipotez)
-    if degerler is None:
-        degerler = sinyal(hipotez)
     s = {"kume": kume_adi(SINYAL_T[hipotez])}
     s.update(sinir)
     return pozisyon.olay_karari(SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas),
-                                sinyal_degerleri=degerler, **s, **esikler(tanim.bar))
+                                **kontrol(hipotez), **s, **esikler(tanim.bar))
+
+
+def _sinyal_degerleriyle(hipotez, degerler):
+    """Eski (Rev.11 oncesi) cagri bicimi: sinyal degerlerini bir eslemeyle CAGIRANDAN vermek."""
+    tanim = pencere.hipotez_ufuklari(hipotez)
+    return pozisyon.olay_karari(SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
+                                birincil_ufuk=tanim.birincil,
+                                **veri(MUM, TAM_FUND, DB, B, uygun_bas=DB), **kontrol(hipotez),
+                                sinyal_degerleri=degerler, kume=kume_adi(SINYAL_T[hipotez]),
+                                **esikler(tanim.bar))
+
+
+def _tam(hipotez, **degisen):
+    degerler = {ad: 1.0 for ad in pozisyon.SINYAL_DEGERLERI[hipotez]}
+    degerler.update(degisen)
+    return degerler
 
 
 # --- Saldiri 1: gercek KESIF siniriyla dogru sekilde reddedilir (temel olcum) ------------------------
@@ -76,7 +92,7 @@ def test_ufku_c2ye_tasan_kesif_olayi_gercek_kesif_siniriyla_reddedilir():
     with pytest.raises(pencere.KumeSiniriHatasi):
         pozisyon.olay_karari(
             sinyal_zamani, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
-            **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas), sinyal_degerleri=sinyal("H2"),
+            **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas), **kontrol("H2"),
             kume="KESIF",  # kapi sertlestirme turu: sinirlar kume adindan kapida okunur
             **esikler(tanim.bar))
 
@@ -99,7 +115,7 @@ def test_kesif_basi_ile_c2_sonu_karisimi_verilemez(tmp_path, monkeypatch):
     # Kapi sertlestirme turu 2: kapi veriyi kendisi yukler (sentetik kayit `veri`); cerceve verilemez.
     ortak = dict(hipotez="H2", birincil_ufuk=tanim.birincil,
                  **veri(mumlar, fr, donem_bas, donem_son, uygun_bas=donem_bas),
-                 sinyal_degerleri=sinyal("H2"), **esikler(tanim.bar))
+                 **kontrol("H2"), **esikler(tanim.bar))
     with pytest.raises(TypeError):
         pozisyon.olay_karari(sinyal_zamani, tanim.birincil, tanim.bar, **ortak,
                              kume_baslangic=pd.Timestamp(config.KESIF_BASI), kume_bitis=pd.Timestamp(config.C2_SONU))
@@ -175,16 +191,10 @@ def test_np_datetime64_nat_kume_siniri_reddedilir():
 
 
 class _SahteDict(dict):
-    """`dict` ALT SINIFI (Mapping degil): temel `dict` deposu GERCEK (bozuk) degerleri tasir
+    """`dict` ALT SINIFI: temel `dict` deposu GERCEK (bozuk) degerleri tasir
     (`super().__init__(gercek)`); yalnizca `.items()` override edilip GORUNEN (baska, TAM)
-    degerleri donduruyor -- J turundaki `_SahteEslem` (`collections.abc.Mapping`) ile ayni
-    desen, ama bu kez dogrudan bir `dict` alt sinifi uzerinde. `keys()`/`__getitem__`/`__iter__`
-    OVERRIDE EDILMEDI: `dict(sinyal_degerleri)` kopyalama adimi (ister CPython'un ic depoyu
-    dogrudan kopyalayan hizli yolundan, ister `.keys()` + `__getitem__` jenerik yolundan gecsin)
-    `.items()`'e HICBIR ZAMAN bakmaz; boylece hangi yoldan gecilirse gecilsin gercek (bozuk) deger
-    kopyaya girer, `.items()`'teki gorunen (sahte) deger kopyaya hic girmez. Ayrica kopyalamadan
-    SONRAKI butun denetimler `sahte` degil KOPYA uzerinden calistigi icin `sahte.items()` bir daha
-    hic cagrilmaz."""
+    degerleri donduruyor -- J turundeki `_SahteEslem` (`collections.abc.Mapping`) ile ayni
+    desen, ama bu kez dogrudan bir `dict` alt sinifi uzerinde."""
 
     def __init__(self, gercek: dict, gorunen: dict):
         super().__init__(gercek)
@@ -192,61 +202,10 @@ class _SahteDict(dict):
 
     def items(self):
         return self._gorunen.items()
-
-
-def test_dict_alt_sinifi_items_override_deger_kontrolunu_atlatamaz():
-    """`dict` alt sinifinda `.items()` override'i (J turundaki Mapping saldirisinin dict alt
-    sinifina genellenmis hali) tamlik kapisini atlatamamali: gercek (bozuk, NaN) deger temel
-    depoda oldugu icin kopyaya girer, gorunen (sahte, tam) `.items()` hic cagrilmaz (F1 kapanis
-    turu 2 duzeltmesinin dict alt siniflarina da genellendigini dogrular; savusturuldu)."""
-    gorunen = sinyal("H1")  # gorunen: hepsi 1.0, tam
-    gercek = sinyal("H1", pump_dip=float("nan"))  # temel depodaki GERCEK deger NaN
-    sahte = _SahteDict(gercek, gorunen)
-    with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        _karar("H1", sahte)
-
-
-def test_dict_alt_sinifi_items_override_bool_degerini_gizleyemez():
-    """Ayni `dict` alt sinifi deseni bir bool GERCEK degerle de yakalanmali (kosul sonucu, pencere
-    degeri degil); gorunen (sahte) `.items()` degeri onu gizleyemez (savusturuldu)."""
-    gorunen = sinyal("H3")
-    gercek = sinyal("H3", sma50=True)  # temel depodaki GERCEK deger bool
-    sahte = _SahteDict(gercek, gorunen)
-    with pytest.raises(TypeError, match="bool"):
-        _karar("H3", sahte)
-
-
-def test_chainmap_on_taraftaki_deger_dogru_degerlendirilir():
-    """`ChainMap` gercek bir `Mapping`dir (MutableMapping alt sinifi); on taraftaki esleme
-    arka esleme uzerine yazar. On tarafa konan bozuk (NaN) deger sessizce arka (tam) degerle
-    gizlenmemeli, kopyada ON taraftaki deger gecerli olmali (savusturuldu; normal Python
-    Mapping semantigi, atlatma degil)."""
-    arka = sinyal("H1")  # hepsi 1.0, tam
-    on = {"pump_dip": float("nan")}
-    zincir = ChainMap(on, arka)
-    with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        _karar("H1", zincir)
-
-
-def test_mappingproxy_salt_okunur_esleme_normal_calisir():
-    """`types.MappingProxyType` salt-okunur bir `Mapping` gorunumudur; tam bir esleme sarilinca
-    normal kabul edilmeli, icinde NaN varsa reddedilmeli (savusturuldu; salt-okunurlugun kapiyi
-    atlatan bir yani yok)."""
-    tam = MappingProxyType(sinyal("H2"))
-    if not isinstance(tam, Mapping):
-        pytest.skip("Bu Python surumunde types.MappingProxyType collections.abc.Mapping olarak "
-                    "kaydedilmemis; olay_karari zaten 'isinstance(..., Mapping)' degilse TypeError verir.")
-    p = _karar("H2", tam)
-    assert pozisyon.onay_dogrula(p) is None
-    bozuk = MappingProxyType(sinyal("H2", funding_24s=float("nan")))
-    with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        _karar("H2", bozuk)
 
 
 class _SahteOrderedDict(OrderedDict):
-    """`OrderedDict` da bir `dict` alt sinifidir; `_SahteDict` ile ayni desen (temel depoda
-    GERCEK deger, yalnizca `.items()` override edilip GORUNEN deger donduruluyor) burada da
-    sinanir."""
+    """`OrderedDict` da bir `dict` alt sinifidir; `_SahteDict` ile ayni desen."""
 
     def __init__(self, gercek: dict, gorunen: dict):
         super().__init__(gercek)
@@ -256,16 +215,29 @@ class _SahteOrderedDict(OrderedDict):
         return self._gorunen.items()
 
 
-def test_ordereddict_alt_sinifi_items_override_enum_degerini_gizleyemez():
-    """`OrderedDict` alt sinifinda `.items()` override'iyla gizlenmis bir Enum uyesi (kosul
-    sonucu tasiyabilir) de kapida reddedilmeli; gorunen (sahte) `.items()` onu gizleyemez
-    (savusturuldu)."""
+class _Kosul(enum.IntEnum):
+    EVET = 1
 
-    class Kosul(enum.IntEnum):
-        EVET = 1
 
-    gorunen = sinyal("H1")
-    gercek = sinyal("H1", pump_dip=Kosul.EVET)  # temel depodaki GERCEK deger enum uyesi
-    sahte = _SahteOrderedDict(gercek, gorunen)
-    with pytest.raises(TypeError, match="enum"):
-        _karar("H1", sahte)
+# REV.11 MADDE 4: bu dosyadaki esleme saldirilarinin (dict alt sinifi `.items()` override,
+# OrderedDict alt sinifi, ChainMap on taraf, MappingProxyType) tamami KONUSUZ kaldi: kapi
+# cagirandan hicbir sinyal degeri almaz ve `sinyal_degerleri` anahtar sozcugu yoktur. Saldiri
+# GIRDILERI korunarak iddia yeni bicimine tasindi: hangi esleme turu, hangi gizlenmis deger
+# olursa olsun parametre REDDEDILIR. Boylece "sinyal degeri disaridan verilemez" kurali
+# esleme turlerine bagli olmaksizin sabitlenir.
+@pytest.mark.parametrize("hipotez,yapici", [
+    ("H1", lambda h: _SahteDict(_tam(h, pump_dip=float("nan")), _tam(h))),
+    ("H3", lambda h: _SahteDict(_tam(h, sma50=True), _tam(h))),
+    ("H1", lambda h: _SahteOrderedDict(_tam(h, pump_dip=_Kosul.EVET), _tam(h))),
+    ("H1", lambda h: ChainMap({"pump_dip": float("nan")}, _tam(h))),
+    ("H2", lambda h: MappingProxyType(_tam(h))),
+    ("H2", lambda h: MappingProxyType(_tam(h, funding_24s=float("nan")))),
+])
+def test_esleme_turleri_sinyal_degeri_gecirmek_icin_kullanilamaz(hipotez, yapici):
+    with pytest.raises(TypeError, match="sinyal_degerleri"):
+        _sinyal_degerleriyle(hipotez, yapici(hipotez))
+
+
+def test_kontrol_rolu_duz_seride_gecer():
+    """Karsi-ornek: sinyal degeri verilmeyen (rol K1) cagri normal calisir."""
+    assert pozisyon.onay_dogrula(_karar("H2")) is None

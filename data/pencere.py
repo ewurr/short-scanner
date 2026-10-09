@@ -268,6 +268,13 @@ def _zaman_dizisi_dogrula(zamanlar, yer: str) -> pd.DatetimeIndex:
     tekrarlanan cagrilar her seferinde tum diziyi taramaz.
     """
     indeks = zamanlar if isinstance(zamanlar, pd.DatetimeIndex) else pd.DatetimeIndex(zamanlar)
+    if len(indeks) == 0 and indeks.tz is None:
+        # Bos ve saat dilimsiz dizi: yanlis yorumlanacak hicbir damga yok, ama UTC'li bir anla
+        # karsilastirilinca pandas TypeError verir. UTC'ye yerellestirilir; boylece bos seri
+        # temiz bir ret gerekcesine (ör. `GirisBariYok`) doner, cokmez. Ayni yaklasim
+        # `funding.sinyal_penceresi_ayrintisi`de de var (Rev.11 madde 4 sira degisikligiyle
+        # bu yol kapida erisilebilir hale geldi).
+        return indeks.tz_localize("UTC")
     if len(indeks) and indeks.tz is None:
         raise ZamanDizisiHatasi(
             f"{yer}: zaman dizisi saat dilimsiz (tz-naive). Tum zaman damgalari UTC olmali "

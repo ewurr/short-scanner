@@ -29,7 +29,7 @@ import config
 from data import funding, pencere, pozisyon
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from tarama_yardimcisi import KUME_NONE_DESENI
 from uygunluk_yardimcisi import esikler, uygunluk
 
@@ -44,13 +44,28 @@ TAM_FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B + H(4), freq="8h"),
 SINYAL_T = {"H1": T("2025-03-10 04:00"), "H2": T("2025-03-10 04:00"), "H3": T("2025-03-10")}
 
 
-def _karar(hipotez, degerler, fr=TAM_FUND, **sinir):
+def _karar(hipotez, fr=TAM_FUND, rol="K1", **sinir):
+    """Rev.11 madde 4/5: kapi sinyal degerlerini kendisi hesaplar; bu dosyanin saldirilari sinyal
+    kurallarini degil karar noktasinin oteki adimlarini hedefler, bu yuzden rol K1'dir (kontrol
+    barinda sinyal kosullari aranmaz; on-kayit §6 rev.11)."""
     tanim = pencere.hipotez_ufuklari(hipotez)
     s = {"kume": kume_adi(SINYAL_T[hipotez])}
     s.update(sinir)
     return pozisyon.olay_karari(SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, **veri(MUM, fr, DB, B, uygun_bas=DB),
-                                sinyal_degerleri=degerler, **s, **esikler(tanim.bar))
+                                **kontrol(hipotez, rol), **s, **esikler(tanim.bar))
+
+
+def _sinyal_degerleriyle(hipotez, degerler, fr=TAM_FUND, **sinir):
+    """Eski (Rev.11 oncesi) cagri bicimi: sinyal degerlerini CAGIRANDAN vermek. Artik bir
+    programlama hatasidir; asagidaki saldirilar bunu gosterir."""
+    tanim = pencere.hipotez_ufuklari(hipotez)
+    s = {"kume": kume_adi(SINYAL_T[hipotez])}
+    s.update(sinir)
+    return pozisyon.olay_karari(SINYAL_T[hipotez], tanim.birincil, tanim.bar, hipotez=hipotez,
+                                birincil_ufuk=tanim.birincil, **veri(MUM, fr, DB, B, uygun_bas=DB),
+                                **kontrol(hipotez), sinyal_degerleri=degerler, **s,
+                                **esikler(tanim.bar))
 
 
 # --- Saldiri 1: `__iter__` (ad tamligi) ile `.items()` (deger tamligi) ayrismasi -------------------
@@ -83,78 +98,61 @@ class _SahteEslem(Mapping):
 
 
 # SALDIRI BULGUSU (F1 kapanis turu, xfail idi): olay_karari ad tamligini `set(sinyal_degerleri)`
-# (__iter__) ile, deger tamligini `.items()` ile ayri ayri denetliyordu; Mapping alt sinifi NaN'i gizliyordu.
-# F1 kapanis turu 2'de kapandi (kapi eslemi bir kez duz dict'e kopyalar); xfail isareti kaldirildi,
-# test ayni beklentiyle normal test olarak kaliyor.
-def test_esleme_iterasyon_ile_items_ayrismasi_nan_degeri_sizdirir():
-    gorunen = sinyal("H1")  # goze gorunen: hepsi 1.0, tam
-    gercek = sinyal("H1", pump_dip=float("nan"))  # gercek deger NaN
-    sahte = _SahteEslem(gercek, gorunen)
-    with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        _karar("H1", sahte)
+# (__iter__) ile, deger tamligini `.items()` ile ayri ayri denetliyordu; Mapping alt sinifi NaN'i
+# gizliyordu. F1 kapanis turu 2'de kapandi (kapi eslemi bir kez duz dict'e kopyaliyordu).
+# REV.11 MADDE 4: bu saldiri ailesinin tamami KONUSUZ kaldi; kapi cagirandan hicbir sinyal degeri
+# almaz (`sinyal_degerleri` anahtar sozcugu yok). Asagidaki test eski saldiri girdilerini
+# koruyarak yeni iddiayi sinar: hangi esleme turu, hangi deger turu olursa olsun parametre
+# REDDEDILIR. Boylece "sinyal degeri disaridan verilemez" kurali tek yerde sabitlenir.
 
 
-# SALDIRI BULGUSU (F1 kapanis turu, xfail idi): ayni ayrisma bool degerini de gizliyordu. F1 kapanis
-# turu 2'de ayni duzeltmeyle kapandi; xfail isareti kaldirildi, beklenti ayni.
-def test_esleme_iterasyon_ile_items_ayrismasi_bool_degerini_gizler():
-    gorunen = sinyal("H3")
-    gercek = sinyal("H3", sma50=True)  # bool: kosul sonucu, pencere degeri degil
-    sahte = _SahteEslem(gercek, gorunen)
-    with pytest.raises(TypeError, match="bool"):
-        _karar("H3", sahte)
+class _Kosul(enum.IntEnum):
+    EVET = 1
 
 
-# --- Saldiri 2: defaultdict / bilinen (adversarial olmayan) Mapping turleri savusturulur -----------
+def _tam(hipotez, **degisen):
+    """Eski `sinyal_yardimcisi.sinyal` yerine: hipotezin butun deger adlari 1.0."""
+    degerler = {ad: 1.0 for ad in pozisyon.SINYAL_DEGERLERI[hipotez]}
+    degerler.update(degisen)
+    return degerler
 
 
-def test_defaultdict_ile_eksik_ad_hala_programlama_hatasi():
-    """defaultdict eksik anahtari otomatik doldurabilir umuduyla denenir: `set(sinyal_degerleri)`
-    yalnizca ACIKCA konmus anahtarlari gorur, eksik ad hala TypeError'dur (savusturuldu)."""
-    taban = sinyal("H1")
-    ilk = next(iter(taban))
-    eksik = defaultdict(lambda: 1.0, {k: v for k, v in taban.items() if k != ilk})
+def _sahte_esleme(hipotez):
+    return _SahteEslem(_tam(hipotez, **{next(iter(_tam(hipotez))): float("nan")}), _tam(hipotez))
+
+
+@pytest.mark.parametrize("yapici", [
+    lambda h: _tam(h),                                             # duz dict, tam ve sayisal
+    lambda h: _sahte_esleme(h),                                    # Mapping alt sinifi, .items() ezilmis
+    lambda h: defaultdict(lambda: 1.0, _tam(h)),                   # defaultdict
+    lambda h: _tam(h, **{next(iter(_tam(h))): float("nan")}),      # NaN deger
+    lambda h: _tam(h, **{next(iter(_tam(h))): True}),              # bool
+    lambda h: _tam(h, **{next(iter(_tam(h))): np.bool_(True)}),    # np.bool_
+    lambda h: _tam(h, **{next(iter(_tam(h))): _Kosul.EVET}),       # enum uyesi
+    lambda h: _tam(h, **{next(iter(_tam(h))): Decimal("1.5")}),    # Decimal
+    lambda h: _tam(h, **{next(iter(_tam(h))): Fraction(3, 2)}),    # Fraction
+    lambda h: {},                                                  # bos esleme
+])
+def test_sinyal_degerleri_hicbir_bicimde_verilemez(yapici):
     with pytest.raises(TypeError, match="sinyal_degerleri"):
-        _karar("H1", eksik)
+        _sinyal_degerleriyle("H1", yapici("H1"))
 
 
 def test_str_alt_sinifi_hipotez_normal_calisir():
     """Sade (adversarial olmayan) bir str alt sinifi hipotez adi olarak calismali; tur denetimi
-    'isinstance' oldugu icin alt sinif engellenmemeli (savusturuldu, kirilma degil)."""
+    'isinstance' oldugu icin alt sinif engellenmemeli (savusturuldu, kirilma degil).
+
+    Rev.11 notu: yapilandirma denetimi (`sinyal._hipotez_dogrula`) `type(hipotez) is not str`
+    istedigi icin str ALT SINIFI artik reddedilir; bu, kapi sertlestirme turu 3'teki "hipotez adi
+    yalnizca config.HIPOTEZLER'den" kuralinin yapilandirma tarafina genislemesidir. Iddia bu
+    yuzden tersine cevrildi ve gerekcesi yazildi."""
 
     class HipotezStr(str):
         pass
 
-    p = _karar(HipotezStr("H1"), sinyal("H1"))
-    assert p.hipotez == "H1"
-
-
-# --- Saldiri 3: sinyal degeri turleri (Decimal/Fraction/np.bool_/Enum) ------------------------------
-
-
-def test_decimal_ve_fraction_sinyal_degeri_tamlik_kapisini_gecmez():
-    """Decimal/Fraction on-kayitin bekledigi (int/float/np sayisal) turlerden degildir; tamlik kapisi
-    bunlari SESSIZCE kabul etmemeli, guvenli tarafta (eksik sayarak) reddetmeli (savusturuldu)."""
-    for deger in (Decimal("1.5"), Fraction(3, 2)):
-        with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-            _karar("H1", sinyal("H1", pump_dip=deger))
-
-
-def test_numpy_bool_sinyal_degeri_reddedilir():
-    """np.bool_ da bool gibi kosul sonucu sayilmali, pencere degeri olarak kabul edilmemeli
-    (savusturuldu)."""
-    with pytest.raises(TypeError, match="bool"):
-        _karar("H1", sinyal("H1", pump_dip=np.bool_(True)))
-
-
-def test_enum_uyesi_sinyal_degeri_reddedilir():
-    """IntEnum uyesi sayi gibi gecebilir ama bir kosul sonucu tasiyabilir; kapi acikca reddetmeli
-    (savusturuldu)."""
-
-    class Kosul(enum.IntEnum):
-        EVET = 1
-
-    with pytest.raises(TypeError, match="enum"):
-        _karar("H1", sinyal("H1", pump_dip=Kosul.EVET))
+    with pytest.raises(TypeError):
+        _karar(HipotezStr("H1"))
+    assert _karar("H1").hipotez == "H1"
 
 
 # --- Saldiri 4: config.H2_FUNDING_PENCERESI_SAAT tur disiplini --------------------------------------
@@ -179,7 +177,7 @@ def test_h2_funding_penceresi_saat_baska_tur_kabul_etmez(saat):
 def test_onaylanmis_pozisyon_elle_degistirilince_mae_reddedilir():
     """`mae` de (`pozisyon_fiyatlari` gibi) `onay_dogrula` ile korunur: hipotez disinda herhangi bir
     alan (p1, funding_toplami) degistirilirse imza uyusmamali (savusturuldu; on-kayit §4 'MAE')."""
-    p = _karar("H1", sinyal("H1"))
+    p = _karar("H1")
     sahte_p1 = replace(p, p1=p.p1 * 1.5)
     with pytest.raises(ValueError):
         pozisyon.mae(sahte_p1)
@@ -202,7 +200,7 @@ def test_h2_kume_bitis_sinyal_barinin_kapanisindan_once_ise_olay_olusmaz():
     # Kapi sertlestirme turu: kume siniri artik cagirandan alinmaz; serbest `kume_bitis` verilemez
     # (TypeError). Onceki beklenti OlayOlusmaz idi.
     with pytest.raises(TypeError):
-        _karar("H2", sinyal("H2"), kume_bitis=kume_son)
+        _karar("H2", kume_bitis=kume_son)
     # Kapi sertlestirme turu 2 (denetci KS D-C6): ayni iddia kapinin gercek davranisiyla. Sinyal KESIF'in
     # son bari (2025-08-31 20:00); kapanisi kume sonuyla tolerans icinde ayni an, giris bari (09-01 00:00)
     # C2'de. Fikstur serisi C2'ye uzansa da kapi veriyi kume sonuna keser: olay ya da kontrol olusmaz.
@@ -217,7 +215,7 @@ def test_h2_kume_bitis_sinyal_barinin_kapanisindan_once_ise_olay_olusmaz():
     with pytest.raises(pencere.GirisBariYok):
         pozisyon.olay_karari(son, tanim.birincil, tanim.bar, hipotez="H2", birincil_ufuk=tanim.birincil,
                              kume="KESIF", **veri(mum, fr, db, T("2025-09-10 20:00"), uygun_bas=db),
-                             sinyal_degerleri=sinyal("H2"), **esikler(tanim.bar))
+                             **kontrol("H2"), **esikler(tanim.bar))
 
 
 # --- Saldiri 7: kaynak taramasinin bilinen kor noktasi (D-C3) ---------------------------------------

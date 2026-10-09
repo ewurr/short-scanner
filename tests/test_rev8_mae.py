@@ -12,7 +12,7 @@ import pytest
 import config
 from data import klines, pozisyon
 from data.donem import Donem
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, UYGUN_ONCELIK, uygunluk
@@ -41,7 +41,7 @@ def _karar(mum, t, ufuk=18, bar=config.BAR_4H, b=B):
     # Rev.9 §4: uygunluk karar noktasinda; donem mum serisinden UYGUN_ONCELIK once baslar.
     return pozisyon.olay_karari(t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
                                 kume=kume_adi(t), **veri(mum, _fund(), BAS - UYGUN_ONCELIK, b, uygun_bas=BAS - UYGUN_ONCELIK),
-                                sinyal_degerleri=sinyal("H1" if bar == config.BAR_4H else "H3"),
+                                **kontrol("H1" if bar == config.BAR_4H else "H3"),
                                 **esikler(bar))
 
 

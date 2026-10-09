@@ -2,8 +2,10 @@
 
 1. Fiyat okuma tabani (on-kayit §4 rev.8): close_time sutunu olmayan tek satirlik cerceve 4h serisi
    oldugu dogrulanamadigi icin reddedilir (sizinti testcisi Rev.9 bulgusu; D-B3'un kalan acigi).
-2. Sinyal pencereleri (on-kayit §2 "Tamlik sarti"): `sinyal_degerleri` bool kabul etmez (denetci
-   bulgusu D-C1): olumsuzlanmis bir kosul NaN pencereyi True ile gizleyebilir.
+2. Sinyal pencereleri (on-kayit §2 "Tamlik sarti"): Rev.11 madde 4'ten beri kapi sinyal
+   degerini CAGIRANDAN ALMAZ; `sinyal_degerleri` anahtar sozcugu kabul edilmez. Denetci bulgusu
+   D-C1'in (olumsuzlanmis bir kosulun NaN pencereyi True ile gizlemesi) konusu kalmadi ve iddia
+   yapisal hale geldi.
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ import pytest
 
 import config
 from data import pozisyon
-from sinyal_yardimcisi import sinyal as _tam_sinyal
+from sinyal_yardimcisi import kontrol, olay, yapilandirma
 from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, uygunluk
@@ -53,27 +55,41 @@ MUM = pd.DataFrame({"open_time": Z, "open": 1.0, "high": 1.0, "low": 1.0, "close
 FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B, freq="8h"), "aralik_saat": 8.0, "oran": 0.0, "oran_8h": 0.0})
 
 
-def _karar(sinyal):
+def _karar(**ek):
     return pozisyon.olay_karari(T("2025-03-05 04:00"), 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
                                 kume=kume_adi(T('2025-03-05 04:00')), **veri(MUM, FUND, DB, B, uygun_bas=DB),
-                                sinyal_degerleri=sinyal, **esikler(config.BAR_4H))
+                                **ek, **esikler(config.BAR_4H))
 
 
-@pytest.mark.parametrize("deger", [True, False, np.bool_(True), np.bool_(False)])
-def test_sinyal_degerleri_bool_kabul_etmez(deger):
-    with pytest.raises(TypeError, match="bool"):
-        _karar({"pencere": 1.0, "kosul": deger})
+# Rev.11 madde 4: `sinyal_degerleri` anahtar sozcugu KALKTI; kapi degerleri kendisi hesaplar. Bu
+# bolumun eski iddialari (bool ve olumsuzlanmis kosul bir pencere degeri gibi gecemez) artik
+# yapisal olarak saglanir: kapi cagirandan hicbir sinyal degeri almaz. Iddia, "parametre
+# yok"un kendisine tasindi; eski denetimlerin konusu kalmadi (denetci bulgusu D-C1 konusuz).
+@pytest.mark.parametrize("degerler", [
+    {"pencere": 1.0, "kosul": True},
+    {"kosul": np.bool_(False)},
+    {"pump_dip": 1.0, "pump_hacim_6": 1.0, "pump_hacim_medyani_180": 1.0, "tepe": 1.0},
+])
+def test_sinyal_degerleri_anahtar_sozcugu_kabul_edilmez(degerler):
+    with pytest.raises(TypeError, match="sinyal_degerleri"):
+        _karar(**kontrol("H1"), sinyal_degerleri=degerler)
 
 
 def test_nan_pencere_olumsuz_kosulla_gizlenemez():
-    x, y = float("nan"), 0.5
-    with pytest.raises(TypeError):
-        _karar({"kosul": not (x < y)})  # NaN ile True olurdu
+    """Eskiden `not (x < y)` gibi olumsuzlanmis bir kosul NaN pencereyi True ile gizleyebiliyordu.
+    Rev.11'den beri bir pencere degeri KAPIYA VERILEMEZ: deger kapida hesaplanir ve NaN ise
+    `SinyalPenceresiTamDegil` olur. Asagidaki eksik bar bunu veriyle gosterir."""
+    # Eksik bar t'nin KENDI gunune konur (2025-03-05): o gun uygunluk penceresinin disindadir
+    # (on-kayit §2 "Uygunluk penceresi ve t gunu"), bu yuzden yalnizca tepe penceresini dusurur.
+    z = pd.DatetimeIndex(MUM["open_time"])
+    mum = MUM.loc[z != T("2025-03-05 00:00")].reset_index(drop=True)
     with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        # dogru kullanim: pencere degerleri. F1 kapanis turu: kapi hipotezin butun sinyal degerlerini ister.
-        _karar(_tam_sinyal("H1", pump_dip=x, tepe=y))
+        pozisyon.olay_karari(T("2025-03-05 04:00"), 6, config.BAR_4H, hipotez="H1", birincil_ufuk=18,
+                             kume=kume_adi(T('2025-03-05 04:00')),
+                             **veri(mum, FUND, DB, B, uygun_bas=DB),
+                             **olay("H1", capa=T("2025-03-04 16:00")), **esikler(config.BAR_4H))
 
 
-@pytest.mark.parametrize("deger", [1, 1.0, np.int64(2), np.float64(0.5)])
-def test_sayisal_degerler_kabul_edilir(deger):
-    assert _karar(_tam_sinyal("H1", pump_dip=deger)).plan.sinyal_zamani == T("2025-03-05 04:00")
+def test_kontrol_rolu_duz_seride_kabul_edilir():
+    """Sinyal kurallarini sinamayan testlerin yolu: K1 rolu (on-kayit §6 rev.11)."""
+    assert _karar(**kontrol("H1")).plan.sinyal_zamani == T("2025-03-05 04:00")

@@ -9,16 +9,23 @@ esigi de gecmelidir. ... Boylece brut ve net olay kumeleri her zaman aynidir."
 
 `olay_karari` bu karar noktasidir; olaylar ve kontroller (K1, K2) ayni fonksiyonu cagirir,
 ayri bir kontrol yolu yoktur. Sirasiyla:
-  0. Hipotez -> izgara -> ufuk bagi (`pencere.hipotez_baglamini_dogrula`; F1 kapanis turu).
-  1. Sinyal pencerelerinin tamligi: hipotezin butun sinyal degerleri (`SINYAL_DEGERLERI`) verilmeli;
-     biri NaN ise `SinyalPenceresiTamDegil` (on-kayit §2 "Tamlik sarti"). H2'nin funding penceresi
-     ayrica kapida funding serisinden yeniden kurulur (on-kayit §4 "Funding sinyal penceresinin
-     tamligi"; plan adimindan sonra, cunku kume ve donem sinirlarini plandan okur).
-  2. `pencere.pozisyon_plani`: sinyal kumede ve donem ici, giris bari, cikis (donem
+  0. Hipotez -> izgara -> ufuk bagi (`pencere.hipotez_baglamini_dogrula`; F1 kapanis turu),
+     yapilandirmanin izgarada olmasi (`sinyal.yapilandirma_dogrula`) ve ROL (on-kayit §6 rev.11).
+  1. `pencere.pozisyon_plani`: sinyal kumede ve donem ici, giris bari, cikis (donem
      sonu / olagan / ileri kayma ve siniri), gercek cikis ani + tolerans <= kume sonu.
+  2. Sinyal degerleri: kapi hipotezin butun sinyal degerlerini KENDISI hesaplar
+     (`data.sinyal`; Rev.11 madde 4, F1 kapanis bulgusu D-B1). Cagiran deger vermez.
+     Biri hesaplanamiyorsa `SinyalPenceresiTamDegil` (on-kayit §2 "Tamlik sarti"). Rol
+     "olay" ise §5'teki kosullar saglanmali (`SinyalKosuluSaglanmadi`); rol "K2" ise
+     saglanmamali (`OlayUretmis`). Rol "K1" ise sinyal HIC hesaplanmaz (on-kayit §6 rev.11).
   3. Uygunluk (`eligibility.uygunluk_karari`, esikler zorunlu anahtar sozcuk) -> `UygunDegil`.
   4. Funding tamligi (`funding.pozisyon_funding_ayrintisi`) -> `FundingTamDegil`; ayni satirdan
      F2 saglamlik bayraklari (kismi kuyruk, esitlik affi, funding ritmi).
+
+Adim sirasi Rev.11'de degisti: sinyal tamligi artik plandan SONRA denetlenir, cunku sinyal
+pencereleri kume ve donem sinirlarini plandan okur (rev.11 oncesi cagiranin verdigi sayilar
+sinirsiz denetlenebiliyordu). Iki adim da ayni `OlayOlusmaz` ailesindedir; degisen yalnizca
+ikisi birlikte basarisiz oldugunda yukari cikan ret gerekcesidir.
 Karar olumluysa `OnaylanmisPozisyon` doner: plan, P0, P1 ve funding toplami. Brut
 getiri, net getiri, MAE ve K1/K2 kontrolleri YALNIZCA bu ciktiyi kullanir;
 `pozisyon_fiyatlari` ve `mae` baska girdi kabul etmez. Ayri bir kapi yoktur.
@@ -30,15 +37,28 @@ yukler, kume araligina keser ve 1d serisini bu 4h barlardan tek yol `klines.gunl
 turetir. Donem ve kume kayitlari commit edilmis tablolardan okunur. Bu yuzden fonksiyonlar saf
 degildir: disk okurlar (CLAUDE.md §5: ag ve disk erisimi yalnizca `data/` katmaninda).
 
+**Rol (on-kayit §6 rev.11 "Kontrolun ne olctugu").** "Kontrol bari, olayin sinyal yapisini
+taklit etmez: kontrolde hipotezin sinyal kosullari aranmaz. ... Kontrol bari icin gereken:
+uygunluk filtresi, donem uyeligi, fiyat ve funding tamligi, ve §4'teki tek karar noktasinin
+butun kosullari." Bu yuzden `rol`:
+  - `"olay"`: sinyal degerleri hesaplanir ve §5'teki kosullar SAGLANMALI.
+  - `"K2"`: sinyal degerleri yalnizca "o anda olay uretmemis" sartini dogrulamak icin hesaplanir;
+    hesaplanamiyorsa bar kontrol OLAMAZ, hesaplanip kosulu saglamiyorsa kontrol adayidir.
+    H1 bir istisnadir: "H1'in kontrol barinda pump bari, dip penceresi ve tepe aranmaz" (sinyali
+    bir pump barina capalidir ve kontrol barinda pump yoktur), bu yuzden H1'in K2 barinda sinyal
+    hic hesaplanmaz; "olay uretmemis" sarti o yapilandirmanin olay kumesine gore, ornekleme
+    adiminda (`data.ornekleme`) uygulanir.
+  - `"K1"`: sinyal hic hesaplanmaz. On-kayit §6 rev.11 kontrol tarafinda sinyal degerlerini
+    "yalnizca tek bir amacla: K2'nin 'o anda olay uretmemis' sartini dogrulamak" icin hesaplar;
+    K1'in olcutu zamansal uzakliktir, sinyal degil.
+
 Getiri HESAPLAMAZ (F2 kodu degildir); fiyat ve funding degerlerini tasir ama raporlamaz.
 """
 
 from __future__ import annotations
 
-import enum
 import functools
 import math
-from collections.abc import Mapping
 from types import MappingProxyType
 from dataclasses import dataclass, field, replace
 
@@ -50,31 +70,25 @@ from data import eligibility as eligibility_modulu
 from data import funding as funding_modulu
 from data import klines as klines_modulu
 from data import pencere as pencere_modulu
+from data import sinyal as sinyal_modulu
 from data import split as split_modulu
 from data import universe as universe_modulu
 
 
-# Hipotez basina karar noktasina verilmesi ZORUNLU sinyal degerleri (F1 kapanis turu, denetci D-B1).
+# Hipotez basina kapinin HESAPLADIGI sinyal degerleri (Rev.11 madde 4; F1 kapanis bulgusu D-B1).
+# Rev.11'den once bu adlar cagirandan ISTENIYORDU; artik kapi degerleri `data.sinyal`in pencere
+# kuruculariyla kendisi hesaplar ve `sinyal_degerleri` anahtar sozcugu KALKMISTIR. Adlarin ve
+# pencere sinirlarinin tek kaynagi `sinyal.DEGER_ADLARI`dir (on-kayit §5 "Pencere sinirlari").
 # On-kayit §2 "Tamlik sarti": "Pencerede beklenen barlardan biri bile eksikse deger hesaplanmaz ve o
 # barda olay ya da kontrol olusmaz"; §4 "Funding sinyal penceresinin tamligi": "... o barda olay ya
-# da kontrol olusmaz". Adlar §5'teki pencere kosullaridir (fiyat ve hacim degeri t barinin kendisi
-# degil, geriye bakis penceresi):
-#   H1 (§5 H1): pump barinda dip `min(low[t-6..t-1])`, son 6 barin toplam hacmi, onceki 180 barin
-#       6'li toplam hacim medyani; pump barindan itibaren tepe `max(high)` (en fazla 12 bar).
-#   H2 (§5 H2): son 24 saatin funding ortalamasi (`funding.funding_ortalamasi`), `close[t-30]`,
-#       kirilim dibi `min(low[t-k..t-1])`.
-#   H3 (§5 H3): son 30 gunun medyan gunluk hacmi, gun -120 ile -31 arasindaki medyan gunluk hacim,
-#       `SMA50[t]`, `close[t-30]`.
-# Karar noktasi tam olarak bu adlari ister (eksik ya da fazla ad programlama hatasi: TypeError); biri
-# NaN ya da sonsuzsa olay ve kontrol olusmaz (`SinyalPenceresiTamDegil`).
-SINYAL_DEGERLERI = {
-    "H1": ("pump_dip", "pump_hacim_6", "pump_hacim_medyani_180", "tepe"),
-    "H2": ("funding_24s", "kapanis_30_once", "kirilim_dip"),
-    "H3": ("hacim_medyani_30g", "hacim_medyani_120_31", "sma50", "kapanis_30_once"),
-}
-# H2'nin funding ortalamasi. Karar noktasi bu degerin penceresini ayrica KENDISI denetler
-# (`funding.sinyal_penceresi_ayrintisi`): cagiranin verdigi sayiya guvenilmez.
+# da kontrol olusmaz".
+SINYAL_DEGERLERI = sinyal_modulu.DEGER_ADLARI
+# H2'nin funding ortalamasi; penceresinin butun kurallari `funding.funding_ortalamasi`dedir.
 FUNDING_SINYALI = "funding_24s"
+
+# Barin rolu (on-kayit §6 rev.11 "Kontrolun ne olctugu"; modul aciklamasindaki "Rol" basligi).
+ROLLER = ("olay", "K1", "K2")
+KONTROL_ROLLERI = ("K1", "K2")
 
 
 class SinyalPenceresiTamDegil(pencere_modulu.OlayOlusmaz):
@@ -96,6 +110,21 @@ class FundingTamDegil(pencere_modulu.OlayOlusmaz):
     olay ya da kontrol brut dahil hicbir hesapta olusmaz."""
 
     gerekce = "funding_tam_degil"
+
+
+class SinyalKosuluSaglanmadi(pencere_modulu.OlayOlusmaz):
+    """Sinyal degerleri hesaplandi ama hipotezin §5'teki kosullari bu barda saglanmadi; olay
+    olusmaz. Kontrol barinda bu bir ret gerekcesi DEGILDIR (on-kayit §6 rev.11: "kontrolde
+    hipotezin sinyal kosullari aranmaz")."""
+
+    gerekce = "sinyal_kosulu_saglanmadi"
+
+
+class OlayUretmis(pencere_modulu.OlayOlusmaz):
+    """K2 adayi olmayan bar: o anda hipotezin kosullari saglaniyor, yani bar olay uretmis
+    (on-kayit §6 K2: "o anda olay uretmemis diger coinlerden")."""
+
+    gerekce = "olay_uretmis"
 
 
 class SinyalBariYok(pencere_modulu.OlayOlusmaz):
@@ -145,6 +174,10 @@ class OnaylanmisPozisyon:
     karisik_ritim: bool = False
     ritim_sinifi: str | None = None
     hipotez: str | None = None
+    # Yapilandirma kimligi ve rol (on-kayit §5, §6 rev.11): ornekleme ve dizi kurallari "ayni
+    # yapilandirmanin olusmus olaylari"na gore isler, bu yuzden onayli pozisyon ikisini de tasir.
+    yapilandirma: str | None = None
+    rol: str | None = None
     # Kimlik (kapi sertlestirme turu 2): `mae` ve `funding.pozisyon_fundingi` veriyi bu kimlikle kendileri
     # yukler; cagiran cerceve vermez.
     sembol: str | None = None
@@ -160,7 +193,7 @@ class OnaylanmisPozisyon:
 def _imza(p: OnaylanmisPozisyon) -> int:
     return hash((_ONAY_GIZLI, p.plan, p.p0, p.p1, p.funding_toplami, p.kuyruk_kismi, p.son_esitlik_affi,
                  p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim, p.funding_ritmi_saat, p.karisik_ritim,
-                 p.ritim_sinifi, p.hipotez, p.sembol, p.kume, p.donem_no))
+                 p.ritim_sinifi, p.hipotez, p.yapilandirma, p.rol, p.sembol, p.kume, p.donem_no))
 
 
 def onay_dogrula(pozisyon) -> None:
@@ -367,17 +400,69 @@ def _mae_tepesi(mumlar_4h: pd.DataFrame, zamanlar: pd.DatetimeIndex, plan, p1: f
     return tepe
 
 
+def _rol_dogrula(rol) -> str:
+    """Bar hangi rolde karar noktasina geliyor (on-kayit §6 rev.11)? Bilinmeyen rol programlama
+    hatasidir; `str` alt sinifi da reddedilir (`__eq__` ile yalan soyleyebilir)."""
+    if type(rol) is not str:
+        raise TypeError(f"rol bir rol adi olmali {ROLLER}; verilen: {rol!r}")
+    if rol not in ROLLER:
+        raise ValueError(f"Bilinmeyen rol {rol!r}; gecerli: {ROLLER} (on-kayit §6 rev.11 "
+                         "'Kontrolun ne olctugu').")
+    return rol
+
+
+def _capa_dogrula(hipotez: str, rol: str, capa):
+    """Capa (H1'in pump bari) bu hipotez ve rolde verilmeli mi? (on-kayit §5 H1, §6 rev.11)
+
+    Capa YALNIZCA H1'in olay rolunde verilir: H1'in sinyali bir pump barina capalidir. Kontrol
+    rollerinde capa verilemez, cunku "H1'in kontrol barinda pump bari, dip penceresi ve tepe
+    aranmaz". H2 ve H3'un butun degerleri t barindan hesaplanir, onlarda capa hicbir rolde
+    verilemez. Capa bir deger degil bir BAR ZAMANIDIR ve kapi onu ayrica dogrular: pump kosulu
+    capada yeniden hesaplanir (`sinyal.kosullar_saglandi`), yani cagiran uydurma bir capayla
+    olay uretemez.
+    """
+    capali = hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and rol == "olay"
+    if capali:
+        if capa is None:
+            raise TypeError(f"{hipotez} olay rolunde capa (pump bari) zorunludur (on-kayit §5 H1).")
+        return pencere_modulu.utc_zamani(capa, "capa")
+    if capa is not None:
+        raise TypeError(f"{hipotez} / rol {rol} icin capa verilemez (on-kayit §6 rev.11: kontrol "
+                        "barinda pump bari aranmaz; H2 ve H3 t barindan hesaplanir).")
+    return None
+
+
+def _sinyal_gerekli(hipotez: str, rol: str) -> bool:
+    """Bu hipotez ve rolde sinyal degerleri hesaplanir mi? (on-kayit §6 rev.11)
+
+    - Olay rolu: her zaman (§5'teki kosullar saglanmali).
+    - K2: "Sinyal degerleri kontrol tarafinda yalnizca tek bir amacla hesaplanir: K2'nin 'o anda
+      olay uretmemis' sartini dogrulamak." H1 haric: "H1'in kontrol barinda pump bari, dip
+      penceresi ve tepe aranmaz" (capali sinyal, kontrol barinda capa yok), bu yuzden H1'in K2
+      sarti ornekleme adiminda o yapilandirmanin olay kumesine gore uygulanir.
+    - K1: hic. K1'in olcutu "o hipotezin herhangi bir olayina birincil ufuk mesafesinden yakin
+      olmamak"tir; sinyal degeri gerekmez.
+    """
+    if rol == "olay":
+        return True
+    if rol == "K2":
+        return hipotez not in sinyal_modulu.CAPALI_HIPOTEZLER
+    return False
+
+
 def olay_karari(
     sinyal_zamani,
     ufuk: int,
     bar: str,
     *,
     hipotez: str,
+    yapilandirma,
+    rol: str,
+    capa,
     birincil_ufuk: int,
     kume: str,
     sembol: str,
     donem_no: int,
-    sinyal_degerleri: Mapping[str, float],
     asgari_hacim,
     asgari_listeleme_yasi_gun,
 ) -> OnaylanmisPozisyon:
@@ -388,8 +473,14 @@ def olay_karari(
     Fiyat, funding ve 1d cerceveleri cagirandan alinmaz: kapi `sembol` ve `kume` ile yukler
     (`_kume_verisi`), 1d serisini 4h barlardan turetir (`klines.gunluge_cevir`). `sinyal_zamani` UTC
     olmali; sinyal bari hipotezin izgarasinda donem ici seride bulunmali (`SinyalBariYok`). Sonlu
-    olmayan fiyat ya da funding toplami acik hatadir. `sinyal_degerleri`: sinyal barinda hesaplanan
-    pencere degerleri (ad -> deger); bos olamaz. `asgari_hacim`, `asgari_listeleme_yasi_gun`:
+    olmayan fiyat ya da funding toplami acik hatadir.
+
+    SINYAL DEGERLERI CAGIRANDAN ALINMAZ (Rev.11 madde 4): kapi hipotezin butun sinyal degerlerini
+    `data.sinyal`in pencere kuruculariyla kendisi hesaplar. `yapilandirma`: hipotezin izgarasindaki
+    bir parametre demeti (on-kayit §5 rev.11; izgarada olmayan demet `sinyal.YapilandirmaHatasi`).
+    `rol`: "olay", "K1" ya da "K2" (modul aciklamasindaki "Rol" basligi). `capa`: yalnizca H1'in
+    olay rolunde pump bari, baska her durumda `None` (`_capa_dogrula`).
+    `asgari_hacim`, `asgari_listeleme_yasi_gun`:
     uygunluk esikleri, on-kayit §2 degerleri olmalidir (`eligibility.esikleri_dogrula`).
     `hipotez` ("H1", "H2", "H3") zorunludur: `bar`, `ufuk` ve `birincil_ufuk` hipotezden tureyen on-kayit
     degerleriyle uyumlu olmalidir (`pencere.hipotez_baglamini_dogrula`; F2 kodu bunlari
@@ -403,14 +494,21 @@ def olay_karari(
     # Hipotez -> izgara -> ufuk bagi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis
     # turu, denetci D-B2): izgara ve ufuklar hipotezden turer; uyumsuz eslesme calisma aninda hata.
     pencere_modulu.hipotez_baglamini_dogrula(hipotez, bar, ufuk, birincil_ufuk)
+    # Yapilandirma ve rol (on-kayit §5, §6 rev.11): "Olay ya da kontrol ureten her cagri, hipotezi
+    # ve yapilandirmayi birlikte alir; izgarada bulunmayan bir parametre demeti hata verir."
+    gecerli_yapilandirma = sinyal_modulu.yapilandirma_dogrula(hipotez, yapilandirma)
+    yapilandirma_kimligi = sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli_yapilandirma)
+    rol = _rol_dogrula(rol)
+    capa = _capa_dogrula(hipotez, rol, capa)
     # Olayin olusup olusmadigi BIRINCIL ufukta belirlenir (kapi sertlestirme turu 3, denetci KS2 D-B3; on-kayit
     # §4 "Ufuk degerlerinin baglanmasi": "Ikincil ufuklar yalnizca raporlanir; onay kararlari birincil ufka
     # gore verilir"). Ikincil ufuk istenirse ayni cagri once birincil ufukla degerlendirilir; orada olay
     # olusmazsa ayni ret gerekcesi yukari cikar ve hicbir ikincil ufukta onay verilmez. Birincil ufukta olusan
     # olayin ikincil cikisi ayrica kendi ufuk uzunluguyla kurallara tabidir (on-kayit §3 "Kume siniri ve ufuk").
     if ufuk != birincil_ufuk:
-        olay_karari(sinyal_zamani, birincil_ufuk, bar, hipotez=hipotez, birincil_ufuk=birincil_ufuk, kume=kume,
-                    sembol=sembol, donem_no=donem_no, sinyal_degerleri=sinyal_degerleri, asgari_hacim=asgari_hacim,
+        olay_karari(sinyal_zamani, birincil_ufuk, bar, hipotez=hipotez, yapilandirma=gecerli_yapilandirma,
+                    rol=rol, capa=capa, birincil_ufuk=birincil_ufuk, kume=kume, sembol=sembol,
+                    donem_no=donem_no, asgari_hacim=asgari_hacim,
                     asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
     sinyal_zamani = _utc_sinyal_zamani(sinyal_zamani)
     # Kume sinirlari cagirandan alinmaz; kume adindan kapida okunur (kapi sertlestirme turu, denetci F1K2
@@ -425,35 +523,6 @@ def olay_karari(
     # sabitlenmesi": "analiz bu dosyadan okur"). Sembolun grubu kumeye ait olmali (on-kayit §3 "Coin bolmesi").
     donem_baslangic, donem_bitis, donem_funding_yok = donem_kaydi(sembol, donem_no)
     grup_dogrula(sembol, kume)
-    if not isinstance(sinyal_degerleri, Mapping) or not sinyal_degerleri:
-        raise TypeError("sinyal_degerleri bos olmayan bir eslem olmali (sinyal barindaki pencere degerleri).")
-    # Eslem bir kez duz dict'e kopyalanir; asagidaki butun ad ve deger denetimleri bu kopya uzerinden
-    # yapilir (F1 kapanis turu 2, sizinti testcisi bulgusu): `__iter__` ile `.items()`'i farkli sonuc
-    # donduren bir Mapping alt sinifi, ad denetimini gercek adlarla, deger denetimini sahte degerlerle
-    # gecebiliyordu. Degerin kendisi hala dogrulanmaz (denetci D-B1, Rev.11 sonrasi).
-    sinyal_degerleri = dict(sinyal_degerleri)
-    # Bool bir pencere degeri degil kosul sonucudur; `not (x < y)` gibi olumsuzlanmis bir kosul NaN
-    # pencereyi True ile gizleyebilir (denetci bulgusu D-C1). Programlama hatasi: TypeError.
-    mantiksal = [ad for ad, deger in sinyal_degerleri.items() if isinstance(deger, (bool, np.bool_))]
-    if mantiksal:
-        raise TypeError(f"sinyal_degerleri bool kabul etmez (pencere degeri verilmeli, kosul sonucu degil): {mantiksal}")
-    # Enum uyesi (IntEnum, IntFlag, float karisimli Enum) de bir kosul sonucu tasiyabilir ve sayi gibi
-    # gecer; bool ile ayni gerekceyle reddedilir (sizinti testcisinin Rev.10 hazirlik bulgusu 3).
-    numaralandirma = [ad for ad, deger in sinyal_degerleri.items() if isinstance(deger, enum.Enum)]
-    if numaralandirma:
-        raise TypeError(f"sinyal_degerleri enum uyesi kabul etmez (pencere degeri verilmeli, kosul sonucu "
-                        f"degil): {numaralandirma}")
-    # Hipotezin butun sinyal degerleri verilmeli (F1 kapanis turu, denetci D-B1): eksik ya da fazla ad
-    # programlama hatasidir; boylece bir kontrol cagrisi pencere degerlerini hesaplamadan gecemez.
-    gereken = SINYAL_DEGERLERI[hipotez]
-    if set(sinyal_degerleri) != set(gereken):
-        raise TypeError(f"{hipotez} icin sinyal_degerleri tam olarak {gereken} olmali; eksik "
-                        f"{sorted(set(gereken) - set(sinyal_degerleri))}, fazla "
-                        f"{sorted(set(sinyal_degerleri) - set(gereken))} (on-kayit §2 'Tamlik sarti').")
-    eksik = [ad for ad, deger in sinyal_degerleri.items()
-             if deger is None or not isinstance(deger, (int, float, np.integer, np.floating)) or not math.isfinite(deger)]
-    if eksik:
-        raise SinyalPenceresiTamDegil(f"Sinyal penceresi tam degil: {eksik} (on-kayit §2 'Tamlik sarti').")
     # Uygunluk girdileri her cagrida denetlenir (programlama hatasi, ret gerekcesi degil).
     eligibility_modulu.esikleri_dogrula(bar, asgari_hacim=asgari_hacim,
                                         asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
@@ -479,18 +548,28 @@ def olay_karari(
     if t_bari is None:
         raise SinyalBariYok(f"{sembol}: sinyal bari {plan.sinyal_zamani} ({bar}) donem ici seride yok; olay ya da "
                             "kontrol olusmaz.")
-    # H2 funding penceresi karar noktasinda YAPISAL olarak denetlenir (on-kayit §4 "Funding sinyal
-    # penceresinin tamligi": "... o barda olay ya da kontrol olusmaz"; denetci D-B1): cagiranin verdigi
-    # sayiya guvenilmez, pencere funding serisinden yeniden kurulur (yalnizca zaman ve aralik okunur).
-    if FUNDING_SINYALI in gereken:
-        pencere_ayrintisi = funding_modulu.sinyal_penceresi_ayrintisi(
-            funding, [plan.sinyal_zamani], bar, saat=config.H2_FUNDING_PENCERESI_SAAT,
-            kume_baslangic=plan.kume_baslangic, kume_bitis=plan.kume_bitis,
-            donem_baslangic=plan.donem_baslangic).iloc[0]
-        if not bool(pencere_ayrintisi["hesaplanabilir"]):
+    # Sinyal degerleri KAPIDA hesaplanir (Rev.11 madde 4; on-kayit §5 "Pencere sinirlari"). Kume ve
+    # donem sinirlari plandan okunur; pencerelerin tamlik, donem ve kume kurallari `data.sinyal`
+    # uzerinden `data.pencere`nin tek kapisindan gecer. H2'nin funding penceresi de burada, gercek
+    # funding serisinden kurulur (`funding.funding_ortalamasi`).
+    if _sinyal_gerekli(hipotez, rol):
+        degerler = sinyal_modulu.sinyal_degerleri(
+            hipotez, gecerli_yapilandirma, plan.sinyal_zamani, mumlar_4h=mumlar_4h,
+            gunluk=gunluk_mumlar, funding=funding, capa=capa, kume_baslangic=plan.kume_baslangic,
+            kume_bitis=plan.kume_bitis, donem_baslangic=plan.donem_baslangic)
+        hesaplanamayan = sinyal_modulu.hesaplanamayan(hipotez, degerler)
+        if hesaplanamayan:
             raise SinyalPenceresiTamDegil(
-                f"H2 funding penceresi hesaplanamaz: sinyal {plan.sinyal_zamani} (on-kayit §4 'Funding sinyal "
-                "penceresinin tamligi'); olay ya da kontrol olusmaz.")
+                f"Sinyal penceresi tam degil: {hesaplanamayan} (on-kayit §2 'Tamlik sarti'); "
+                f"{plan.sinyal_zamani} barinda olay ya da kontrol olusmaz.")
+        saglandi = sinyal_modulu.kosullar_saglandi(hipotez, gecerli_yapilandirma, degerler)
+        if rol == "olay" and not saglandi:
+            raise SinyalKosuluSaglanmadi(
+                f"{hipotez} kosullari {plan.sinyal_zamani} barinda saglanmadi (on-kayit §5); olay olusmaz.")
+        if rol == "K2" and saglandi:
+            raise OlayUretmis(
+                f"{hipotez} kosullari {plan.sinyal_zamani} barinda saglaniyor: bar olay uretmis, K2 "
+                "adayi degil (on-kayit §6 K2).")
     # Uygunluk (on-kayit §4 rev.9): esik gecilmeli, hesaplanabilmis olmasi yetmez.
     if not eligibility_modulu.uygunluk_karari(
             gunluk_hacim, plan.sinyal_zamani, bar, donem_baslangic=plan.donem_baslangic,
@@ -521,7 +600,8 @@ def olay_karari(
                                son_aralik_saat=float(ayrinti["son_aralik_saat"]), tek_ritim=bool(ayrinti["tek_ritim"]),
                                funding_ritmi_saat=float(ayrinti["funding_ritmi_saat"]),
                                karisik_ritim=bool(ayrinti["karisik_ritim"]),
-                               ritim_sinifi=ayrinti["ritim_sinifi"], hipotez=hipotez, sembol=sembol, kume=kume,
+                               ritim_sinifi=ayrinti["ritim_sinifi"], hipotez=hipotez,
+                               yapilandirma=yapilandirma_kimligi, rol=rol, sembol=sembol, kume=kume,
                                donem_no=int(donem_no))
     return replace(sonuc, _imza=_imza(sonuc))
 

@@ -13,7 +13,7 @@ import pytest
 
 from data import pencere, pozisyon, split
 from kapi_yardimcisi import veri
-from sinyal_yardimcisi import sinyal
+from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler
 from onay_yardimcisi import kosu
 
@@ -32,7 +32,7 @@ def _karar(t=T_SINYAL, mum=MUM, fr=FUND, hipotez="H1", ufuk=None, kume="KESIF", 
     tanim = pencere.hipotez_ufuklari(hipotez)
     return pozisyon.olay_karari(t, tanim.birincil if ufuk is None else ufuk, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, kume=kume,
-                                **veri(mum, fr, DB, B, uygun_bas=DB, **ek), sinyal_degerleri=sinyal(hipotez),
+                                **veri(mum, fr, DB, B, uygun_bas=DB, **ek), **kontrol(hipotez),
                                 **esikler(tanim.bar))
 
 
@@ -193,7 +193,7 @@ def test_birincilde_kume_sinirina_takilan_olay_ikincilde_de_olusmaz():
     tanim = pencere.hipotez_ufuklari("H1")
     t = T("2025-08-29 04:00")
     kayit = veri(mum, fr, db, T("2025-08-31 20:00"), uygun_bas=db)
-    ortak = dict(hipotez="H1", birincil_ufuk=tanim.birincil, kume="KESIF", **kayit, sinyal_degerleri=sinyal("H1"),
+    ortak = dict(hipotez="H1", birincil_ufuk=tanim.birincil, kume="KESIF", **kayit, **kontrol("H1"),
                  **esikler(tanim.bar))
     with pytest.raises(pencere.KumeSiniriHatasi):
         pozisyon.olay_karari(t, tanim.birincil, tanim.bar, **ortak)
