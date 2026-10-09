@@ -1,6 +1,6 @@
 # PREREGISTRATION.md — Short Öngörü Hipotezleri
 
-**Durum:** Sürüm 10 (2026-09-24). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
+**Durum:** Sürüm 11 (2026-10-09). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
 **Kapsam:** F2 (keşif) ve F3 (onay). Taktik (F4) ve ileri-zaman testi (F5) ayrı revizyonla eklenir.
 
 Bu belge commit edildikten sonra aşağıdaki hiçbir tanım, eşik veya tarih sınırı
@@ -37,7 +37,7 @@ bulunmayan (delist edilmiş) semboller elle sınıflandırılmıştır.
 - Stablecoin tanımı: sabit bir fiyata bağlı kalacak şekilde tasarlanmış ve bağını koruyan token.
   Bu tanıma göre FRAXUSDT, USTCUSDT, STBLUSDT ve STABLEUSDT evrende kalır.
 
-**1 günlük barlar.** 1d barlar yalnızca dönem içi 4h barlardan türetilir: UTC günü; open ilk, high en yüksek, low en düşük, close son değer; volume ve quote_volume toplam. Bir gün, yalnızca o günün 00:00, 04:00, 08:00, 12:00, 16:00 ve 20:00 UTC açılışlı altı 4h barının tamamı mevcut ve aynı dönemin içindeyse oluşur; aksi hâlde o gün eksik (NaN) sayılır. Bu yüzden dönemin kısmi ilk ve son günleri 1d serisinde yer almaz. Bu seri tektir: H3'ün sinyal pencereleri, bütün hipotezlerin uygunluk hacmi ve K1/K2 havuzlarının 1d barları aynı seriden gelir. (rev.8)
+**1 günlük barlar.** 1d barlar yalnızca dönem içi 4h barlardan türetilir: UTC günü; open ilk, high en yüksek, low en düşük, close son değer; volume ve quote_volume toplam. Bir gün, yalnızca o günün 00:00, 04:00, 08:00, 12:00, 16:00 ve 20:00 UTC açılışlı altı 4h barının tamamı mevcut ve aynı dönemin içindeyse oluşur; aksi hâlde o gün eksik (NaN) sayılır. Bir barın mevcut sayılması için satırının bulunması yetmez (rev.11): fiyat ve hacim hücrelerinin tamamı sayı olmalıdır. Hücrelerinden biri NaN ya da sonlu değilse o bar eksiktir ve günü düşürür; eksik hücre sıfır sayılmaz. F1 ölçümünde dönem içi 4h barlarda böyle bir hücre bulunmamıştır, yani bu kural bugünkü veride hiçbir günü düşürmez. Bu yüzden dönemin kısmi ilk ve son günleri 1d serisinde yer almaz. Bu seri tektir: H3'ün sinyal pencereleri, bütün hipotezlerin uygunluk hacmi ve K1/K2 havuzlarının 1d barları aynı seriden gelir. (rev.8)
 
 **Listeleme dönemi.** Her sembolün verisi bir veya daha fazla listeleme dönemine ayrılır.
 - Dönem, sıfır olmayan hacimli ilk barda başlar ve sıfır olmayan hacimli son barda biter. Sınır bar düzeyindedir, ay düzeyinde değil. Dönemin son 4 saatlik barının açılış anına **dönem bitişi (B)**, kapanış anına **dönem kapanışı (K = B + 4 saat)** denir. Dönem dışındaki hiçbir bar (dolgu barı, boşluk sonrası veri, SETTLED verisi) hiçbir hesaba girmez. (rev.8)
@@ -61,9 +61,7 @@ en büyüğü 48 ve 49 sembolü aynı anda etkilemiştir). Aşağıdaki kurallar
 - **Pencereler zamanla tanımlanır.** "Son N bar" ifadesi son N × 4 saatlik zaman aralığı
   demektir (1 günlük seride N × 24 saat). Bar sayısıyla değil, zaman damgasıyla hesaplanır.
 - **Tamlık şartı.** Bir pencerede beklenen barlardan biri bile eksikse değer hesaplanmaz
-  (NaN). O barda olay ya da kontrol oluşmaz. Bu, H1'in hacim ve yükseliş pencerelerini,
-  H2'nin 30 barlık ve k barlık pencerelerini, H3'ün hacim pencerelerini ve SMA50'yi, ayrıca
-  uygunluk hacmini kapsar. H2'nin 24 saatlik funding ortalaması penceresi bar değil kayıt
+  (NaN). O barda olay ya da kontrol oluşmaz. Bu, H1'in hacim ve yükseliş pencerelerini, H1'in tepe penceresini, H2'nin 30 barlık ve k barlık pencerelerini, H3'ün hacim pencerelerini, H3'ün düşüş trendi oranını ve SMA50'yi, ayrıca uygunluk hacmini kapsar; pencerelerin sınırları §5 "Pencere sınırları"nda tanımlıdır. (rev.11) H2'nin 24 saatlik funding ortalaması penceresi bar değil kayıt
   tabanlı olduğu için ayrı tanımlanır: §4 "Funding sinyal penceresinin tamlığı". Sonucu
   aynıdır — değer hesaplanmazsa o barda olay ya da kontrol oluşmaz. (rev.9)
 - **Ufuk.** Ufuk zamanla ölçülür: h bar = h × adım; adım 4h ızgarasında 4 saat, 1d ızgarasında 24 saattir. Hedef çıkış barı, kapanışı hedef çıkış anına (T) eşit olan dönem içi 4h bardır (§4 "Fiyat okuma tabanı"). Bu bar eksikse çıkış, açılışı T'ye eşit ya da T'den sonra olan ilk dönem içi 4h barın **açılış** fiyatındandır ve çıkış anı o barın açılışıdır. Dönem sonu ve delist kuralları önceliklidir. (rev.8)
@@ -176,16 +174,18 @@ bar bu sınırdan uzaksa olay oluşmaz; kırpılmış getiri kullanılmaz.
 - **İlk çift.** Çapa ile ondan sonraki ilk kayıt arasındaki boşluk ölçülürken taban çapa değil giriş anıdır: giriş anında ya da öncesinde kalan eksik ödemeler pozisyonu ilgilendirmez (§4 "Funding ödemesinin sınırları").
 - **Son.** Penceredeki son kayıttan sonra, o kaydın aralığı ve tolerans payı pencere sonundan önce dolmamalıdır; tam pencere sonuna denk gelmesi yeterlidir.
 - **Geçerli aralık (rev.10).** Dizideki her kaydın aralık alanı sonlu ve sıfırdan büyük olmalıdır; değilse funding tam değildir. Bu koşul kodda rev.9 döneminde de uygulanıyordu ama ön-kayıtta yazılı değildi; F1 ölçümünde veride geçersiz aralık alanlı kayıt bulunmamıştır, yani bugün hiçbir pozisyonu elemez.
+- **Geçerli oran (rev.11).** Pozisyonun funding penceresine giren her kaydın oran değeri sonlu bir sayı olmalıdır; NaN, +sonsuz ya da −sonsuz oran taşıyan pozisyonun funding'i tam değildir ve pozisyon oluşmaz. Toplamın işaretine ya da büyüklüğüne bakılmaz; denetim kayıt düzeyindedir.
 
 Beklenen ödeme anı yukarıdaki maddeler dışında hiçbir yerde üretilmez. (rev.10) Pencere sonu, dönem sonu çıkışlarında B'dir. Bu kural rev.8'in başlangıç boşluğu ve "penceresinde hiç funding kaydı bulunmayan pozisyon" cümlelerinin yerine geçer; rev.8'deki 4 saatten 1 saate geçişle ilgili bilinen sınır cümlesi, kural artık ödeme anı üretmediği için konusuz kalmış ve kaldırılmıştır. Kuralın gevşek kaldığı yerler §4 "Funding tamlığının bilinen sınırları"nda sayılmıştır.
 
-**Funding sinyal penceresinin tamlığı (rev.9).** H2'nin funding ortalaması penceresi (§5 H2 madde 1) bar değil kayıt tabanlıdır; tamlığı yukarıdakiyle aynı yapıda kurulur. Pencere t barının kapanışında biter ve 24 saat geriye uzanır. Çapa, pencere başında ya da öncesinde kalan son kayıttır ve dönem başı ile küme başının geç olanından önce olamaz (§3 "Küme sınırı ve geriye bakış"); çapa yoksa değer hesaplanmaz ve o barda olay ya da kontrol oluşmaz. Zincir koşulu çapadan pencere sonuna kadar uygulanır; ilk çiftte taban pencere başıdır. Son koşulu sinyal penceresine uygulanmaz, çünkü pencere sonunda ödeme beklenip beklenmediğini söylemek aralık alanına güvenmeyi gerektirir. Pencere yarı açıktır (rev.10): pencere başına tam denk gelen kayıt ortalamaya **girmez**, pencere sonuna denk gelen kayıt **girer**; iki karşılaştırma da tolerans payıyla yapılır. Gerekçe, ön-kaydın başka yerlerdeki aynı yapısıdır: funding ödemesinde de giriş anındaki ödeme hariç, çıkış anındaki dahildir; pencere başındaki kaydı içeri almak 24 saatlik aralığı fiilen uzatır. t barının kapanışından sonraki hiçbir kayıt okunmaz. Pencerenin tamamı kümenin tarih aralığının içinde olmalıdır; değilse değer hesaplanmaz ve o barda olay ya da kontrol oluşmaz. Küme sınırı karşılaştırmaları da §4 "Zaman toleransı"na tabidir: kümenin son barının kapanışı ile küme sonu arasındaki bir saniyelik fark aynı an sayılır, dolayısıyla bu şart kümenin son barlarını düşürmez. Ortalama, penceredeki kayıtların 8 saate normalleştirilmiş oranlarından alınır (§2 "Funding").
+**Funding sinyal penceresinin tamlığı (rev.9).** H2'nin funding ortalaması penceresi (§5 H2 madde 1) bar değil kayıt tabanlıdır; tamlığı yukarıdakiyle aynı yapıda kurulur. Pencere t barının kapanışında biter ve 24 saat geriye uzanır. Çapa, pencere başında ya da öncesinde kalan son kayıttır ve dönem başı ile küme başının geç olanından önce olamaz (§3 "Küme sınırı ve geriye bakış"); çapa yoksa değer hesaplanmaz ve o barda olay ya da kontrol oluşmaz. Zincir koşulu çapadan pencere sonuna kadar uygulanır; ilk çiftte taban pencere başıdır. Son koşulu sinyal penceresine uygulanmaz, çünkü pencere sonunda ödeme beklenip beklenmediğini söylemek aralık alanına güvenmeyi gerektirir. Pencere yarı açıktır (rev.10): pencere başına tam denk gelen kayıt ortalamaya **girmez**, pencere sonuna denk gelen kayıt **girer**; iki karşılaştırma da tolerans payıyla yapılır. Gerekçe, ön-kaydın başka yerlerdeki aynı yapısıdır: funding ödemesinde de giriş anındaki ödeme hariç, çıkış anındaki dahildir; pencere başındaki kaydı içeri almak 24 saatlik aralığı fiilen uzatır. t barının kapanışından sonraki hiçbir kayıt okunmaz. Pencerenin tamamı kümenin tarih aralığının içinde olmalıdır; değilse değer hesaplanmaz ve o barda olay ya da kontrol oluşmaz. Pencere sonuna denk gelen kayıt yalnızca aynı kümeye aitse ortalamaya girer (rev.11): sonraki kümenin ilk kaydı, tolerans payıyla pencere sonuna denk gelse bile okunmaz ve o barda değer hesaplanmaz, çünkü §3 gereği kümeler arası veri ödünç alınmaz. Bu, keşif kümesinin son barlarını düşürür; F1 ölçümünde bu barların tamamı (234 / 234) zaten giriş barı bulunmadığı için reddediliyordu, dolayısıyla olay kümesi değişmez. Penceredeki kayıtların oranlarından biri sayı değilse ya da sonlu değilse ortalama hesaplanmaz. Çapa ve zincir koşulları sağlansa bile pencerenin yarı açık aralığında hiç kayıt yoksa değer hesaplanmaz. Küme sınırı karşılaştırmaları da §4 "Zaman toleransı"na tabidir: kümenin son barının kapanışı ile küme sonu arasındaki bir saniyelik fark aynı an sayılır, dolayısıyla bu şart kümenin son barlarını düşürmez. Ortalama, penceredeki kayıtların 8 saate normalleştirilmiş oranlarından alınır (§2 "Funding").
 
 **Funding tamlığının bilinen sınırları (rev.9).** Kural ödeme anı tahmin etmediği için yanlış eksik üretmez; F1 ölçümünde bütün evren iki katmanda tarandı ve pozisyon düzeyinde karşı örnek bulunamadı. Buna karşılık dört yerde gevşektir. İlk üç maddedeki sayılar F1'in bütünlük sayımından gelir ve dönem içi bütün barların varsayımsal sinyal sayıldığı, süzülmemiş evrende, birincil ufukta ölçülmüştür (3.887.825 tam pozisyon); gerçek olay kümeleri süzüldükçe paylar değişir.
 
 - **Kısmi kuyruk.** Penceredeki son kayıttan pencere sonuna kalan dilim bir tam aralıktan kısaysa, o dilimdeki eksik bir ödeme görülemez: 938.979 pozisyon (%24,15). Bu bir küme özelliği değil, ritim ile ızgaranın aritmetiğidir: 4 saatlik ızgarada 8 saatlik ritimde oran yapısal olarak ≈ %50, 4 saatlik ritimde 0'dır; 1 günlük ızgarada ≈ %0,02'dir. Kümeler arasındaki fark yalnızca ritimlerin takvime göre dağılımından gelir.
 - **Pencere sonundaki eşitlik.** Son kayıt artı aralığı tam pencere sonuna denk geldiğinde, o anda gerçekten ödeme gerekip gerekmediği aralık alanına güvenmeden bilinemez. Pozisyon tam sayılır; o anda kayıt yoksa ödeme net getiriye girmez: 435 pozisyon.
 - **Çapa yokluğu.** Girişten önce dönem içinde kayıt bulunmayan pozisyonlarda doğrulanacak hiçbir şey olmadığı için funding tam sayılmaz ve pozisyon oluşmaz: 7.248 pozisyon. Dönemlerin ilk girişleri ve funding'i bulunmayan dönemler buraya düşer.
+- **Sinyal penceresinin tek kaydı (rev.11).** Funding sinyal penceresine son koşulu uygulanmadığı için, 24 saatlik pencerede yalnızca bir kayıt bulunsa bile ortalama o tek kayıttan hesaplanır. Bu, pencerede eksik bir ödeme olup olmadığının ayırt edilememesinden kaynaklanır ve pozisyon funding'indeki kısmi kuyruk sınırının sinyal tarafındaki karşılığıdır.
 - **Aralık geçişine bitişik eksik ödeme (rev.10).** Ödeme aralığının değiştiği bir çiftte, aradaki tek bir eksik ödeme kuralın izin verdiği boşluğun içinde kalabilir ve görülmez. Ölçü: aralığı değişen her çiftte taban, ilk çiftte çapa ile girişin geç olanı, sonrakilerde önceki kayıt; eşik, iki kaydın aralık alanlarının küçüğü artı tolerans. Bu ölçü, **gerçek ödeme ritminin iki kaydın aralık alanlarının küçüğünden kısa olmadığı varsayımı altında** üst sınırdır; varsayım tutmazsa (alan gerçek ritimden gecikmeli değişmişse) daha fazlasını kaçırır. KEŞİF kümesinde en fazla 473 pozisyon (4h ızgarada, 1.103.215 tam pozisyon içinde, 23 sembol) ve 337 pozisyon (1d ızgarada, 180.928 içinde, 21 sembol). Bu madde yalnızca KEŞİF için sayılmıştır: onay kümelerinin sayılması §3 gereği keşif aşamasında gerekmeyen bir bakıştır. Yukarıdaki üç madde ise bütün evren için sayılmıştır ve bu sayılar kümeye kesilmemiş seriden gelir; KEŞİF'te kesik ve kesiksiz seri aynı sonucu verir, C2'nin ilk pozisyonlarında çapa küme sınırının dışına düşerse küçük bir sapma kalabilir ve bu sapma ölçülmemiştir.
 
 Ayrıca 2026-06-24 04:00'te, C2 kümesine düşen, borsa kaynaklı tek bir funding boşluğu vardır (aşağıdaki sayı da ilk üç maddeyle aynı sayımdan gelir): o an aktif 415 sembolün 398'inde kayıt yoktur (REST ucu ile vision dosyası birebir aynı). Penceresi bu anı içeren 12.298 pozisyon eksik sayılır ve oluşmaz; girişi tam bu ana denk gelen pozisyonlar etkilenmez. Boşluk olay ve kontrol taraflarına aynı anda uygulandığı için yön seçmez.
@@ -199,15 +199,18 @@ Ayrıca 2026-06-24 04:00'te, C2 kümesine düşen, borsa kaynaklı tek bir fundi
 
 ## 5. Hipotezler
 
-**Pencere sınırları.** Her koşulun geriye bakış penceresinin t barını içerip
-içermediği, §5'teki formülle belirlenir ve uygulamada açıkça belirtilir. H1'in
-6 barlık dip penceresi ve H2'nin k barlık kırılım penceresi t'yi **içermez**
-(t-6..t-1, t-k..t-1). H2'nin 30 barlık yükseliş penceresi ve H1'in 180 barlık
-hacim penceresi t'yi **içerir**. Varsayılan davranış yoktur; belirtilmeyen çağrı
-hata verir.
+**Pencere sınırları.** Her koşulun geriye bakış penceresinin t barını içerip içermediği, §5'teki formülle belirlenir ve uygulamada açıkça belirtilir. H1'in 6 barlık dip penceresi ve H2'nin k barlık kırılım penceresi t'yi **içermez** (t-6..t-1, t-k..t-1). H2'nin 30 barlık yükseliş penceresi ve H1'in 180 barlık hacim penceresi t'yi **içerir**. Varsayılan davranış yoktur; belirtilmeyen çağrı hata verir.
 
-Her hipotezin keşif ızgarası en fazla 9 yapılandırmadır. Aynı coinde bir olaydan
-sonra, o hipotezin birincil ufku boyunca yeni olay sayılmaz (bekleme süresi).
+**Pencere sınırlarının tamamı (rev.11).** Yukarıdakilere ek olarak:
+
+- `close[t-30]` iki uçlu bir orandır: t'den 30 × adım önceki barın kapanışı (§2 "Pencereler zamanla tanımlanır"). Tamlık penceresi kapalı aralıktır: `[t-30 .. t]`, yani 31 bar; aralıktaki beklenen barlardan biri bile eksikse değer hesaplanmaz. Bu, H2'nin 30 barlık yükseliş penceresi ile H3'ün düşüş trendi oranı için aynıdır.
+- **SMA50**, 1 günlük seride son 50 günün kapanışlarının basit ortalamasıdır ve t gününü **içerir** (`[t-49 .. t]`).
+- **H3'ün hacim pencereleri:** "son 30 gün" t gününü **içerir** (`[t-29 .. t]`); "gün −120 ile −31 arası" t gününe göre sayılır (`[t-120 .. t-31]`, 90 gün). İki pencere arasındaki t-30 günü hiçbir pencereye girmez; bu, yazılı sayıların doğrudan sonucudur ve bilerek korunmuştur.
+- **Tepe penceresi:** §5 H1'de tanımlıdır.
+
+Bu pencerelerin hepsi §2 "Tamlık şartı" kapsamındadır.
+
+Her hipotezin keşif ızgarası en fazla 9 yapılandırmadır. Izgara parametreleri (θ, δ, φ, k, ν, τ) yalnızca bu ön-kayıtta tanımlıdır ve kod bu değerleri tek bir yerden, ön-kayıt değeri olarak okur (rev.11). Olay ya da kontrol üreten her çağrı, hipotezi ve yapılandırmayı birlikte alır; ızgarada bulunmayan bir parametre demeti hata verir. Kontrol barının sinyal doğrulaması (§6) olayla aynı yapılandırmayı kullanır. Aynı coinde bir olaydan sonra, o hipotezin birincil ufku boyunca yeni olay sayılmaz (bekleme süresi). Süre olay barından (t) ölçülür ve t + birincil ufuk anına kadar sürer (rev.11). Bekleme yalnızca oluşmuş olaylar için işler: §4'teki karar noktasından geçmemiş bir aday beklemeyi başlatmaz. Bekleme yapılandırma başına işler; her yapılandırma kendi olay dizisini üretir. Bekleme dönem sınırını aşmaz: yeni dönemde sıfırlanır.
 
 ### H1 — Başarısız pump
 
@@ -224,11 +227,12 @@ başarısızlığı teyit edilince satış zincirleme hızlanır.
 
    H1'in 180 barlık hacim medyanı t barını içerir; 6 barlık toplam pencereleri t barını içerir. H1'in 6 barlık dip penceresi (`low[t-6..t-1]`) t barını içermez.
 
-2. **Tepe:** pump barından itibaren görülen en yüksek `high`, en fazla 12 bar izlenir.
+2. **Tepe:** pump barı dahil, teyit barından bir önceki bara kadar görülen en yüksek `high`; en fazla 12 bar izlenir. Teyit barının kendi `high` değeri tepeye girmez (rev.11): girseydi "aynı barda `high < tepe`" koşulu teyit barının yeni bir en yüksek değer kurmaması anlamına gelirdi ve koşulun amacı değişirdi. Tepe penceresi §2 "Tamlık şartı" kapsamındadır: pump barından teyit barının bir öncesine kadar beklenen barlardan biri bile eksikse tepe hesaplanmaz ve olay oluşmaz.
 3. **Olay (başarısızlık teyidi):** pump barından sonraki 12 bar içinde ilk kez
    `close ≤ tepe × (1 - δ)` olan ve aynı barda `high < tepe` olan bar.
    12 bar içinde teyit gelmezse pump düşer, olay sayılmaz.
-4. **Geçersizlik seviyesi (F4 için kayıt):** `tepe × 1.02`
+4. **Tek izleme (rev.11):** bir coinde aynı anda yalnızca bir izleme yürür. İzleme sürerken pump koşulunu sağlayan yeni bir bar gelirse yok sayılır: tepe ve 12 barlık sayaç ilk pump barından ölçülmeye devam eder. İzleme, teyit barıyla ya da 12 bar dolduğunda biter; yeni bir izleme ancak bundan sonra (ve olay oluştuysa bekleme süresi dolduktan sonra) başlayabilir. Böylece bir teyit barı en çok bir olay sayar.
+5. **Geçersizlik seviyesi (F4 için kayıt):** `tepe × 1.02`
 
 **Izgara:** `θ ∈ {0.20, 0.30, 0.40}` × `δ ∈ {0.08, 0.12, 0.16}`
 
@@ -254,19 +258,23 @@ yükselmiş fiyat yapısını aşağı kırınca long likidasyonları zincirleme
 1. **Hacim çöküşü:** son 30 günün medyan günlük hacmi ≤ (1 - ν) × gün −120 ile −31
    arasındaki medyan günlük hacim.
 2. **Düşüş trendi:** `close[t] < SMA50[t]` ve `close[t] / close[t-30] - 1 ≤ -τ`.
-3. **Olay:** iki koşulun birlikte sağlandığı ilk gün.
+3. **Olay:** iki koşulun birlikte sağlandığı ilk gün. "İlk gün", iki koşulun birlikte sağlandığı **kesintisiz dizinin** ilk günüdür (rev.11). Dizi, koşullardan biri sağlanmadığı ya da §2 "Tamlık şartı" gereği hesaplanamadığı günde kesilir; dizi kesildikten sonra koşullar yeniden birlikte sağlanırsa o gün yeni bir "ilk gün"dür ve bekleme süresi ayrıca uygulanır. Kesintisiz süren bir dizinin içinde, bekleme süresi dolsa bile yeni olay sayılmaz.
 
 **Izgara:** `ν ∈ {0.50, 0.65, 0.80}` × `τ ∈ {0.15, 0.25, 0.35}`
 
 ## 6. Kontroller
 
-Her olay için iki ayrı kontrol kümesi üretilir. Kontrol barları da aynı uygunluk
-filtresinden geçmek zorundadır.
+Her olay için iki ayrı kontrol kümesi üretilir. Kontrol barları da aynı uygunluk filtresinden geçmek zorundadır.
+
+**Kontrolün ne ölçtüğü (rev.11).** Kontrol barı, olayın sinyal yapısını taklit etmez: kontrolde hipotezin sinyal koşulları aranmaz. Kontrol, "aynı yönde pozisyon o barda açılsaydı getirisi ne olurdu" sorusunu ölçer. Bu yüzden H1'in kontrol barında pump barı, dip penceresi ve tepe aranmaz; H2'nin kontrol barında kırılım dibi, H3'ün kontrol barında koşul dizisi aranmaz. Kontrol barı için gereken: uygunluk filtresi, dönem üyeliği, fiyat ve funding tamlığı, ve §4'teki tek karar noktasının bütün koşulları.
+
+Sinyal değerleri kontrol tarafında yalnızca tek bir amaçla hesaplanır: K2'nin "o anda olay üretmemiş" şartını doğrulamak. Bu doğrulamada iki durum ayrılır (rev.11): sinyal değeri **veri eksikliği yüzünden hesaplanamıyorsa** o bar kontrol olamaz (§2 "Tamlık şartı"); sinyal değeri hesaplanıp **koşulu sağlamıyorsa** bar kontrol adayıdır — zaten aranan budur.
 
 - **K1 — aynı coin, rastgele zaman.** Aynı coinden, aynı küme ve dönem içinden,
   o hipotezin herhangi bir olayına birincil ufuk mesafesinden yakın olmayan
   10 rastgele bar.
 - **K2 — aynı zaman, rastgele coin.** Aynı t barında uygun olan ve o anda olay üretmemiş diğer coinlerden 10 rastgele coin.
+- **Örnekleme kuralları (rev.11).** K1'deki "o hipotezin herhangi bir olayı", **aynı yapılandırmanın** oluşmuş olaylarıdır: kapıdan geçmemiş (reddedilmiş) adaylar ve başka yapılandırmaların olayları sayılmaz. K2'deki "olay üretmemiş" de aynı yapılandırmaya göredir. İki havuzda da örnekleme iadesizdir. Aday sayısı 10'dan azsa adayların tamamı alınır ve sayı sonuç dosyasına yazılır. Bir olayın her iki havuzu da boşsa o olay analize girmez; en az bir kontrolü olan olay kalır. Örnekleme, §7'deki tohumdan (hipotez, yapılandırma, küme, sembol, olay zamanı) demetiyle türetilen alt tohumla yapılır; semboller alfabetik sırada işlenir, böylece sonuç koşu sırasından bağımsızdır.
 - **Dönem üyeliği (rev.8).** Bir bar, onu oluşturan bütün 4h barlar aynı dönemin içindeyse dönem içidir: 4h barda açılış [dönem başı, B] aralığındadır; 1d barda §2 "1 günlük barlar"daki altı barın tamamı dönem içidir. Olay barı t, K1'in "aynı küme ve dönem içinden" koşulu ve K2'nin "aynı t barında uygun" koşulu bu ölçütü kullanır. Kontrol barları, olaylarla aynı fiyat okuma tabanına, dönem sonu kuralına ve tek karar noktasına tabidir.
 
 K2 piyasa yönünü ayıklar ve bu projede **en önemli kontroldür**.
@@ -274,9 +282,8 @@ K2 piyasa yönünü ayıklar ve bu projede **en önemli kontroldür**.
 ## 7. İstatistik
 
 - **Test istatistiği:** `ortalama(olay net getirisi) - ortalama(kontrol net getirisi)`
-- **p-değeri:** 10.000 tekrarlı eşleştirilmiş yeniden örnekleme. Her tekrarda her
-  olayın kontrol havuzundan bir kontrol çekilir. `p = (r + 1) / (10000 + 1)`,
-  tek yönlü (olay short'u daha iyi).
+- **p-değeri:** 10.000 tekrarlı eşleştirilmiş yeniden örnekleme. Her tekrarda her olayın kontrol havuzundan bir kontrol çekilir ve o tekrarın test istatistiği hesaplanır. `r`, test istatistiğinin sıfırı aşmadığı (`≤ 0`) tekrarların sayısıdır (rev.11). `p = (r + 1) / (10000 + 1)`, tek yönlü (olay short'u daha iyi). Çekim iadelidir ve §7'deki tohumdan türetilir.
+- **Bu yordamın sınırı (rev.11).** Bu bir bootstrap p-değeridir, permütasyon testi değildir: belirsizlik yalnızca kontrol seçiminden gelir, olay kümesi her tekrarda sabittir. Dolayısıyla p-değeri, olayların kendi örnekleme değişkenliğini hesaba katmaz ve bu yönüyle iyimser olabilir. Yordam ön-kayıtta yazıldığı biçimiyle korunmuştur; sınırı F2 ve F3 raporlarında bu cümleyle birlikte anılır.
 - **Çoklu test:** üç hipotez için Bonferroni, `α = 0.05 / 3 = 0.0167`.
 - **Tohum:** `20260911`, sonuç dosyalarına yazılır.
 
@@ -330,6 +337,7 @@ Başarısız bir hipotez için onay yeniden koşulamaz.
 | 8 | 2026-09-21 | 4h fiyat okuma tabanı, dönem sonu funding istisnası, 1d kısmi gün kuralı, tek karar noktasında funding tamlığı, sayı düzeltmeleri, denetim sınırı aşımı kaydı | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
 | 9 | 2026-09-23 | T ≥ K, funding tamlık kuralının yeniden tanımı, bilinen sınırlar ve F2 sağlamlık şartı, H2 funding penceresinin tamlığı, uygunluğun tek karar noktasına alınması; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
 | 10 | 2026-09-24 | H2 funding penceresinin yarı açık sınırları ve küme içinde olma şartı, dördüncü gevşeklik maddesi, geçerli aralık koşulu, ufuk değerlerinin bağlanması, pozisyonun funding ritmi, ölçüm raporlamasının küme sınırı; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
+| 11 | 2026-10-09 | Pencere sınırları ve tamlık kapsamı, kontrolün tanımı ve örnekleme kuralları, ızgara parametrelerinin bağlanması, bekleme süresi, H1 tek izleme, H3 ilk gün, funding oranı ve küme sonu kaydı, sinyal penceresi sınırı, r tanımı; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
 
 ### Revizyon 8 — ayrıntı
 
@@ -360,3 +368,15 @@ Başarısız bir hipotez için onay yeniden koşulamaz.
 **Gerekçe.** Rev.9 uygulanırken H2 penceresinin başındaki kaydın ortalamaya girip girmediğinin ön-kayıtta yazılı olmadığı görüldü; bu, φ eşiğiyle karşılaştırılan sayıyı doğrudan değiştirir ve iki okuma keşif kümesinde 709.980 barda ayrışır. Seçim ölçümle yapılmadı: ortalamanın değerini ölçmek, kuralı sinyalin değerine bakarak seçmek olurdu. Karar, ön-kaydın başka yerlerde kurduğu yarı açık aralık yapısına dayanır. Küme içinde olma şartı, keşif kümesinin son barlarında pencere sonundaki kaydın bir sonraki kümeye düşmesiyle ortaya çıktı; tolerans tanımına bağlanınca şart kümenin son barlarını düşürmez ve bar tabanlı pencerelerle aynı davranır. Dördüncü gevşeklik maddesi, rev.9'un sınır listesinin eksiğiydi: aralığın değiştiği çiftlerde tek bir eksik ödeme kuralın izin verdiği boşluğun içinde kalabiliyor. Ölçüsünün üst sınır oluşu koşulludur ve koşul metinde yazılıdır. Geçerli aralık koşulu kodda vardı, ön-kayıtta yoktu; kodda olup metinde olmayan her kural ikisinin ayrıştığı yerdir, bugün hiçbir pozisyonu elemese de yazılmıştır. Ufuk değerleri ön-kayıtta zaten yazılıydı ama kod onlara bağlı değildi; birincil ufuk "ön-kayıt değildir" başlıklı bir kod bölümünde tutuluyordu. Ölçüm raporlamasının küme sınırı, F1 ölçümlerinin onay kümesi sayıları üretmesi üzerine yazıldı.
 
 **Bu revizyon hiçbir getiri ve hiçbir sinyal değeri hesaplanmadan yazılmıştır.** Kullanılan sayılar funding kayıtlarının zaman damgaları ve ödeme aralıklarıyla sınırlı bütünlük sayımlarıdır (RESULTS §14.9); H2 ortalamasının değeri hesaplanmamıştır.
+
+### Revizyon 11 — ayrıntı
+
+**11.** Tarih: 2026-10-09.
+
+**Değişiklikler.** (a) Tepe penceresinin sınırı ve tamlık kapsamı. (b) `close[t-30]`, SMA50 ve H3 hacim pencerelerinin sınırları; tamlık listesinin tamamlanması. (c) 4h barda eksik hücrenin barı düşürmesi. (d) Kontrolün ne ölçtüğü: kontrol barında sinyal koşulları aranmaz. (e) K1/K2 örnekleme kuralları. (f) Izgara parametrelerinin koda bağlanması. (g) Bekleme süresinin ölçüsü ve kapsamı. (h) H1'de tek izleme. (i) H3'te "ilk gün"ün dizi tanımı. (j) Funding sinyal penceresinde küme sonu kaydı ve eksik değerler. (k) Pozisyon funding'inde geçerli oran koşulu. (l) Sinyal penceresinin tek kayıttan hesaplanabilmesi, bilinen sınır olarak. (m) `r`'nin tanımı ve yordamın sınırı.
+
+**Gerekçe.** F1 kapanışına doğru yapılan kapı çalışması, karar noktasının sinyal değerlerini çağırandan aldığını ve bu değerleri kendisi hesaplayabilmesi için ön-kayıtta tanımı olmayan on yedi noktanın kodda seçilmek zorunda kalacağını gösterdi. Bu revizyon o noktaların tamamını yazar; hiçbiri kodda seçilmemiştir.
+
+İki karar ayrıca gerekçe ister. Birincisi kontrolün tanımı: H1'in sinyali bir pump barına çapalıdır ve kontrol barında pump yoktur, dolayısıyla kontrolde sinyal yapısını aramak kontrol barı için yapay bir çapa icat etmeyi gerektirirdi. Kontrolün ölçtüğü şey, aynı barda açılan bir pozisyonun getirisidir; sinyal koşulları yalnızca K2'nin "olay üretmemiş" şartını doğrulamak için hesaplanır. İkincisi `r`: yazılı yordam her tekrarda kontrol çeker, olay kümesini sabit tutar; bu bir bootstrap'tır ve `r`'nin tek tutarlı okuması, istatistiğin sıfırı aşmadığı tekrarların sayısıdır. Yordamı permütasyon testine çevirmek testi değiştirmek olurdu; bunun yerine yordam korunmuş ve sınırı metne yazılmıştır.
+
+**Bu revizyon hiçbir getiri ve hiçbir sinyal değeri hesaplanmadan yazılmıştır.** Metindeki tek sayı (234 / 234) F1'in bütünlük sayımından gelir (RESULTS §14.19).
