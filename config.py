@@ -12,6 +12,7 @@ olay, uygunluk ya da getiri hesabinin esigi degildir.
 from __future__ import annotations
 
 import datetime as dt
+import types as _types
 from pathlib import Path
 
 # --- Dizinler (CLAUDE.md §7) -------------------------------------------------
@@ -169,6 +170,60 @@ UFUKLAR = {bar: tuple(sorted((BIRINCIL_UFUK[bar], *IKINCIL_UFUKLAR[bar]))) for b
 # `funding.sinyal_penceresi_ayrintisi` ve `funding_ortalamasi` baska deger kabul etmez (denetci D-B3).
 H2_FUNDING_PENCERESI_SAAT = 24
 
+# --- Izgara parametreleri ve pencere sinirlari (on-kayit §5) -----------------
+#
+# On-kayit §5 (rev.11): "Izgara parametreleri (θ, δ, φ, k, ν, τ) yalnizca bu on-kayitta
+# tanimlidir ve kod bu degerleri tek bir yerden, on-kayit degeri olarak okur. Olay ya da kontrol
+# ureten her cagri, hipotezi ve yapilandirmayi birlikte alir; izgarada bulunmayan bir parametre
+# demeti hata verir." Tek yer burasidir; `data.sinyal` butun pencere kurucularini, izgarayi ve
+# kosul esiklerini buradan okur. Denetci bulgusu F1K2 D-C4 ("§5-§9 sabitleri config.py'de yok")
+# bu bolumle kapanir.
+
+# Izgaralar (on-kayit §5 H1, H2, H3 "Izgara" satirlari). Her hipotez icin 9 yapilandirma
+# (3 x 3). φ oran olarak yazilidir: %0.03 = 0.0003 (funding oranlari da oran cinsindendir).
+IZGARA = _types.MappingProxyType({
+    "H1": _types.MappingProxyType({"theta": (0.20, 0.30, 0.40), "delta": (0.08, 0.12, 0.16)}),
+    "H2": _types.MappingProxyType({"phi": (0.0003, 0.0005, 0.0010), "k": (3, 6, 12)}),
+    "H3": _types.MappingProxyType({"nu": (0.50, 0.65, 0.80), "tau": (0.15, 0.25, 0.35)}),
+})
+
+# H1 (on-kayit §5 H1 madde 1-3 ve §5 "Pencere sinirlari"):
+#   - dip penceresi `min(low[t-6..t-1])`: 6 bar, t HARIC
+#   - "son 6 barin toplam hacmi": 6 bar, t DAHIL
+#   - "onceki 180 barin 6'li toplam hacim medyani": 180 dis bar, t DAHIL (kayan 6'li toplamlar)
+#   - hacim esigi: 6'li toplam >= 3 x medyan
+#   - izleme: pump barindan sonraki en fazla 12 bar (madde 3, madde 4 "12 barlik sayac")
+H1_DIP_BAR = 6
+H1_HACIM_TOPLAM_BAR = 6
+H1_HACIM_MEDYAN_BAR = 180
+H1_HACIM_CARPANI = 3.0
+H1_IZLEME_BAR = 12
+
+# `close[t-30]` iki uclu orani (on-kayit §5 rev.11): t'den 30 ADIM onceki barin kapanisi; tamlik
+# penceresi `[t-30 .. t]`, yani 31 bardir. H2'nin yukselis penceresi ile H3'un dusus trendi
+# orani ayni sayiyi kullanir.
+OTUZ_BAR_ONCE = 30
+
+# H2 madde 2: "`close[t] / close[t-30] - 1 >= 0.10`".
+H2_YUKSELIS_ESIGI = 0.10
+
+# H3 (on-kayit §5 H3 madde 1-2 ve §5 rev.11 "Pencere sinirlarinin tamami"):
+#   - "son 30 gun" t gununu DAHIL eder (`[t-29 .. t]`)
+#   - "gun -120 ile -31 arasi" (`[t-120 .. t-31]`, 90 gun; bitis ofseti 31)
+#   - SMA50 t gununu DAHIL eder (`[t-49 .. t]`)
+# Iki hacim penceresi arasindaki t-30 gunu hicbir pencereye girmez; bu, yazili sayilarin
+# dogrudan sonucudur ve bilerek korunmustur (on-kayit §5 rev.11).
+H3_HACIM_YAKIN_GUN = 30
+H3_HACIM_UZAK_GUN = 90
+H3_HACIM_UZAK_OFSET = 31
+H3_SMA_GUN = 50
+
+# --- Kontroller (on-kayit §6) ------------------------------------------------
+
+# K1 ve K2 havuzlarinin hedef buyuklugu: "10 rastgele bar", "10 rastgele coin". Aday sayisi
+# bundan azsa adaylarin tamami alinir ve sayi sonuc dosyasina yazilir (§6 rev.11).
+KONTROL_SAYISI = 10
+
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 
 # Listeleme yasi >= 30 gun
@@ -223,7 +278,6 @@ ALFA_BONFERRONI = 0.05 / 3  # uc hipotez icin Bonferroni = 0.0167
 # farki yakalar. Kume sabitleri icin sozluk yolu yakalanmaz; analiz kodunda taramayla yasaktir.
 
 import sys as _sys  # noqa: E402
-import types as _types  # noqa: E402
 
 
 class SabitDegistirilemez(AttributeError):
@@ -235,6 +289,11 @@ class SabitDegistirilemez(AttributeError):
 _DEGISMEZ_ADLAR = frozenset({
     "ONAY_KAYDI", "_DEGISMEZ_ADLAR", "UZAK_DEPO_ADRESI",
     "KESIF_BASI", "KESIF_SONU", "C2_BASI", "C2_SONU", "KUMELER", "ONAY_KUMELERI",
+    # Rev.11 madde 2: izgara parametreleri ve pencere sinirlari. θ, δ, φ, k, ν, τ ya da bir
+    # pencere uzunlugunu calisma aninda degistirmek on-kaydi degistirmektir (on-kayit §5 rev.11).
+    "IZGARA", "H1_DIP_BAR", "H1_HACIM_TOPLAM_BAR", "H1_HACIM_MEDYAN_BAR", "H1_HACIM_CARPANI",
+    "H1_IZLEME_BAR", "OTUZ_BAR_ONCE", "H2_YUKSELIS_ESIGI", "H3_HACIM_YAKIN_GUN",
+    "H3_HACIM_UZAK_GUN", "H3_HACIM_UZAK_OFSET", "H3_SMA_GUN", "KONTROL_SAYISI",
     "__class__",
 })
 
