@@ -2751,17 +2751,21 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
     | `rev9_uygulama` | `5c96d37` (`005e280` temiz ağaçta) | `005e280` | ölçüm çıktıları bayt düzeyinde aynı; yalnızca `rev9_uygulama_ortam_tam.csv` farklı |
     | `rev10_hazirlik` | `7514497` (`5c96d37` temiz ağaçta) | `5c96d37` | ölçüm çıktıları bayt düzeyinde aynı; yalnızca `rev10_ortam_tam.csv` farklı |
     | `rev10_son` | `1eb1e98` (`7514497` temiz ağaçta) | `7514497` | ölçüm çıktıları bayt düzeyinde aynı; yalnızca `rev10_son_ortam_tam.csv` farklı |
-    | `rev10_uygulama` | koşulmadı | — | koşu `1eb1e98` üzerinde `--etiket sonra` ile başladı, arka plan süreci sistem tarafından **düşük bellek** nedeniyle durduruldu; ağaç temiz kaldı, çıktı yazılmadı. Tek kalan doğrulama koşusudur |
+    | `rev10_uygulama` (`--etiket sonra`) | `edd70e4` (`1eb1e98` temiz ağaçta) | `1eb1e98` | ölçüm çıktıları (`h2_sonra`, `h2_nan_sonra`) bayt düzeyinde aynı — commit dosyaya hiç dokunmadı; yalnızca `rev10_uygulama_ortam_sonra_tam.csv` farklı |
+
+    **Sekiz betiğin sekizi de yeniden koşuldu.** `rev8_etki`'deki tek hücre dışında (aşağıda; nedeni evren
+    tablosunun düzeltilmesidir, kod değil) hiçbir ölçüm çıktısı değişmedi. İzin değişikliğinin (`544939e`)
+    ölçümü bozmadığı bu koşularla gösterilmiş oldu.
 
     **`*_ortam_tam.csv` farkları ölçüm farkı değildir.** Bu dosya koşunun ortam künyesidir: `git_commit`,
-    `calisma_agaci`, koşu başlangıç/bitiş zaman damgası ve kütüphane sürümleri. Altı koşuda farklı çıkan
+    `calisma_agaci`, koşu başlangıç/bitiş zaman damgası ve kütüphane sürümleri. Yedi koşuda farklı çıkan
     satırlar yalnızca commit hash'i ve koşu zamanlarıdır (iki koşuda ayrıca `calisma_agaci` `kirli`→`temiz`,
     çünkü Eylül koşuları kirli ağaçta yapılmıştı); python/pandas/numpy/pyarrow/requests sürümleri değişmedi.
     Bu yüzden "fark varsa dur" kuralı bu dosya için işletilmedi.
 
     **`rev10_uygulama` notu.** `--etiket once` çıktıları Rev.10 öncesi `funding_ortalamasi` imzasının anlık
-    görüntüsüdür ve bugünkü kodla yeniden üretilemez; yeniden koşulacaksa `--etiket sonra` ile koşulup
-    `rev10_uygulama_*_sonra_tam.csv` dosyalarıyla karşılaştırılmalıdır.
+    görüntüsüdür ve bugünkü kodla yeniden üretilemez; bu yüzden koşu `--etiket sonra` ile yapıldı ve
+    `rev10_uygulama_*_sonra_tam.csv` dosyalarıyla karşılaştırıldı. `_once_` dosyalarına dokunulmadı.
 
     **`rev8_etki` farkının nedeni (ölçüldü, kod değişikliğinden değil).** Fark: BNXUSDT dönem 0,
     `funding_yok_evren` `False` → `True` (karşılaştırma: `degisen_sutunlar=funding_yok_evren:1`). Bu sütun
@@ -2792,7 +2796,7 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       düzeltmeleri var ve bu tur bulgu kapatmadığı için açık bırakıldı.
 
     **F2 öncesi kontrol listesi (bugünkü durum).**
-    1. **Yerel `main` itilmeli.** Bugün yerel `main`, `origin/main`'in (`f7009e5`) **91 commit** önünde;
+    1. **Yerel `main` itilmeli.** Bugün yerel `main`, `origin/main`'in (`f7009e5`) **93 commit** önünde;
        `origin/main` yerelin gerisinde değil (0). İlk onay koşusu ancak eşitlikten sonra açılabilir: ilk koşunun
        itme denemesi aksi hâlde itilmemiş bütün commit'leri tek atışın hemen öncesinde iter. (Sayı bu turun
        commit'lerini içerir; tur raporundaki `git log` ile karşılaştırılabilir.)
@@ -3266,9 +3270,9 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
   biçimi). Silinen ya da gevşetilen test yok. xfail sayısı değişmedi (33).
 - 2026-10-09 (kapanışın doğrulama koşuları tamamlandı). Kod değişikliği yok; yalnızca §14.28 doğrulama tablosu
   ve F2 kontrol listesinin commit sayısı güncellendi. Çıktılar: `2b4ad0e` (rev9_hazirlik), `005e280` (rev9_ritim),
-  `5c96d37` (rev9_uygulama), `7514497` (rev10_hazirlik), `1eb1e98` (rev10_son) — hepsinde ölçüm çıktıları bayt
-  düzeyinde aynı, yalnızca ortam künyesi farklı. `rev10_uygulama` koşulamadı (arka plan süreci düşük bellek
-  nedeniyle durduruldu; ağaç temiz kaldı). Test eklenmedi, silinmedi, gevşetilmedi; xfail sayısı 33.
+  `5c96d37` (rev9_uygulama), `7514497` (rev10_hazirlik), `1eb1e98` (rev10_son), `edd70e4` (rev10_uygulama
+  `--etiket sonra`) — hepsinde ölçüm çıktıları bayt düzeyinde aynı, yalnızca ortam künyesi farklı. Böylece
+  sekiz betiğin sekizi de yeniden koşulmuş oldu. Test eklenmedi, silinmedi, gevşetilmedi; xfail sayısı 33.
   Tam takım `1eb1e98` ağacında yeniden koşuldu: **1879 geçti, 33 xfail**, 24 dk 8 sn.
 - 2026-09-30 (onay kaydı kapanışının son turu). §14.27 eklendi (kapanan ve kalan yollar adıyla, F2 öncesi kontrol
   listesi). §14.26 kapsam kararının iki cümlesi bugünkü kodla düzeltildi (eski metin madde içinde alıntılı). Kod:
