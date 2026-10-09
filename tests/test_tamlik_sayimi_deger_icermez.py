@@ -7,8 +7,10 @@ hacmin sifir olup olmadigini kullanmalaridir. Testler bunu kodda gosterir:
 
 1. `a1_olcumu.d_kurali_olc` funding cercevesinde oran sutunu HIC yokken de
    calisir ve oran degerleri ne olursa olsun ayni satirlari uretir.
-2. `calistir.gunluk_sinir_tablosu` fiyat sutunlari NaN, sifir olmayan hacimler
-   rastgele olsa da ayni tabloyu uretir.
+2. `calistir.gunluk_sinir_tablosu` fiyat ve hacim DEGERLERI ne olursa olsun ayni
+   tabloyu uretir. (Rev.11'den beri NaN fiyat bir deger degisimi degil TAMLIK
+   degisimidir: on-kayit §2 "1 gunluk barlar" sonlu olmayan hucreli bari eksik
+   sayar ve gununu dusurur; ayri bir test bunu gosterir.)
 3. Bu fonksiyonlarin kaynaginda fiyat ya da oran sutununun adi gecmez.
 
 Aga cikmaz.
@@ -92,9 +94,22 @@ def test_gunluk_sinir_tablosu_fiyat_ve_hacim_degerinden_bagimsiz():
     delist = pd.DataFrame({"sembol": ["X"], "sinif": ["SETTLING"]})
     taban = calistir.gunluk_sinir_tablosu([_detay(_mumlar(1.0, 1.0))], delist)
     assert len(taban) == 2
-    for fiyat, olcek in ((np.nan, 1.0), (123.4, 1e9), (0.001, 7.5)):
+    for fiyat, olcek in ((123.4, 1e9), (0.001, 7.5)):
         diger = calistir.gunluk_sinir_tablosu([_detay(_mumlar(fiyat, olcek))], delist)
         pd.testing.assert_frame_equal(diger, taban)
+
+
+def test_sonlu_olmayan_fiyat_hucresi_degerden_degil_eksiklikten_tabloyu_degistirir():
+    """Rev.11'e kadar yukaridaki test NaN fiyati da bir "deger degisimi" sayiyordu. On-kayit §2
+    (rev.11) ile NaN ya da sonlu olmayan bir fiyat/hacim hucresi barI EKSIK yapar ve gununu
+    dusurur; 1d serisi bos kalir. Tablo yine fiyatin DEGERINI okumaz (bunu asagidaki AST taramasi
+    gosterir), ama hucrenin sonlu bir sayi olup olmadigina baglidir. Fark bu yuzden tamlik
+    farkidir, deger farki degil."""
+    delist = pd.DataFrame({"sembol": ["X"], "sinif": ["SETTLING"]})
+    nan_detay = _detay(_mumlar(np.nan, 1.0))
+    assert nan_detay["_gunluk"].empty, "NaN fiyat hucresi butun gunleri dusurmeli (rev.11)"
+    nan_tablo = calistir.gunluk_sinir_tablosu([nan_detay], delist)
+    assert len(nan_tablo) == 2 and not nan_tablo["bas_gunu_1d_serisinde"].any()
 
 
 @pytest.mark.parametrize("modul,ad", [

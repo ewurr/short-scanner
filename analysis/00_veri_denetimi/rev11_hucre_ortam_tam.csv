@@ -1,0 +1,14 @@
+bilesen,surum
+git_commit,f41a7c396c0226975358ea4f08a1ade09628129b
+calisma_agaci,kirli
+calisma_agaci_degisiklikleri, M data/klines.py |  M tests/test_f1_kapanis_saldirilari.py | ?? analysis/00_veri_denetimi/rev11_uygulama.py | ?? tests/test_rev11_eksik_hucre.py
+kosu_baslangic_utc,2026-10-09 14:20:05
+kosu_bitis_utc,2026-10-09 14:20:41
+python,3.13.12
+python_derleme,Feb 24 2026 16:05:56
+python_yolu,D:\Miniconda\python.exe
+platform,Windows-10-10.0.19045-SP0
+pandas,2.3.3
+numpy,2.4.4
+pyarrow,21.0.0
+requests,2.32.5

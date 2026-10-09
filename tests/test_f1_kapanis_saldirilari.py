@@ -229,25 +229,17 @@ def test_ham_mumlari_yukle_cakisan_zaman_damgasini_sessizce_cozer(tmp_path, monk
 # --- 7) gunluge_cevir: NaN hacimli bar tam gun sayilip kismen toplaniyor ----
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Bilinen ve kapatilmamis davranis (A6 karari): F1 kapanis onbellek taramasi "
-        "3.692.573 4h barda hic NaN hucre bulmadi; kullanici talimati geregi kod "
-        "degistirilmedi. Test, gunluge_cevir'in NaN hacimli bari hala tam gun saydigini "
-        "belgeler. strict=True: davranis duzeltilirse test XPASS verip kirmizi olur ve bu "
-        "isaret kaldirilmalidir."
-    ),
-)
 def test_gunluge_cevir_nan_hacimli_bari_tam_gun_sayar_kismi_toplar():
     """Denetci bulgusu #13: `gunluge_cevir`nin "tam gun" kontrolu yalnizca bar
-    sayisini sayar; hacmi NaN olan bar da mevcut sayilir, gun "tam" kabul edilir ve
-    toplam `sum(skipna=True)` ile sessizce eksik hesaplanir.
+    sayisini sayiyordu; hacmi NaN olan bar da mevcut sayiliyor, gun "tam" kabul ediliyor ve
+    toplam `sum(skipna=True)` ile sessizce eksik hesaplaniyordu.
 
-    Dogru davranis: NaN degerli bar tamlik acisindan mevcut sayilmamali, gun
-    dusurulmelidir.
+    Dogru davranis: NaN degerli bar tamlik acisindan mevcut sayilmamali, gun dusurulmelidir.
 
-    Durum: ACIK, xfail. Onbellekte ornegi yok (A6); kod degismedi.
+    Durum: **Rev.11 ile kapandi** (on-kayit §2 "1 gunluk barlar": "Bir barin mevcut sayilmasi
+    icin satirinin bulunmasi yetmez (rev.11): fiyat ve hacim hucrelerinin tamami sayi
+    olmalidir"). xfail isareti kaldirildi; beklenti artik dogru davranistir. Test adi
+    gecmisteki bulguyla baglantiyi korumak icin degistirilmedi.
     """
     dortsaatlik = _sahte_4h("2021-01-01", 6, hacim=1_000_000.0)
     dortsaatlik.loc[3, "quote_volume"] = float("nan")

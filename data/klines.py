@@ -158,6 +158,28 @@ def donem_kes(cerceve: pd.DataFrame, bas, son) -> pd.DataFrame:
 
 # --- 1d turetme --------------------------------------------------------------
 
+# Bir 4h barin "mevcut" sayilmasi icin sonlu bir sayi tasimasi gereken hucreler (on-kayit §2
+# "1 gunluk barlar", rev.11: "fiyat ve hacim hucrelerinin tamami sayi olmalidir"). `count` islem
+# sayisidir; fiyat ya da hacim hucresi olmadigi icin listede yoktur (gunluge_cevir docstring'i).
+HUCRE_SUTUNLARI = ("open", "high", "low", "close", "volume", "quote_volume",
+                   "taker_buy_volume", "taker_buy_quote_volume")
+
+
+def hucreleri_tam_mi(mumlar: pd.DataFrame) -> np.ndarray:
+    """Her barin fiyat ve hacim hucreleri sonlu bir sayi mi? (on-kayit §2 rev.11) Saf.
+
+    Sayisal olmayan deger (metin, nesne) ve +-sonsuz da eksik sayilir; eksik hucre sifir
+    sayilmaz. Cercevede bulunmayan bir `HUCRE_SUTUNLARI` sutunu denetlenmez (sentetik ve kismi
+    cerceveler icin): var olan hucreler denetlenir.
+    """
+    tam = np.ones(len(mumlar), dtype=bool)
+    for sutun in HUCRE_SUTUNLARI:
+        if sutun not in mumlar:
+            continue
+        degerler = pd.to_numeric(mumlar[sutun], errors="coerce").to_numpy(dtype=float)
+        tam &= np.isfinite(degerler)
+    return tam
+
 
 def gunluge_cevir(dort_saatlik: pd.DataFrame, *, donemler) -> pd.DataFrame:
     """4h barlardan UTC gunluk barlar turetir; TEK 1d turetme yolu (on-kayit §2 rev.8
@@ -169,6 +191,20 @@ def gunluge_cevir(dort_saatlik: pd.DataFrame, *, donemler) -> pd.DataFrame:
     sayilir." Seri donem donem kurulur: her 4h bar yalnizca iceren donemin
     (`pencere.donem_ici_4h_maskesi`) gunune sayilir; izgara disindaki (hizasiz)
     bar hicbir gune girmez. Donemin kismi ilk ve son gunleri seride yoktur.
+
+    **Eksik hucre (rev.11).** "Bir barin mevcut sayilmasi icin satirinin bulunmasi yetmez
+    (rev.11): fiyat ve hacim hucrelerinin tamami sayi olmalidir. Hucrelerinden biri NaN ya da
+    sonlu degilse o bar eksiktir ve gununu dusurur; eksik hucre sifir sayilmaz." Denetlenen
+    hucreler `HUCRE_SUTUNLARI`dir: fiyat (open, high, low, close) ve hacim (volume,
+    quote_volume, taker_buy_volume, taker_buy_quote_volume). Boyle bir bar, gunun alti barindan
+    biri olarak SAYILMAZ; gun alti tam bara ulasmadigi icin dusup NaN olur ve eksik hucre
+    toplamlara 0 gibi girmez. Rev.11'den once yalnizca bar SAYISI sayiliyordu: hacmi NaN olan
+    bar mevcut sayiliyor, gun "tam" kabul ediliyor ve toplam `sum(skipna=True)` ile sessizce
+    eksik hesaplaniyordu (denetci bulgusu #13, A6 xfail'i).
+
+    `count` sutunu islem SAYISIDIR, fiyat ya da hacim hucresi degildir; on-kayit cumlesi onu
+    kapsamadigi icin denetime girmez. Eksik bir `count` hucresi gunun `count` toplamini sessizce
+    eksiltir; bu bir acik noktadir ve hicbir olay, uygunluk ya da getiri hesabina girmez.
 
     `donemler` zorunludur (varsayilan yok): sembolun listeleme donemleri
     (`universe.sembol_donemleri`). Bos liste bos seri verir. Saf fonksiyon.
@@ -187,6 +223,8 @@ def gunluge_cevir(dort_saatlik: pd.DataFrame, *, donemler) -> pd.DataFrame:
     ofset = zamanlar - gun
     # Izgara hizasi acikca: acilis gun basindan tam 0, 4, ..., 20 saat sonra.
     hizali = np.asarray((ofset % GUNLUK_IZGARA_ADIMI) == pd.Timedelta(0), dtype=bool)
+    # Eksik hucre (on-kayit §2 rev.11): fiyat ve hacim hucrelerinin tamami sonlu bir sayi olmali.
+    hucreler_tam = hucreleri_tam_mi(calisma)
 
     donem_no = np.full(len(calisma), -1)
     for i, donem in enumerate(donemler):
@@ -196,7 +234,7 @@ def gunluge_cevir(dort_saatlik: pd.DataFrame, *, donemler) -> pd.DataFrame:
     calisma["gun"] = gun
     calisma["_donem"] = donem_no
     calisma["_ofset"] = ofset
-    calisma = calisma.loc[(donem_no >= 0) & hizali]
+    calisma = calisma.loc[(donem_no >= 0) & hizali & hucreler_tam]
     if calisma.empty:
         return pd.DataFrame(columns=sutunlar)
 

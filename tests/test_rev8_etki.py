@@ -36,8 +36,12 @@ KUMELER = etki.kume_sinirlari()
 
 
 def _mumlar(z):
+    """Fiyat sutunlari sabit 1.0; betik fiyat OKUMAZ (bunu `test_oran_ve_fiyat_okunmaz` AST
+    taramasiyla garanti eder). Rev.11'e kadar bu sutunlar NaN veriliyordu (okunmadiklarini
+    gostermek icin); on-kayit §2 rev.11 ile NaN fiyat hucresi bari eksik sayar ve 1d serisinde
+    hic gun olusmaz, bu yuzden sonlu degere gecildi. Testlerin iddialari degismedi."""
     z = pd.DatetimeIndex(z)
-    return pd.DataFrame({"open_time": z, "open": np.nan, "high": np.nan, "low": np.nan, "close": np.nan,
+    return pd.DataFrame({"open_time": z, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0,
                          "volume": 1.0, "close_time": z + pd.Timedelta(hours=4), "quote_volume": 1.0, "count": 1,
                          "taker_buy_volume": 0.0, "taker_buy_quote_volume": 0.0})
 
