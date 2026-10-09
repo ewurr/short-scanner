@@ -150,13 +150,26 @@ def test_tarama_deseni_funding_ortalamasi_cagrisini_yakalamaz(tmp_path):
     assert ihlaller(FUNDING_ORAN_DESENI, kok=tmp_path, izinli_altlar=()) == []
 
 
-def _paragraf_revizyonu(baslik: str) -> int:
+def _paragraf_isaretleri(baslik: str) -> list[int]:
     metin = (KOK / "PREREGISTRATION.md").read_text(encoding="utf-8")
     bas = metin.index(f"**{baslik}")
     son = metin.find("\n\n", bas)
     paragraf = metin[bas:son if son != -1 else None]
-    return max(int(n) for n in re.findall(r"\(rev\.(\d+)\)", paragraf))
+    return sorted(int(n) for n in re.findall(r"\(rev\.(\d+)\)", paragraf))
+
+
+def _paragraf_revizyonu(baslik: str) -> int:
+    return max(_paragraf_isaretleri(baslik))
 
 
 def test_sinyal_penceresi_kurali_on_kayit_surumuyle_ayni():
-    assert _paragraf_revizyonu("Funding sinyal penceresinin tamlığı") == funding.SINYAL_PENCERESI_REVIZYONU == 10
+    assert _paragraf_revizyonu("Funding sinyal penceresinin tamlığı") == funding.SINYAL_PENCERESI_REVIZYONU == 11
+
+
+def test_paragraf_revizyonu_en_yuksek_isareti_okur():
+    """Sinir durumu (Rev.11 uygulamasi madde 1): mekanizma paragraftaki EN YUKSEK "(rev.N)" isaretini
+    okur, ilkini degil. On-kayit paragrafi "(rev.9)" basligiyla acilir ve icinde rev.10 ile rev.11
+    isaretleri gecer; mekanizma ilk isareti okusaydi sabit 9'da kalir ve Rev.11'i kacirirdi."""
+    isaretler = _paragraf_isaretleri("Funding sinyal penceresinin tamlığı")
+    assert isaretler[0] == 9 and isaretler[-1] == 11, isaretler
+    assert _paragraf_revizyonu("Funding sinyal penceresinin tamlığı") == isaretler[-1]

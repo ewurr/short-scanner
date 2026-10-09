@@ -193,8 +193,9 @@ def donemde_funding_var(funding: pd.DataFrame, donem, bar: str) -> bool:
 
 # Bu bolumun uyguladigi on-kayit paragrafinin son revizyonu. `tests/test_rev10_kalan_bulgular.py`
 # on-kayittaki paragrafin "(rev.N)" etiketleriyle karsilastirir: on-kayit kurali yeniden degistirirse
-# kod guncellenmeden test kirilir (Rev.10 uygulamasi madde 5; denetci bulgusu D-A3).
-SINYAL_PENCERESI_REVIZYONU = 10
+# kod guncellenmeden test kirilir (Rev.10 uygulamasi madde 5; denetci bulgusu D-A3). Rev.11'de paragrafa
+# iki kural girdi (kume sonundaki kayit ve sonlu olmayan oran); ikisi de bu bolumde uygulanir.
+SINYAL_PENCERESI_REVIZYONU = 11
 
 SINYAL_PENCERESI_SUTUNLARI = ("hesaplanabilir", "kume_icinde", "capa_var", "aralik_gecerli", "zincir_tam",
                               "kayit_var", "ilk", "son")
