@@ -1,0 +1,225 @@
+"""Olay dizisi kurallari: bekleme suresi, H1'de tek izleme, H3'te "ilk gun" (on-kayit §5, rev.11).
+
+Bu kurallar tek bar duzeyinde tanimlanamaz: bir barin olay olup olmadigi, ayni coinde ayni
+yapilandirmanin daha onceki barlarina baglidir. Rev.11'den once kodda hic yoktu (RESULTS §14.19
+maddeleri 11, 15, 16: "bekleme suresini uygulayan kod yok", "pump, tepe ve izleme kodu yok",
+"H3 sinyal kodu yok").
+
+On-kayit §5 (rev.11):
+  - **Bekleme suresi.** "Ayni coinde bir olaydan sonra, o hipotezin birincil ufku boyunca yeni
+    olay sayilmaz (bekleme suresi). Sure olay barindan (t) olculur ve t + birincil ufuk anina
+    kadar surer. Bekleme yalnizca olusmus olaylar icin isler: §4'teki karar noktasindan gecmemis
+    bir aday beklemeyi baslatmaz. Bekleme yapilandirma basina isler; her yapilandirma kendi olay
+    dizisini uretir. Bekleme donem sinirini asmaz: yeni donemde sifirlanir."
+  - **H1 tek izleme** (§5 H1 madde 4). "Bir coinde ayni anda yalnizca bir izleme yurur. Izleme
+    surerken pump kosulunu saglayan yeni bir bar gelirse yok sayilir: tepe ve 12 barlik sayac
+    ilk pump barindan olculmeye devam eder. Izleme, teyit bariyla ya da 12 bar doldugunda biter;
+    yeni bir izleme ancak bundan sonra (ve olay olustuysa bekleme suresi dolduktan sonra)
+    baslayabilir. Boylece bir teyit bari en cok bir olay sayar."
+  - **H3 ilk gun** (§5 H3 madde 3). "'Ilk gun', iki kosulun birlikte saglandigi KESINTISIZ
+    dizinin ilk gunudur. Dizi, kosullardan biri saglanmadigi ya da §2 'Tamlik sarti' geregi
+    hesaplanamadigi gunde kesilir; dizi kesildikten sonra kosullar yeniden birlikte saglanirsa
+    o gun yeni bir 'ilk gun'dur ve bekleme suresi ayrica uygulanir. Kesintisiz suren bir dizinin
+    icinde, bekleme suresi dolsa bile yeni olay sayilmaz."
+
+**Beklemenin ust ucu (uygulama karari, on-kayitta acikca yazili degil).** "t + birincil ufuk
+anina kadar surer" cumlesi, tam o ana denk gelen barin beklemenin icinde mi disinda mi oldugunu
+soylemez. Bu modul YARI ACIK okumayi uygular: bekleme araligi `(t0, t0 + h × adim]`, yani tam o
+ana denk gelen bar hala beklemededir ve ilk serbest bar `t0 + (h + 1) × adim`'dir. Gerekce
+on-kaydin baska yerlerdeki ayni yapisidir (§4 "Funding odemesinin sinirlari": "giris anindaki
+odeme haric, cikis anindaki dahildir"; §4 "Funding sinyal penceresinin tamligi": "pencere
+basina tam denk gelen kayit girmez, pencere sonuna denk gelen girer"; rev.10 bu benzetmeyi
+acikca kullanir). Ilk serbest bar, olayin pozisyonunun cikis aninda (giris + h × adim) kapanan
+bardir; yani yeni olay ancak oncekinin pozisyonu kapandiktan sonra sayilir. Secim tek sabitte
+(`BEKLEME_UST_UC_DAHIL`) toplanmistir ve rapora acik nokta olarak yazilmistir.
+
+Modul SAFTIR: veri yuklemez, kapiyi kendisi cagirmaz. Kapi ve kosul degerlendirmesi cagiran
+tarafindan iki cagrilabilirle verilir; boylece dizi kurallari kapidan ve veriden bagimsiz
+sinanabilir. Getiri hesaplamaz.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+import pandas as pd
+
+import config
+from data import pencere as pencere_modulu
+from data import sinyal as sinyal_modulu
+
+# Beklemenin ust ucu penceredeki gibi DAHILDIR (yukaridaki uygulama karari). False yapilirsa
+# bekleme `(t0, t0 + h × adim)` olur ve tam o ana denk gelen bar serbest kalir.
+BEKLEME_UST_UC_DAHIL = True
+
+# H3'un "ilk gun" kurali: kesintisiz dizinin yalnizca ilk gunu olaydir.
+DIZI_ILK_GUN_HIPOTEZLERI = ("H3",)
+# H1'in tek izleme kurali.
+IZLEMELI_HIPOTEZLER = ("H1",)
+
+
+class KosulHesaplanamaz:
+    """`kosul` cagrilabilirinin "deger hesaplanamadi" yaniti (on-kayit §2 "Tamlik sarti").
+
+    `None` ile ayni anlamda kullanilir; adlandirilmis olmasi cagiranin niyetini okunur kilar.
+    """
+
+
+@dataclass(frozen=True)
+class Olay:
+    """Dizi kurallarindan ve kapidan gecmis bir olay."""
+
+    zaman: pd.Timestamp
+    capa: pd.Timestamp | None
+    pozisyon: object
+
+
+@dataclass(frozen=True)
+class Ret:
+    """Dizi ya da kapi tarafindan reddedilen aday; yalnizca sayim ve iz icin."""
+
+    zaman: pd.Timestamp
+    capa: pd.Timestamp | None
+    gerekce: str
+
+
+@dataclass(frozen=True)
+class DiziSonucu:
+    olaylar: tuple[Olay, ...] = ()
+    retler: tuple[Ret, ...] = ()
+
+    @property
+    def olay_zamanlari(self) -> tuple[pd.Timestamp, ...]:
+        return tuple(o.zaman for o in self.olaylar)
+
+
+def bekleme_sonu(olay_zamani, birincil_ufuk: int, bar: str) -> pd.Timestamp:
+    """Beklemenin bittigi an: `t + birincil ufuk × adim` (on-kayit §5 rev.11)."""
+    t = pencere_modulu.utc_zamani(olay_zamani, "olay_zamani")
+    h = pencere_modulu.birincil_ufuk_dogrula(birincil_ufuk, bar)
+    return t + h * pencere_modulu.adim(bar)
+
+
+def beklemede_mi(t, olay_zamani, birincil_ufuk: int, bar: str) -> bool:
+    """t bari, `olay_zamani`nda olusmus olayin bekleme suresinin icinde mi? (on-kayit §5 rev.11)
+
+    Aralik `(olay_zamani, bekleme_sonu]` (yukaridaki uygulama karari; `BEKLEME_UST_UC_DAHIL`).
+    Karsilastirmalar §4 "Zaman toleransi"na gore.
+    """
+    zaman = pencere_modulu.utc_zamani(t, "t")
+    t0 = pencere_modulu.utc_zamani(olay_zamani, "olay_zamani")
+    son = bekleme_sonu(t0, birincil_ufuk, bar)
+    if not pencere_modulu.sonra(zaman, t0):
+        return False  # olay barinin kendisi ve oncesi bekleme degildir
+    if BEKLEME_UST_UC_DAHIL:
+        return bool(pencere_modulu.ayni_ya_da_once(zaman, son))
+    return bool(pencere_modulu.once(zaman, son))
+
+
+def _zamanlar_dogrula(zamanlar, bar: str) -> pd.DatetimeIndex:
+    indeks = pd.DatetimeIndex(zamanlar)
+    if len(indeks) and indeks.tz is None:
+        raise TypeError("zamanlar saat dilimsiz (tz-naive); butun zaman damgalari UTC olmali.")
+    if not indeks.is_monotonic_increasing or indeks.has_duplicates:
+        raise ValueError("zamanlar artan ve tekrarsiz olmali (donem ici sinyal barlari).")
+    return indeks
+
+
+def _kosul_sonucu(deger, yer: str):
+    """`kosul` cagrilabilirinin yanitini uc duruma indirir: True, False, hesaplanamaz."""
+    if deger is None or deger is KosulHesaplanamaz or isinstance(deger, KosulHesaplanamaz):
+        return None
+    if not isinstance(deger, (bool, np.bool_)):
+        raise TypeError(f"{yer}: kosul yaniti bool ya da hesaplanamaz olmali; verilen {deger!r}.")
+    return bool(deger)
+
+
+def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int, kosul, karar) -> DiziSonucu:
+    """Bir (sembol, donem, kume, yapilandirma) dizisinde olaylari sirayla bulur (on-kayit §5 rev.11).
+
+    `zamanlar`: hipotezin izgarasindaki DONEM ICI ve KUME ICI sinyal barlari, artan sirada. Dizi
+    kurallari donem ve kume basina isler; bekleme donem sinirini asmaz (on-kayit §5: "yeni
+    donemde sifirlanir"), bu yuzden her donem icin ayri cagri yapilir.
+
+    `kosul(t, capa)`: o barda hipotezin §5 kosullari saglandi mi? `True` / `False` / `None`
+    (deger hesaplanamadi, §2 "Tamlik sarti"). H1'de `capa=None` cagrisi PUMP kosulunu, `capa=p`
+    cagrisi p capali TEYIT kosulunu sorar. H2 ve H3'te `capa` her zaman `None`'dir.
+
+    `karar(t, capa)`: tek karar noktasi (`pozisyon.olay_karari`). Olay olusursa onayli pozisyon
+    doner, olusmazsa `pencere.OlayOlusmaz` alt sinifi firlatir. Kapidan gecmeyen aday beklemeyi
+    BASLATMAZ (on-kayit §5 rev.11).
+
+    Doner: `DiziSonucu` (olaylar ve retler). Getiri hesaplanmaz, deger raporlanmaz.
+    """
+    ad = sinyal_modulu._hipotez_dogrula(hipotez)
+    sinyal_modulu.yapilandirma_dogrula(ad, yapilandirma)
+    if bar != config.HIPOTEZ_IZGARASI[ad]:
+        raise ValueError(f"{ad} izgarasi {config.HIPOTEZ_IZGARASI[ad]}; verilen {bar!r} (on-kayit §2).")
+    h = pencere_modulu.birincil_ufuk_dogrula(birincil_ufuk, bar)
+    indeks = _zamanlar_dogrula(zamanlar, bar)
+
+    olaylar: list[Olay] = []
+    retler: list[Ret] = []
+    son_olay = None          # bekleme suresinin cikti olay bari
+    izleme_pump = None       # H1: yuruyen izlemenin pump bari
+    dizi_suruyor = False     # H3: kesintisiz dizi suruyor mu
+    adim = pencere_modulu.adim(bar)
+
+    def _beklemede(t) -> bool:
+        return son_olay is not None and beklemede_mi(t, son_olay, h, bar)
+
+    def _dene(t, capa):
+        """Kapiyi cagirir; olay olustuysa kaydeder ve beklemeyi baslatir."""
+        nonlocal son_olay
+        try:
+            pozisyon = karar(t, capa)
+        except pencere_modulu.OlayOlusmaz as hata:
+            retler.append(Ret(t, capa, pencere_modulu.ret_gerekcesi(hata)))
+            return False
+        olaylar.append(Olay(t, capa, pozisyon))
+        son_olay = t
+        return True
+
+    for t in indeks:
+        if ad in IZLEMELI_HIPOTEZLER:
+            if izleme_pump is not None:
+                # Izleme suruyor: bu bar teyit adayidir, yeni pump bari YOK SAYILIR (madde 4).
+                teyit = _kosul_sonucu(kosul(t, izleme_pump), f"{ad} teyit {t}")
+                if teyit:
+                    _dene(t, izleme_pump)       # teyit bari en cok bir olay sayar
+                    izleme_pump = None          # izleme teyit bariyla biter
+                elif teyit is None:
+                    retler.append(Ret(t, izleme_pump, "sinyal_penceresi_tam_degil"))
+                if izleme_pump is not None and not pencere_modulu.once(t, izleme_pump + config.H1_IZLEME_BAR * adim):
+                    izleme_pump = None          # 12 bar doldu, izleme biter
+                continue
+            if _beklemede(t):
+                retler.append(Ret(t, None, "bekleme_suresi"))
+                continue
+            pump = _kosul_sonucu(kosul(t, None), f"{ad} pump {t}")
+            if pump:
+                izleme_pump = t
+            elif pump is None:
+                retler.append(Ret(t, None, "sinyal_penceresi_tam_degil"))
+            continue
+
+        saglandi = _kosul_sonucu(kosul(t, None), f"{ad} kosul {t}")
+        if saglandi is None:
+            dizi_suruyor = False               # tamlik gereği hesaplanamayan gun diziyi KESER
+            retler.append(Ret(t, None, "sinyal_penceresi_tam_degil"))
+            continue
+        if not saglandi:
+            dizi_suruyor = False
+            continue
+        if ad in DIZI_ILK_GUN_HIPOTEZLERI and dizi_suruyor:
+            # Kesintisiz dizinin icinde: bekleme dolsa bile yeni olay sayilmaz (madde 3).
+            retler.append(Ret(t, None, "dizi_ilk_gun_degil"))
+            continue
+        dizi_suruyor = True
+        if _beklemede(t):
+            retler.append(Ret(t, None, "bekleme_suresi"))
+            continue
+        _dene(t, None)
+
+    return DiziSonucu(tuple(olaylar), tuple(retler))

@@ -606,6 +606,54 @@ def olay_karari(
     return replace(sonuc, _imza=_imza(sonuc))
 
 
+def sinyal_kosulu(t, *, hipotez: str, yapilandirma, capa, kume: str, sembol: str, donem_no: int):
+    """Hipotezin §5'teki sinyal kosullari t barinda saglandi mi? `True` / `False` / `None`.
+
+    `None` = deger hesaplanamadi (on-kayit §2 "Tamlik sarti"). Bu fonksiyon `data.dizi`nin
+    `kosul` argumanidir: olay dizisi kurallari (bekleme suresi, H1'de tek izleme, H3'te "ilk
+    gun"; on-kayit §5 rev.11) bar bar bunu sorar, sonra kapiyi (`olay_karari`) cagirir.
+
+    Veri kapiyla AYNI yoldan yuklenir (`_kume_verisi`, `klines.gunluge_cevir`); sinirlar kume
+    adindan ve evren tablosundan okunur, cagiran sinir vermez. Degerler `data.sinyal`in pencere
+    kuruculariyla hesaplanir.
+
+    H1 iki adimlidir (on-kayit §5 H1): `capa=None` cagrisi madde 1'in PUMP kosulunu sorar
+    (`sinyal.h1_pump_saglandi`), `capa=p` cagrisi p capali madde 3'un TEYIT kosulunu sorar.
+    H2 ve H3'te `capa` her zaman `None`'dir.
+
+    Bu fonksiyon KARAR VERMEZ: uygunluk, dönem üyeliği, plan ve funding tamligi yalnizca
+    `olay_karari`dadir (on-kayit §4 "tek karar noktasi"). Getiri hesaplamaz, deger raporlamaz.
+    """
+    bar = pencere_modulu.hipotez_izgarasi(hipotez)
+    gecerli = sinyal_modulu.yapilandirma_dogrula(hipotez, yapilandirma)
+    zaman = _utc_sinyal_zamani(t)
+    kume_baslangic, kume_bitis = kume_sinirlari(kume)
+    split_modulu.onay_baglami_dogrula(hipotez, kume)
+    donem_baslangic, donem_bitis, _ = donem_kaydi(sembol, donem_no)
+    grup_dogrula(sembol, kume)
+    mumlar_4h, funding = _kume_verisi(sembol, kume, kume_baslangic, kume_bitis)
+    _mum_zamanlari(mumlar_4h)
+    gunluk_mumlar = klines_modulu.gunluge_cevir(
+        mumlar_4h, donemler=[_DonemSiniri(donem_baslangic, donem_bitis)])
+    sinir = {"kume_baslangic": kume_baslangic, "donem_baslangic": donem_baslangic}
+
+    if hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and capa is None:
+        degerler = sinyal_modulu.h1_pump_degerleri(mumlar_4h, zaman, **sinir)
+        return sinyal_modulu.h1_pump_saglandi(gecerli, degerler)
+
+    try:
+        degerler = sinyal_modulu.sinyal_degerleri(
+            hipotez, gecerli, zaman, mumlar_4h=mumlar_4h, gunluk=gunluk_mumlar, funding=funding,
+            capa=capa, kume_bitis=kume_bitis, **sinir)
+    except ValueError:
+        # Tepe penceresi kurulamiyor (ör. teyit bari pump barindan 12 bardan uzak): izleme
+        # kurallari bu bari teyit adayi saymaz; kosul hesaplanamaz.
+        return None
+    if sinyal_modulu.hesaplanamayan(hipotez, degerler):
+        return None
+    return sinyal_modulu.kosullar_saglandi(hipotez, gecerli, degerler)
+
+
 def pozisyon_fiyatlari(pozisyon) -> tuple[float, float]:
     """(P0, P1): brut getirinin tek girdisi. Yalnizca `olay_karari` ciktisini kabul eder."""
     onay_dogrula(pozisyon)
