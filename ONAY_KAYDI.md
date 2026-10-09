@@ -13,3 +13,6 @@ kosulamaz, yarida kalmis kosu dahil.
 
 | Tarih (UTC) | Kume | Cagiran betik | Commit | Not |
 |---|---|---|---|---|
+
+Kayit satirlari yukaridaki tablonun icine, basliktan sonra eklenir; dosyanin
+sonuna degil. Bu paragraf tablonun bittigi yeri isaretler ve silinmez.
