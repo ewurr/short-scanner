@@ -2795,7 +2795,93 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
       (OK3 D-C3), ITILEMEDI mesajındaki push önerisi (OK3 D-C2). Bunlar K3/K4 yollarının ölçümleridir; ucuz
       düzeltmeleri var ve bu tur bulgu kapatmadığı için açık bırakıldı.
 
-    **F2 öncesi kontrol listesi (bugünkü durum).**
+    **Tur sonu metodoloji denetçisi bulguları (düzeltilmedi; yukarıdaki tablolardan sonra geldi).**
+Denetçi `ad60dbd..HEAD` aralığını ve ön-kayıt §2, §4, §5, §6, §7'yi okudu; kod değiştirmedi.
+Sınıflar denetçinin önerisidir. Rev.11'in (a)–(m) maddelerinin tamamı için kod yeri ve test
+karşılığı doğrulandı; ön-kayıttaki bütün sayısal sabitler (ızgaralar, pencere uzunlukları,
+ufuklar, uygunluk eşikleri, maliyet, tohum, tekrar, α) kodla birebir bulundu ve ön-kayıtta
+olmayan sayısal sabit bulunamadı.
+
+- **D-B1: K1 (ve H1'in K2) barlarında §2 "Tamlık şartı" hiç uygulanmıyor.** Denetçiye göre
+  getiriye **dokunur** ve §14.29'un açık nokta listesinde yoktu.
+  - Ön-kayıt §2: "Bir pencerede beklenen barlardan biri bile eksikse değer hesaplanmaz (NaN). O
+    barda olay ya da **kontrol** oluşmaz." §4 funding sinyal penceresi aynı cümleyi tekrarlar.
+  - §6 rev.11: "Kontrol barı için gereken: uygunluk filtresi, dönem üyeliği, fiyat ve funding
+    tamlığı, ve §4'teki tek karar noktasının bütün koşulları" — sinyal pencereleri bu listede yok.
+  - Kod (`pozisyon._sinyal_gerekli`): K1'de ve H1'in K2'sinde sinyal hiç hesaplanmaz, dolayısıyla
+    tamlık şartı denetlenmez. Aynı bar K2'de düşerken K1'de kontrol olabiliyor.
+  - Sonucu: K1 havuzu, bir olayın hiçbir zaman oluşamayacağı barları (boşluk komşusu, funding
+    çapası olmayan bar) içerebilir. Metindeki iki cümle çelişiyor; kod birini seçti.
+- **D-B2: K2'nin "olay üretmemiş" ölçütü H1 ile H2/H3'te farklı.** Denetçiye göre **dokunur**.
+  - §6 rev.11 "Örnekleme kuralları": ölçüt "aynı yapılandırmanın **oluşmuş olayları**"dır.
+  - Kod: H2/H3'te kapı, sinyal koşulları sağlanan her barı K2 adaylığından çıkarır — o barda olay
+    oluşmamış olsa bile (bekleme içindeki barlar, kapının başka gerekçeyle reddettiği barlar ve
+    özellikle **H3'te kesintisiz dizinin ilk gün dışındaki bütün günleri**). H1'de ölçüt gerçekten
+    oluşmuş olay kümesidir (örnekleme adımı).
+  - İki ön-kayıt paragrafı iki ayrı okumayı destekliyor; kodda iki hipotez ailesi arasındaki
+    asimetri ön-kayıtta yazılı değil. H3'teki büyüklük **ölçülmedi** (ölçmek kontrol adayı sayısı
+    üretmek olurdu).
+- **D-B3: H1 hacim penceresinde hacmin hangi sütun olduğu ön-kayıtta yazılı değil.** Denetçiye
+  göre **dokunur**. §5 H1 madde 1 birim vermiyor; USDT yalnızca §2 "Uygunluk"ta yazılı. Kod iki
+  pencerede de `quote_volume` okuyor; `volume` (coin cinsi) ile oran aynı sayı değildir ve 180
+  barlık pencere içinde fiyat değiştiyse eşik farklı olur. Seçim uygunluk hacmiyle aynı seriyi
+  kullandığı için tutarlı, ama §5 H1 bir **oran** olduğu için "USDT eşiği" gerekçesi orada
+  geçmiyor. H3'ün "medyan günlük hacim"i için aynı seçim daha savunulabilir, o da yazılı değil.
+- **D-B5: H1'de izlemeyi bitiren bar yeni pump barı olarak değerlendirilmiyor.** Denetçiye göre
+  **dokunur**. §5 H1 madde 4 "yeni bir izleme ancak bundan sonra başlayabilir" diyor; "bundan
+  sonra"nın biten barın kendisini kapsayıp kapsamadığı yazılı değil. Kod en erken pump+13'ü yeni
+  pump sayıyor. Sert pump serilerinde bir pump barı sessizce kaybolur. Yukarıdaki iki yeni
+  belirsizlikle aynı sınıf; bu üçüncüsü tabloya denetçi bulgusu olarak eklenmiştir.
+- **D-B4 (beklemenin üst ucu):** denetçi sınıflamaya katılıyor ama "hayır (bugün)" etiketine
+  itiraz etti; tablo bu itirazla düzeltildi ("evet, ölçülmemiş").
+- **D-C1 ("pencereye giren kayıt" çapayı kapsamıyor):** denetçi sınıflamaya katılıyor; kodun
+  okuması §4 "Funding ödemesinin sınırları" ile tutarlı ve ölçülen etki iki okumada da 0.
+- **D-C2: `pozisyon.sinyal_kosulu` içindeki geniş `except ValueError`.** `VeriHatasi` ve
+  `ZamanDizisiHatasi` birer `ValueError` alt sınıfı olduğu için bir **veri bozukluğu** ret
+  gerekçesine dönüşebilir ve koşu durmaz. Bugün etkisi sınırlı (zaman dizisi denetimleri ve
+  `_pozitif` `try` bloğunun dışında), ama ileride bu yola eklenecek her `VeriHatasi` F2'de
+  sessizce "olay oluşmaz" olur. Niyetlenen tek durum (`h1_tepe_bar_sayisi`'nın 12 bar sınırı)
+  daha dar bir `except` ile ayrılabilir.
+- **D-C3: sonlu olmayan hücre ölçütü sinyal pencerelerinde ALAN bazlı, 1d türetmesinde BAR
+  bazlı.** Ön-kayıt cümlesi bar düzeyindedir ("hücrelerinden biri ... o bar eksiktir"). Somut
+  ayrışma: `quote_volume`'u NaN, `close`/`low`'u geçerli bir 4h barı H2'nin `close[t-30]` ve
+  `kirilim_dip` pencerelerinden geçer; bar düzeyli okumada geçmezdi. H1 ve H3'te fark doğmuyor.
+  Ölçülen etki 0 (KEŞİF'te bozuk hücreli bar yok).
+- **D-C4 (`count` kapsam dışı):** denetçi sınıflamaya katılıyor; `count` hiçbir olay, uygunluk,
+  sinyal ya da getiri hesabında okunmuyor (tarama ile doğrulandı).
+- **D-C5: `ornekleme.ornekle` ön-kayıt değerlerini zorlamıyor.** `sayi` ve `tohum` serbest;
+  `istatistik.yeniden_ornekle` ise ön-kayıt dışı `tekrar`/`tohum`'u reddediyor. İki modül
+  arasındaki sertlik farkı, ön-kayıt değerinin tek kapıdan geçmesi ilkesine göre eksik. Bugün
+  çağıran yok (F2 kodu yazılmadı).
+- **D-C6: RESULTS §14.29'un madde numaraları ön-kaydın (a)–(m) harflerine bağlanmıyor.** Belge
+  sorunu; (l) ve (m)'nin "yordamın sınırı" parçası tabloda ayrı satır değil.
+
+**Denetçinin (a) sorusuna yanıtı: bir yapısal yol kaldı.** Dizi kuralları (bekleme, tek izleme,
+ilk gün) yalnızca `data/dizi.py`'de yaşıyor; tek karar noktası `pozisyon.olay_karari` onları
+bilmiyor. Kapı, bekleme süresinin içindeki ya da yürüyen bir izlemenin ortasındaki bir barda da
+olay onaylar; H1'de çapayı yalnızca "pump koşulunu sağlıyor mu" diye denetliyor, "**ilk** pump
+barı mı" diye denetlemiyor, dolayısıyla aynı teyit barı iki farklı çapayla iki kez çağrılırsa iki
+olay onaylanır (§5 H1 madde 4: "bir teyit barı en çok bir olay sayar"). Bugün bunu yapan kod yok
+ve `dizi.olay_dizisi` doğru davranıyor; eksik olan, olay üretiminin `dizi`den geçmesini zorlayan
+bir kapı ya da kaynak taraması (`tests/tarama_yardimcisi`'nda `rol="olay"` çağrısını `dizi`
+dışında yasaklayan desen yok). **F2'nin ilk satırından önce eklenmeli.** Denetçinin taradığı öteki
+yollarda (geleceğe bakış, pencere/boşluk, dönem sınırları, dolgu koşuları, küme sınırı, kontrol
+tanımı) olay üretimi kural dışına çıkmıyor.
+
+**Denetçinin (b) sorusuna yanıtı:** ön-kayıtta karşılığı olmayan dört kural — D-B3 (hacim birimi),
+D-B5 (izlemeyi bitiren bar), D-B4 (beklemenin üst ucu), D-C3 (alan bazlı hücre ölçütü). Ayrıca
+kodun ret gerekçesi yerine **açık hata** verdiği iki yol (`sinyal._pozitif`, `pozisyon._sonlu`)
+ön-kayıtta tanımsız ama bilinçli ve belgeli; denetçi bunları sapma saymıyor (olay düşürmezler,
+koşuyu durdururlar).
+
+**Veri bölmesi ve tohum başlıklarında bulgu yok.** Yeni dört modülde hiç veri erişimi yok; grup
+bilgisi yalnızca `split.split_oku`, küme sınırları yalnızca `split.kume_araligi` üzerinden geliyor.
+`rev11_uygulama.py` yalnızca KEŞİF ve A grubu okuyor. Rastgelelik iki yerde ve ikisi de tohuma
+bağlı; `ornekleme.ornekle` adayları önce sıralıyor, `rev11_uygulama.py` paralel sonuçları submit
+sırasında topluyor. İki not: tohumun **sonuç dosyasına yazılması** yükümlülüğü (henüz sonuç dosyası
+yok) F2'de denetlenmeli; `ornekle`'nin serbestliği D-C5.
+
+**F2 öncesi kontrol listesi (bugünkü durum).**
     1. **Yerel `main` itilmeli.** Bugün yerel `main`, `origin/main`'in (`f7009e5`) **93 commit** önünde;
        `origin/main` yerelin gerisinde değil (0). İlk onay koşusu ancak eşitlikten sonra açılabilir: ilk koşunun
        itme denemesi aksi hâlde itilmemiş bütün commit'leri tek atışın hemen öncesinde iter. (Sayı bu turun
@@ -2808,6 +2894,149 @@ pandas 2.3.3, numpy 2.4.4, pyarrow 21.0.0, requests 2.32.5.
        - ONAY_KAYDI.md 6–10 ve 15. maddeleri;
        - ONAY_KAYDI.md başlığındaki "Henuz onay kosusu yok." yer tutucu satırının silinmesi.
     4. Bu listenin 1. maddesi kodda zorlanmıyor (OK4 D-C10); elle doğrulanır.
+
+### §14.29 Rev.11'in uygulanması ve F1'in dondurulması
+
+Ön-kayıt Rev.11 (2026-10-09) on üç maddeyle F1'in son açık noktalarını tanımladı; bu tur onları
+koda geçirdi. Her madde ayrı commit (madde 4 ile 5 tek commit; gerekçesi aşağıda), her commit
+öncesi tam test takımı koşuldu. Getiri, fiyat farkı ya da sinyal **değeri** hiçbir yerde
+hesaplanmadı ve raporlanmadı; etki ölçümleri yalnızca sayılabilirlik düzeyinde (hesaplandı /
+hesaplanamadı) ve yalnızca KEŞİF kümesi için yapıldı (ön-kayıt §4 "Ölçüm raporlamasının küme
+sınırı").
+
+Commit'ler: `3decb27` (1), `f41a7c3` (2), `f8bc392` (3), `c74ac19` (4 + 5), `bf27e6a` (6),
+`5718996` (7), `7723e76` (8), `17e076c` (9).
+
+**Madde → kod yeri → test**
+
+| Madde | Ön-kayıt | Kod yeri | Test |
+|---|---|---|---|
+| 1 | §4 "Funding sinyal penceresinin tamlığı" revizyon bağı | `funding.SINYAL_PENCERESI_REVIZYONU = 11` | `test_rev10_kalan_bulgular` (2) |
+| 2 | §5 "Pencere sınırları", "Pencere sınırlarının tamamı" | `data/sinyal.py` kurucular; `config.IZGARA` + pencere uzunlukları (hepsi `_DEGISMEZ_ADLAR`) | `test_rev11_pencere_sinirlari` (92) |
+| 3 | §2 "1 günlük barlar" (eksik hücre) | `klines.HUCRE_SUTUNLARI`, `klines.hucreleri_tam_mi`, `gunluge_cevir` | `test_rev11_eksik_hucre` (88) + `test_f1_kapanis_saldirilari` (xfail → normal) |
+| 4 | §5 (kapı değerleri kendisi hesaplar) | `pozisyon.olay_karari` (`yapilandirma`, `rol`, `capa`); `sinyal.sinyal_degerleri`, `hesaplanamayan`, `kosullar_saglandi`, `h1_pump_*` | `test_rev11_kapi_sinyali` (47), `test_f1k_sinyal_kapisi` (10) |
+| 5 | §6 "Kontrolün ne ölçtüğü" | `pozisyon.ROLLER`, `_sinyal_gerekli`, `_capa_dogrula`, `OlayUretmis`, `SinyalKosuluSaglanmadi` | `test_rev11_kapi_sinyali` rol bölümleri |
+| 6 | §5 bekleme süresi; §5 H1 madde 4; §5 H3 madde 3 | `data/dizi.py`; `pozisyon.sinyal_kosulu` | `test_rev11_olay_dizisi` (30) |
+| 7 | §6 "Örnekleme kuralları" | `data/ornekleme.py` | `test_rev11_ornekleme` (24) |
+| 8 | §4 funding sinyal penceresi (küme sonu kaydı, sonlu olmayan oran) + §4 "Geçerli oran" | `funding.sinyal_penceresi_ayrintisi` (`kume_sonu_kaydi_disarida`), `funding_ortalamasi`, `funding_tamlik_ayrintisi` (`oran_gecerli`) | `test_rev11_funding` (19) + `test_rev8_funding` davranış testi |
+| 9 | §7 `r`, p-değeri, yordamın sınırı | `data/istatistik.py` | `test_rev11_istatistik` (20) |
+
+**Madde 4 ile 5 neden tek commit.** Değerlerin kapıda hesaplanması, o barın ROLÜNÜ (olay / K1 /
+K2) bilmeyi gerektiriyor: ön-kayıt §6 rev.11 kontrol barında sinyal koşullarının aranmayacağını
+söylüyor. İkisini ayırmak, aradaki commit'te ya kontrol barlarını sinyal koşuluna tabi tutan ya
+da hiçbir koşulu aramayan, çalışmayan bir ara durum bırakırdı.
+
+**Etki ölçümleri** (`rev11_uygulama.py`; A grubu, KEŞİF aralığı, 272 sembol, 1.113.921 dönem içi
+4h bar):
+
+| Ölçüm | Sonuç | Beklenen |
+|---|---|---|
+| `--olcum hucre` (madde 3) | bozuk hücreli bar **0**; gün önce 185.486 → sonra 185.486, **düşen gün 0** | 0 ✓ |
+| `--olcum kume_sonu` (madde 8) | **düşen bar 234** (234 sembol, hepsi 2025-08-31 20:00); üç 4h ufkunda da (6, 18, 42) tek gerekçe **`giris_bari_yok`** | 234, hepsi zaten giriş barı bulunmadığı için reddediliyor ✓ |
+
+Madde 3 ölçümünün "önce" durumu, bozuk hücreleri sonlu bir yer tutucuyla (0.0) değiştirip aynı
+gerçek `klines.gunluge_cevir` yolunu koşarak üretildi; eski kod yalnızca bar sayısına baktığı
+için bu, kural öncesi gün kümesiyle birebir aynıdır. Madde 8 ölçümünde funding oran sütunları
+fonksiyona verilmeden önce, yalnızca NaN olup olmadıkları korunarak sabit 0 ile değiştirildi
+(`degersiz`), yani hiçbir funding değeri hesaba girmedi.
+
+**Üçüncü ölçüm (madde 8'in tamlık tarafı), tam denetim koşusundan.** `oran_gecerli` sütunu
+`a1_d_kurali_tam.csv`'ye eklendi. Değeri yalnızca **çapası olmayan** pozisyonlarda `False`
+(1050 / 1380, `aralik_gecerli` ile birebir aynı satırlar); **çapası olan hiçbir pozisyonda
+sonlu olmayan oran yok** (çapa var ama oran geçersiz: **0**). Yani rev.11'in "geçerli oran"
+koşulu, rev.10'un "geçerli aralık" koşulu gibi, bugünkü veride hiçbir pozisyonu elemiyor.
+
+**Doğrulama koşuları (temiz ağaçta, `7723e76`).**
+
+| Betik | Koşu | Önceki ref | Sonuç |
+|---|---|---|---|
+| `calistir` (`--eski-evren`) | 2026-10-09 21:07:19 → 21:25:18 UTC | `19b01b4` | bütün ölçüm çıktıları aynı; yalnızca `ortam_tam.csv` farklı |
+| `a1_olcumu` | aynı temiz ağaç | `19b01b4` | `a1_d_kurali_tam.csv`'de **yalnızca eklenen sütun** `oran_gecerli`; ortak sütunlarda satır farkı **0**. `a1_ortam_tam.csv` farklı |
+| `rev11_uygulama` (`--olcum hucre`, `--olcum kume_sonu`) | aynı tur | — | altı yeni `rev11_*_tam.csv` |
+
+`karsilastir.py --onceki 19b01b4 --ad karsilastirma_rev11_uygulama`. Farklı çıkan öteki dosyalar:
+- `*_ortam_*.csv` (yedi dosya): koşunun ortam künyesi — `git_commit` ve koşu zaman damgaları.
+  Python/pandas/numpy/pyarrow/requests sürümleri **değişmedi**; "fark varsa dur" kuralı bu dosya
+  için işletilmedi (§14.28'deki aynı gerekçe).
+- `rev8_etki_donem_sonu_tam.csv`: tek hücre (`funding_yok_evren`, BNXUSDT dönem 0). Bu betik bu
+  turda **yeniden koşulmadı**; fark, karşılaştırma referansının (`19b01b4`) `rev8_etki`'nin son
+  koşusundan (`8494549`) daha eski olmasından gelir ve §14.28'de açıklanan bilinen farktır.
+- `rapor_sayilari_tam.csv` **aynı**: bu raporun bütün sayıları değişmedi.
+
+**§14'teki açık noktaların son durumu.** Ölçüt §14.28'dekiyle aynı: **ön-kayıt ile kodun
+ayrıştığı her yer getiriye dokunur sayılır**; buna ön-kayıtta tanımsız kalan ve kodun bir okuma
+seçtiği yerler de dahildir.
+
+Bu turda kapananlar:
+
+| Nokta | Kapanış |
+|---|---|
+| F1 kapanış D-B1 sinyal değerleri çağırandan | madde 4 (`c74ac19`) |
+| F1 kapanış D-B2 H1 kontrol çapası | madde 5 (kontrol barında pump aranmaz) |
+| F1 kapanış D-C2 `close[t-30]` tamlık penceresi | madde 2 |
+| F1 kapanış D-C3 `tepe` tamlık listesinde yok | madde 2 |
+| F1K2 turu: `tepe`'de t; H3'te t günü; SMA50; ızgara parametreleri; kontrol barındaki k | madde 2 + madde 4 |
+| F1K2 D-C4 §5–§9 sabitleri `config.py`'de yok | madde 2 |
+| F1K2 D-C5 onaylı pozisyon yapılandırma taşımıyor | madde 4 (`yapilandirma`, `rol` imzada) |
+| Rev.10 D-C1 H2 penceresinin küme sonundaki kaydı | madde 8 (ölçüldü: 234 / 234) |
+| Rev.10 D-C5 H2 penceresinde `kayit_var` ve NaN oran şartları | madde 8 (ön-kayıt rev.11'de yazıldı; kod +sonsuzu da eler) |
+| Rev.10 D-C7 H2 ortalaması tek kayıttan hesaplanabilir | Rev.11 (l) ile bilinen sınırlar listesine girdi |
+| KS2 D-B4 pozisyon funding'inde NaN / sonlu olmayan oran politikası | madde 8 ("Geçerli oran"; ölçüldü: etkilenen pozisyon 0) |
+| Rev.9 D-C5'in sinyal tarafı (oran böleni sıfır ya da negatif) | madde 4 (`sinyal._pozitif` açık `VeriHatasi`) |
+| xfail: `gunluge_cevir` NaN hacim (A6) | madde 3 (xfail kaldırıldı; ölçüldü: düşen gün 0) |
+| xfail yok ama açık olan: sızıntı testçisinin `oran = inf` bulgusu | madde 8 (artık `FundingTamDegil`) |
+| §14.19'un "Rev.11'i bekleyenler" listesinin 17 maddesinin tamamı | maddeler 2–9 |
+
+Açık kalanlar:
+
+| Nokta | Getiriye dokunur | Not |
+|---|---|---|
+| Rev.9 D-C2 veri katmanı kesimlerinde zaman toleransı yok | **evet** | Ön-kayıt §4 "Zaman toleransı" bütün karşılaştırmaları kapsıyor, kod kesimlerde (`donem_kes`, `_kume_verisi`) uygulamıyor. KEŞİF/C2 arasındaki bir saniyede ölçülen kayıt 0 (§14.19); ayrışmanın yönü ve büyüklüğü gösterilmemiştir |
+| Rev.9 D-C5'in kalanı: `P0`, `P1` = 0 reddedilmiyor | **evet** | NaN ve ±inf kapandı (kapı sertleştirme turu 2); sıfır fiyat hâlâ reddedilmiyor. Sinyal oranlarının bölenleri madde 4'te kapandı |
+| §14.3 exchangeInfo görüntüsünün zamanı | hayır | Açık not |
+| Rev.9 D-C1 küme ölçütü / ileri kayma sırası | hayır | Yalnızca ret etiketi; ön-kayıt etiket tanımlamıyor, olay kümesi aynı |
+| Rev.9 D-C4 zaman toleransı sabitinin `pencere.py`'de olması | hayır | Yer; değer ön-kayıtla aynı |
+| Rev.9 D-C8 imza süreçler arası taşınamaz | hayır | Hata ile durur |
+| Rev.10 D-C2 `ILERI_KAYMA_SINIRI` iç adımda okunmuyor | hayır | Ön-kayıt sınırı birincil ufka eşitliyor; kod birincil ufku kullanıyor |
+| Rev.10 D-C4 ölçüm betikleri testsiz (`rev10_uygulama`, `rev11_uygulama`) | hayır | Ölçüm betiği |
+| F1K2 D-C1 `pozisyon._imza` tarama deseninde yok | hayır | Kararlı atlatma |
+| Tarama açıkları (analiz dizini muaf, `.ipynb`, parçalanmış ad, iç adımlar), K1–K13, KK1–KK4 | hayır | §14.27'deki belgeli sınırlar; xfail envanteri 33 → 32 (A6 xfail'i normal teste döndü) |
+| **Yeni:** beklemenin üst ucu ön-kayıtta yazılı değil | **evet** (ölçülmemiş) | Madde 6. §5 "t + birincil ufuk anına kadar sürer" cümlesi tam o ana denk gelen barı tanımlamıyor. Uygulanan okuma yarı açık `(t0, t0 + h × adım]`; gerekçe ön-kaydın başka yerlerdeki aynı yapısı (§4 "Funding ödemesinin sınırları"; §4 funding sinyal penceresi) ve ilk serbest barın, önceki olayın pozisyonunun çıkış anında kapanan bar olması. Tek sabit `dizi.BEKLEME_UST_UC_DAHIL`. **Olay kümesini değiştirebilir**; bugün hiçbir olay kümesi hesaplanmamıştır. F2'nin ilk koşusundan önce karara bağlanmalı ve bir revizyon ister |
+| **Yeni:** K1'in "yakın olmayan" ölçütünde tam eşitlik | **evet** (ölçülmemiş) | Madde 7. "Birincil ufuk mesafesinden yakın olmayan" ifadesinde tam ufuk mesafesinin dahil olup olmadığı yazılı değil; uygulanan okuma: tam mesafe yakın sayılmaz. Aynı sınıf, aynı sonuç: F2 öncesi karar |
+| **Yeni:** "pencereye giren kayıt" çapayı kapsıyor mu | hayır | Madde 8. "Geçerli oran" denetimi ödeme penceresine (giriş sonrası, pencere sonu dahil) uygulandı; çapanın oranı toplama girmediği için denetlenmiyor. Çapayı da kapsayan okuma, sonucu etkilemeyen veriyle pozisyon düşürürdü. Ölçülen etki her iki okumada da 0 |
+| **Yeni:** `count` hücresi eksik hücre kuralının dışında | hayır | Madde 3. Ön-kayıt "fiyat ve hacim hücreleri" diyor. Eksik bir `count` günü düşürmez, günün `count` toplamını sessizce eksiltir; hiçbir olay, uygunluk ya da getiri hesabına girmez |
+| **Yeni:** sonlu olmayan hücre ölçütünün sinyal pencerelerine uygulanması | hayır | Madde 2. §2 rev.11'in cümlesi 1d barların kuruluşu bağlamında yazılı; `sinyal._seri` aynı ölçütü 4h ve 1d sinyal pencerelerine de uyguluyor (sonlu olmayan hücre → NaN → pencere hesaplanamaz). Ölçülen etki 0 (bozuk hücreli bar yok) |
+
+**F1 dondurma notu.** F1 bu noktadan sonra **dondurulmuştur**. Yeni bir bulgunun F2'yi
+engellemesi için, bir hipotezin sonucunu değiştirebileceğinin gösterilmesi gerekir; ön-kayıt ile
+kodun ayrışması tek başına yeterli değildir, ayrışmanın **yönü ve büyüklüğü** de gösterilmelidir.
+Diğer bulgular açık nokta olarak kayda geçer ve F2'yi engellemez.
+
+Gerekçe: F1'in çıkış koşulu (anayasa §4) erken sağlanmıştı; uzayan süre, denetimin getiriyi
+etkileyen kural hatalarını bulmasından kaynaklanmıştır ve bu hatalar on bir revizyonla
+kapatılmıştır. Bu noktadan sonra bulunan açıklar kasıtlı ya da teorik yollardır ve F2'nin
+başlamamasının maliyeti daha büyüktür.
+
+Notun pratikteki iki sonucu:
+- Yukarıdaki iki "evet" (Rev.9 D-C2 ve Rev.9 D-C5'in kalanı) için ölçülen etki bugün sıfırdır;
+  yön ve büyüklük gösterilmediği sürece F2'yi engellemezler.
+- Bu turda ortaya çıkan ön-kayıt belirsizliklerinden üçü (beklemenin üst ucu, K1'in tam
+  eşitliği, H1'de izlemeyi bitiren barın yeni pump olup olmadığı) olay kümesini **değiştirir** ve
+  tablonun kendi ölçütüyle "dokunur" sayılır; büyüklükleri ölçülmemiştir, çünkü hiçbir olay
+  kümesi hesaplanmamıştır. Bunlar F2'nin **ilk koşusundan önce** karara bağlanmalıdır ve bir
+  revizyon isterler; F1'i açık tutmazlar — dondurma notu "yön ve büyüklük gösterilmeli" diyor ve
+  bu üç nokta için gösterilecek büyüklük F2'nin ilk koşusunda ortaya çıkar.
+
+**F2 öncesi kontrol listesi (bugünkü durum).** §14.28'deki listenin güncellemesi:
+1. **Yerel `main` itilmeli.** `origin/main` bu turun başında `ad60dbd`'ye kadar güncellenmişti;
+   bu tur sekiz commit ekledi ve yerel `main` `origin/main`'in **8 commit önünde**. İlk onay
+   koşusu ancak eşitlikten sonra açılabilir. Bu tur push yapmadı.
+2. **Zorla itme koruması** (GitHub dal koruması) — kullanıcı yapacak; depo dışı ayar.
+3. **Kilit oturumu** bekliyor: anayasa §3.3/§5/§7 metinleri, `KILIT.md`'nin kilitli dosya
+   listesine eklenmesi, ONAY_KAYDI.md maddeleri. ONAY_KAYDI.md'deki yer tutucu satır Rev.11
+   kilit oturumunda kaldırıldı (bu tur doğrulandı: kayıt satırı tablonun içine düşüyor).
+4. **Beklemenin üst ucu ve K1'in tam eşitliği** için ön-kayıt kararı (yukarıdaki iki "yeni"
+   madde). F2'nin ilk koşusundan önce.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
