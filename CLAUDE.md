@@ -51,8 +51,15 @@ saklanmaz, koda yazılmaz.
    edilir. Coin grubu (A/B) veya tarih sınırları sonradan değiştirilemez.
 3. **Keşif serbest, onay tek atış.** Keşif yalnızca A grubu coinlerde ve keşif
    döneminde yapılır. Onay kümeleri (C1, C2) her hipotez için **bir kez** koşulur.
-   Onay koşusu, `--onay` bayrağı olmadan veri katmanı tarafından reddedilir ve her
-   koşu `ONAY_KAYDI.md` dosyasına commit hash'iyle eklenir (yalnızca ekleme, silme yok).
+   Onay kümesi verisi yalnızca açık bir onay koşusu içinde okunabilir; koşu, veri
+   katmanındaki `onay_kosusu` bağlam yöneticisiyle açılır ve hipotez ile küme adını
+   alır. Koşu yalnızca temiz çalışma ağacında, git'te izlenen bir depo betiğinden ve
+   yerel `main` `origin/main` ile eşitken açılabilir. Her koşu `ONAY_KAYDI.md`
+   dosyasına iki satır yazar — açılışta BASLADI, kapanışta sonucuyla BITTI ya da hata
+   sınıfıyla HATA — ve her satır yazıldığı anda commit edilip uzak depoya itilir.
+   Tek atış denetimi `origin/main` geçmişine bakar: kaydı uzak depoda bulunan bir
+   (hipotez, küme) çifti ikinci kez koşulamaz, yarıda kalmış koşu dahil. Kayıt
+   satırları hiçbir zaman silinmez.
 4. **Eşikler sonuçtan önce sabitlenir.** Başarı eşikleri, kontrol tanımları ve
    hipotez ızgaraları PREREGISTRATION.md'de yazılıdır. Sonuç görüldükten sonra
    değiştirilmez. Değişiklik gerekiyorsa gerekçesiyle **revizyon** olarak yazılır
@@ -99,12 +106,17 @@ F4'e geçmez; bu geçerli ve değerli bir sonuçtur.
 yapılan yazma ve düzenleme araç çağrılarını reddeder. Kilit yalnızca kullanıcının
 açık izniyle, `SHORT_LAB_KILIT_ACIK=1` ortam değişkeni ayarlanarak açılır.
 
-`ONAY_KAYDI.md` yalnızca ekleme kuralına tabidir. Başlıktaki "Henüz onay koşusu
-yok" yer tutucu cümlesi ilk onay koşusunda kaldırılabilir; kayıt satırları hiçbir
-zaman silinemez.
+`ONAY_KAYDI.md` yalnızca ekleme kuralına tabidir; kayıt satırları hiçbir zaman
+silinemez. Başlıktaki yer tutucu cümle Rev.11 kilit oturumunda kaldırılmıştır.
+
+**F2'nin kilitlediği yapılandırma.** F2 sonunda her hipotez için seçilen
+yapılandırma (ya da hipotezin kapandığı) `KILIT.md` dosyasına yazılır. Dosya
+oluşturulduğu andan itibaren kilitli dosyalar listesine girer ve hook tarafından
+korunur. Onay koşusu, koştuğu hipotezin yapılandırmasını bu dosyadan okur;
+dosyada kaydı olmayan bir hipotez için onay koşusu açılmaz.
 
 Hook araç çağrılarını yakalar; çalışan Python kodunu etkilemez.
-`data/split.py` içindeki `onay_kaydet` bu yüzden `ONAY_KAYDI.md` dosyasına
+`data/split.py` içindeki onay koşusu bu yüzden `ONAY_KAYDI.md` dosyasına
 yazmaya devam eder. Hook `Bash` çağrılarını da denetler: kilitli bir dosyaya
 yazma niyeti taşıyan komutları (yönlendirme, `sed -i`, `mv`, `rm`, çalışma
 ağacını değiştiren git alt komutları vb.) reddeder, salt okuma komutları geçer.
