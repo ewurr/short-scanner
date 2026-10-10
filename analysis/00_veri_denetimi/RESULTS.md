@@ -2881,6 +2881,56 @@ bağlı; `ornekleme.ornekle` adayları önce sıralıyor, `rev11_uygulama.py` pa
 sırasında topluyor. İki not: tohumun **sonuç dosyasına yazılması** yükümlülüğü (henüz sonuç dosyası
 yok) F2'de denetlenmeli; `ornekle`'nin serbestliği D-C5.
 
+**Tur sonu sızıntı testçisi bulguları (düzeltilmedi).** Yalnızca yeni dosya:
+`tests/test_tur_saldirilari_s.py`, **78 test**: 72 savuşturulan saldırı (normal, geçen test) ve
+**6 başarılı saldırı** (`xfail(strict=True)`). Testçinin araçları arasında kabuk yoktu, bu yüzden
+testleri ana oturum koşturdu: 72 geçti, 6 xfail — testçinin kestirimiyle birebir aynı, yani altı
+bulgunun hepsi gerçek (strict xfail XPASS verse kırmızı olurdu) ve 72 normal testin hepsi,
+testçinin eklediği üç **olumlu kontrol** (sentetik H1/H2 dünyasının gerçekten olay ve K1
+pozisyonu üretebildiği) dahil, geçiyor.
+
+- **S-B1 (üç test): `dizi.olay_dizisi`, `karar` çıktısını doğrulamıyor.** `_dene`, `karar`'ın
+  döndürdüğü her nesneyi `Olay` olarak kaydeder ve beklemeyi başlatır; `pozisyon.onay_dogrula`
+  çağrılmaz, `rol` / `hipotez` / `yapilandirma` eşleşmesine bakılmaz. Üç saldırı da başarılı:
+  (i) rastgele bir nesne (`"olay_degil"`), (ii) gerçek ve imzalı ama **K1 rolündeki** onaylı
+  pozisyon, (iii) **başka yapılandırmanın** (δ = 0.12) olay pozisyonunun δ = 0.08 dizisine
+  verilmesi. Son ikisi ön-kayıt §6 "Kontrolün ne ölçtüğü" ve §5 "bekleme yapılandırma başına
+  işler" kurallarını deler. Testler: `test_dizi_karar_ciktisi_onayli_pozisyon_degilse_olay_
+  sayilmaz`, `test_dizi_k1_rolundeki_onayli_pozisyon_olay_sayilmaz`,
+  `test_dizi_baska_yapilandirmanin_pozisyonunu_olay_saymaz`. Denetçinin (a) yanıtıyla aynı
+  kökten: dizi ile kapı arasındaki bağ tek yönlü ve doğrulanmıyor.
+- **S-B2: H3'ün "kesintisiz dizi"si `zamanlar` listesinin bitişikliğine dayanıyor.**
+  `dizi_suruyor` yalnızca işlenen barlarda sıfırlanır; `zamanlar = [gün 0, 1, 20, 21, 22]` ve
+  koşul hep doğruysa aradaki 18 gün (bar yok, yani §2 gereği hesaplanamaz) diziyi **kesmez** ve
+  gün 20 yeni bir "ilk gün" sayılmaz. Ön-kayıt §5 H3 madde 3: dizi "§2 'Tamlık şartı' gereği
+  hesaplanamadığı günde kesilir". Test: `test_h3_zamanlar_listesinde_eksik_gun_diziyi_keser`.
+  Çağıranın eksik günleri listeye koyup `None` döndürmesi de bir çözümdür, ama dizi bunu bugün
+  zorlamıyor.
+- **S-B3 (düşük önem): H1'in 12 bar sınırı da bar varlığına bağlı.** İzlemeyi bitiren kontrol
+  yalnızca işlenen barda çalışır; `zamanlar`'da 12. bar yoksa 13. bar hâlâ teyit adayıdır.
+  Gerçek hatta eksik 12. bar tepe penceresini zaten bozar (olay oluşmaz), bu yüzden pratik etkisi
+  düşük; yine de sınırın tek sahibi dizi değil. Test:
+  `test_h1_12_bar_siniri_zamanlarda_eksik_bar_oldugunda_da_gecerli`.
+- **S-B4: `ornekleme.alt_tohum` UTC dışı saat diliminde değişiyor.** `pencere.utc_zamani`
+  yalnızca tz'siz damgayı reddeder; tohum metni `t.isoformat()` ile kurulduğu için **aynı an**
+  `+03:00` ve `+00:00` ile verilince farklı alt tohum çıkar. Anayasa §5 ("tüm zaman damgaları
+  UTC") ve ön-kayıt §7 (tohum) ile ayrışır. Kapı `sinyal_zamani` için UTC'yi zorluyor
+  (`pozisyon._utc_sinyal_zamani`), örnekleme zorlamıyor. Test:
+  `test_alt_tohum_ayni_an_utc_disi_saat_diliminde_ayni_olmali_ya_da_reddedilmeli`.
+
+**Testçinin yazmadığı saldırılar ve gerekçeleri** (kayda geçer): `_imza`yı yeniden hesaplayarak
+K1'i imzalı olaya çevirmek (anayasanın "kararlı atlatmaya karşı korumaz" sınırı); aynı çağrıda
+iki dönemi birleştiren bir çağıranı yakalayacak koruma (dizinin dönem bilgisi yok, sıfırlama
+çağıranın ayrı çağrısına bağlı); `funding_ortalamasi` içinden fırlayabilecek `ValueError`'ların
+`sinyal_kosulu`da yutulup yutulmadığı (okunmadı — denetçinin D-C2'si bu alanı kapsıyor); kapının
+çapayı "ilk pump barı"na bağlayamaması (tasarım gereği; ilk-pump kuralını yalnızca dizi uygular).
+
+**Testçinin notu (bulgu saymadı, karar ana oturuma bırakıldı):** H2/H3'te kapı K2'yi "koşul
+sağlanıyor" diye eler, ön-kayıt ise "olay üretmemiş" diyor; bekleme içindeki ya da H3 kesintisiz
+dizisinin ikinci gününden sonraki bir coin olay üretmemiştir ama havuzdan düşer. H1'de kapı K2'yi
+olay barında geçirir ve eleme `ornekleme.k2_adaylari`'na kalır. Bu, denetçinin **D-B2** bulgusuyla
+aynı noktadır ve iki ajan birbirinden bağımsız olarak aynı yere bastı.
+
 **F2 öncesi kontrol listesi (bugünkü durum).**
     1. **Yerel `main` itilmeli.** Bugün yerel `main`, `origin/main`'in (`f7009e5`) **93 commit** önünde;
        `origin/main` yerelin gerisinde değil (0). İlk onay koşusu ancak eşitlikten sonra açılabilir: ilk koşunun
