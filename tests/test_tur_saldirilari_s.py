@@ -989,9 +989,9 @@ def test_h1_bekleme_icinde_pump_yok_sayilir_ilk_serbest_barda_yeni_izleme():
     assert (23, None) not in cagrilar
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU B3: dizi.olay_dizisi'nde H1 izlemesinin 12 bar siniri "
-                                       "yalniz izlenen barlarin varligina bagli; 12. bar zamanlar'da yoksa 13. "
-                                       "bar hala teyit adayi.")
+# SALDIRI BULGUSU B3 KAPANDI (Rev.12-13 uygulamasi madde 2a): izleme penceresi artik takvimle
+# olculur (`(pump, pump + 12 x adim]`), islenen barlarin varligiyla degil. xfail isareti kaldirildi;
+# beklenti degismedi.
 def test_h1_12_bar_siniri_zamanlarda_eksik_bar_oldugunda_da_gecerli():
     """On-kayit §5 H1 madde 3-4: teyit pump'tan sonraki 12 bar icinde; 12 bar dolunca izleme biter. Bugunku
     davranis: izlemeyi bitiren `once(t, pump + 12 adim)` kontrolu yalnizca islenen bar icin calisir; zamanlar

@@ -16,6 +16,19 @@ On-kayit §5 (rev.11):
     ilk pump barindan olculmeye devam eder. Izleme, teyit bariyla ya da 12 bar doldugunda biter;
     yeni bir izleme ancak bundan sonra (ve olay olustuysa bekleme suresi dolduktan sonra)
     baslayabilir. Boylece bir teyit bari en cok bir olay sayar."
+  - **Izleme penceresinin donem ve kume siniri** (§5 H1 madde 4, rev.13). "Izleme yalnizca donem
+    ici ve kume ici barlar uzerinde yurur, bu barlar arasinda teyit gelmezse izleme olay
+    uretmeden kapanir. Donemin ya da kumenin sonuna 12 bardan az kalmisken baslayan bir pump
+    bari, bu yuzden hic olay uretmeyebilir. ... Ayni kural bir olayin dayandigi butun barlar icin
+    gecerlidir: sinyal pencereleri, izleme penceresi ve pump barinin kendisi ayni donemin ve ayni
+    kumenin icinde olmalidir."
+
+    Bu kural iki parcadan gelir. (1) `zamanlar` SOZLESME geregi yalnizca donem ici ve kume ici
+    sinyal barlarini tasir (asagidaki argument aciklamasi), yani izleme bu barlarin disina
+    cikamaz ve donem/kume sonundan sonra teyit arayamaz. (2) 12 barlik sinir TAKVIMLE olculur,
+    barlarin varligiyla degil (rev.13; sizinti bulgusu S-B3): teyit araligi
+    `(pump, pump + 12 x adim]`dir. Ikisi birlikte, teyidi onay verisinde ya da donem disinda
+    arayan bir yolu kapatir.
   - **H3 ilk gun** (§5 H3 madde 3). "'Ilk gun', iki kosulun birlikte saglandigi KESINTISIZ
     dizinin ilk gunudur. Dizi, kosullardan biri saglanmadigi ya da §2 'Tamlik sarti' geregi
     hesaplanamadigi gunde kesilir; dizi kesildikten sonra kosullar yeniden birlikte saglanirsa
@@ -184,16 +197,32 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
     for t in indeks:
         if ad in IZLEMELI_HIPOTEZLER:
             if izleme_pump is not None:
-                # Izleme suruyor: bu bar teyit adayidir, yeni pump bari YOK SAYILIR (madde 4).
-                teyit = _kosul_sonucu(kosul(t, izleme_pump), f"{ad} teyit {t}")
-                if teyit:
-                    _dene(t, izleme_pump)       # teyit bari en cok bir olay sayar
-                    izleme_pump = None          # izleme teyit bariyla biter
-                elif teyit is None:
-                    retler.append(Ret(t, izleme_pump, "sinyal_penceresi_tam_degil"))
-                if izleme_pump is not None and not pencere_modulu.once(t, izleme_pump + config.H1_IZLEME_BAR * adim):
-                    izleme_pump = None          # 12 bar doldu, izleme biter
-                continue
+                # Izleme penceresi TAKVIMLE sinirlidir (on-kayit §5 H1 madde 3-4, rev.13; sizinti
+                # bulgusu S-B3): teyit, pump barindan sonraki 12 bar ICINDE olmali, yani
+                # `(pump, pump + 12 x adim]` araliginda. Rev.13 oncesi sinir yalnizca islenen
+                # barlarin varligina bagliydi: `zamanlar`da 12. bar yoksa 13. bar hala teyit adayi
+                # sayiliyordu. Simdi sinir barlarin degil takvimin isi.
+                izleme_sonu = izleme_pump + config.H1_IZLEME_BAR * adim
+                if pencere_modulu.ayni_ya_da_once(t, izleme_sonu):
+                    # Izleme suruyor: bu bar teyit adayidir, yeni pump bari YOK SAYILIR (madde 4).
+                    teyit = _kosul_sonucu(kosul(t, izleme_pump), f"{ad} teyit {t}")
+                    if teyit:
+                        _dene(t, izleme_pump)   # teyit bari en cok bir olay sayar
+                        izleme_pump = None      # izleme teyit bariyla biter
+                    elif teyit is None:
+                        retler.append(Ret(t, izleme_pump, "sinyal_penceresi_tam_degil"))
+                    if izleme_pump is not None and not pencere_modulu.once(t, izleme_sonu):
+                        # 12 bar doldu. "Izlemeyi bitiren bar o izlemenin parcasidir ve yeni bir
+                        # pump bari olarak degerlendirilmez" (rev.12): bu yuzden `continue`.
+                        izleme_pump = None
+                    continue
+                # Bar izleme penceresinin DISINDA: takvimde 12 bar dolmus ve o anda (ya da o ana
+                # kadar) teyit gelmemis. "Bu barlar arasinda teyit gelmezse izleme olay uretmeden
+                # kapanir" (rev.13). Izlemeyi bitiren bir bar YOKTUR -- sinir takvimde dolmustur --
+                # bu yuzden bu bar izlemenin parcasi degildir ve yeni bir pump bari olabilir;
+                # bitisik seride ayni davranis gecerlidir (orada sinira denk gelen bar izlemenin
+                # parcasidir ve bir sonraki bar serbesttir).
+                izleme_pump = None
             if _beklemede(t):
                 retler.append(Ret(t, None, "bekleme_suresi"))
                 continue
