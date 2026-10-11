@@ -37,6 +37,7 @@ import pandas as pd
 
 import config
 from data import funding as funding_modulu
+from data import klines as klines_modulu
 from data import pencere as pencere_modulu
 
 # --- Izgara (on-kayit §5) ----------------------------------------------------
@@ -130,18 +131,32 @@ def _seri(mumlar: pd.DataFrame, alan: str) -> pd.Series:
     """Mum cercevesinin bir alanini, acilis zamaniyla indekslenmis seri olarak doner. Saf.
 
     Alan sayisal degilse (string, nesne) `pd.to_numeric` NaN uretir; SONLU OLMAYAN deger
-    (+-sonsuz) de NaN'a cevrilir. On-kayit §2 (rev.11): "Bir barin mevcut sayilmasi icin
-    satirinin bulunmasi yetmez: fiyat ve hacim hucrelerinin tamami sayi olmalidir. Hucrelerinden
-    biri NaN ya da sonlu degilse o bar eksiktir"; §2 "Tamlik sarti" eksik bari iceren pencereyi
-    hesaplanamaz yapar. Boylece sonsuz bir hucre pencereden sessizce gecmez ve degerler
-    sessizce 0 ya da metin olarak toplanmaz. (On-kayit cumlesi 1d barlarin kurulusu baglaminda
-    yazilidir; burada ayni olcut 4h ve 1d sinyal pencerelerine de uygulanir. F1 olcumunde donem
-    ici 4h barlarda boyle bir hucre bulunmamistir.)
+    (+-sonsuz) de NaN'a cevrilir.
+
+    **Barin mevcutlugu BAR duzeyindedir (on-kayit §2, rev.12).** "Bu, barin mevcutlugunun genel
+    tanimidir (rev.12): olcut alan duzeyinde degil bar duzeyindedir ve her izgarada, her
+    pencerede ve her hesapta gecerlidir — hucresi bozuk bir bar 4 saatlik sinyal pencerelerinde
+    de mevcut sayilmaz, ilgili hucresi gecerli olsa bile." Bu yuzden seri yalnizca ISTENEN alani
+    denetlemez: barin butun fiyat ve hacim hucreleri (`klines.HUCRE_SUTUNLARI`) sonlu bir sayi
+    olmalidir; biri bozuksa o barin damgasi her alanda NaN olur ve §2 "Tamlik sarti" o bari
+    iceren her pencereyi hesaplanamaz yapar. Olcut `klines.hucreleri_tam_mi`dir, yani 1d
+    turetmesiyle (ayni on-kayit cumlesi) TEK bir yerden gelir; cercevede bulunmayan bir hucre
+    sutunu denetlenmez (sentetik ve kismi cerceveler).
+
+    Islem sayisi (`count`) kapsam DISINDADIR (on-kayit §2 rev.12: "hicbir olay, uygunluk ya da
+    getiri hesabina girmedigi icin eksikligi bari dusurmez"); `HUCRE_SUTUNLARI` onu icermez.
+
+    Rev.12'den once olcut alan duzeyindeydi: ayni bar bir pencerede mevcut, baska bir pencerede
+    eksik sayilabiliyordu. F1 olcumunde donem ici 4h barlarda bozuk hucre bulunmamistir, yani bu
+    kural bugunku veride hicbir bari dusurmez (etki olcumu: RESULTS §14.30).
     """
     if alan not in mumlar:
         raise KeyError(f"Mum cercevesinde {alan!r} sutunu yok (sinyal penceresi kurulamaz).")
     degerler = pd.to_numeric(mumlar[alan], errors="coerce").to_numpy(dtype=float)
     degerler = np.where(np.isfinite(degerler), degerler, np.nan)
+    # Bar duzeyli olcut (on-kayit §2 rev.12): barin herhangi bir fiyat ya da hacim hucresi bozuksa
+    # bar hicbir pencerede mevcut degildir, istenen hucresi gecerli olsa bile.
+    degerler = np.where(klines_modulu.hucreleri_tam_mi(mumlar), degerler, np.nan)
     seri = pd.Series(degerler, index=pd.DatetimeIndex(mumlar["open_time"]))
     return seri.sort_index()
 
@@ -150,8 +165,9 @@ def bar_degeri(mumlar: pd.DataFrame, t, alan: str) -> float:
     """t barinin `alan` degeri; bar yoksa ya da deger sonlu degilse NaN. Saf.
 
     On-kayit §2 (rev.11): "Bir barin mevcut sayilmasi icin satirinin bulunmasi yetmez: fiyat ve
-    hacim hucrelerinin tamami sayi olmalidir." Sinyal kosullari t barinin kendi `close` ve
-    `high` degerlerini okur; o hucre eksikse deger hesaplanmaz.
+    hacim hucrelerinin tamami sayi olmalidir." Olcut BAR duzeyindedir (rev.12; `_seri`): t
+    barinin `close` hucresi saglam olsa bile baska bir fiyat ya da hacim hucresi bozuksa bar
+    mevcut degildir ve deger hesaplanmaz.
     """
     zaman = pencere_modulu.utc_zamani(t, "t")
     seri = _seri(mumlar, alan)
