@@ -1093,8 +1093,9 @@ def test_h3_bekleme_kenari_14_gun_bekleme_15_gun_serbest():
     assert _idx(_calistir("H3", Z_D, range(30), _h3_kosul({0, 15})), Z_D) == [0, 15]
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU B2: H3 'kesintisiz dizi' zamanlar listesinin "
-                                       "bitisikligine dayaniyor; takvimde eksik gun diziyi kesmiyor.")
+# SALDIRI BULGUSU B2 KAPANDI (Rev.12-13 uygulamasi madde 2b): dizi artik TAKVIMLE kesilir; iki
+# islenen gun arasinda bir adimdan fazla bosluk varsa dizi kesilir. xfail isareti kaldirildi;
+# beklenti degismedi.
 def test_h3_zamanlar_listesinde_eksik_gun_diziyi_keser():
     """On-kayit §5 H3 madde 3: dizi, kosullardan biri saglanmadigi "ya da §2 'Tamlik sarti' geregi
     hesaplanamadigi gunde kesilir". Bugunku davranis: `dizi_suruyor` yalniz ISLENEN barlarda sifirlanir;

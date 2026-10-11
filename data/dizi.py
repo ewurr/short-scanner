@@ -34,6 +34,14 @@ On-kayit §5 (rev.11):
     hesaplanamadigi gunde kesilir; dizi kesildikten sonra kosullar yeniden birlikte saglanirsa
     o gun yeni bir 'ilk gun'dur ve bekleme suresi ayrica uygulanir. Kesintisiz suren bir dizinin
     icinde, bekleme suresi dolsa bile yeni olay sayilmaz."
+  - **H3 dizisinin tanimi** (§5 H3 madde 3, rev.13). "Dizi kosullarla tanimlidir, karar
+    noktasinin onayiyla degil: bir gun iki kosulu birlikte sagliyorsa diziye aittir, o gunde olay
+    olusup olusmadigina bakilmaz. Bunun sonucu olarak, dizinin ilk gunu karar noktasindan
+    gecmezse (or. funding tamligi saglanmadigi ya da giris bari bulunmadigi icin) o dizi hic olay
+    uretmez; dizinin ikinci gunu 'ilk gun' sayilmaz." Kodda bu, diziyi kapi denemesinden ONCE ve
+    onun sonucundan bagimsiz kurmak demektir. Dizi ayrica TAKVIMLE kesilir: seride bulunmayan
+    (bar olmayan, §2 geregi hesaplanamaz) bir gun diziyi keser, listenin bitisikligine
+    bakilmaz (sizinti bulgusu S-B2).
 
 **Beklemenin ust ucu (uygulama karari, on-kayitta acikca yazili degil).** "t + birincil ufuk
 anina kadar surer" cumlesi, tam o ana denk gelen barin beklemenin icinde mi disinda mi oldugunu
@@ -177,6 +185,7 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
     son_olay = None          # bekleme suresinin cikti olay bari
     izleme_pump = None       # H1: yuruyen izlemenin pump bari
     dizi_suruyor = False     # H3: kesintisiz dizi suruyor mu
+    onceki_bar = None        # H3: dizinin takvim bitisikligi icin islenen son bar
     adim = pencere_modulu.adim(bar)
 
     def _beklemede(t) -> bool:
@@ -233,6 +242,15 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
                 retler.append(Ret(t, None, "sinyal_penceresi_tam_degil"))
             continue
 
+        # Dizi TAKVIMLE kesilir, listenin bitisikligiyle degil (on-kayit §5 H3 madde 3, rev.13;
+        # sizinti bulgusu S-B2). Iki islenen gun arasinda bir adimdan fazla bosluk varsa aradaki
+        # gun(ler) seride YOKTUR; on-kayit §2 "Tamlik sarti" geregi o gunlerde kosul hesaplanamaz
+        # ve "dizi ... §2 'Tamlik sarti' geregi hesaplanamadigi gunde kesilir". Rev.13 oncesi
+        # `dizi_suruyor` yalnizca ISLENEN barlarda sifirlaniyordu, bu yuzden eksik (silinmis) gun
+        # diziyi kesmiyor ve sonraki gun "ilk gun" sayilmiyordu.
+        if onceki_bar is not None and not pencere_modulu.ayni_an(t, onceki_bar + adim):
+            dizi_suruyor = False
+        onceki_bar = t
         saglandi = _kosul_sonucu(kosul(t, None), f"{ad} kosul {t}")
         if saglandi is None:
             dizi_suruyor = False               # tamlik gereği hesaplanamayan gun diziyi KESER
@@ -241,11 +259,17 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
         if not saglandi:
             dizi_suruyor = False
             continue
-        if ad in DIZI_ILK_GUN_HIPOTEZLERI and dizi_suruyor:
+        # Dizi KOSULLARLA tanimlidir, karar noktasinin onayiyla degil (on-kayit §5 H3 madde 3,
+        # rev.13): "bir gun iki kosulu birlikte sagliyorsa diziye aittir, o gunde olay olusup
+        # olusmadigina bakilmaz." Bu yuzden `dizi_suruyor` ASAGIDAKI kapi denemesinden ONCE ve
+        # onun sonucundan BAGIMSIZ olarak kurulur: dizinin ilk gunu kapidan gecmezse (funding
+        # tamligi, giris bari vb.) o dizi hic olay uretmez ve ikinci gun "ilk gun" sayilmaz.
+        ilk_gun = not (ad in DIZI_ILK_GUN_HIPOTEZLERI and dizi_suruyor)
+        dizi_suruyor = True
+        if not ilk_gun:
             # Kesintisiz dizinin icinde: bekleme dolsa bile yeni olay sayilmaz (madde 3).
             retler.append(Ret(t, None, "dizi_ilk_gun_degil"))
             continue
-        dizi_suruyor = True
         if _beklemede(t):
             retler.append(Ret(t, None, "bekleme_suresi"))
             continue
