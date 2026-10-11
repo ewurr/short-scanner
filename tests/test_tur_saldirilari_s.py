@@ -560,16 +560,20 @@ def test_onayli_pozisyonun_rolu_yapilandirmasi_hipotezi_imzaya_bagli():
             pozisyon.onay_dogrula(sahte)
 
 
-def test_k2_adayi_olay_ureten_bar_olamaz_h2_olay_uretmis_hatasi():
-    """On-kayit §6 K2: "o anda olay uretmemis diger coinlerden". H2'de kapi K2 rolunde kosullari hesaplar;
-    kosullar saglaniyorsa `OlayUretmis`. Saldiri: olay barini K2 adayi olarak sokmak. Kontrol: K1 ayni barda
-    sinyal aranmadigi icin gecer; olay olmayan barda K2 gecer."""
+def test_k2_adayi_olay_ureten_barda_kapi_elemez_eleme_ornekleme_adiminda():
+    """REV.12 ILE DEGISTI (§6, madde (e)). Rev.11'de H2'nin K2 barinda kapi kosullari hesaplar ve
+    saglaniyorsa `OlayUretmis` firlatirdi. Rev.12: "Kontrol barinda sinyal kosullari hicbir amacla
+    hesaplanmaz"; K2'nin "o anda olay uretmemis" sarti olay KUMESINE gore, ornekleme adiminda
+    uygulanir. Saldiri simdi sunu sorar: kapi olay barini gecirdiginde eleme hala yapiliyor mu?
+    Yanit `ornekleme.k2_adaylari`dir (asagidaki H1 testiyle ayni bagimlilik, artik uc hipotezde)."""
     dunya = _h2_dunya()
-    with pytest.raises(pozisyon.OlayUretmis) as hata:
-        _karar(dunya, "H2", ZG[TH], kontrol("H2", "K2"))
-    assert pencere.ret_gerekcesi(hata.value) == "olay_uretmis"
+    assert not hasattr(pozisyon, "OlayUretmis")
+    assert _karar(dunya, "H2", ZG[TH], kontrol("H2", "K2")).rol == "K2"
     assert _karar(dunya, "H2", ZG[TH], kontrol("H2", "K1")).rol == "K1"
     assert _karar(dunya, "H2", ZG[35], kontrol("H2", "K2")).rol == "K2"
+    # Eleme ornekleme adimindadir: olay ureten sembol havuzdan cikar, verilmezse kalir.
+    assert ornekleme.k2_adaylari(["AAAUSDT"], ["AAAUSDT"], olay_sembolu="BBBUSDT") == ()
+    assert ornekleme.k2_adaylari(["AAAUSDT"], [], olay_sembolu="BBBUSDT") == ("AAAUSDT",)
 
 
 def test_h1_k2_kapisi_olay_barini_kendisi_elemez_havuz_k2_adaylari_ile_elenir():

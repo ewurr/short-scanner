@@ -256,11 +256,20 @@ def test_k2_kosulu_saglamayan_bar_kontrol_adayidir():
     assert p.rol == "K2"
 
 
-def test_k2_olay_ureten_bar_kontrol_olamaz():
-    """"o anda olay uretmemis diger coinlerden": kosullar saglaniyorsa bar K2 adayi degildir."""
-    with pytest.raises(pozisyon.OlayUretmis) as hata:
-        _karar("H2", _h2_olay_serisi(), FUND2, DB2, B2, T2, **kontrol("H2", "K2"))
-    assert pencere.ret_gerekcesi(hata.value) == "olay_uretmis"
+def test_k2_olay_ureten_bar_kapidan_gecer_eleme_ornekleme_adiminda():
+    """REV.12 ILE DEGISTI (§6 "Kontrol barinda sinyal pencereleri", madde (e)).
+
+    Rev.11'de kapi K2 rolunde H2 ve H3'un kosullarini hesaplar ve saglaniyorsa `OlayUretmis`
+    firlatirdi; bu test onu sabitliyordu. Rev.12: "Kontrol barinda sinyal kosullari hicbir amacla
+    hesaplanmaz. K2'nin 'o anda olay uretmemis' sarti, kosullarin saglanip saglanmadigina degil,
+    o barin ayni yapilandirmanin olusmus olay kumesinde bulunup bulunmadigina gore uygulanir
+    (§6 'Ornekleme kurallari')." Bu yuzden olay kosullarini saglayan bar artik KAPIDAN GECER ve
+    eleme yalnizca `ornekleme.k2_adaylari`nda yapilir; `OlayUretmis` ret gerekcesi kalkmistir.
+    Gerekce (on-kayit §6 rev.12): "olay uretmemis" olcutu gercek olay kumesidir, "kosulu
+    saglamamis" degil; ve bu okuma iki okumadan muhafazakar olanidir."""
+    assert not hasattr(pozisyon, "OlayUretmis")
+    p = _karar("H2", _h2_olay_serisi(), FUND2, DB2, B2, T2, **kontrol("H2", "K2"))
+    assert p.rol == "K2"
 
 
 def test_k2_sinyali_hesaplanamayan_bar_kontrol_olamaz():
@@ -357,15 +366,16 @@ def test_h1_kontrol_barinda_pump_aranmaz(rol):
     assert p.rol == rol and p.hipotez == "H1"
 
 
-def test_h1_k2_barinda_sinyal_hic_hesaplanmaz():
-    """Pump kosulunu SAGLAYAN bir bar bile H1'de K2 adayi olmaktan cikmaz: kapi H1'in kontrol
-    barinda sinyal hesaplamaz (on-kayit §6 rev.11 gerekcesi: kontrol barinda capa yoktur)."""
-    assert not pozisyon._sinyal_gerekli("H1", "K2")
-    assert pozisyon._sinyal_gerekli("H2", "K2") and pozisyon._sinyal_gerekli("H3", "K2")
-    assert pozisyon._sinyal_gerekli("H1", "olay")
-    assert not pozisyon._sinyal_gerekli("H1", "K1") and not pozisyon._sinyal_gerekli("H2", "K1")
-    p = _karar("H1", _h1_olay_serisi(), FUND1, DB1, B1, T1, **kontrol("H1", "K2"))
-    assert p.rol == "K2"
+def test_kontrol_barinda_sinyal_kosulu_hic_hesaplanmaz():
+    """REV.12 ILE DEGISTI (madde (e)): rev.11'de rol basina sinyal hesaplama karari
+    `pozisyon._sinyal_gerekli` ile veriliyordu (H1'in K2'si istisnaydi). Rev.12 ile uc hipotez
+    ayni yolu kullanir: kontrol rollerinde KOSUL hic hesaplanmaz, yalnizca capasiz pencereler.
+    Yardimci fonksiyon kalkmistir."""
+    assert not hasattr(pozisyon, "_sinyal_gerekli")
+    # Pump kosulunu SAGLAYAN bar H1'de K2 adayi olmaktan cikmaz (rev.11'de de boyleydi) ...
+    assert _karar("H1", _h1_olay_serisi(), FUND1, DB1, B1, T1, **kontrol("H1", "K2")).rol == "K2"
+    # ... ve rev.12 ile ayni sey H2 ve H3 icin de gecerlidir.
+    assert _karar("H2", _h2_olay_serisi(), FUND2, DB2, B2, T2, **kontrol("H2", "K2")).rol == "K2"
 
 
 # --- H3 (on-kayit §5 H3) ----------------------------------------------------------------------

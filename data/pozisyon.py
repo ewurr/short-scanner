@@ -15,9 +15,10 @@ ayri bir kontrol yolu yoktur. Sirasiyla:
      sonu / olagan / ileri kayma ve siniri), gercek cikis ani + tolerans <= kume sonu.
   2. Sinyal degerleri: kapi hipotezin butun sinyal degerlerini KENDISI hesaplar
      (`data.sinyal`; Rev.11 madde 4, F1 kapanis bulgusu D-B1). Cagiran deger vermez.
-     Biri hesaplanamiyorsa `SinyalPenceresiTamDegil` (on-kayit §2 "Tamlik sarti"). Rol
-     "olay" ise §5'teki kosullar saglanmali (`SinyalKosuluSaglanmadi`); rol "K2" ise
-     saglanmamali (`OlayUretmis`). Rol "K1" ise sinyal HIC hesaplanmaz (on-kayit §6 rev.11).
+     Rol "olay" ise butun degerler hesaplanmali (`SinyalPenceresiTamDegil`, on-kayit §2
+     "Tamlik sarti") ve §5'teki kosullar saglanmali (`SinyalKosuluSaglanmadi`). Rol "K1" ya da
+     "K2" ise sinyal KOSULLARI hic hesaplanmaz (on-kayit §6, rev.12); yalnizca CAPASIZ
+     pencerelerin hesaplanabilirligi aranir (`SinyalPenceresiTamDegil`).
   3. Uygunluk (`eligibility.uygunluk_karari`, esikler zorunlu anahtar sozcuk) -> `UygunDegil`.
   4. Funding tamligi (`funding.pozisyon_funding_ayrintisi`) -> `FundingTamDegil`; ayni satirdan
      F2 saglamlik bayraklari (kismi kuyruk, esitlik affi, funding ritmi).
@@ -37,19 +38,19 @@ yukler, kume araligina keser ve 1d serisini bu 4h barlardan tek yol `klines.gunl
 turetir. Donem ve kume kayitlari commit edilmis tablolardan okunur. Bu yuzden fonksiyonlar saf
 degildir: disk okurlar (CLAUDE.md §5: ag ve disk erisimi yalnizca `data/` katmaninda).
 
-**Rol (on-kayit §6 rev.11 "Kontrolun ne olctugu").** "Kontrol bari, olayin sinyal yapisini
-taklit etmez: kontrolde hipotezin sinyal kosullari aranmaz. ... Kontrol bari icin gereken:
-uygunluk filtresi, donem uyeligi, fiyat ve funding tamligi, ve §4'teki tek karar noktasinin
+**Rol (on-kayit §6 "Kontrolun ne olctugu", rev.11; "Kontrol barinda sinyal pencereleri", rev.12).**
+"Kontrol bari, olayin sinyal yapisini taklit etmez: kontrolde hipotezin sinyal kosullari aranmaz.
+... Kontrol bari icin gereken: uygunluk filtresi, donem uyeligi, fiyat ve funding tamligi,
+hipotezin capasiz sinyal pencerelerinin hesaplanabilir olmasi, ve §4'teki tek karar noktasinin
 butun kosullari." Bu yuzden `rol`:
-  - `"olay"`: sinyal degerleri hesaplanir ve §5'teki kosullar SAGLANMALI.
-  - `"K2"`: sinyal degerleri yalnizca "o anda olay uretmemis" sartini dogrulamak icin hesaplanir;
-    hesaplanamiyorsa bar kontrol OLAMAZ, hesaplanip kosulu saglamiyorsa kontrol adayidir.
-    H1 bir istisnadir: "H1'in kontrol barinda pump bari, dip penceresi ve tepe aranmaz" (sinyali
-    bir pump barina capalidir ve kontrol barinda pump yoktur), bu yuzden H1'in K2 barinda sinyal
-    hic hesaplanmaz; "olay uretmemis" sarti o yapilandirmanin olay kumesine gore, ornekleme
-    adiminda (`data.ornekleme`) uygulanir.
-  - `"K1"`: sinyal hic hesaplanmaz. On-kayit §6 rev.11 kontrol tarafinda sinyal degerlerini
-    "yalnizca tek bir amacla: K2'nin 'o anda olay uretmemis' sartini dogrulamak" icin hesaplar;
+  - `"olay"`: hipotezin BUTUN sinyal degerleri hesaplanir ve §5'teki kosullar SAGLANMALI.
+  - `"K1"` ve `"K2"`: sinyal KOSULLARI hicbir amacla hesaplanmaz (rev.12). Hesaplanan tek sey
+    CAPASIZ pencerelerdir (`sinyal.capasiz_pencere_degerleri`) ve bunlarin hesaplanabilir olmasi
+    sarttir; hesaplanamiyorsa bar kontrol olamaz. Iki kontrol kumesi ayni yoldan gecer.
+    K2'nin "o anda olay uretmemis" sarti kapinin isi DEGILDIR (rev.12): ornekleme adimi
+    (`data.ornekleme.k2_adaylari`) o barin ayni yapilandirmanin olusmus olay kumesinde bulunup
+    bulunmadigina bakarak uygular. Rev.11'de bu sart H2 ve H3 icin kapida kosul hesaplanarak
+    (`OlayUretmis`), H1'de ornekleme adiminda uygulaniyordu; rev.12 ucunu ayni yola koydu.
     K1'in olcutu zamansal uzakliktir, sinyal degil.
 
 Getiri HESAPLAMAZ (F2 kodu degildir); fiyat ve funding degerlerini tasir ama raporlamaz.
@@ -118,13 +119,6 @@ class SinyalKosuluSaglanmadi(pencere_modulu.OlayOlusmaz):
     hipotezin sinyal kosullari aranmaz")."""
 
     gerekce = "sinyal_kosulu_saglanmadi"
-
-
-class OlayUretmis(pencere_modulu.OlayOlusmaz):
-    """K2 adayi olmayan bar: o anda hipotezin kosullari saglaniyor, yani bar olay uretmis
-    (on-kayit §6 K2: "o anda olay uretmemis diger coinlerden")."""
-
-    gerekce = "olay_uretmis"
 
 
 class SinyalBariYok(pencere_modulu.OlayOlusmaz):
@@ -432,24 +426,6 @@ def _capa_dogrula(hipotez: str, rol: str, capa):
     return None
 
 
-def _sinyal_gerekli(hipotez: str, rol: str) -> bool:
-    """Bu hipotez ve rolde sinyal degerleri hesaplanir mi? (on-kayit §6 rev.11)
-
-    - Olay rolu: her zaman (§5'teki kosullar saglanmali).
-    - K2: "Sinyal degerleri kontrol tarafinda yalnizca tek bir amacla hesaplanir: K2'nin 'o anda
-      olay uretmemis' sartini dogrulamak." H1 haric: "H1'in kontrol barinda pump bari, dip
-      penceresi ve tepe aranmaz" (capali sinyal, kontrol barinda capa yok), bu yuzden H1'in K2
-      sarti ornekleme adiminda o yapilandirmanin olay kumesine gore uygulanir.
-    - K1: hic. K1'in olcutu "o hipotezin herhangi bir olayina birincil ufuk mesafesinden yakin
-      olmamak"tir; sinyal degeri gerekmez.
-    """
-    if rol == "olay":
-        return True
-    if rol == "K2":
-        return hipotez not in sinyal_modulu.CAPALI_HIPOTEZLER
-    return False
-
-
 def olay_karari(
     sinyal_zamani,
     ufuk: int,
@@ -566,7 +542,13 @@ def olay_karari(
             raise SinyalPenceresiTamDegil(
                 f"Kontrol barinda capasiz sinyal penceresi tam degil: {capasiz_eksik} (on-kayit §6 "
                 f"rev.12); {plan.sinyal_zamani} barinda kontrol olusmaz.")
-    if _sinyal_gerekli(hipotez, rol):
+    # Sinyal KOSULLARI yalnizca olay rolunde hesaplanir (on-kayit §6, rev.12): "Kontrol barinda
+    # sinyal kosullari hicbir amacla hesaplanmaz. K2'nin 'o anda olay uretmemis' sarti, kosullarin
+    # saglanip saglanmadigina degil, o barin ayni yapilandirmanin olusmus olay kumesinde bulunup
+    # bulunmadigina gore uygulanir (§6 'Ornekleme kurallari'). Kontrol barinda hesaplanan tek sey,
+    # capasiz pencerelerin hesaplanabilirligidir." Bu yuzden rev.11'in `OlayUretmis` ret gerekcesi ve
+    # H1'in K2 istisnasi konusuz kalmistir: uc hipotez ayni yolu kullanir.
+    if rol == "olay":
         degerler = sinyal_modulu.sinyal_degerleri(
             hipotez, gecerli_yapilandirma, plan.sinyal_zamani, mumlar_4h=mumlar_4h,
             gunluk=gunluk_mumlar, funding=funding, capa=capa, kume_baslangic=plan.kume_baslangic,
@@ -575,15 +557,10 @@ def olay_karari(
         if hesaplanamayan:
             raise SinyalPenceresiTamDegil(
                 f"Sinyal penceresi tam degil: {hesaplanamayan} (on-kayit §2 'Tamlik sarti'); "
-                f"{plan.sinyal_zamani} barinda olay ya da kontrol olusmaz.")
-        saglandi = sinyal_modulu.kosullar_saglandi(hipotez, gecerli_yapilandirma, degerler)
-        if rol == "olay" and not saglandi:
+                f"{plan.sinyal_zamani} barinda olay olusmaz.")
+        if not sinyal_modulu.kosullar_saglandi(hipotez, gecerli_yapilandirma, degerler):
             raise SinyalKosuluSaglanmadi(
                 f"{hipotez} kosullari {plan.sinyal_zamani} barinda saglanmadi (on-kayit §5); olay olusmaz.")
-        if rol == "K2" and saglandi:
-            raise OlayUretmis(
-                f"{hipotez} kosullari {plan.sinyal_zamani} barinda saglaniyor: bar olay uretmis, K2 "
-                "adayi degil (on-kayit §6 K2).")
     # Uygunluk (on-kayit §4 rev.9): esik gecilmeli, hesaplanabilmis olmasi yetmez.
     if not eligibility_modulu.uygunluk_karari(
             gunluk_hacim, plan.sinyal_zamani, bar, donem_baslangic=plan.donem_baslangic,
