@@ -31,7 +31,10 @@ from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
-DB, B = T("2025-01-01"), T("2025-06-30 20:00")
+# Rev.12 (§6 rev.12 "Kontrol barinda sinyal pencereleri"): kontrol bari capasiz
+# pencerelerin hesaplanabilmesini gerektirir (H1: 185 bar, H3: 121 gun gecmis), bu yuzden
+# donem basi sinyalden yeterince geriye alindi. Testlerin iddialari degismedi.
+DB, B = T("2024-09-01"), T("2025-06-30 20:00")
 Z = pd.date_range(T("2025-03-01"), B, freq="4h")
 MUM = pd.DataFrame({"open_time": Z, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0})
 _FZ = pd.date_range(DB, B + pd.Timedelta(hours=4), freq="8h")

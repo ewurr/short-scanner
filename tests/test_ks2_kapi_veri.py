@@ -30,7 +30,10 @@ from uygunluk_yardimcisi import esikler
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
 
-DB, B = T("2025-01-01"), T("2025-06-30 20:00")
+# Rev.12 (§6 rev.12 "Kontrol barinda sinyal pencereleri"): kontrol bari capasiz
+# pencerelerin hesaplanabilmesini gerektirir (H1: 185 bar, H3: 121 gun gecmis), bu yuzden
+# donem basi sinyalden yeterince geriye alindi. Testlerin iddialari degismedi.
+DB, B = T("2024-09-01"), T("2025-06-30 20:00")
 Z = pd.date_range(T("2025-03-01"), B, freq="4h")
 MUM = pd.DataFrame({"open_time": Z, "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0})
 FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B + H(4), freq="8h"), "aralik_saat": 8.0,
@@ -100,17 +103,24 @@ def test_kume_sonrasi_veri_kapida_kesilir():
 
 def test_bir_4h_bari_eksik_gun_uygunluk_penceresinde_eksik_sayilir():
     """Borsanin 1d dosyasi 4h bari eksik gunu de satir olarak tasir (denetci KS D-B2). Kapinin 1d serisi o
-    gunu olusturmaz (alti barin tamami sart); uygunluk penceresi tam olmaz ve olay olusmaz."""
-    eksik_bar = T("2025-02-20 08:00")
+    gunu olusturmaz (alti barin tamami sart); uygunluk penceresi tam olmaz ve olay olusmaz.
+
+    Hipotez H2 ve eksik bar t'den 10 gun geride: rev.12 ile kontrol bari capasiz pencerelerin
+    hesaplanabilmesini de gerektiriyor (§6) ve H1'in 185 barlik hacim penceresi uygunluk
+    penceresinin tamamini kapsiyor; H2'nin en genis capasiz penceresi 31 bar (5,17 gun) oldugu icin
+    uygunluk gerekcesi onda tek basina olculebilir. Iddia degismedi: ret gerekcesi `uygun_degil`."""
+    eksik_bar = SINYAL_T["H2"].floor("D") - pd.Timedelta(days=10) + H(8)
     tam = veri(MUM, FUND, DB, B, uygun_bas=DB)
     m, f = SENTETIK_VERI[tam["sembol"]]
-    tanim = pencere.hipotez_ufuklari("H1")
+    tanim = pencere.hipotez_ufuklari("H2")
+    assert (m["open_time"] == eksik_bar).any(), "test kurulumu: eksik bar seride olmali"
     kayit = veri(m.loc[m["open_time"] != eksik_bar], f, DB, B, ham=True)
-    ortak = dict(hipotez="H1", birincil_ufuk=tanim.birincil, kume="KESIF", **kontrol("H1"),
+    ortak = dict(hipotez="H2", birincil_ufuk=tanim.birincil, kume="KESIF", **kontrol("H2"),
                  **esikler(tanim.bar))
-    pozisyon.onay_dogrula(pozisyon.olay_karari(SINYAL_T["H1"], tanim.birincil, tanim.bar, **ortak, **tam))
-    with pytest.raises(pozisyon.UygunDegil):
-        pozisyon.olay_karari(SINYAL_T["H1"], tanim.birincil, tanim.bar, **ortak, **kayit)
+    pozisyon.onay_dogrula(pozisyon.olay_karari(SINYAL_T["H2"], tanim.birincil, tanim.bar, **ortak, **tam))
+    with pytest.raises(pozisyon.UygunDegil) as hata:
+        pozisyon.olay_karari(SINYAL_T["H2"], tanim.birincil, tanim.bar, **ortak, **kayit)
+    assert pencere.ret_gerekcesi(hata.value) == "uygun_degil"
 
 
 # --- Sinyal bari (t) seride olmali (KS D-B3) ---------------------------------------------------------------

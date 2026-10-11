@@ -552,6 +552,20 @@ def olay_karari(
     # donem sinirlari plandan okunur; pencerelerin tamlik, donem ve kume kurallari `data.sinyal`
     # uzerinden `data.pencere`nin tek kapisindan gecer. H2'nin funding penceresi de burada, gercek
     # funding serisinden kurulur (`funding.funding_ortalamasi`).
+    # Kontrol barinda CAPASIZ sinyal pencereleri hesaplanabilir olmali (on-kayit §6 "Kontrol barinda
+    # sinyal pencereleri", rev.12): "hesaplanamiyorsa o bar kontrol olamaz ... her iki kontrol kumesi
+    # icin gecerlidir". Kosullar aranmaz; yalnizca hesaplanabilirlik. H1'in tepe penceresi capali
+    # oldugu icin kontrol barinda aranmaz.
+    if rol in KONTROL_ROLLERI:
+        capasiz = sinyal_modulu.capasiz_pencere_degerleri(
+            hipotez, gecerli_yapilandirma, plan.sinyal_zamani, mumlar_4h=mumlar_4h,
+            gunluk=gunluk_mumlar, funding=funding, kume_baslangic=plan.kume_baslangic,
+            kume_bitis=plan.kume_bitis, donem_baslangic=plan.donem_baslangic)
+        capasiz_eksik = sinyal_modulu.capasiz_hesaplanamayan(hipotez, capasiz)
+        if capasiz_eksik:
+            raise SinyalPenceresiTamDegil(
+                f"Kontrol barinda capasiz sinyal penceresi tam degil: {capasiz_eksik} (on-kayit §6 "
+                f"rev.12); {plan.sinyal_zamani} barinda kontrol olusmaz.")
     if _sinyal_gerekli(hipotez, rol):
         degerler = sinyal_modulu.sinyal_degerleri(
             hipotez, gecerli_yapilandirma, plan.sinyal_zamani, mumlar_4h=mumlar_4h,

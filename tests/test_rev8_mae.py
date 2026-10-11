@@ -17,6 +17,12 @@ from kapi_yardimcisi import donem, veri
 from kume_yardimcisi import kume_adi
 from uygunluk_yardimcisi import esikler, UYGUN_ONCELIK, uygunluk
 
+# Rev.12 (§6): kontrol bari capasiz pencerelerin hesaplanabilmesini gerektirir; H3'un uzak hacim
+# penceresi (`[t-120 .. t-31]`) 121 gun geriye uzanir, bu yuzden donem basi uygunlugun 60 gunu
+# yerine 150 gun once. Testlerin iddialari ve MAE pencereleri degismedi (eklenen barlar duz).
+DONEM_ONCELIK = pd.Timedelta(days=150)
+assert DONEM_ONCELIK > UYGUN_ONCELIK
+
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
 BAS, B = T("2025-01-01 00:00"), T("2025-02-10 20:00")
@@ -40,7 +46,7 @@ def _fund():
 def _karar(mum, t, ufuk=18, bar=config.BAR_4H, b=B):
     # Rev.9 §4: uygunluk karar noktasinda; donem mum serisinden UYGUN_ONCELIK once baslar.
     return pozisyon.olay_karari(t, ufuk, bar, hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
-                                kume=kume_adi(t), **veri(mum, _fund(), BAS - UYGUN_ONCELIK, b, uygun_bas=BAS - UYGUN_ONCELIK),
+                                kume=kume_adi(t), **veri(mum, _fund(), BAS - DONEM_ONCELIK, b, uygun_bas=BAS - DONEM_ONCELIK),
                                 **kontrol("H1" if bar == config.BAR_4H else "H3"),
                                 **esikler(bar))
 

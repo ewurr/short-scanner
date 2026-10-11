@@ -77,11 +77,16 @@ def test_h2_olay_tarafi_da_ayni():
         _karar("H2", BOSLUKLU_FUND, rol="olay")
 
 
-def test_h2_k1_kontrolunde_funding_penceresi_aranmaz():
-    """On-kayit §6 rev.11: "Sinyal degerleri kontrol tarafinda yalnizca tek bir amacla hesaplanir:
-    K2'nin 'o anda olay uretmemis' sartini dogrulamak." K1'in olcutu zamansal uzakliktir; ayni
-    bosluk K1 kontrolunu dusurmez."""
-    assert _karar("H2", BOSLUKLU_FUND, rol="K1").rol == "K1"
+def test_h2_k1_kontrolunde_funding_penceresi_de_aranir():
+    """REV.12 ILE DEGISTI (§6 "Kontrol barinda sinyal pencereleri", madde (d)).
+
+    Rev.11'de sinyal degerleri kontrol tarafinda yalnizca K2'nin "olay uretmemis" sartini
+    dogrulamak icin hesaplanirdi ve ayni bosluk K1'i dusurmezdi; bu test onu sabitliyordu.
+    Rev.12: capasiz sinyal pencerelerinin HESAPLANABILIR olmasi "her iki kontrol kumesi icin"
+    sarttir ve H2'nin 24 saatlik funding ortalamasi bu pencerelerden biridir."""
+    with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
+        _karar("H2", BOSLUKLU_FUND, rol="K1")
+    assert _karar("H2", TAM_FUND, rol="K1").rol == "K1"
 
 
 def test_h2_penceresi_kume_basini_asarsa_olusmaz():
@@ -134,17 +139,20 @@ def test_eksik_bar_sinyal_penceresini_dusurur(hipotez):
             _karar(hipotez, TAM_FUND, rol=rol, mum=mum)
 
 
-def test_k1_sinyal_penceresindeki_eksik_bardan_etkilenmez():
-    """Ayni eksiklik K1 kontrolunu dusurmez (on-kayit §6 rev.11: K1'de sinyal hesaplanmaz).
+def test_k1_sinyal_penceresindeki_eksik_bardan_da_etkilenir():
+    """REV.12 ILE DEGISTI (§6, madde (d)): rev.11'de ayni eksiklik K1'i dusurmezdi ve bu test iki
+    rolu o eksiklikle ayiriyordu. Artik capasiz pencereler iki kontrol rolunde de aranir.
 
     Eksik bar, t'nin KENDI gunune (2025-03-10) konur: o gun uygunluk penceresinin disindadir
     (on-kayit §2 "Uygunluk penceresi ve t gunu": t'nin gunu haric onceki 30 tam gun), bu yuzden
-    eksiklik yalnizca sinyal pencerelerini etkiler ve iki rolu ayirir."""
+    eksiklik yalnizca sinyal pencerelerini etkiler ve ret gerekcesi karismaz."""
     z = pd.DatetimeIndex(MUM["open_time"])
     mum = MUM.loc[z != T_KONTROL - H(4)].reset_index(drop=True)
-    with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        _karar("H2", TAM_FUND, rol="K2", mum=mum)
-    assert _karar("H2", TAM_FUND, rol="K1", mum=mum).rol == "K1"
+    for rol in ("K1", "K2"):
+        with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
+            _karar("H2", TAM_FUND, rol=rol, mum=mum)
+    # Eksiklik yoksa iki rol de gecer (kontrolde KOSUL aranmaz, yalnizca pencereler).
+    assert _karar("H2", TAM_FUND, rol="K1").rol == "K1"
 
 
 def test_sinyal_degerleri_anahtar_sozcugu_kalkti():

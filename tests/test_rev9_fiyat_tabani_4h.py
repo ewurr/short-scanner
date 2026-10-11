@@ -23,7 +23,10 @@ from uygunluk_yardimcisi import esikler, uygunluk
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
-BAS, B = T("2024-01-01 00:00"), T("2024-04-30 20:00")
+# Rev.12 (§6 rev.12 "Kontrol barinda sinyal pencereleri"): kontrol bari capasiz
+# pencerelerin hesaplanabilmesini gerektirir (H1: 185 bar, H3: 121 gun gecmis), bu yuzden
+# donem basi sinyalden yeterince geriye alindi. Testlerin iddialari degismedi.
+BAS, B = T("2023-08-01 00:00"), T("2024-04-30 20:00")
 Z = pd.date_range(BAS, B, freq="4h")
 DONEM = Donem(BAS, B, len(Z), len(Z))
 

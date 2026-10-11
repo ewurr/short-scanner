@@ -498,6 +498,77 @@ def _pozitif(deger: float, ad: str) -> float:
     return deger
 
 
+# --- Capasiz sinyal pencereleri (on-kayit §6 "Kontrol barinda sinyal pencereleri", rev.12) ----
+#
+# "Kontrol barinda hipotezin sinyal KOSULLARI aranmaz, ancak capasiz sinyal pencerelerinin
+# HESAPLANABILIR olmasi gerekir; hesaplanamiyorsa o bar kontrol olamaz. Bu, §2 'Tamlik
+# sarti'nin acik hukmudur ('o barda olay ya da kontrol olusmaz') ve her iki kontrol kumesi icin
+# gecerlidir. ... Capasiz pencere, tanimi yalnizca t'ye ve gecmise dayanan penceredir: H1'in dip
+# ve iki hacim penceresi, H2'nin kirilim, yukselis ve funding pencereleri, H3'un iki hacim
+# penceresi, SMA50 ve dusus trendi orani. H1'in tepe penceresi bir pump barina capali oldugu
+# icin kontrol barinda tanimsizdir ve aranmaz."
+#
+# Gerekce (on-kayit §6): olay barlarinda butun pencereler tanimi geregi hesaplanmistir; kontrol
+# barlarinda aranmazsa kontrol havuzuna bir olayin hicbir zaman olusamayacagi barlar (donem
+# baslari, bosluk sonrasi barlar) girer ve iki grup veri kalitesi bakimindan sistematik olarak
+# ayrisir.
+#
+# Adlar olay tarafindaki `DEGER_ADLARI`ndan AYRIDIR: kontrol barinda pump bari yoktur, bu yuzden
+# H1'in pencereleri t'de kurulur ve "pump_" oneki tasimaz. Pencerelerin kendisi ayni
+# kuruculardir; ikinci bir kopya yoktur.
+CAPASIZ_PENCERELER = MappingProxyType({
+    "H1": ("dip", "hacim_6", "hacim_medyani_180"),
+    "H2": ("kirilim_dip", "kapanis_30_once", "funding_24s"),
+    "H3": ("hacim_medyani_30g", "hacim_medyani_120_31", "sma50", "kapanis_30_once"),
+})
+
+
+def capasiz_pencere_adlari(hipotez) -> tuple[str, ...]:
+    return CAPASIZ_PENCERELER[_hipotez_dogrula(hipotez)]
+
+
+def capasiz_pencere_degerleri(hipotez, yapilandirma, t, *, mumlar_4h, gunluk, funding,
+                              kume_baslangic, kume_bitis, donem_baslangic) -> dict[str, float]:
+    """Hipotezin CAPASIZ sinyal pencereleri, t barinda (on-kayit §6 rev.12). Saf.
+
+    Hesaplanamayan deger NaN'dir. Kosullar DEGERLENDIRILMEZ: bu fonksiyonun tek isi, kontrol
+    barinda pencerelerin hesaplanabilir olup olmadigini soylemektir. H1'in tepe penceresi ve
+    pump barinin kendi kapanisi (capali degerler) burada yoktur.
+    """
+    ad = _hipotez_dogrula(hipotez)
+    y = yapilandirma_dogrula(ad, yapilandirma)
+    sinir = {"kume_baslangic": kume_baslangic, "donem_baslangic": donem_baslangic}
+    if ad == "H1":
+        return {
+            "dip": h1_dip(mumlar_4h, t, **sinir),
+            "hacim_6": h1_hacim_6(mumlar_4h, t, **sinir),
+            "hacim_medyani_180": h1_hacim_medyani_180(mumlar_4h, t, **sinir),
+        }
+    if ad == "H2":
+        return {
+            "kirilim_dip": h2_kirilim_dip(mumlar_4h, t, y["k"], **sinir),
+            "kapanis_30_once": kapanis_30_once(mumlar_4h, t, config.BAR_4H, **sinir),
+            "funding_24s": h2_funding_24s(funding, t, kume_baslangic=kume_baslangic,
+                                          kume_bitis=kume_bitis, donem_baslangic=donem_baslangic),
+        }
+    return {
+        "hacim_medyani_30g": h3_hacim_medyani_30g(gunluk, t, **sinir),
+        "hacim_medyani_120_31": h3_hacim_medyani_120_31(gunluk, t, **sinir),
+        "sma50": h3_sma50(gunluk, t, **sinir),
+        "kapanis_30_once": kapanis_30_once(gunluk, t, config.BAR_1D, **sinir),
+    }
+
+
+def capasiz_hesaplanamayan(hipotez, degerler) -> list[str]:
+    """Hesaplanamayan capasiz pencere adlari (on-kayit §6 rev.12). Saf."""
+    ad = _hipotez_dogrula(hipotez)
+    gereken = CAPASIZ_PENCERELER[ad]
+    if set(degerler) != set(gereken):
+        raise TypeError(f"{ad} icin capasiz pencereler tam olarak {gereken} olmali; eksik "
+                        f"{sorted(set(gereken) - set(degerler))}, fazla {sorted(set(degerler) - set(gereken))}.")
+    return [a for a in gereken if not _sonlu(degerler[a])]
+
+
 # --- H1'in pump kosulu, teyit barindan bagimsiz (on-kayit §5 H1 madde 1) ----------------------
 #
 # H1'in sinyali iki adimdir: pump bari (madde 1) ve teyit bari (madde 3). Tepe penceresi teyit

@@ -216,24 +216,36 @@ def test_k1_uygunluk_ve_funding_tamligini_yine_ister():
                              **kontrol("H2", "K1"), **esikler(tanim.bar))
 
 
-def test_k1_sinyal_penceresi_eksik_olsa_bile_kontrol_olusur():
-    """K1'in olcutu zamansal uzakliktir; sinyal degeri hic hesaplanmaz (on-kayit §6 rev.11).
+def test_k1_de_capasiz_sinyal_penceresi_aranir():
+    """REV.12 ILE DEGISTI (§6 "Kontrol barinda sinyal pencereleri", madde (d)).
+
+    Rev.11'de K1 rolunde sinyal HIC hesaplanmiyordu ve bu test ayni eksik barla K1'in gecip
+    K2'nin dustugunu sabitliyordu. Rev.12 capasiz sinyal pencerelerinin HESAPLANABILIR olmasini
+    "her iki kontrol kumesi icin" sart kostu, bu yuzden ayni eksiklik artik K1'i de dusurur.
+    Gerekce (on-kayit §6): kontrol barlarinda pencere aranmazsa havuza bir olayin hicbir zaman
+    olusamayacagi barlar girer ve iki grup veri kalitesi bakimindan ayrisir.
 
     Eksik bar t'nin KENDI gunune (2025-03-10 00:00) konur: o gun uygunluk penceresinin disindadir
     (on-kayit §2 "Uygunluk penceresi ve t gunu"), bu yuzden eksiklik yalnizca sinyal
-    pencerelerini (kirilim dibi ve `close[t-30]`) dusurur ve iki rolu ayirir."""
+    pencerelerini (kirilim dibi ve `close[t-30]`) dusurur."""
     m = _duz(DB2, B2)
     eksik = m.loc[pd.DatetimeIndex(m["open_time"]) != T2 - H4].reset_index(drop=True)
-    p = _karar("H2", eksik, FUND2, DB2, B2, T2, **kontrol("H2", "K1"))
-    assert p.rol == "K1"
-    # Ayni eksiklik K2 tarafinda kontrolu dusurur.
-    with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
-        _karar("H2", eksik, FUND2, DB2, B2, T2, **kontrol("H2", "K2"))
+    for rol in ("K1", "K2"):
+        with pytest.raises(pozisyon.SinyalPenceresiTamDegil) as hata:
+            _karar("H2", eksik, FUND2, DB2, B2, T2, **kontrol("H2", rol))
+        assert pencere.ret_gerekcesi(hata.value) == "sinyal_penceresi_tam_degil"
+    # Eksiklik yoksa iki rol de gecer: kontrolde sinyal KOSULLARI aranmaz, yalnizca pencereler.
+    assert _karar("H2", m, FUND2, DB2, B2, T2, **kontrol("H2", "K1")).rol == "K1"
 
 
-def test_k1_de_h2_funding_penceresi_aranmaz():
+def test_k1_de_h2_funding_penceresi_aranir():
+    """REV.12 ILE DEGISTI: H2'nin 24 saatlik funding ortalamasi bir CAPASIZ sinyal penceresidir
+    (on-kayit §6 rev.12'deki liste), bu yuzden eksik kayit artik iki kontrol rolunu de dusurur.
+    Rev.11'de K1 bu eksiklikten etkilenmiyordu."""
     fr = FUND2.loc[FUND2["odeme_zamani"] != T("2025-03-09 16:00")].reset_index(drop=True)
-    assert _karar("H2", _duz(DB2, B2), fr, DB2, B2, T2, **kontrol("H2", "K1")).rol == "K1"
+    for rol in ("K1", "K2"):
+        with pytest.raises(pozisyon.SinyalPenceresiTamDegil):
+            _karar("H2", _duz(DB2, B2), fr, DB2, B2, T2, **kontrol("H2", rol))
 
 
 # --- Rol: K2 (on-kayit §6 rev.11) -------------------------------------------------------------

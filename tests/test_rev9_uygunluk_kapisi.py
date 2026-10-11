@@ -37,15 +37,27 @@ FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B, freq="8h"), "aralik_sa
 T_SINYAL = T("2025-03-05 04:00")
 
 
-def _karar(t=T_SINYAL, bar=config.BAR_4H, db=DB, mum=MUM, hacim=5e7, eksik_gunler=(), **ek):
+# Rev.12 (§6 "Kontrol barinda sinyal pencereleri"): kontrol bari hipotezin CAPASIZ pencerelerinin
+# hesaplanabilmesini gerektirir. H1'in hacim penceresi (185 bar = 30,7 gun) ve H3'un uzak hacim
+# penceresi (121 gun), uygunlugun 30 gunluk listeleme yasi ve hacim penceresinden GENISTIR; o iki
+# hipotezde uygunluk esigi kontrol barinda artik baglayici degil. Esigin baglayici oldugu hipotez
+# H2'dir (en uzun capasiz penceresi `[t-30..t]` = 31 bar = 5,17 gun). Uygunlugun kendisi uc
+# hipotezde de ayni kapidan, ayni cagriyla uygulanir (on-kayit §4 rev.9) -- degisen yalnizca,
+# esigi tek baslarina sinamaya elverisli hipotezin hangisi oldugudur.
+H3_DB = T("2024-09-01 00:00")   # H3'un 121 gunluk uzak hacim penceresi icin donem basi
+
+
+def _karar(t=T_SINYAL, bar=config.BAR_4H, db=DB, mum=MUM, hacim=5e7, eksik_gunler=(),
+           hipotez=None, **ek):
     """Kapi sertlestirme turu 2: kapi 1d serisini 4h barlardan kendisi turetir; eski `gun` (1d cercevesi)
     girdisinin karsiligi 4h serisinin hacmi (`hacim`) ve eksik gunleridir (`eksik_gunler`)."""
+    h = hipotez if hipotez is not None else ("H1" if bar == config.BAR_4H else "H3")
     esik = {**esikler(bar), **{k: ek.pop(k) for k in list(ek) if k.startswith("asgari_")}}
     return pozisyon.olay_karari(
         t, 6 if bar == config.BAR_4H else 7, bar,  # Rev.10: on-kayit ufku (1d'de onceki 3)
-        hipotez="H1" if bar == config.BAR_4H else "H3", birincil_ufuk=18 if bar == config.BAR_4H else 14,
+        hipotez=h, birincil_ufuk=18 if bar == config.BAR_4H else 14,
         kume=kume_adi(t), **veri(mum, FUND, db, B, uygun_bas=db, hacim=hacim, eksik_gunler=eksik_gunler),
-        **kontrol("H1" if bar == config.BAR_4H else "H3"), **esik, **ek)
+        **kontrol(h), **esik, **ek)
 
 
 # --- Uygunluk karar noktasinin icinde ------------------------------------------------------
@@ -67,28 +79,39 @@ def test_uygunluk_girdisi_olmadan_onayli_pozisyon_uretilemez():
 def test_esigi_gecmeyen_bar_olay_uretmez(bar, esik):
     """Medyan hacim esigin hemen altinda: deger hesaplanabiliyor ama esik gecilmiyor."""
     t = T("2025-03-05 00:00")
+    # 4h tarafinda esigin baglayici oldugu hipotez H2'dir; 1d tarafinda H3'un uzak hacim penceresi
+    # icin donem basi geriye alinir (rev.12; yukaridaki aciklama).
+    ek = {"hipotez": "H2"} if bar == config.BAR_4H else {"db": H3_DB}
     with pytest.raises(pozisyon.UygunDegil) as hata:
-        _karar(t=t, bar=bar, hacim=esik - 1.0)
+        _karar(t=t, bar=bar, hacim=esik - 1.0, **ek)
     assert pencere.ret_gerekcesi(hata.value) == "uygun_degil"
-    assert _karar(t=t, bar=bar, hacim=esik).plan.sinyal_zamani == t  # esik dahil (>=)
+    assert _karar(t=t, bar=bar, hacim=esik, **ek).plan.sinyal_zamani == t  # esik dahil (>=)
 
 
 def test_hacim_penceresi_hesaplanamazsa_olay_uretmez():
-    """Uygunluk penceresinde bir gun eksik: deger NaN -> uygun degil."""
-    with pytest.raises(pozisyon.UygunDegil):
-        _karar(eksik_gunler=[T("2025-02-20")])
+    """Uygunluk penceresinde bir gun eksik: deger NaN -> uygun degil.
+
+    Eksik gun 10 gun geride secilir ve hipotez H2'dir: boylece gun uygunluk penceresinin (t gunu
+    haric onceki 30 tam gun) ICINDE, H2'nin capasiz pencerelerinin (en genisi 31 bar = 5,17 gun)
+    DISINDA kalir ve iki ret gerekcesi karismaz (rev.12; yukaridaki aciklama)."""
+    with pytest.raises(pozisyon.UygunDegil) as hata:
+        _karar(hipotez="H2", eksik_gunler=[T_SINYAL.floor("D") - pd.Timedelta(days=10)])
+    assert pencere.ret_gerekcesi(hata.value) == "uygun_degil"
 
 
 @pytest.mark.parametrize("yas_gun,uygun", [(30, True), (29.9, False)])
 def test_listeleme_yasi_esigi(yas_gun, uygun):
+    """Esigin baglayici oldugu hipotez H2'dir (rev.12; yukaridaki aciklama): H1'in capasiz hacim
+    penceresi 30,7 gun oldugu icin 30 gun yasindaki bir bar H1 kontrolu olamaz ve esigin kendisi
+    olculemez. Iddialar degismedi: 30 gun dahil uygun, 29,9 gun uygun degil."""
     db = T_SINYAL - pd.Timedelta(days=yas_gun)
     # Hacim penceresi (t gunu haric onceki 30 gun) donem basini asmasin diye bu testte donemin
     # ilk gunleri de gunluk seride; yas 30 gunun altindaysa pencere zaten donem basini asar.
     if uygun:
-        assert _karar(db=db.floor("D")).plan.donem_baslangic == db.floor("D")
+        assert _karar(hipotez="H2", db=db.floor("D")).plan.donem_baslangic == db.floor("D")
     else:
         with pytest.raises(pozisyon.UygunDegil):
-            _karar(db=db)
+            _karar(hipotez="H2", db=db)
 
 
 def test_uygunluk_t_gunu_haric_gecmis_hacme_bakar():
