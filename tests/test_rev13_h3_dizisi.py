@@ -19,11 +19,15 @@ import pandas as pd
 import pytest
 
 import config
-from data import dizi, pencere
+from data import dizi, pencere, pozisyon
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 UFUK = config.BIRINCIL_UFUK[config.BAR_1D]       # 14 gun
-SAHTE = object()
+# Her adayi onaylayan kapi: SORULAN (t, capa) ciftine ait IMZALI onay. `dizi.olay_dizisi`
+# donen onayi dogruladigi icin (sizinti bulgusu S-B1) ham bir nesne olay sayilmaz;
+# `pozisyon._test_onayi` veri yuklemeden imzali bir onay kurar (yalnizca pytest icinde).
+def _onay(t, capa=None):
+    return pozisyon._test_onayi(hipotez="H3", yapilandirma=dict(nu=0.50, tau=0.15), t=t, capa=capa)
 GUNLER = pd.date_range(T("2025-03-01"), periods=80, freq="D")
 
 
@@ -45,7 +49,7 @@ def _kosul(saglanan, hesaplanamaz=()):
 def _calistir(idxler, kosul, karar=None):
     return dizi.olay_dizisi("H3", dict(nu=0.50, tau=0.15), GUNLER[list(idxler)], config.BAR_1D,
                             birincil_ufuk=UFUK, kosul=kosul,
-                            karar=karar if karar is not None else (lambda t, capa: SAHTE))
+                            karar=karar if karar is not None else _onay)
 
 
 def _idx(sonuc):
@@ -130,7 +134,7 @@ def test_reddedilen_ilk_gun_beklemeyi_baslatmaz_ama_diziyi_baslatir():
     def karar(t, capa):
         if int(GUNLER.get_loc(t)) in red_gunleri:
             raise FundingTamDegil("funding tam degil (sahte)")
-        return SAHTE
+        return _onay(t, capa)
 
     sonuc = _calistir([0, 1, 2, 20, 21], kosul, karar)
     assert _idx(sonuc) == [20], "0 reddedildi, 1-2 ilk gun degil, 20 yeni dizinin ilk gunu"
@@ -162,9 +166,12 @@ def test_h2_bosluktan_etkilenmez_dizi_kurali_yalnizca_h3te():
     def kosul(t, capa):
         return True
 
+    def _h2_onay(t, capa=None):
+        return pozisyon._test_onayi(hipotez="H2", yapilandirma=dict(phi=0.0003, k=3), t=t, capa=capa)
+
     sonuc = dizi.olay_dizisi("H2", dict(phi=0.0003, k=3), barlar[secilen], config.BAR_4H,
                              birincil_ufuk=config.BIRINCIL_UFUK[config.BAR_4H], kosul=kosul,
-                             karar=lambda t, capa: SAHTE)
+                             karar=_h2_onay)
     # Bekleme 18 bar: 0'da olay, 19..29 seride yok, 30'da bekleme dolmus -> olay; sonra 49 yok.
     assert [int(barlar.get_loc(z)) for z in sonuc.olay_zamanlari] == [0, 30]
 

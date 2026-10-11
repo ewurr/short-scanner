@@ -177,6 +177,11 @@ class OnaylanmisPozisyon:
     # yapilandirmanin olusmus olaylari"na gore isler, bu yuzden onayli pozisyon ikisini de tasir.
     yapilandirma: str | None = None
     rol: str | None = None
+    # Capa (H1'in pump bari; baska her durumda None). Imzaya dahildir, cunku olay dizisi kurallari
+    # dondurulen pozisyonun SORULAN (t, capa) ciftine ait oldugunu dogrular (sizinti bulgusu S-B1):
+    # "bir teyit bari en cok bir olay sayar" (on-kayit §5 H1 madde 4) ancak capa denetlenirse
+    # garanti olur.
+    capa: pd.Timestamp | None = None
     # Kimlik (kapi sertlestirme turu 2): `mae` ve `funding.pozisyon_fundingi` veriyi bu kimlikle kendileri
     # yukler; cagiran cerceve vermez.
     sembol: str | None = None
@@ -192,8 +197,8 @@ class OnaylanmisPozisyon:
 def _imza(p: OnaylanmisPozisyon) -> int:
     return hash((_ONAY_GIZLI, p.plan, p.p0, p.p1, p.funding_toplami, p.kuyruk_kismi, p.son_esitlik_affi,
                  p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim, p.funding_ritmi_saat, p.karisik_ritim,
-                 p.ritim_sinifi, p.gecersizlik_seviyesi, p.hipotez, p.yapilandirma, p.rol, p.sembol,
-                 p.kume, p.donem_no))
+                 p.ritim_sinifi, p.gecersizlik_seviyesi, p.hipotez, p.yapilandirma, p.rol, p.capa,
+                 p.sembol, p.kume, p.donem_no))
 
 
 def onay_dogrula(pozisyon) -> None:
@@ -608,8 +613,51 @@ def olay_karari(
                                karisik_ritim=bool(ayrinti["karisik_ritim"]),
                                ritim_sinifi=ayrinti["ritim_sinifi"],
                                gecersizlik_seviyesi=gecersizlik, hipotez=hipotez,
-                               yapilandirma=yapilandirma_kimligi, rol=rol, sembol=sembol, kume=kume,
-                               donem_no=int(donem_no))
+                               yapilandirma=yapilandirma_kimligi, rol=rol, capa=capa, sembol=sembol,
+                               kume=kume, donem_no=int(donem_no))
+    return replace(sonuc, _imza=_imza(sonuc))
+
+
+def _test_onayi(*, hipotez: str, yapilandirma, t, rol: str = "olay", capa=None,
+                sembol: str = "TESTONAYUSDT", kume: str = "KESIF", donem_no: int = 0) -> OnaylanmisPozisyon:
+    """YALNIZCA TESTLER ICIN: veri yuklemeden imzali bir `OnaylanmisPozisyon` kurar.
+
+    Neden var: `data.dizi` rev.13'ten beri `karar`in dondurdugu nesnenin gercekten kapidan gecmis,
+    imzali, "olay" rolunde ve SORULAN (t, capa) ciftine ait bir onay oldugunu dogrular (sizinti
+    bulgusu S-B1). Dizi KURALLARINI (bekleme, tek izleme, ilk gun) sinayan testler onlarca bar
+    uzerinde kosar ve her bar icin gercek kapiyi cagirmak hem cok yavas olur hem de testin sinadigi
+    seyi (dizi kurallarini) sentetik bir dunya kurmanin ayrintilarina gomer. Bu fonksiyon o testlere
+    gecerli bir onay verir; plan `pencere.pozisyon_plani`nin kendisinden gecer, fiyat ve funding
+    degerleri yer tutucudur (1.0, 1.0, 0.0) ve hicbir getiri hesabinda kullanilmaz.
+
+    KORUMA. Yalnizca bir pytest testi icinde cagrilabilir (`split._pytest_testi`); dislarda
+    `RuntimeError`. Adi analiz kodunda gecemez: `tests/tarama_yardimcisi.ONAY_ATLATMA_DESENI`
+    tarafindan taranir. Kilit, dikkatsiz bir kullanima karsi korur, kararli bir atlatmaya karsi
+    degil (CLAUDE.md "Koruma katmani" ile ayni tutum).
+    """
+    if split_modulu._pytest_testi() is None:
+        raise RuntimeError("_test_onayi yalnizca bir pytest testi icinde kullanilabilir; gercek onay "
+                           "`pozisyon.olay_karari`dan gelir (on-kayit §4 'tek karar noktasi').")
+    tanim = pencere_modulu.hipotez_baglamini_dogrula(hipotez, config.HIPOTEZ_IZGARASI[hipotez],
+                                                     config.BIRINCIL_UFUK[config.HIPOTEZ_IZGARASI[hipotez]],
+                                                     config.BIRINCIL_UFUK[config.HIPOTEZ_IZGARASI[hipotez]])
+    gecerli = sinyal_modulu.yapilandirma_dogrula(hipotez, yapilandirma)
+    rol = _rol_dogrula(rol)
+    zaman = _utc_sinyal_zamani(t)
+    adim = pencere_modulu.adim(config.BAR_4H)
+    kume_baslangic, kume_bitis = kume_sinirlari(kume)
+    # Donem, t'nin etrafinda birincil ufku ve gunun tamamini kapsayacak kadar genis.
+    bas = (zaman - pd.Timedelta(days=2)).floor("D")
+    son = (zaman + pd.Timedelta(days=2) + tanim.birincil * pencere_modulu.adim(tanim.bar)).ceil("D") - adim
+    zamanlar = pd.date_range(bas, son, freq=adim)
+    plan = pencere_modulu.pozisyon_plani(
+        zamanlar, zaman, tanim.birincil, tanim.bar, birincil_ufuk=tanim.birincil,
+        kume_baslangic=kume_baslangic, kume_bitis=kume_bitis, donem_baslangic=bas, donem_bitis=son)
+    sonuc = OnaylanmisPozisyon(
+        plan, 1.0, 1.0, 0.0, hipotez=hipotez,
+        yapilandirma=sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli), rol=rol,
+        capa=None if capa is None else _utc_sinyal_zamani(capa), sembol=sembol, kume=kume,
+        donem_no=int(donem_no))
     return replace(sonuc, _imza=_imza(sonuc))
 
 

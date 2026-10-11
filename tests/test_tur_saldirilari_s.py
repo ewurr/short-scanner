@@ -696,14 +696,23 @@ def test_beklemede_mi_tzsiz_zaman_reddedilir():
 
 Z_H = pd.date_range(T("2025-03-01 00:00"), periods=120, freq="4h")
 Z_D = pd.date_range(T("2025-03-01"), periods=80, freq="D")
-SAHTE = object()
+
+
+def _sahte_kapi(hipotez, y=None):
+    """Her adayi onaylayan kapi: SORULAN (t, capa) ciftine ait IMZALI onay (bulgu B1 kapandiktan
+    sonra `dizi.olay_dizisi` onayi dogruluyor; ham bir nesne artik olay sayilmaz)."""
+    def karar(t, capa):
+        return pozisyon._test_onayi(hipotez=hipotez, yapilandirma=y if y is not None else yapilandirma(hipotez),
+                                    t=t, capa=capa)
+
+    return karar
 
 
 def _calistir(hipotez, grid, idxler, kosul, karar=None, y=None):
     bar = config.HIPOTEZ_IZGARASI[hipotez]
     return dizi.olay_dizisi(hipotez, y if y is not None else yapilandirma(hipotez), grid[list(idxler)], bar,
                             birincil_ufuk=config.BIRINCIL_UFUK[bar], kosul=kosul,
-                            karar=karar if karar is not None else (lambda t, capa: SAHTE))
+                            karar=karar if karar is not None else _sahte_kapi(hipotez, y))
 
 
 def _idx(sonuc, grid):
@@ -718,7 +727,7 @@ def test_bekleme_h2_her_olay_sonrasi_tam_on_sekiz_bar_ve_bekleme_icinde_karar_ca
 
     def karar(t, capa):
         cagrilar.append(int(Z_H.get_loc(t)))
-        return SAHTE
+        return _sahte_kapi("H2")(t, capa)
 
     sonuc = _calistir("H2", Z_H, range(120), lambda t, capa: True, karar)
     beklenen = [0, 19, 38, 57, 76, 95, 114]
@@ -749,7 +758,7 @@ def test_kapidan_gecmeyen_aday_beklemeyi_baslatmaz():
         cagrilar.append(i)
         if i in (0, 1):
             raise pozisyon.UygunDegil("sahte ret")
-        return SAHTE
+        return _sahte_kapi("H2")(t, capa)
 
     sonuc = _calistir("H2", Z_H, range(120), lambda t, capa: True, karar)
     assert cagrilar[:3] == [0, 1, 2]
@@ -784,7 +793,7 @@ def test_dizi_girdi_dogrulamasi_tzsiz_sirasiz_tekrarli_bos_ve_yanlis_izgara():
     bos sonuc, yanlis izgara/ufuk/yapilandirma/hipotez hata. kosul yaniti bool/None disinda ise TypeError."""
     y = yapilandirma("H2")
     kos = lambda t, capa: True  # noqa: E731
-    kar = lambda t, capa: SAHTE  # noqa: E731
+    kar = _sahte_kapi("H2")
     with pytest.raises(TypeError):
         dizi.olay_dizisi("H2", y, Z_H[:5].tz_localize(None), "4h", birincil_ufuk=18, kosul=kos, karar=kar)
     with pytest.raises(ValueError):
@@ -828,8 +837,9 @@ def test_k1_pozisyonu_h1_dunyasinda_uretilebilir_dizi_bulgu_testlerinin_on_kosul
     assert k1.rol == "K1"
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU B1: dizi.olay_dizisi karar ciktisini dogrulamiyor "
-                                       "(rastgele nesne olay sayiliyor).")
+# SALDIRI BULGUSU B1 KAPANDI (Rev.12-13 uygulamasi madde 3b): `dizi._olay_dogrula` imzayi, rolu,
+# hipotez ve yapilandirma kimligini ve sorulan (t, capa) ciftini denetliyor. xfail kaldirildi;
+# beklenti degismedi.
 def test_dizi_karar_ciktisi_onayli_pozisyon_degilse_olay_sayilmaz():
     """On-kayit §4 "tek karar noktasi" + §5 rev.11 ("Bekleme yalnizca olusmus olaylar icin isler").
     Bugunku davranis: `_dene`, `karar`in dondurdugu HER nesneyi `Olay(pozisyon=...)` olarak kaydeder ve
@@ -840,8 +850,7 @@ def test_dizi_karar_ciktisi_onayli_pozisyon_degilse_olay_sayilmaz():
         _calistir("H1", Z_H, range(10), _h1_sahte_kosul(), lambda t, capa: "olay_degil")
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU B1: dizi karar'dan donen K1 rolundeki onayli pozisyonu "
-                                       "OLAY sayiyor (rol denetlenmiyor).")
+# SALDIRI BULGUSU B1 KAPANDI (madde 3b): rol denetleniyor. xfail kaldirildi.
 def test_dizi_k1_rolundeki_onayli_pozisyon_olay_sayilmaz():
     """On-kayit §6 rev.11 "Kontrolun ne olctugu": kontrol ve olay roller ayridir; K1'in 'o hipotezin olayi'
     sayilmamasi gerekir. Bugunku davranis: dizi `pozisyon.rol`e bakmaz; `karar` K1 rolunde gercek, imzali bir
@@ -853,8 +862,7 @@ def test_dizi_k1_rolundeki_onayli_pozisyon_olay_sayilmaz():
         _calistir("H1", Z_H, range(10), _h1_sahte_kosul(), lambda t, capa: k1)
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU B1: dizi baska yapilandirmanin onayli pozisyonunu "
-                                       "kendi olayi sayiyor (yapilandirma kimligi denetlenmiyor).")
+# SALDIRI BULGUSU B1 KAPANDI (madde 3b): yapilandirma kimligi denetleniyor. xfail kaldirildi.
 def test_dizi_baska_yapilandirmanin_pozisyonunu_olay_saymaz():
     """On-kayit §5 rev.11: "Bekleme yapilandirma basina isler; her yapilandirma kendi olay dizisini uretir".
     Bugunku davranis: delta=0.08 dizisi, `karar`dan delta=0.12 yapilandirmasinin onayli olay pozisyonunu
@@ -951,7 +959,7 @@ def test_h1_kapidan_gecmeyen_teyit_izlemeyi_bitirir_ama_beklemeyi_baslatmaz():
     def karar(t, capa):
         if int(Z_H.get_loc(t)) == 3:
             raise pozisyon.SinyalKosuluSaglanmadi("sahte")
-        return SAHTE
+        return _sahte_kapi("H1")(t, capa)
 
     sonuc = _calistir("H1", Z_H, range(40), kosul, karar)
     assert _idx(sonuc, Z_H) == [6] and _capalar(sonuc) == [4]

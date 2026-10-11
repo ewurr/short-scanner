@@ -113,6 +113,9 @@ ONAY_ATLATMA_DESENI = (
     r"|\b(split|split_modulu|config)\s*\.\s*__(dict|class)__\b"
     r"|\.\s*split_modulu\s*=(?!=)|\b(object|ModuleType)\s*\.\s*__(setattr|delattr)__|\bsys\s*\.\s*modules\b"
     r"|\b_kaydi_commit_et\b|\b_gecmis_kaydi\b|\b_head_kaydi\b|\bONAY_KAYDI\b"
+    # Rev.13 (S-B1): `pozisyon._test_onayi` imzali bir onay kurar (yalnizca pytest icinde). Analiz
+    # kodu onu anamaz; gercek onay yalnizca `pozisyon.olay_karari`dan gelir.
+    r"|\b_test_onayi\b"
 )
 
 # Onbellege dogrudan erisim (onay kaydi kapanis turu; §14.25 tablo satir 1, kazayla olabilir): C1/C2 verisi

@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 
 import config
-from data import dizi, pencere, sinyal
+from data import dizi, pencere, pozisyon, sinyal
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -26,9 +26,21 @@ def _zamanlar(bas, adet, adim="4h"):
     return pd.date_range(bas, periods=adet, freq=adim)
 
 
-def _kapi_hep_olur(t, capa):
-    """Her adayi onaylayan kapi; onayli pozisyon yerine (t, capa) demeti tasir."""
-    return ("pozisyon", t, capa)
+def _kapi(hipotez, yapilandirma=None):
+    """Her adayi onaylayan kapi: SORULAN (t, capa) ciftine ait IMZALI bir onay doner.
+
+    Rev.13'ten once bu yardimci `("pozisyon", t, capa)` demeti donduruyordu; `dizi.olay_dizisi`
+    donen her nesneyi olay sayiyordu (sizinti bulgusu S-B1). Artik dizi onayi dogruluyor (imza,
+    rol, hipotez, yapilandirma, sorulan t ve capa), bu yuzden sahte kapi da gercek bir onay
+    uretmek zorunda. `pozisyon._test_onayi` veri yuklemeden imzali bir onay kurar (yalnizca
+    pytest icinde kullanilabilir); dizi KURALLARI yine kapidan ve veriden bagimsiz sinanir.
+    """
+    def karar(t, capa):
+        return pozisyon._test_onayi(
+            hipotez=hipotez, yapilandirma=dict(sinyal.izgara(hipotez)[0]) if yapilandirma is None
+            else yapilandirma, t=t, capa=capa)
+
+    return karar
 
 
 def _kapi_hep_reddeder(t, capa):
@@ -64,7 +76,7 @@ def test_bekleme_h2de_ardisik_olaylari_ufuk_kadar_ayirir():
     """H2'de her bar kosulu sagliyorsa olaylar 19 bar arayla olusur (18 bar bekleme + 1)."""
     zamanlar = _zamanlar(T("2025-03-01"), 60)
     sonuc = dizi.olay_dizisi("H2", _h2_yap(), zamanlar, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                             kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                             kosul=lambda t, capa: True, karar=_kapi("H2", _h2_yap()))
     beklenen = [zamanlar[0], zamanlar[H4_UFUK + 1], zamanlar[2 * (H4_UFUK + 1)], zamanlar[3 * (H4_UFUK + 1)]]
     assert list(sonuc.olay_zamanlari) == beklenen
     assert {r.gerekce for r in sonuc.retler} == {"bekleme_suresi"}
@@ -88,9 +100,9 @@ def test_bekleme_donem_sinirinda_sifirlanir():
     d1 = _zamanlar(T("2025-03-01"), 3)
     d2 = _zamanlar(T("2025-03-01") + 2 * H4, 3)  # birinci donemin olayinin bekleme suresi icinde
     ilk = dizi.olay_dizisi("H2", _h2_yap(), d1, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                           kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                           kosul=lambda t, capa: True, karar=_kapi("H2", _h2_yap()))
     ikinci = dizi.olay_dizisi("H2", _h2_yap(), d2, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                              kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                              kosul=lambda t, capa: True, karar=_kapi("H2", _h2_yap()))
     assert ilk.olay_zamanlari == (d1[0],)
     assert ikinci.olay_zamanlari == (d2[0],), "yeni donemde bekleme sifirlanmali"
 
@@ -103,14 +115,14 @@ def test_bekleme_yapilandirma_basina_isler():
     assert dict(a) != dict(b)
     for y in (a, b):
         sonuc = dizi.olay_dizisi("H2", y, zamanlar, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                                 kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                                 kosul=lambda t, capa: True, karar=_kapi("H2", y))
         assert sonuc.olay_zamanlari == (zamanlar[0],)
 
 
 def test_hesaplanamayan_kosul_olay_uretmez():
     zamanlar = _zamanlar(T("2025-03-01"), 3)
     sonuc = dizi.olay_dizisi("H2", _h2_yap(), zamanlar, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                             kosul=lambda t, capa: None, karar=_kapi_hep_olur)
+                             kosul=lambda t, capa: None, karar=_kapi("H2", _h2_yap()))
     assert sonuc.olaylar == ()
     assert {r.gerekce for r in sonuc.retler} == {"sinyal_penceresi_tam_degil"}
 
@@ -130,7 +142,7 @@ def _h1_kosul(pumplar, teyitler):
 def test_h1_teyit_bari_olay_uretir_ve_izlemeyi_bitirir():
     z = _zamanlar(T("2025-03-01"), 40)
     sonuc = dizi.olay_dizisi("H1", _h1_yap(), z, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                             kosul=_h1_kosul({z[0]}, {z[3]}), karar=_kapi_hep_olur)
+                             kosul=_h1_kosul({z[0]}, {z[3]}), karar=_kapi("H1", _h1_yap()))
     assert [(o.zaman, o.capa) for o in sonuc.olaylar] == [(z[3], z[0])]
 
 
@@ -139,7 +151,7 @@ def test_h1_izleme_surerken_yeni_pump_yok_sayilir():
     12 barlik sayac ilk pump barindan olculmeye devam eder." Teyit, ILK pump barina capalanir."""
     z = _zamanlar(T("2025-03-01"), 40)
     sonuc = dizi.olay_dizisi("H1", _h1_yap(), z, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                             kosul=_h1_kosul({z[0], z[2], z[5]}, {z[6]}), karar=_kapi_hep_olur)
+                             kosul=_h1_kosul({z[0], z[2], z[5]}, {z[6]}), karar=_kapi("H1", _h1_yap()))
     assert [(o.zaman, o.capa) for o in sonuc.olaylar] == [(z[6], z[0])], "capa ilk pump bari olmali"
 
 
@@ -150,7 +162,7 @@ def test_h1_izleme_12_bar_sonra_biter_ve_12nci_bar_yeni_izleme_baslatmaz():
     n = config.H1_IZLEME_BAR  # 12
     # Teyit yok; 12. bar (z[n]) pump kosulunu sagliyor -> yok sayilmali. 13. bar (z[n+1]) pump.
     sonuc = dizi.olay_dizisi("H1", _h1_yap(), z, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                             kosul=_h1_kosul({z[0], z[n], z[n + 1]}, {z[n + 4]}), karar=_kapi_hep_olur)
+                             kosul=_h1_kosul({z[0], z[n], z[n + 1]}, {z[n + 4]}), karar=_kapi("H1", _h1_yap()))
     assert [(o.zaman, o.capa) for o in sonuc.olaylar] == [(z[n + 4], z[n + 1])]
 
 
@@ -159,7 +171,7 @@ def test_h1_12nci_barda_gelen_teyit_hala_olay_uretir():
     z = _zamanlar(T("2025-03-01"), 40)
     n = config.H1_IZLEME_BAR
     sonuc = dizi.olay_dizisi("H1", _h1_yap(), z, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                             kosul=_h1_kosul({z[0]}, {z[n]}), karar=_kapi_hep_olur)
+                             kosul=_h1_kosul({z[0]}, {z[n]}), karar=_kapi("H1", _h1_yap()))
     assert [(o.zaman, o.capa) for o in sonuc.olaylar] == [(z[n], z[0])]
 
 
@@ -167,7 +179,7 @@ def test_h1_13uncu_barda_gelen_teyit_olay_uretmez():
     z = _zamanlar(T("2025-03-01"), 40)
     n = config.H1_IZLEME_BAR
     sonuc = dizi.olay_dizisi("H1", _h1_yap(), z, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                             kosul=_h1_kosul({z[0]}, {z[n + 1]}), karar=_kapi_hep_olur)
+                             kosul=_h1_kosul({z[0]}, {z[n + 1]}), karar=_kapi("H1", _h1_yap()))
     assert sonuc.olaylar == ()
 
 
@@ -176,7 +188,7 @@ def test_h1_bir_teyit_bari_en_cok_bir_olay_sayar():
     barinda tek olay olusur."""
     z = _zamanlar(T("2025-03-01"), 40)
     sonuc = dizi.olay_dizisi("H1", _h1_yap(), z, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                             kosul=_h1_kosul({z[0], z[1]}, {z[4]}), karar=_kapi_hep_olur)
+                             kosul=_h1_kosul({z[0], z[1]}, {z[4]}), karar=_kapi("H1", _h1_yap()))
     assert len(sonuc.olaylar) == 1
 
 
@@ -188,7 +200,7 @@ def test_h1_beklemeden_sonra_yeni_izleme_baslar():
     serbest = z[2 + H4_UFUK + 1]
     sonuc = dizi.olay_dizisi("H1", _h1_yap(), z, config.BAR_4H, birincil_ufuk=H4_UFUK,
                              kosul=_h1_kosul({z[0], z[5], serbest}, {teyit, z[8], serbest + 2 * H4}),
-                             karar=_kapi_hep_olur)
+                             karar=_kapi("H1", _h1_yap()))
     assert [o.zaman for o in sonuc.olaylar] == [teyit, serbest + 2 * H4]
     assert z[5] in [r.zaman for r in sonuc.retler]  # bekleme icindeki pump adayi
 
@@ -200,7 +212,7 @@ def test_h3_kesintisiz_dizinin_yalnizca_ilk_gunu_olaydir():
     g = _zamanlar(T("2025-03-01"), 10, "D")
     saglanan = set(g[:5])
     sonuc = dizi.olay_dizisi("H3", _h3_yap(), g, config.BAR_1D, birincil_ufuk=G1_UFUK,
-                             kosul=lambda t, capa: t in saglanan, karar=_kapi_hep_olur)
+                             kosul=lambda t, capa: t in saglanan, karar=_kapi("H3", _h3_yap()))
     assert sonuc.olay_zamanlari == (g[0],)
     assert [r.gerekce for r in sonuc.retler] == ["dizi_ilk_gun_degil"] * 4
 
@@ -211,7 +223,7 @@ def test_h3_dizi_kesilince_yeni_ilk_gun_olusur():
     g = _zamanlar(T("2025-03-01"), 40, "D")
     saglanan = {g[0], g[1]} | {g[20], g[21]}
     sonuc = dizi.olay_dizisi("H3", _h3_yap(), g, config.BAR_1D, birincil_ufuk=G1_UFUK,
-                             kosul=lambda t, capa: t in saglanan, karar=_kapi_hep_olur)
+                             kosul=lambda t, capa: t in saglanan, karar=_kapi("H3", _h3_yap()))
     assert sonuc.olay_zamanlari == (g[0], g[20])
 
 
@@ -220,7 +232,7 @@ def test_h3_ikinci_dizi_beklemenin_icindeyse_olay_olusmaz():
     g = _zamanlar(T("2025-03-01"), 40, "D")
     saglanan = {g[0]} | {g[5], g[6]}  # ikinci dizi 14 gunluk beklemenin icinde
     sonuc = dizi.olay_dizisi("H3", _h3_yap(), g, config.BAR_1D, birincil_ufuk=G1_UFUK,
-                             kosul=lambda t, capa: t in saglanan, karar=_kapi_hep_olur)
+                             kosul=lambda t, capa: t in saglanan, karar=_kapi("H3", _h3_yap()))
     assert sonuc.olay_zamanlari == (g[0],)
     assert "bekleme_suresi" in {r.gerekce for r in sonuc.retler}
 
@@ -236,7 +248,7 @@ def test_h3_hesaplanamayan_gun_diziyi_keser():
         return t in set(g[18:25])
 
     sonuc = dizi.olay_dizisi("H3", _h3_yap(), g, config.BAR_1D, birincil_ufuk=G1_UFUK,
-                             kosul=kosul, karar=_kapi_hep_olur)
+                             kosul=kosul, karar=_kapi("H3", _h3_yap()))
     assert sonuc.olay_zamanlari == (g[18],)        # ilk dizi
     # g[21] yeni ilk gundur ama g[18] olayinin 14 gunluk beklemesi icinde: olay olusmaz.
     assert g[21] in [r.zaman for r in sonuc.retler if r.gerekce == "bekleme_suresi"]
@@ -247,7 +259,7 @@ def test_h3_kesintisiz_dizi_icinde_bekleme_dolsa_bile_yeni_olay_sayilmaz():
     g = _zamanlar(T("2025-03-01"), 60, "D")
     saglanan = set(g[:40])  # 14 gunluk bekleme dizinin icinde doluyor
     sonuc = dizi.olay_dizisi("H3", _h3_yap(), g, config.BAR_1D, birincil_ufuk=G1_UFUK,
-                             kosul=lambda t, capa: t in saglanan, karar=_kapi_hep_olur)
+                             kosul=lambda t, capa: t in saglanan, karar=_kapi("H3", _h3_yap()))
     assert sonuc.olay_zamanlari == (g[0],)
 
 
@@ -267,7 +279,7 @@ def test_h2de_ilk_gun_kurali_yok():
     assert "H2" not in dizi.DIZI_ILK_GUN_HIPOTEZLERI
     z = _zamanlar(T("2025-03-01"), 25)
     sonuc = dizi.olay_dizisi("H2", _h2_yap(), z, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                             kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                             kosul=lambda t, capa: True, karar=_kapi("H2", _h2_yap()))
     assert len(sonuc.olaylar) == 2
 
 
@@ -278,38 +290,38 @@ def test_izgara_disi_yapilandirma_hata_verir():
     z = _zamanlar(T("2025-03-01"), 3)
     with pytest.raises(sinyal.YapilandirmaHatasi):
         dizi.olay_dizisi("H2", {"phi": 0.0004, "k": 6}, z, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                         kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                         kosul=lambda t, capa: True, karar=_kapi("H2", {"phi": 0.0004, "k": 6}))
 
 
 def test_hipotezin_izgarasi_disinda_bar_hata_verir():
     g = _zamanlar(T("2025-03-01"), 3, "D")
     with pytest.raises(ValueError, match="izgarasi"):
         dizi.olay_dizisi("H2", _h2_yap(), g, config.BAR_1D, birincil_ufuk=G1_UFUK,
-                         kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                         kosul=lambda t, capa: True, karar=_kapi("H2", _h2_yap()))
 
 
 def test_on_kayit_disi_birincil_ufuk_hata_verir():
     z = _zamanlar(T("2025-03-01"), 3)
     with pytest.raises(ValueError, match="birincil_ufuk"):
         dizi.olay_dizisi("H2", _h2_yap(), z, config.BAR_4H, birincil_ufuk=17,
-                         kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                         kosul=lambda t, capa: True, karar=_kapi("H2", _h2_yap()))
 
 
 def test_sirasiz_ya_da_tekrarli_zamanlar_reddedilir():
     z = _zamanlar(T("2025-03-01"), 3)
     with pytest.raises(ValueError, match="artan"):
         dizi.olay_dizisi("H2", _h2_yap(), z[::-1], config.BAR_4H, birincil_ufuk=H4_UFUK,
-                         kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                         kosul=lambda t, capa: True, karar=_kapi("H2", _h2_yap()))
     with pytest.raises(ValueError, match="artan"):
         dizi.olay_dizisi("H2", _h2_yap(), z.append(z[:1]), config.BAR_4H, birincil_ufuk=H4_UFUK,
-                         kosul=lambda t, capa: True, karar=_kapi_hep_olur)
+                         kosul=lambda t, capa: True, karar=_kapi("H2", _h2_yap()))
 
 
 def test_kosul_yaniti_bool_olmali():
     z = _zamanlar(T("2025-03-01"), 3)
     with pytest.raises(TypeError, match="kosul yaniti"):
         dizi.olay_dizisi("H2", _h2_yap(), z, config.BAR_4H, birincil_ufuk=H4_UFUK,
-                         kosul=lambda t, capa: 1.0, karar=_kapi_hep_olur)
+                         kosul=lambda t, capa: 1.0, karar=_kapi("H2", _h2_yap()))
 
 
 # --- Gercek kapiyla kopru: `pozisyon.sinyal_kosulu` (Rev.11 madde 6) --------------------------

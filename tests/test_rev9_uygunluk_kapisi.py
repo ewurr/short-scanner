@@ -18,7 +18,8 @@ import pytest
 
 import config
 from data import eligibility, pencere, pozisyon
-from tarama_yardimcisi import CIKIS_KAPI_DISI_DESENI, KOK, UYGUNLUK_ADLARI, ihlaller
+from tarama_yardimcisi import (CIKIS_KAPI_DISI_DESENI, KOK, UYGUNLUK_ADLARI,
+                               ONAY_ATLATMA_DESENI as tarama_ONAY_ATLATMA_DESENI, ihlaller)
 from sinyal_yardimcisi import kontrol
 from kapi_yardimcisi import veri
 from kume_yardimcisi import kume_adi, kume_sinirlari
@@ -190,8 +191,19 @@ def test_veri_katmaninda_uygunluk_karari_yalnizca_karar_noktasinda_ve_uygun_muda
     assert _cagrilar(eligibility, "uygunluk_karari") == ["uygun_mu"]
     for modul in (funding, klines, pencere_modulu, split, universe):
         assert not _cagrilar(modul, "uygunluk_karari") and not _cagrilar(modul, "uygun_mu"), modul.__name__
-    # OnaylanmisPozisyon yalnizca olay_karari'nda kurulur.
-    assert _cagrilar(pozisyon, "OnaylanmisPozisyon") == ["olay_karari"]
+    # OnaylanmisPozisyon yalnizca olay_karari'nda ve TEST DIKISINDE kurulur. `_test_onayi`
+    # rev.13'te eklendi (sizinti bulgusu S-B1): `data.dizi` artik kapinin ciktisini dogruluyor, bu
+    # yuzden dizi KURALLARINI sinayan testlerin gecerli bir onaya ihtiyaci var ve her bar icin
+    # gercek kapiyi cagirmak hem cok yavas olur hem testi veri kurulumuna gomer. Dikis iki
+    # koruma altindadir ve ikisi burada da dogrulanir: yalnizca pytest icinde cagrilabilir ve adi
+    # analiz kodunda gecemez (`tarama_yardimcisi.ONAY_ATLATMA_DESENI`).
+    assert _cagrilar(pozisyon, "OnaylanmisPozisyon") == ["olay_karari", "_test_onayi"]
+    assert "_test_onayi" in tarama_ONAY_ATLATMA_DESENI
+    with pytest.MonkeyPatch.context() as yama:
+        yama.delenv("PYTEST_CURRENT_TEST", raising=False)
+        with pytest.raises(RuntimeError, match="pytest"):
+            pozisyon._test_onayi(hipotez="H1", yapilandirma=dict(theta=0.20, delta=0.08),
+                                 t=T("2025-03-05 04:00"))
 
 
 # --- Kaynak taramasi -----------------------------------------------------------------------------

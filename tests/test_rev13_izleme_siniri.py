@@ -24,13 +24,17 @@ import pandas as pd
 import pytest
 
 import config
-from data import dizi
+from data import dizi, pozisyon
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
 UFUK = config.BIRINCIL_UFUK[config.BAR_4H]
 IZLEME = config.H1_IZLEME_BAR            # 12
-SAHTE = object()
+# Her adayi onaylayan kapi: SORULAN (t, capa) ciftine ait IMZALI onay. `dizi.olay_dizisi`
+# donen onayi dogruladigi icin (sizinti bulgusu S-B1) ham bir nesne olay sayilmaz;
+# `pozisyon._test_onayi` veri yuklemeden imzali bir onay kurar (yalnizca pytest icinde).
+def _onay(t, capa=None):
+    return pozisyon._test_onayi(hipotez="H1", yapilandirma=dict(theta=0.20, delta=0.08), t=t, capa=capa)
 
 # Donem ici 4h izgarasi (yeterince uzun); testler bundan DILIM secerek donem/kume sonunu taklit eder.
 IZGARA = pd.date_range(T("2025-03-01 00:00"), periods=120, freq="4h")
@@ -51,7 +55,7 @@ def _kosul(pumplar, teyitler):
 
 def _calistir(idxler, kosul):
     return dizi.olay_dizisi("H1", dict(theta=0.20, delta=0.08), IZGARA[list(idxler)], config.BAR_4H,
-                            birincil_ufuk=UFUK, kosul=kosul, karar=lambda t, capa: SAHTE)
+                            birincil_ufuk=UFUK, kosul=kosul, karar=_onay)
 
 
 def _idx(sonuc):

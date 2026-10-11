@@ -54,9 +54,23 @@ acikca kullanir). Ilk serbest bar, olayin pozisyonunun cikis aninda (giris + h �
 bardir; yani yeni olay ancak oncekinin pozisyonu kapandiktan sonra sayilir. Secim tek sabitte
 (`BEKLEME_UST_UC_DAHIL`) toplanmistir ve rapora acik nokta olarak yazilmistir.
 
-Modul SAFTIR: veri yuklemez, kapiyi kendisi cagirmaz. Kapi ve kosul degerlendirmesi cagiran
-tarafindan iki cagrilabilirle verilir; boylece dizi kurallari kapidan ve veriden bagimsiz
-sinanabilir. Getiri hesaplamaz.
+**Kapinin ciktisi DOGRULANIR (sizinti bulgusu S-B1).** Rev.13'ten once `_dene`, `karar`in
+dondurdugu HER nesneyi olay sayiyor ve kendi beklemesini baslatiyordu; `pozisyon.onay_dogrula`
+cagrilmiyordu. Dizi ile kapi arasindaki tek baglanti denetimsiz oldugu icin olay kumesine
+kapidan gecmemis bir nesne, bir KONTROL (K1/K2) pozisyonu ya da baska bir yapilandirmanin olayi
+girebiliyordu. Artik her donus su dort noktada denetlenir (`_olay_dogrula`):
+  1. imza: nesne gercekten `pozisyon.olay_karari`dan geldi ve degistirilmedi,
+  2. rol: "olay" (on-kayit §6 rev.11 "Kontrolun ne olctugu": roller ayridir),
+  3. hipotez ve yapilandirma kimligi: dizinin kostugu demetle ayni (on-kayit §5 rev.11: "Bekleme
+     yapilandirma basina isler; her yapilandirma kendi olay dizisini uretir"),
+  4. sorulan (t, capa) cifti: pozisyonun sinyal zamani t, capasi ise dizinin verdigi capa. H1'de
+     bu, capanin IZLEMENIN ILK pump bari oldugunu garanti eder ve "bir teyit bari en cok bir olay
+     sayar" (on-kayit §5 H1 madde 4) kuralini denetlenebilir kilar.
+Denetim `pozisyon` modulunu import eder ama kapiyi CAGIRMAZ: cagri hala cagirandan gelir.
+
+Modul veri yuklemez ve kapiyi kendisi cagirmaz. Kapi ve kosul degerlendirmesi cagiran tarafindan
+iki cagrilabilirle verilir; boylece dizi kurallari veriden bagimsiz sinanabilir. Getiri
+hesaplamaz.
 """
 
 from __future__ import annotations
@@ -68,6 +82,7 @@ import pandas as pd
 
 import config
 from data import pencere as pencere_modulu
+from data import pozisyon as pozisyon_modulu
 from data import sinyal as sinyal_modulu
 
 # Beklemenin ust ucu penceredeki gibi DAHILDIR (yukaridaki uygulama karari). False yapilirsa
@@ -156,6 +171,33 @@ def _kosul_sonucu(deger, yer: str):
     return bool(deger)
 
 
+def _olay_dogrula(pozisyon, *, hipotez: str, yapilandirma_kimligi: str, t, capa) -> None:
+    """`karar`in dondurdugu nesne gercekten SORULAN olayin onayi mi? (sizinti bulgusu S-B1)
+
+    On-kayit §4 "Olayin kumede olusma olcutu" (rev.12): "Tek karar noktasinin onayi, bir olayin
+    olusmasi icin gereklidir ama yeterli degildir." Bu fonksiyon iliskiyi ters yonde kapatir:
+    dizi kurallarindan gecen bir bar da ancak KAPININ onayiyla olay olur ve o onay baska bir
+    barin, baska bir rolun ya da baska bir yapilandirmanin onayi olamaz.
+    """
+    pozisyon_modulu.onay_dogrula(pozisyon)      # imzasiz / elle kurulmus nesne burada duser
+    if pozisyon.rol != "olay":
+        raise ValueError(f"dizi yalnizca 'olay' rolundeki onayi olay sayar; verilen rol {pozisyon.rol!r} "
+                         "(on-kayit §6 rev.11: kontrol ve olay roller ayridir).")
+    if pozisyon.hipotez != hipotez or pozisyon.yapilandirma != yapilandirma_kimligi:
+        raise ValueError(
+            f"onayli pozisyon baska bir demete ait: ({pozisyon.hipotez}, {pozisyon.yapilandirma}); dizi "
+            f"({hipotez}, {yapilandirma_kimligi}) kosuyor. Bekleme yapilandirma basina isler ve her "
+            "yapilandirma kendi olay dizisini uretir (on-kayit §5 rev.11).")
+    if not pencere_modulu.ayni_an(pozisyon.plan.sinyal_zamani, t):
+        raise ValueError(f"onayli pozisyonun sinyal zamani {pozisyon.plan.sinyal_zamani}, dizi {t} barini "
+                         "sordu.")
+    if (capa is None) != (pozisyon.capa is None) or (
+            capa is not None and not pencere_modulu.ayni_an(pozisyon.capa, capa)):
+        raise ValueError(f"onayli pozisyonun capasi {pozisyon.capa}, dizi {capa} capasini sordu. H1'de capa "
+                         "izlemenin ILK pump baridir (on-kayit §5 H1 madde 4: bir teyit bari en cok bir "
+                         "olay sayar).")
+
+
 def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int, kosul, karar) -> DiziSonucu:
     """Bir (sembol, donem, kume, yapilandirma) dizisinde olaylari sirayla bulur (on-kayit §5 rev.11).
 
@@ -174,7 +216,8 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
     Doner: `DiziSonucu` (olaylar ve retler). Getiri hesaplanmaz, deger raporlanmaz.
     """
     ad = sinyal_modulu._hipotez_dogrula(hipotez)
-    sinyal_modulu.yapilandirma_dogrula(ad, yapilandirma)
+    gecerli = sinyal_modulu.yapilandirma_dogrula(ad, yapilandirma)
+    kimlik = sinyal_modulu.yapilandirma_kimligi(ad, gecerli)
     if bar != config.HIPOTEZ_IZGARASI[ad]:
         raise ValueError(f"{ad} izgarasi {config.HIPOTEZ_IZGARASI[ad]}; verilen {bar!r} (on-kayit §2).")
     h = pencere_modulu.birincil_ufuk_dogrula(birincil_ufuk, bar)
@@ -199,6 +242,7 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
         except pencere_modulu.OlayOlusmaz as hata:
             retler.append(Ret(t, capa, pencere_modulu.ret_gerekcesi(hata)))
             return False
+        _olay_dogrula(pozisyon, hipotez=ad, yapilandirma_kimligi=kimlik, t=t, capa=capa)
         olaylar.append(Olay(t, capa, pozisyon))
         son_olay = t
         return True
