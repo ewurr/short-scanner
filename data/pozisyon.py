@@ -167,6 +167,11 @@ class OnaylanmisPozisyon:
     funding_ritmi_saat: float = float("nan")
     karisik_ritim: bool = False
     ritim_sinifi: str | None = None
+    # Gecersizlik (stop) seviyesi: YALNIZCA F4 icin kayit (on-kayit §5 H1 madde 5, H2 madde 4,
+    # H3 madde 4 rev.13; §8 madde 1 "Olay basina ham kayitta ayrica MAE ve gecersizlik seviyesi
+    # saklanir"). Yalnizca olay rolunde hesaplanir; kontrol barinda tanimsizdir (NaN) cunku
+    # on-kayit seviyeyi olayin sinyal penceresinden kurar. Hicbir F2/F3 karari bu degere bakmaz.
+    gecersizlik_seviyesi: float = float("nan")
     hipotez: str | None = None
     # Yapilandirma kimligi ve rol (on-kayit §5, §6 rev.11): ornekleme ve dizi kurallari "ayni
     # yapilandirmanin olusmus olaylari"na gore isler, bu yuzden onayli pozisyon ikisini de tasir.
@@ -187,7 +192,8 @@ class OnaylanmisPozisyon:
 def _imza(p: OnaylanmisPozisyon) -> int:
     return hash((_ONAY_GIZLI, p.plan, p.p0, p.p1, p.funding_toplami, p.kuyruk_kismi, p.son_esitlik_affi,
                  p.capa_aralik_saat, p.son_aralik_saat, p.tek_ritim, p.funding_ritmi_saat, p.karisik_ritim,
-                 p.ritim_sinifi, p.hipotez, p.yapilandirma, p.rol, p.sembol, p.kume, p.donem_no))
+                 p.ritim_sinifi, p.gecersizlik_seviyesi, p.hipotez, p.yapilandirma, p.rol, p.sembol,
+                 p.kume, p.donem_no))
 
 
 def onay_dogrula(pozisyon) -> None:
@@ -548,6 +554,7 @@ def olay_karari(
     # bulunmadigina gore uygulanir (§6 'Ornekleme kurallari'). Kontrol barinda hesaplanan tek sey,
     # capasiz pencerelerin hesaplanabilirligidir." Bu yuzden rev.11'in `OlayUretmis` ret gerekcesi ve
     # H1'in K2 istisnasi konusuz kalmistir: uc hipotez ayni yolu kullanir.
+    gecersizlik = float("nan")   # kontrol barinda tanimsiz (asagida yalnizca olay rolunde kurulur)
     if rol == "olay":
         degerler = sinyal_modulu.sinyal_degerleri(
             hipotez, gecerli_yapilandirma, plan.sinyal_zamani, mumlar_4h=mumlar_4h,
@@ -561,6 +568,14 @@ def olay_karari(
         if not sinyal_modulu.kosullar_saglandi(hipotez, gecerli_yapilandirma, degerler):
             raise SinyalKosuluSaglanmadi(
                 f"{hipotez} kosullari {plan.sinyal_zamani} barinda saglanmadi (on-kayit §5); olay olusmaz.")
+        # Gecersizlik seviyesi (on-kayit §5 H1 madde 5, H2 madde 4, H3 madde 4 rev.13): olay basina
+        # kayit, F4 icin. Tabani (H1'de tepe, H2/H3'te `max(high[t-30..t])`) olayin kosullarinin
+        # zaten kullandigi penceredir, bu yuzden kosullari saglayan bir barda her zaman hesaplanir;
+        # hesaplanamazsa acik hatadir (kapi sertlestirme turu 2 ile ayni tutum, `_sonlu`).
+        gecersizlik = _sonlu(sinyal_modulu.gecersizlik_seviyesi(
+            hipotez, plan.sinyal_zamani, mumlar_4h=mumlar_4h, gunluk=gunluk_mumlar, capa=capa,
+            kume_baslangic=plan.kume_baslangic, donem_baslangic=plan.donem_baslangic),
+            "gecersizlik seviyesi")
     # Uygunluk (on-kayit §4 rev.9): esik gecilmeli, hesaplanabilmis olmasi yetmez.
     if not eligibility_modulu.uygunluk_karari(
             gunluk_hacim, plan.sinyal_zamani, bar, donem_baslangic=plan.donem_baslangic,
@@ -591,7 +606,8 @@ def olay_karari(
                                son_aralik_saat=float(ayrinti["son_aralik_saat"]), tek_ritim=bool(ayrinti["tek_ritim"]),
                                funding_ritmi_saat=float(ayrinti["funding_ritmi_saat"]),
                                karisik_ritim=bool(ayrinti["karisik_ritim"]),
-                               ritim_sinifi=ayrinti["ritim_sinifi"], hipotez=hipotez,
+                               ritim_sinifi=ayrinti["ritim_sinifi"],
+                               gecersizlik_seviyesi=gecersizlik, hipotez=hipotez,
                                yapilandirma=yapilandirma_kimligi, rol=rol, sembol=sembol, kume=kume,
                                donem_no=int(donem_no))
     return replace(sonuc, _imza=_imza(sonuc))

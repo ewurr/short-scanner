@@ -278,6 +278,19 @@ def kapanis_30_once(mumlar: pd.DataFrame, t, bar: str, *, kume_baslangic, donem_
     return float(dilim.iloc[0])
 
 
+def yuksek_30_max(mumlar: pd.DataFrame, t, bar: str, *, kume_baslangic, donem_baslangic) -> float:
+    """`max(high[t-30..t])` (on-kayit §5 H2 madde 4, H3 madde 4 rev.13).
+
+    Iki uclu kapali aralik, `kapanis_30_once` ile AYNI tamlik penceresi: `[t-30 .. t]`, yani 31
+    bar (§5 "Pencere sinirlarinin tamami", rev.11); araliktaki beklenen barlardan biri bile
+    eksikse deger hesaplanmaz. `bar` izgaradir: H2'de 4h serisi, H3'te 1 gunluk seri (rev.13:
+    "pencere 1 gunluk seridedir ve tamlik sarti §5 'Pencere sinirlari'na goredir").
+    """
+    return pencere_modulu.pencere_degeri(
+        _seri(mumlar, "high"), t, config.OTUZ_BAR_ONCE + 1, bar, t_dahil=True,
+        kume_baslangic=kume_baslangic, donem_baslangic=donem_baslangic, islev="max")
+
+
 def h2_kirilim_dip(mumlar_4h: pd.DataFrame, t, k, *, kume_baslangic, donem_baslangic) -> float:
     """`min(low[t-k..t-1])` (on-kayit §5 H2 madde 3).
 
@@ -567,6 +580,46 @@ def capasiz_hesaplanamayan(hipotez, degerler) -> list[str]:
         raise TypeError(f"{ad} icin capasiz pencereler tam olarak {gereken} olmali; eksik "
                         f"{sorted(set(gereken) - set(degerler))}, fazla {sorted(set(degerler) - set(gereken))}.")
     return [a for a in gereken if not _sonlu(degerler[a])]
+
+
+# --- Gecersizlik seviyesi (on-kayit §5 H1 madde 5, H2 madde 4, H3 madde 4 rev.13) -------------
+#
+# Uc hipotezin de onceden tanimli bir gecersizlik (stop) seviyesi vardir ve ucu de YALNIZCA F4
+# icin kayittir (on-kayit §8 madde 1: "Olay basina ham kayitta ayrica MAE ve gecersizlik seviyesi
+# saklanir (F4 icin; §10 ve §5)"). Hicbir F2/F3 karari bu degere bakmaz.
+#
+#   H1 madde 5: `tepe x 1.02`                     (tepe pump barina CAPALIDIR)
+#   H2 madde 4: `max(high[t-30..t]) x 1.02`
+#   H3 madde 4: `max(high[t-30..t]) x 1.02`       (1 gunluk seride, rev.13)
+#
+# Rev.13'ten once bu seviye hicbir hipotez icin hesaplanmiyordu. Tek fonksiyon olmasinin gerekcesi
+# H3'un rev.13'teki tanimidir: "H3'un capasi olmadigi icin seviye H2 ile ayni bicimde, dusus trendi
+# kosulunun zaten kullandigi pencereden kurulur" -- yani iki hipotez ayni pencereyi paylasir ve
+# ucuncusu yalnizca tabanda ayrilir.
+
+
+def gecersizlik_seviyesi(hipotez, t, *, mumlar_4h, gunluk, capa, kume_baslangic,
+                         donem_baslangic) -> float:
+    """Olayin gecersizlik (stop) seviyesi; hesaplanamazsa NaN. Saf.
+
+    `capa` yalnizca H1'de verilir (pump bari) ve zorunludur; H2 ve H3'te `None` olmalidir --
+    `sinyal_degerleri` ile ayni sozlesme. Taban pencereleri §2 "Tamlik sarti" kapsamindadir.
+    """
+    ad = _hipotez_dogrula(hipotez)
+    if (capa is not None) != (ad in CAPALI_HIPOTEZLER):
+        raise ValueError(
+            f"{ad} icin capa {'zorunludur' if ad in CAPALI_HIPOTEZLER else 'verilemez'} "
+            "(on-kayit §5 H1 madde 5: seviye tepeye, yani pump barina capalidir).")
+    sinir = {"kume_baslangic": kume_baslangic, "donem_baslangic": donem_baslangic}
+    if ad == "H1":
+        taban = h1_tepe(mumlar_4h, capa, t, **sinir)
+    elif ad == "H2":
+        taban = yuksek_30_max(mumlar_4h, t, config.BAR_4H, **sinir)
+    else:
+        taban = yuksek_30_max(gunluk, t, config.BAR_1D, **sinir)
+    if not _sonlu(taban):
+        return float("nan")
+    return float(taban) * config.GECERSIZLIK_CARPANI
 
 
 # --- H1'in pump kosulu, teyit barindan bagimsiz (on-kayit §5 H1 madde 1) ----------------------

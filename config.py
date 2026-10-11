@@ -218,6 +218,12 @@ H3_HACIM_UZAK_GUN = 90
 H3_HACIM_UZAK_OFSET = 31
 H3_SMA_GUN = 50
 
+# Gecersizlik (stop) seviyesinin carpani (on-kayit §5 H1 madde 5, H2 madde 4, H3 madde 4 rev.13):
+# H1'de `tepe x 1.02`, H2 ve H3'te `max(high[t-30..t]) x 1.02`. Yalnizca F4 icin KAYITTIR; F2 ve
+# F3'te hicbir karara girmez (CLAUDE.md §2 madde 5: "Taktik asamasinda her short pozisyonun
+# onceden tanimli bir gecersizlik (stop) seviyesi olmalidir").
+GECERSIZLIK_CARPANI = 1.02
+
 # --- Kontroller (on-kayit §6) ------------------------------------------------
 
 # K1 ve K2 havuzlarinin hedef buyuklugu: "10 rastgele bar", "10 rastgele coin". Aday sayisi
@@ -293,7 +299,8 @@ _DEGISMEZ_ADLAR = frozenset({
     # pencere uzunlugunu calisma aninda degistirmek on-kaydi degistirmektir (on-kayit §5 rev.11).
     "IZGARA", "H1_DIP_BAR", "H1_HACIM_TOPLAM_BAR", "H1_HACIM_MEDYAN_BAR", "H1_HACIM_CARPANI",
     "H1_IZLEME_BAR", "OTUZ_BAR_ONCE", "H2_YUKSELIS_ESIGI", "H3_HACIM_YAKIN_GUN",
-    "H3_HACIM_UZAK_GUN", "H3_HACIM_UZAK_OFSET", "H3_SMA_GUN", "KONTROL_SAYISI",
+    "H3_HACIM_UZAK_GUN", "H3_HACIM_UZAK_OFSET", "H3_SMA_GUN",
+    "GECERSIZLIK_CARPANI", "KONTROL_SAYISI",
     "__class__",
 })
 
