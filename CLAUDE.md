@@ -93,7 +93,14 @@ F4'e geçmez; bu geçerli ve değerli bir sonuçtur.
 - Hesaplama fonksiyonları saftır (girdi → çıktı, yan etkisiz). Ağ ve disk erişimi
   yalnızca `data/` katmanında.
 - Tüm zaman damgaları UTC. Bar zamanı = barın açılış zamanı.
-- Önbellek parquet formatında, `cache/` altında, git'e girmez.
+- Önbellek parquet formatında, `cache/` altında, git'e girmez. Önbellek yalnızca ham ay
+  verisini tutar; kümeye göre kesilmiş veri diske yazılmaz. Bellekte tutulan her kopya
+  için küme erişim denetimi kopyanın her okunuşunda yeniden uygulanır, önbellek anahtarı
+  küme adını içerir, ve onay koşusunun açılışı ile kapanışı bu kopyaları geçersiz kılar
+  (ön-kayıt §3).
+- F2 ve F3 koşuları ağa çıkmaz: veri koşudan önce indirilir, koşu dondurulmuş yerel
+  önbellekten okur (ön-kayıt §3). Gerekçe tekrarlanabilirliktir; koşu sırasında yapılan
+  bir ağ isteği sonucu borsanın o anki durumuna bağlar.
 - Her modülün testi `tests/` altında. `pytest -q` ağa çıkmadan geçmelidir.
 - Rastgelelik her zaman sabit tohumla (seed) ve tohum sonuç dosyasına yazılır.
 - Her analiz `analysis/<ad>/` altında: çalıştırma betiği, `RESULTS.md`, ham çıktı CSV.
@@ -101,7 +108,8 @@ F4'e geçmez; bu geçerli ve değerli bir sonuçtur.
 ### Koruma katmanı
 
 **Kilitli dosyalar.** `PREREGISTRATION.md`, `data/split.csv`, `data/universe.csv`,
-`data/exchange_info_anlik.json`, `ONAY_KAYDI.md` ve bu dosya (`CLAUDE.md`) kilitlidir.
+`data/exchange_info_anlik.json`, `ONAY_KAYDI.md`, `analysis/<hipotez>/KILIT.md` (her
+hipotez için, oluşturulduğu andan itibaren) ve bu dosya (`CLAUDE.md`) kilitlidir.
 `.claude/hooks/kilitli_dosya_korumasi.py` adlı `PreToolUse` hook'u bu dosyalara
 yapılan yazma ve düzenleme araç çağrılarını reddeder. Kilit yalnızca kullanıcının
 açık izniyle, `SHORT_LAB_KILIT_ACIK=1` ortam değişkeni ayarlanarak açılır.
@@ -110,10 +118,11 @@ açık izniyle, `SHORT_LAB_KILIT_ACIK=1` ortam değişkeni ayarlanarak açılır
 silinemez. Başlıktaki yer tutucu cümle Rev.11 kilit oturumunda kaldırılmıştır.
 
 **F2'nin kilitlediği yapılandırma.** F2 sonunda her hipotez için seçilen
-yapılandırma (ya da hipotezin kapandığı) `KILIT.md` dosyasına yazılır. Dosya
-oluşturulduğu andan itibaren kilitli dosyalar listesine girer ve hook tarafından
-korunur. Onay koşusu, koştuğu hipotezin yapılandırmasını bu dosyadan okur;
-dosyada kaydı olmayan bir hipotez için onay koşusu açılmaz.
+yapılandırma (ya da hipotezin kapandığı) `analysis/<hipotez>/KILIT.md` dosyasına
+yazılır. Dosya oluşturulduğu andan itibaren kilitlidir ve hook tarafından korunur.
+Dosyanın alanları, ekleme kuralı ve onay koşusunun bu dosyayı okuma yükümlülüğü
+ön-kayıt §8'de yazılıdır; burada tekrarlanmaz. İki belgede aynı kuralı iki kez
+yazmak ikisinin ayrışmasına yol açar, bu yüzden yetkili metin ön-kayıttır.
 
 Hook araç çağrılarını yakalar; çalışan Python kodunu etkilemez.
 `data/split.py` içindeki onay koşusu bu yüzden `ONAY_KAYDI.md` dosyasına
@@ -151,16 +160,37 @@ short-lab/
 ├── README.md
 ├── requirements.txt
 ├── config.py                # tarih sınırları, maliyet, evren eşikleri (ön-kayıtla aynı)
+├── .claude/
+│   ├── settings.json        # hook kaydı ve araç izinleri
+│   ├── hooks/
+│   │   └── kilitli_dosya_korumasi.py   # kilitli dosyaları koruyan PreToolUse hook'u
+│   └── agents/
+│       ├── metodoloji-denetcisi.md     # faz sonu ve analiz kodu metodoloji denetimi
+│       └── sizinti-testcisi.md         # kodu kırmaya çalışan test yazarı
 ├── data/
+│   ├── __init__.py          # ağ ve disk erişimi yalnızca bu pakette
+│   ├── binance_vision.py    # data.binance.vision ortak erişim katmanı
 │   ├── universe.py          # tarihsel perpetual evreni (delist dahil)
+│   ├── universe.csv         # commit edilir, bir daha değişmez
+│   ├── exchange_info_anlik.json   # evren kurulumunun girdisi, bir kez üretilir
 │   ├── klines.py            # 4h ve 1d mum indirme + önbellek
 │   ├── funding.py           # funding geçmişi, 8 saate normalleştirme
-│   ├── split.py             # A/B coin bölmesi ve dönem koruması
+│   ├── donem.py             # listeleme dönemi, dolgu koşusu ve uzun boşluk bölmesi
+│   ├── pencere.py           # zamanla tanımlı pencere, tamlık kontrolü, ufuk
+│   ├── eligibility.py       # t anındaki uygunluk filtresi
+│   ├── sinyal.py            # hipotezlerin sinyal pencereleri, değerleri ve koşulları
+│   ├── dizi.py              # olay dizisi kuralları: bekleme, tek izleme, ilk gün
+│   ├── pozisyon.py          # tek karar noktası: olay ya da kontrol oluşur mu
+│   ├── ornekleme.py         # K1 ve K2 kontrol havuzlarının örnekleme kuralları
+│   ├── istatistik.py        # test istatistiği, `r` ve p-değeri
+│   ├── split.py             # A/B coin bölmesi, dönem koruması, onay koşusu
 │   └── split.csv            # commit edilir, bir daha değişmez
 ├── events/                  # F2: H1, H2, H3 olay tanımları
 ├── study/                   # F2-F3: olay çalışması, K1/K2 kontrolleri, permütasyon
 ├── analysis/
-│   └── 00_veri_denetimi/
+│   ├── 00_veri_denetimi/    # F1 veri denetimi: betikler, RESULTS.md, ham çıktı CSV
+│   └── <hipotez>/           # F2: her hipotezin kendi dizini
+│       └── KILIT.md         # F2'nin kilitlediği yapılandırma (ön-kayıt §8)
 ├── cache/                   # git'e girmez
-└── tests/
+└── tests/                   # her modülün testi ve ortak yardımcıları
 ```

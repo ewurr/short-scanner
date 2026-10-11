@@ -46,7 +46,8 @@ KOK = Path(__file__).resolve().parents[2]
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-# Kilitli dosyalar, proje kokune gore.
+# Kilitli dosyalar, proje kokune gore. Glob karakteri (*?[) iceren girdiler
+# DESEN olarak eslesir; digerleri tam yol olarak.
 KILITLI = (
     "PREREGISTRATION.md",
     "data/split.csv",
@@ -55,9 +56,42 @@ KILITLI = (
     "data/exchange_info_anlik.json",
     "ONAY_KAYDI.md",
     "CLAUDE.md",
+    # F2'nin kilitledigi yapilandirma: her hipotezin kendi dosyasi, olusturuldugu
+    # andan itibaren (CLAUDE.md §5, on-kayit §8 madde 5). Desen bilerek
+    # `analysis/` altina baglidir: depo kokundeki bir KILIT.md KORUNMAZ, cunku
+    # kilit yalnizca on-kaydin adini verdigi yol icin yazilidir.
+    "analysis/*/KILIT.md",
 )
 
 ACMA_DEGISKENI = "SHORT_LAB_KILIT_ACIK"
+
+
+def _desen_mi(kalip: str) -> bool:
+    """Kilitli girdi tam yol degil, glob deseni mi?"""
+    return any(c in kalip for c in "*?[")
+
+
+def _anma_deseni(kalip: str) -> re.Pattern[str]:
+    """Desen girdisi icin METINDE arama regexi (kucuk harfli metinde aranir).
+
+    Yol bicimi korunur: `analysis/*/KILIT.md` yalnizca `analysis/<ad>/KILIT.md`
+    seklinde anildiginda eslesir, yalin `KILIT.md` eslesmez. Hem `/` hem `\\`
+    ayiricisi kabul edilir.
+    """
+    parcalar = [
+        r"[^/\\\s]+" if _desen_mi(p) else re.escape(p)
+        for p in kalip.lower().split("/")
+    ]
+    return re.compile(r"[/\\]".join(parcalar))
+
+
+# Desen girdileri icin: metinde anma regexi ve yol sonuna capali tam eslesme.
+DESEN_ANMA = {k: _anma_deseni(k) for k in KILITLI if _desen_mi(k)}
+DESEN_TAM = {
+    k: re.compile(r"(?:^|[/\\])" + _anma_deseni(k).pattern + r"$")
+    for k in KILITLI
+    if _desen_mi(k)
+}
 
 # --- Bash komut siniflari ----------------------------------------------------
 
@@ -144,8 +178,15 @@ def kilitli_mi(yol: str) -> str | None:
     """
     try:
         mutlak = Path(yol).resolve()
+        try:
+            goreli = mutlak.relative_to(KOK).as_posix().lower()
+        except ValueError:
+            goreli = None
         for kalip in KILITLI:
-            if mutlak == (KOK / kalip).resolve():
+            if _desen_mi(kalip):
+                if goreli is not None and fnmatch.fnmatch(goreli, kalip.lower()):
+                    return kalip
+            elif mutlak == (KOK / kalip).resolve():
                 return kalip
     except Exception:
         pass
@@ -153,16 +194,27 @@ def kilitli_mi(yol: str) -> str | None:
     duz = yol.replace("\\", "/").lower().rstrip("/")
     for kalip in KILITLI:
         hedef = kalip.lower()
-        if duz == hedef or duz.endswith("/" + hedef):
+        if _desen_mi(kalip):
+            if fnmatch.fnmatch(duz, hedef) or fnmatch.fnmatch(duz, "*/" + hedef):
+                return kalip
+        elif duz == hedef or duz.endswith("/" + hedef):
             return kalip
     return None
 
 
 def _ad_geciyor_mu(metin: str) -> str | None:
-    """Metinde kilitli bir dosyanin adi geciyor mu? (buyuk-kucuk harf duyarsiz)"""
+    """Metinde kilitli bir dosyanin adi geciyor mu? (buyuk-kucuk harf duyarsiz)
+
+    Tam yol girdileri icin dosya adi yeter. Desen girdileri icin yolun tamami
+    aranir: `KILIT.md` tek basina anilmis olmak yetmez, `analysis/<ad>/KILIT.md`
+    bicimi gerekir.
+    """
     kucuk = metin.lower()
     for kalip in KILITLI:
-        if kalip.rsplit("/", 1)[-1].lower() in kucuk:
+        if _desen_mi(kalip):
+            if DESEN_ANMA[kalip].search(kucuk):
+                return kalip
+        elif kalip.rsplit("/", 1)[-1].lower() in kucuk:
             return kalip
     return None
 
@@ -185,7 +237,12 @@ def kapsar_mi(arguman: str) -> str | None:
     kucuk = duz.lower()
 
     # 1) Dosyanin kendisi: tam goreli yol ya da ayni dosya adi
+    #    (desen girdilerinde yalin dosya adi YETMEZ, yolun bicimi gerekir)
     for kalip in KILITLI:
+        if _desen_mi(kalip):
+            if DESEN_TAM[kalip].search(kucuk):
+                return kalip
+            continue
         ad = kalip.lower()
         dosya_adi = ad.rsplit("/", 1)[-1]
         if kucuk in (ad, dosya_adi) or kucuk.endswith("/" + ad) or kucuk.endswith("/" + dosya_adi):
@@ -202,6 +259,15 @@ def kapsar_mi(arguman: str) -> str | None:
             return kalip
         if dizin == kok_adi or dizin.endswith("/" + kok_adi):
             return kalip
+        if _desen_mi(kalip):
+            # Desenin ust dizini de desenli olabilir (`analysis/*`): hem desenin
+            # sabit koku (`analysis`) hem desenin kendisi hedef sayilir.
+            sabit_kok = ust.split("/", 1)[0]
+            if sabit_kok and (dizin == sabit_kok or dizin.endswith("/" + sabit_kok)):
+                return kalip
+            if ust and (fnmatch.fnmatch(dizin, ust) or fnmatch.fnmatch(dizin, "*/" + ust)):
+                return kalip
+            continue
         if ust and (dizin == ust or dizin.endswith("/" + ust)):
             return kalip
 

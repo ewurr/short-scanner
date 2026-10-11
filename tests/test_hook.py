@@ -295,3 +295,137 @@ def test_surec_write_exchange_info_reddeder():
     cevap = json.loads(cikti)["hookSpecificOutput"]
     assert cevap["permissionDecision"] == "deny"
     assert EXCHANGE_INFO in cevap["permissionDecisionReason"]
+
+
+# --- analysis/<hipotez>/KILIT.md: F2'nin kilitledigi yapilandirma --------------
+#
+# CLAUDE.md §5 ve on-kayit §8 madde 5: dosya olusturuldugu andan itibaren
+# kilitlidir. Korumanin kapsami TAM YOL degil DESEN'dir (`analysis/*/KILIT.md`),
+# cunku her hipotezin kendi dosyasi vardir ve adlari onceden bilinmez.
+
+KILIT_DESENI = "analysis/*/KILIT.md"
+KILIT_H1 = "analysis/h1/KILIT.md"
+
+KILIT_YAZMALARI = [
+    f"echo x >> {KILIT_H1}",
+    f"printf x > {KILIT_H1}",
+    f"sed -i 's/a/b/' {KILIT_H1}",
+    f"mv yedek.md {KILIT_H1}",
+    f"mv {KILIT_H1} eski.md",
+    f"cp yedek.md {KILIT_H1}",
+    f"rm {KILIT_H1}",
+    f"truncate -s 0 {KILIT_H1}",
+    f"tee -a {KILIT_H1}",
+    f"git checkout -- {KILIT_H1}",
+    f"git rm {KILIT_H1}",
+    "echo x >> analysis/H2/KILIT.md",
+    "rm -rf analysis",
+]
+
+
+@pytest.mark.parametrize("komut", KILIT_YAZMALARI)
+def test_kilit_md_yazma_niyeti_reddedilir(komut):
+    karar = hook.bash_degerlendir(komut)
+    assert not karar.izin, komut
+    assert karar.kalip == KILIT_DESENI, f"{komut} -> {karar.kalip}"
+    assert "KILIT.md" in karar.kalip
+
+
+KILIT_OKUMALARI = [
+    f"cat {KILIT_H1}",
+    f"grep -n hipotez {KILIT_H1}",
+    f"git log --oneline -- {KILIT_H1}",
+    f"git show HEAD:{KILIT_H1}",
+    f"cp {KILIT_H1} /tmp/yedek.md",
+]
+
+
+@pytest.mark.parametrize("komut", KILIT_OKUMALARI)
+def test_kilit_md_salt_okuma_gecer(komut):
+    karar = hook.bash_degerlendir(komut)
+    assert karar.izin, f"{komut} -> {karar.neden}"
+
+
+@pytest.mark.parametrize(
+    "yol",
+    [
+        str(KOK / "analysis" / "h1" / "KILIT.md"),
+        str(KOK / "analysis" / "H2" / "KILIT.md"),
+        "/d/Projeler/short_scanner/analysis/h1/KILIT.md",
+        KILIT_H1,
+        "analysis\\h1\\KILIT.md",
+    ],
+)
+def test_kilit_md_yolu_taninir(yol):
+    assert hook.kilitli_mi(yol) == KILIT_DESENI, yol
+
+
+def test_surec_write_kilit_md_reddeder():
+    cikti = _hook_calistir(
+        {"tool_name": "Write", "tool_input": {"file_path": str(KOK / "analysis" / "h1" / "KILIT.md")}}
+    )
+    cevap = json.loads(cikti)["hookSpecificOutput"]
+    assert cevap["permissionDecision"] == "deny"
+    assert "KILIT.md" in cevap["permissionDecisionReason"]
+
+
+def test_surec_edit_kilit_md_reddeder():
+    cikti = _hook_calistir(
+        {"tool_name": "Edit", "tool_input": {"file_path": str(KOK / "analysis" / "h1" / "KILIT.md")}}
+    )
+    assert json.loads(cikti)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# --- Korumanin BILINCLI sinirlari ---------------------------------------------
+#
+# Kilit, on-kaydin adini verdigi yola baglidir: `analysis/<hipotez>/KILIT.md`.
+# Baska bir yerdeki ayni adli dosya (ornegin depo kokundeki `KILIT.md`) bu
+# korumanin kapsaminda DEGILDIR. Bu, diger kilitli dosyalarin dosya-adi temelli
+# genis eslestirmesinden bilincli bir ayrilmadir; asagidaki testler davranisin
+# kaza sonucu degismesini engeller.
+
+
+@pytest.mark.parametrize(
+    "yol",
+    [
+        str(KOK / "KILIT.md"),
+        "KILIT.md",
+        str(KOK / "data" / "KILIT.md"),
+        str(KOK / "analysis" / "KILIT.md"),
+    ],
+)
+def test_analysis_disindaki_kilit_md_korunmaz(yol):
+    assert hook.kilitli_mi(yol) is None, yol
+
+
+KORUNMAYAN_KILIT_KOMUTLARI = [
+    "echo x >> KILIT.md",
+    "rm KILIT.md",
+    "sed -i 's/a/b/' KILIT.md",
+    "cp yedek.md KILIT.md",
+    "mv yedek.md KILIT.md",
+    "tee -a KILIT.md",
+]
+
+
+@pytest.mark.parametrize("komut", KORUNMAYAN_KILIT_KOMUTLARI)
+def test_analysis_disindaki_kilit_md_komutlari_gecer(komut):
+    karar = hook.bash_degerlendir(komut)
+    assert karar.izin, f"{komut} -> {karar.neden}"
+
+
+def test_analysis_altindaki_yol_dizin_sayilarak_temkinli_reddedilir():
+    """`analysis/KILIT.md` Write/Edit icin kilitli DEGILDIR (yukaridaki test), ama
+    Bash tarafinda bir DIZIN olabilecegi icin reddedilir: `analysis/KILIT.md/`
+    altinda desene uyan bir dosya bulunabilir. Iki katmanin bu noktada ayrismasi
+    bilinclidir; hook'un kurali "yanlis engelleme zararsiz, yanlis izin degil".
+    """
+    karar = hook.bash_degerlendir("tee analysis/KILIT.md")
+    assert not karar.izin
+    assert karar.kalip == KILIT_DESENI
+
+
+def test_surec_write_kokteki_kilit_md_gecer():
+    assert _hook_calistir(
+        {"tool_name": "Write", "tool_input": {"file_path": str(KOK / "KILIT.md")}}
+    ) == ""
