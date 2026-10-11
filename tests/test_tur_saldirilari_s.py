@@ -51,6 +51,7 @@ import pytest
 import config
 from data import dizi, ornekleme, pencere, pozisyon, sinyal
 from kapi_yardimcisi import veri
+from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur
 from sinyal_yardimcisi import kontrol, olay, yapilandirma
 from uygunluk_yardimcisi import UYGUN_ONCELIK, esikler
 
@@ -572,8 +573,9 @@ def test_k2_adayi_olay_ureten_barda_kapi_elemez_eleme_ornekleme_adiminda():
     assert _karar(dunya, "H2", ZG[TH], kontrol("H2", "K1")).rol == "K1"
     assert _karar(dunya, "H2", ZG[35], kontrol("H2", "K2")).rol == "K2"
     # Eleme ornekleme adimindadir: olay ureten sembol havuzdan cikar, verilmezse kalir.
-    assert ornekleme.k2_adaylari(["AAAUSDT"], ["AAAUSDT"], olay_sembolu="BBBUSDT") == ()
-    assert ornekleme.k2_adaylari(["AAAUSDT"], [], olay_sembolu="BBBUSDT") == ("AAAUSDT",)
+    kur = lambda ss: k2_adaylari_kur(ss, t=ZG[TH], hipotez="H2")  # noqa: E731
+    assert ornekleme.k2_adaylari(kur(["AAAUSDT"]), ["AAAUSDT"], olay_sembolu="BBBUSDT").ogeler == ()
+    assert ornekleme.k2_adaylari(kur(["AAAUSDT"]), [], olay_sembolu="BBBUSDT").ogeler == ("AAAUSDT",)
 
 
 def test_h1_k2_kapisi_olay_barini_kendisi_elemez_havuz_k2_adaylari_ile_elenir():
@@ -585,8 +587,9 @@ def test_h1_k2_kapisi_olay_barini_kendisi_elemez_havuz_k2_adaylari_ile_elenir():
     p = _karar(dunya, "H1", ZG[TEYIT_G], kontrol("H1", "K2"))
     assert p.rol == "K2"
     sembol = dunya["sembol"]
-    assert ornekleme.k2_adaylari([sembol, "BBBUSDT"], [sembol], olay_sembolu="AAAUSDT") == ("BBBUSDT",)
-    assert ornekleme.k2_adaylari([sembol, "BBBUSDT"], [], olay_sembolu="AAAUSDT") == tuple(sorted([sembol, "BBBUSDT"]))
+    aday = k2_adaylari_kur([sembol, "BBBUSDT"], t=ZG[PG], hipotez="H1")
+    assert ornekleme.k2_adaylari(aday, [sembol], olay_sembolu="AAAUSDT").ogeler == ("BBBUSDT",)
+    assert ornekleme.k2_adaylari(aday, [], olay_sembolu="AAAUSDT").ogeler == tuple(sorted([sembol, "BBBUSDT"]))
 
 
 def test_k1_uygunluk_atlatilamaz_dusuk_hacim_ve_genc_listeleme():
@@ -1123,12 +1126,26 @@ Y_H1 = yapilandirma("H1")
 OLAY_T = T("2025-03-01 04:00")
 ADAYLAR = [T("2025-01-01") + i * H4 for i in range(40)]
 
+# Rev.13 (madde (d)): adaylik ornekelemeden ONCE belirlenir; `ornekleme` ham damga/sembol kabul
+# etmez. Asagidaki saldirilar adaylari kapidan gecirerek kurar (`ornekleme_yardimcisi`) ve tohum
+# `ornekle`ye verilmez (D-C5): demetten turer, bu yuzden "farkli tohum" yerine farkli DEMET.
+_SEMBOLLER = [f"S{i:03d}USDT" for i in range(40)]
+
+
+def _k1(barlar, sembol="AAAUSDT"):
+    return k1_adaylari_kur(barlar, hipotez="H1", yapilandirma=Y_H1, sembol=sembol)
+
+
+def _ornekle(adaylar, sembol="AAAUSDT", olay_zamani=OLAY_T):
+    return ornekleme.ornekle(adaylar, sembol=sembol, olay_zamani=olay_zamani)
+
 
 def test_ornekle_iadesiz_ayni_kontrol_iki_kez_cekilmez_ve_aday_alt_kumesi():
-    """On-kayit §6 rev.11: "Iki havuzda da ornekleme iadesizdir". Saldiri: 300 farkli tohum; her cekilis 10
-    benzersiz, aday kumesinin alt kumesi, aday sirasinda (artan) olmali; aday_sayisi dogru yazilmali."""
-    for tohum in range(300):
-        h = ornekleme.ornekle(ADAYLAR, tohum=tohum)
+    """On-kayit §6 rev.11: "Iki havuzda da ornekleme iadesizdir". Saldiri: 300 farkli DEMET (olay zamani);
+    her cekilis 10 benzersiz, aday kumesinin alt kumesi, aday sirasinda (artan) olmali; aday_sayisi dogru."""
+    adaylar = _k1(ADAYLAR)
+    for i in range(300):
+        h = _ornekle(adaylar, olay_zamani=OLAY_T + i * H4)
         assert len(h) == 10 and len(set(h.secilenler)) == 10
         assert set(h.secilenler) <= set(ADAYLAR)
         assert list(h.secilenler) == sorted(h.secilenler)
@@ -1136,42 +1153,69 @@ def test_ornekle_iadesiz_ayni_kontrol_iki_kez_cekilmez_ve_aday_alt_kumesi():
 
 
 def test_ornekle_tekrarli_aday_reddedilir_dedup_ile_havuz_sisirilemez():
-    """On-kayit §6: iadesizlik. Saldiri: ayni adayi iki kez vermek (havuz sisirmek) ValueError."""
+    """On-kayit §6: iadesizlik. Saldiri: ayni adayi iki kez vermek (havuz sisirmek) ValueError. Aday kurma
+    adimi de tekrari reddeder (ayni bar iki kez aday olamaz)."""
     with pytest.raises(ValueError):
-        ornekleme.ornekle(ADAYLAR[:5] + ADAYLAR[:3], tohum=1)
+        _k1(ADAYLAR[:5] + ADAYLAR[:3])
     with pytest.raises(ValueError):
-        ornekleme.ornekle(["A", "A", "B"], tohum=1)
+        k2_adaylari_kur(["AUSDT", "AUSDT", "BUSDT"], t=OLAY_T, hipotez="H1", yapilandirma=Y_H1)
+
+
+def test_ornekle_ham_aday_listesi_kabul_edilmez():
+    """On-kayit §6 rev.13: "kapidan gecmemis bir adayi kabul etmesin". Saldiri: ham bar damgasi listesi,
+    ham sembol listesi, elle kurulmus `Adaylar`, olay rolundeki onay."""
+    for ham in (ADAYLAR, _SEMBOLLER, tuple(ADAYLAR), []):
+        with pytest.raises(TypeError):
+            _ornekle(ham)
+    elle = ornekleme.Adaylar("K1", "H1", "H1:theta=0.2,delta=0.08", "KESIF", tuple(ADAYLAR))
+    with pytest.raises(ValueError):
+        _ornekle(elle)
+    with pytest.raises(ValueError, match="rol"):
+        ornekleme.adaylari_kur([pozisyon._test_onayi(hipotez="H1", yapilandirma=Y_H1, t=ADAYLAR[0],
+                                                     capa=ADAYLAR[0])], rol="K1")
+    with pytest.raises((TypeError, ValueError)):
+        ornekleme.adaylari_kur([("pozisyon", ADAYLAR[0])], rol="K1")
 
 
 def test_ornekle_aday_sirasindan_ve_global_rastgelelikten_bagimsiz():
     """On-kayit §6 rev.11: "sonuc kosu sirasindan bagimsizdir". Saldiri: adaylari karistir/ters cevir ve
-    numpy global tohumunu degistir; sonuc ayni olmali. Farkli tohum en az bir kez farkli secim vermeli."""
-    taban = ornekleme.ornekle(ADAYLAR, tohum=123).secilenler
+    numpy global tohumunu degistir; sonuc ayni olmali. Farkli DEMET en az bir kez farkli secim vermeli."""
+    taban = _ornekle(_k1(ADAYLAR)).secilenler
     rng = np.random.default_rng(0)
     for _ in range(20):
         karisik = [ADAYLAR[i] for i in rng.permutation(len(ADAYLAR))]
         np.random.seed(int(rng.integers(0, 10_000)))
-        assert ornekleme.ornekle(karisik, tohum=123).secilenler == taban
-    assert ornekleme.ornekle(ADAYLAR[::-1], tohum=123).secilenler == taban
-    assert ornekleme.ornekle(iter(ADAYLAR), tohum=123).secilenler == taban
-    assert any(ornekleme.ornekle(ADAYLAR, tohum=s).secilenler != taban for s in range(124, 140))
+        assert _ornekle(_k1(karisik)).secilenler == taban
+    assert _ornekle(_k1(ADAYLAR[::-1])).secilenler == taban
+    assert _ornekle(_k1(iter(ADAYLAR))).secilenler == taban
+    assert any(_ornekle(_k1(ADAYLAR), sembol=s).secilenler != taban
+               for s in ("BBBUSDT", "CCCUSDT", "DDDUSDT", "EEEUSDT"))
 
 
 def test_ornekle_on_adaydan_az_adayin_tamami_alinir_ve_sayi_kaybolmaz():
     """On-kayit §6 rev.11: "Aday sayisi 10'dan azsa adaylarin tamami alinir ve sayi sonuc dosyasina yazilir".
     Saldiri: 0, 1, 9, 10, 11 aday; aday_sayisi her zaman gercek sayi, `eksik` yalnizca <10."""
     for n, eksik, secilen in ((0, True, 0), (1, True, 1), (9, True, 9), (10, False, 10), (11, False, 10)):
-        h = ornekleme.ornekle(ADAYLAR[:n], tohum=5)
+        h = _ornekle(_k1(ADAYLAR[:n]))
         assert (h.aday_sayisi, h.eksik, len(h)) == (n, eksik, secilen), n
-    assert ornekleme.ornekle(ADAYLAR[:9], tohum=5).secilenler == tuple(ADAYLAR[:9])
-    assert set(ornekleme.ornekle(ADAYLAR[:11], tohum=5).secilenler) < set(ADAYLAR[:11])
+    assert _ornekle(_k1(ADAYLAR[:9])).secilenler == tuple(ADAYLAR[:9])
+    assert set(_ornekle(_k1(ADAYLAR[:11])).secilenler) < set(ADAYLAR[:11])
+
+
+def test_ornekle_on_kayit_disi_sayi_reddedilir():
+    """Denetci bulgusu D-C5: `sayi` on-kayit degeri (10) olmali; serbest deger acik hata."""
+    adaylar = _k1(ADAYLAR)
+    for sayi in (1, 5, 9, 11, 40, 0, True):
+        with pytest.raises(ValueError, match="on-kayit"):
+            ornekleme.ornekle(adaylar, sembol="AAAUSDT", olay_zamani=OLAY_T, sayi=sayi)
+    assert len(_ornekle(adaylar)) == config.KONTROL_SAYISI
 
 
 def test_olay_analize_girer_yalniz_iki_havuz_da_bossa_dusulur():
     """On-kayit §6 rev.11: "Bir olayin her iki havuzu da bossa o olay analize girmez; en az bir kontrolu olan
     olay kalir"."""
-    bos = ornekleme.ornekle([], tohum=1)
-    bir = ornekleme.ornekle(ADAYLAR[:1], tohum=1)
+    bos = _ornekle(_k1([]))
+    bir = _ornekle(_k1(ADAYLAR[:1]))
     assert ornekleme.olay_analize_girer(bos, bos) is False
     assert ornekleme.olay_analize_girer(bir, bos) is True
     assert ornekleme.olay_analize_girer(bos, bir) is True
@@ -1231,7 +1275,7 @@ def test_kosu_sirasi_bagimsizligi_semboller_alfabetik_islenir_sonuc_degismez():
     for _ in range(10):
         karisik = [semboller[i] for i in rng.permutation(len(semboller))]
         assert ornekleme.sembol_sirasi(karisik) == beklenen
-        havuzlar = {s: ornekleme.ornekle(ADAYLAR, tohum=ornekleme.alt_tohum("H1", Y_H1, "KESIF", s, OLAY_T)).secilenler
+        havuzlar = {s: _ornekle(_k1(ADAYLAR), sembol=s).secilenler
                     for s in ornekleme.sembol_sirasi(karisik)}
         sonuc = havuzlar if sonuc is None else sonuc
         assert havuzlar == sonuc
@@ -1287,13 +1331,16 @@ def test_k1_birden_cok_olay_hicbirine_yakin_olmamali_bos_olay_listesi_hepsini_bi
     ikisinden de uzak ama birine yakin bar elenir. Olay yoksa tum adaylar kalir; sira korunur."""
     e1, e2 = OLAY_T, OLAY_T + 30 * H4
     aday = [e1 + k * H4 for k in range(-5, 40)]
-    kalan = ornekleme.k1_adaylari(aday, [e1, e2], 18, "4h")
+    kalan = ornekleme.k1_adaylari(_k1(aday), [e1, e2], 18, "4h")
     beklenen = tuple(t for t in aday if abs((t - e1) / H4) >= 18 and abs((t - e2) / H4) >= 18)
-    assert kalan == beklenen
-    assert ornekleme.k1_adaylari(aday, [], 18, "4h") == tuple(aday)
-    assert all(ornekleme.k1_uzak_mi(t, [e1, e2], 18, "4h") for t in kalan)
+    assert kalan.ogeler == beklenen
+    assert tuple(ornekleme.k1_adaylari(_k1(aday), [], 18, "4h").ogeler) == tuple(aday)
+    assert all(ornekleme.k1_uzak_mi(t, [e1, e2], 18, "4h") for t in kalan.ogeler)
     with pytest.raises(ValueError):
-        ornekleme.k1_adaylari(aday + aday[:2], [e1], 18, "4h")
+        _k1(aday + aday[:2])
+    # Ham liste de kabul edilmez (rev.13): adaylik kapidan gecer.
+    with pytest.raises(TypeError):
+        ornekleme.k1_adaylari(aday, [e1], 18, "4h")
 
 
 def test_k1_ufuk_degeri_on_kayit_disi_ve_tzsiz_zaman_reddedilir():
@@ -1315,13 +1362,16 @@ def test_k2_havuzu_olay_ureten_coin_ve_olayin_kendi_coini_dusulur_sira_bagimsiz(
     kendi sembolu aday listesinde, olay ureten semboller aday listesinde; ikisi de havuza girmemeli. Aday
     sirasi karistirilsa sonuc ayni ve alfabetik. Tekrarli aday ValueError."""
     adaylar = ["EEEUSDT", "AAAUSDT", "DDDUSDT", "BBBUSDT", "CCCUSDT"]
-    sonuc = ornekleme.k2_adaylari(adaylar, ["CCCUSDT", "ZZZUSDT"], olay_sembolu="AAAUSDT")
-    assert sonuc == ("BBBUSDT", "DDDUSDT", "EEEUSDT")
-    assert ornekleme.k2_adaylari(adaylar[::-1], {"CCCUSDT"}, olay_sembolu="AAAUSDT") == sonuc
-    assert ornekleme.k2_adaylari(adaylar, [], olay_sembolu="NNNUSDT") == tuple(sorted(adaylar))
-    assert ornekleme.k2_adaylari(adaylar, adaylar, olay_sembolu="AAAUSDT") == ()
+    kur = lambda ss: k2_adaylari_kur(ss, t=OLAY_T, hipotez="H1", yapilandirma=Y_H1)  # noqa: E731
+    sonuc = ornekleme.k2_adaylari(kur(adaylar), ["CCCUSDT", "ZZZUSDT"], olay_sembolu="AAAUSDT")
+    assert sonuc.ogeler == ("BBBUSDT", "DDDUSDT", "EEEUSDT")
+    assert ornekleme.k2_adaylari(kur(adaylar[::-1]), {"CCCUSDT"}, olay_sembolu="AAAUSDT").ogeler == sonuc.ogeler
+    assert ornekleme.k2_adaylari(kur(adaylar), [], olay_sembolu="NNNUSDT").ogeler == tuple(sorted(adaylar))
+    assert ornekleme.k2_adaylari(kur(adaylar), adaylar, olay_sembolu="AAAUSDT").ogeler == ()
     with pytest.raises(ValueError):
-        ornekleme.k2_adaylari(adaylar + ["AAAUSDT"], [], olay_sembolu="ZZZUSDT")
+        kur(adaylar + ["AAAUSDT"])
+    with pytest.raises(TypeError):
+        ornekleme.k2_adaylari(adaylar, [], olay_sembolu="ZZZUSDT")
 
 
 def test_k2_ornekleme_olay_ureten_coini_asla_secmez_binlerce_tohumla():
@@ -1329,9 +1379,10 @@ def test_k2_ornekleme_olay_ureten_coini_asla_secmez_binlerce_tohumla():
     tohumla ornekleme; secilenler arasinda olay ureten ya da olay coini hic cikmamali, 10 benzersiz olmali."""
     adaylar = [f"C{i:02d}USDT" for i in range(40)]
     ureten = {"C03USDT", "C11USDT", "C17USDT", "C25USDT", "C39USDT"}
-    havuz = ornekleme.k2_adaylari(adaylar, ureten, olay_sembolu="C00USDT")
+    kur = k2_adaylari_kur(adaylar, t=OLAY_T, hipotez="H1", yapilandirma=Y_H1)
+    havuz = ornekleme.k2_adaylari(kur, ureten, olay_sembolu="C00USDT")
     assert len(havuz) == 40 - 5 - 1
-    for tohum in range(500):
-        sec = ornekleme.ornekle(havuz, tohum=tohum).secilenler
+    for i in range(500):
+        sec = _ornekle(havuz, olay_zamani=OLAY_T + i * H4).secilenler
         assert len(set(sec)) == 10
         assert not (set(sec) & (ureten | {"C00USDT"}))

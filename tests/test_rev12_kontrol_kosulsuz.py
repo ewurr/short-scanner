@@ -24,6 +24,7 @@ import config
 from data import ornekleme, pencere, pozisyon, sinyal
 from kapi_yardimcisi import veri
 from kume_yardimcisi import kume_adi
+from ornekleme_yardimcisi import k2_adaylari_kur
 from sinyal_yardimcisi import kontrol, olay, yapilandirma
 from uygunluk_yardimcisi import esikler
 
@@ -166,10 +167,15 @@ def test_kosul_degerlendirmesi_hata_verecek_veride_bile_kontrol_olusur(rol):
 
 def test_k2_elemesi_olay_kumesine_gore_ornekleme_adiminda():
     """On-kayit §6 "Ornekleme kurallari" (rev.12): "bir bar yalnizca o kumede yer aliyorsa K2
-    havuzundan cikarilir". Kosulu saglayan ama olay olusmamis barlar HAVUZDA KALIR."""
-    assert ornekleme.k2_adaylari(["AAAUSDT", "BBBUSDT"], ["AAAUSDT"], olay_sembolu="CCCUSDT") == ("BBBUSDT",)
+    havuzundan cikarilir". Kosulu saglayan ama olay olusmamis barlar HAVUZDA KALIR.
+
+    Adaylar kapidan gecmis onaylardan kurulur (rev.13 madde (d))."""
+    kur = lambda ss: k2_adaylari_kur(ss, t=T2, hipotez="H2")  # noqa: E731
+    assert ornekleme.k2_adaylari(kur(["AAAUSDT", "BBBUSDT"]), ["AAAUSDT"],
+                                 olay_sembolu="CCCUSDT").ogeler == ("BBBUSDT",)
     # Olay uretmemisse kalir; olayin kendi coini de ayiklanir ("diger coinlerden").
-    assert ornekleme.k2_adaylari(["AAAUSDT", "CCCUSDT"], [], olay_sembolu="CCCUSDT") == ("AAAUSDT",)
+    assert ornekleme.k2_adaylari(kur(["AAAUSDT", "CCCUSDT"]), [],
+                                 olay_sembolu="CCCUSDT").ogeler == ("AAAUSDT",)
 
 
 def test_uc_hipotez_ayni_yolu_kullanir():
