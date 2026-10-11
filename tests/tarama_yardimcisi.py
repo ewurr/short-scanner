@@ -136,3 +136,48 @@ ONBELLEK_DESENI = (
     r"|\bSHORT_LAB_ONAY_VERISI_IZNI\b|\b_IZIN_ORTAM_ADI\b|\b_DEVRALINAN_IZIN\b|\b_izni_devral\b"
 )
 ONBELLEK_UZANTILARI = (".py", ".ipynb", ".pyw")
+
+
+# Olay uretiminin `data.dizi`den gecmesi (on-kayit §4 rev.12 "Olayin kumede olusma olcutu": "Tek
+# karar noktasinin onayi ... yeterli degildir"; §5 dizi kurallari). Iki desen:
+#
+# 1. `DIZI_ATLATMA_DESENI`: analiz kodu olay nesnesini ELLE kurmaz ve imza gizlisine erismez.
+#    Calisma aninda da engellenir (`dizi.olay_dogrula`); bu tarama ikincil savunmadir.
+# 2. `olay_rolu_ihlalleri`: kapiya "olay" ROLUNU veren bir analiz dosyasi, ayni dosyada
+#    `olay_dizisi`ni de anmak zorundadir. Kapiyi dogrudan olay rolunde cagiran ama dizi
+#    kurallarini hic calistirmayan bir betik boylece yakalanir.
+#
+# BILINEN ACIKLAR (ikisi de `ihlaller`in genel siniri):
+#   - `analysis/00_veri_denetimi/` muaftir (F1 olcum betikleri; `IZINLI_ALTLAR`). F1 kodu olay
+#     uretmez ama muafiyet desenleri orada da gormez.
+#   - Varsayilan uzanti yalnizca `.py`dir; bir `.ipynb` defteri taranmaz (`ONBELLEK_DESENI`
+#     ayrica `.ipynb` tarar, bu desenler taramaz).
+#   - Adi parcalayip `getattr`/`importlib` ile kurulan bir erisim hicbir desende yakalanmaz.
+# Bu yuzden tarama TEK savunma degildir: dizi ile kapi arasindaki iki yonlu dogrulama
+# (`dizi._olay_dogrula` ve `dizi.olay_dogrula`) calisma aninda isler.
+DIZI_ATLATMA_DESENI = (
+    r"\b_OLAY_GIZLI\b|\b_olay_imzasi\b|\b_olay_kur\b|\b_olay_dogrula\b"
+    r"|\b(dizi(_modulu)?\s*\.\s*)?Olay\s*\("
+)
+
+OLAY_ROLU_DESENI = r"""rol\s*=\s*["']olay["']"""
+
+
+def olay_rolu_ihlalleri(kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR, uzantilar=(".py",)) -> list[str]:
+    """Kapiya "olay" rolunu veren ama `olay_dizisi`ni hic anmayan analiz dosyalari.
+
+    On-kayit §4 (rev.12): olay kumesi yalnizca kapinin onayi ILE dizi kurallarinin birlikte
+    saglandigi barlardan olusur. Bir analiz dosyasi `rol="olay"` ile kapiyi cagiriyorsa dizi
+    kurallarini da calistirmak zorundadir; en azindan `olay_dizisi`ni anmalidir. Tarama
+    dosya duzeyindedir ve niyeti olcmez: ayni dosyada iki adin birlikte gectigini dogrular.
+    """
+    rol_deseni = re.compile(OLAY_ROLU_DESENI)
+    izinli = {kok / alt for alt in izinli_altlar}
+    bulunan = []
+    for yol in sorted(y for u in uzantilar for y in kok.rglob(f"*{u}")):
+        if any(p in izinli for p in yol.parents):
+            continue
+        metin = yol.read_text(encoding="utf-8", errors="replace")
+        if rol_deseni.search(metin) and "olay_dizisi" not in metin:
+            bulunan.append(yol.relative_to(kok).as_posix())
+    return bulunan

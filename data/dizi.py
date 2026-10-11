@@ -75,7 +75,7 @@ hesaplamaz.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import pandas as pd
@@ -102,13 +102,54 @@ class KosulHesaplanamaz:
     """
 
 
+_OLAY_GIZLI = object()
+
+
 @dataclass(frozen=True)
 class Olay:
-    """Dizi kurallarindan ve kapidan gecmis bir olay."""
+    """Dizi kurallarindan VE kapidan gecmis bir olay. Yalnizca `olay_dizisi` uretir.
+
+    On-kayit §4 "Olayin kumede olusma olcutu" (rev.12): "Tek karar noktasinin onayi, bir olayin
+    olusmasi icin gereklidir ama YETERLI DEGILDIR: §5'teki dizi kurallari (bekleme suresi, H1'de
+    tek izleme, H3'te ilk gun) da saglanmalidir. Olay kumesi yalnizca iki kosulun birlikte
+    saglandigi barlardan olusur; dizi kurallarindan gecmemis bir onay olay DEGILDIR ve hicbir
+    hesaba, hicbir kontrol olcutune girmez."
+
+    Bu yuzden nesne IMZALIDIR (`olay_dogrula`): "olay" tipi yalnizca `olay_dizisi`den cikar,
+    elle kurulamaz. Kapinin onayi (`pozisyon.OnaylanmisPozisyon`) tek basina bir olay nesnesi
+    uretmez; F2'nin olay kumesi `DiziSonucu.olaylar`dir. Tersi yon `_olay_dogrula`dadir: dizi de
+    kapidan gecmemis bir onayi olay saymaz. Ikinci (ve zayif) bir savunma kaynak taramasidir
+    (`tests/tarama_yardimcisi.DIZI_ATLATMA_DESENI`, `olay_rolu_ihlalleri`).
+    """
 
     zaman: pd.Timestamp
     capa: pd.Timestamp | None
     pozisyon: object
+    _imza: int = field(default=0, repr=False, compare=False)
+
+
+def _olay_imzasi(o: Olay) -> int:
+    return hash((_OLAY_GIZLI, o.zaman, o.capa, getattr(o.pozisyon, "_imza", None),
+                 getattr(o.pozisyon, "rol", None), getattr(o.pozisyon, "hipotez", None),
+                 getattr(o.pozisyon, "yapilandirma", None)))
+
+
+def _olay_kur(zaman, capa, pozisyon) -> Olay:
+    o = Olay(zaman, capa, pozisyon)
+    return replace(o, _imza=_olay_imzasi(o))
+
+
+def olay_dogrula(olay) -> None:
+    """`olay_dizisi`nin urettigi ve degistirilmemis bir olay mi? (on-kayit §4 rev.12)
+
+    F2'nin olay kumesini tuketen her kod bu yuklemle baslar: dizi kurallarindan gecmemis bir
+    onay, elle kurulmus bir `Olay` nesnesiyle olay kumesine sokulamaz.
+    """
+    if not isinstance(olay, Olay):
+        raise TypeError(f"Olay gerekir (dizi.olay_dizisi ciktisi); verilen: {type(olay).__name__}. Kapinin "
+                        "onayi tek basina olay DEGILDIR (on-kayit §4 rev.12: dizi kurallari da gerekli).")
+    if olay._imza != _olay_imzasi(olay):
+        raise ValueError("Olay elle kurulmus ya da degistirilmis; yalnizca dizi.olay_dizisi uretir.")
 
 
 @dataclass(frozen=True)
@@ -243,7 +284,7 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
             retler.append(Ret(t, capa, pencere_modulu.ret_gerekcesi(hata)))
             return False
         _olay_dogrula(pozisyon, hipotez=ad, yapilandirma_kimligi=kimlik, t=t, capa=capa)
-        olaylar.append(Olay(t, capa, pozisyon))
+        olaylar.append(_olay_kur(t, capa, pozisyon))
         son_olay = t
         return True
 
