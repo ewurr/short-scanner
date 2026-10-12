@@ -8,7 +8,7 @@ import pytest
 import config
 from conftest import sahte_4h
 from data import split
-from onay_yardimcisi import kosu
+from onay_yardimcisi import gecici_kayit, kosu
 
 
 def test_bolme_deterministik():
@@ -67,7 +67,7 @@ def ornek_split(tmp_path, monkeypatch):
 def kayit(tmp_path, monkeypatch):
     yol = tmp_path / "ONAY_KAYDI.md"
     yol.write_text("bas\n", encoding="utf-8")
-    split._test_kaydi_ayarla(yol)
+    gecici_kayit(yol)
     return yol
 
 

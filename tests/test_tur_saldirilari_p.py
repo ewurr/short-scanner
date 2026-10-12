@@ -480,14 +480,23 @@ def test_config_yeniden_adlandirma_sozlugu_degistirilerek_bolme_kaydirilamaz(tmp
     assert izinli is False, "yeniden adlandirma sozlugu degistirilerek BTCUSDT KESIF'e sokuldu"
 
 
-@pytest.mark.xfail(reason="P-14: `config.HIPOTEZLER` degistirilebilir; yeni hipotez adi C1/C2 icin ek tek atis "
-                          "hakki dogurur", **_BASARILI)
+# SALDIRI BULGUSU P-14 KAPANDI (Rev.12-13 uygulamasi madde 2h): `config.HIPOTEZLER`i calisma aninda
+# genisletmek ARTIK ek bir tek atis hakki dogurmuyor, cunku onay kosusu hipotezin KILIT.md kaydini da
+# okuyor ve kaydi olmayan ad icin acilmiyor (on-kayit §8 madde 5). Isaret kaldirildi; testin beklentisi
+# degismedi (kosu reddedilmeli), red SINIFI `split.KilitYok` olarak eklendi. Siniri: kilit kaydini da
+# yazan KASITLI bir mudahale yine engellenemez; bu `test_tur_saldirilari_n`de belgelenmistir.
 def test_config_hipotezleri_genisletilip_yeni_adla_onay_kosusu_acilamaz(depo):
     """Kural: CLAUDE.md §3.3 (her hipotez icin BIR kez), on-kayit §5 (H1, H2, H3). Saldiri:
     `config.HIPOTEZLER = (*HIPOTEZLER, "H4")` (korunan adlarda yok), `onay_kosusu("H4", "C1")`. Guvenli
-    davranis: atama `SabitDegistirilemez` verir ya da kosu `ValueError` ile reddedilir."""
+    davranis: atama `SabitDegistirilemez` verir ya da kosu reddedilir.
+
+    REV.13 ILE DEGISTI (on-kayit §8 madde 5): kosu artik ONCE hipotezin KILIT.md kaydini okuyor
+    ("dosyada kaydi olmayan ... bir hipotez icin onay kosusu acilmaz") ve bu denetim hicbir sey
+    yazilmadan once calisiyor, boylece kaydi olmayan bir hipotez icin onay cifti HARCANMIYOR
+    (madde 4). H4'un kaydi olmadigi icin red artik `split.KilitYok` ile geliyor; red SINIFI
+    degisti, hukum degismedi: kosu acilamaz ve kayda hicbir sey yazilmaz."""
     yeni = (*config.HIPOTEZLER, "H4")
-    with pytest.raises((config.SabitDegistirilemez, ValueError)):
+    with pytest.raises((config.SabitDegistirilemez, ValueError, split.KilitYok)):
         with _ham_ata(config, "HIPOTEZLER", yeni):
             with kosu("H4", "C1"):
                 pass

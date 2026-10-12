@@ -298,6 +298,174 @@ def _iso_zaman() -> str:
 # --- Kosu ortami (KS3 D-B2) --------------------------------------------------
 
 
+class KilitYok(OnayOrtamiHatasi):
+    """Hipotezin `analysis/<hipotez>/KILIT.md` kaydi yok ya da commit edilmemis (on-kayit §8 madde 5,
+    rev.13): "Secim, onay kosusundan once `analysis/<hipotez>/KILIT.md` dosyasiyla commit edilir.
+    Onay kosusu, kostugu hipotezin yapilandirmasini bu dosyadan okur; dosyada kaydi olmayan ... bir
+    hipotez icin onay kosusu acilmaz." """
+
+
+class KilitBozuk(OnayOrtamiHatasi):
+    """KILIT.md okunabildi ama on-kayit §8 madde 5'teki alanlari tasimiyor, ya da bir alan birden
+    fazla kez yazilmis (ekleme kurali: "bir hipotezin kaydi yazildiktan sonra degistirilmez")."""
+
+
+class HipotezKapandi(OnayOrtamiHatasi):
+    """KILIT.md'nin hukmu "hipotez kapandi" (on-kayit §8 madde 4): secilecek yapilandirma yoktur ve
+    onay verisi harcanmaz; koşu acilmaz."""
+
+
+# --- F2'nin kilitledigi yapilandirma (on-kayit §8 madde 5, rev.13) ----------------------------
+#
+# Dosya `analysis/<hipotez>/KILIT.md`dir ve olusturuldugu andan itibaren kilitli dosyalar arasina
+# girer (CLAUDE.md "Koruma katmani"; `.claude/hooks/kilitli_dosya_korumasi.py`). Alanlari on-kayit
+# §8 madde 5'te sayilidir ve yetkili metin odur; burada yalnizca OKUNUR, yazilmaz.
+KILIT_ADI = "KILIT.md"
+KILIT_SECILDI = "yapilandirma secildi"
+KILIT_KAPANDI = "hipotez kapandi"
+KILIT_HUKUMLERI = (KILIT_SECILDI, KILIT_KAPANDI)
+
+# On-kayit §8 madde 5: "Dosya su alanlari tasir: hipotez; hukum ... ve kapandiysa gerekcesi;
+# secildiyse yapilandirmanin kimligi ve butun parametre degerleri; analize giren ve olusmus olay
+# sayilari; K2 farki; kesif kosusunun commit hash'i ve UTC zamani; tohum."
+KILIT_ALANLARI = ("hipotez", "hukum", "gerekce", "yapilandirma", "parametreler", "olusmus_olay",
+                  "analize_giren_olay", "k2_farki", "kesif_commit", "kesif_zamani", "tohum")
+# Hukum "hipotez kapandi" iken yapilandirmaya ait alanlar bos olabilir ("-").
+KILIT_SECIM_ALANLARI = ("yapilandirma", "parametreler", "k2_farki")
+
+
+@dataclass(frozen=True)
+class KilitKaydi:
+    """F2'nin bir hipotez icin kilitledigi karar (on-kayit §8 madde 5). Salt okunur."""
+
+    hipotez: str
+    hukum: str
+    gerekce: str
+    yapilandirma: str
+    parametreler: str
+    olusmus_olay: int
+    analize_giren_olay: int
+    k2_farki: float
+    kesif_commit: str
+    kesif_zamani: str
+    tohum: int
+
+    @property
+    def secildi(self) -> bool:
+        return self.hukum == KILIT_SECILDI
+
+
+def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
+    """KILIT.md metnini `KilitKaydi`ya cevirir. SAF.
+
+    Bicim: `| alan | deger |` satirlari (tablo basligi ve ayirici satirlari atlanir). Her zorunlu
+    alan TAM BIR KEZ bulunmali; iki kez bulunan alan dosyanin degistirildigini ya da ikinci bir
+    kayit yazildigini gosterir ve ekleme kuralini (on-kayit §8 madde 5) bozar.
+    """
+    alanlar: dict[str, str] = {}
+    for satir in metin.splitlines():
+        s = satir.strip()
+        if not s.startswith("|"):
+            continue
+        hucreler = [h.strip() for h in s.strip("|").split("|")]
+        if len(hucreler) != 2 or set(hucreler[0]) <= set("-: ") or hucreler[0].lower() == "alan":
+            continue
+        ad = hucreler[0].lower()
+        if ad not in KILIT_ALANLARI:
+            continue
+        if ad in alanlar:
+            raise KilitBozuk(f"{hipotez} KILIT.md: `{ad}` alani birden fazla kez yazilmis. Dosya yalnizca "
+                             "ekleme kuralina tabidir: bir hipotezin kaydi yazildiktan sonra degistirilmez "
+                             "(on-kayit §8 madde 5).")
+        alanlar[ad] = hucreler[1]
+    eksik = [a for a in KILIT_ALANLARI if a not in alanlar]
+    if eksik:
+        raise KilitBozuk(f"{hipotez} KILIT.md: eksik alan(lar) {eksik}; on-kayit §8 madde 5'teki butun "
+                         f"alanlar bulunmali ({list(KILIT_ALANLARI)}).")
+    if alanlar["hipotez"] != hipotez:
+        raise KilitBozuk(f"KILIT.md'nin hipotez alani {alanlar['hipotez']!r}, dosya {hipotez} icin okundu.")
+    if alanlar["hukum"] not in KILIT_HUKUMLERI:
+        raise KilitBozuk(f"{hipotez} KILIT.md: hukum {KILIT_HUKUMLERI} olmali; verilen {alanlar['hukum']!r}.")
+    secildi = alanlar["hukum"] == KILIT_SECILDI
+
+    def _tam(ad: str) -> int:
+        try:
+            return int(str(alanlar[ad]).replace(".", "").strip())
+        except ValueError:
+            raise KilitBozuk(f"{hipotez} KILIT.md: `{ad}` bir tamsayi olmali; verilen {alanlar[ad]!r}.") from None
+
+    def _ondalik(ad: str) -> float:
+        if not secildi:
+            return float("nan")
+        try:
+            return float(str(alanlar[ad]).replace(",", ".").strip())
+        except ValueError:
+            raise KilitBozuk(f"{hipotez} KILIT.md: `{ad}` bir sayi olmali; verilen {alanlar[ad]!r}.") from None
+
+    if secildi:
+        bos = [a for a in KILIT_SECIM_ALANLARI if not alanlar[a].strip() or alanlar[a].strip() in ("-", "—")]
+        if bos:
+            raise KilitBozuk(f"{hipotez} KILIT.md: hukum '{KILIT_SECILDI}' iken {bos} alan(lari) bos olamaz "
+                             "(on-kayit §8 madde 5).")
+    elif not alanlar["gerekce"].strip() or alanlar["gerekce"].strip() in ("-", "—"):
+        raise KilitBozuk(f"{hipotez} KILIT.md: hukum '{KILIT_KAPANDI}' iken gerekce yazilmali "
+                         "(on-kayit §8 madde 4: 'kapanma gerekcesi').")
+    if _tam("tohum") != config.TOHUM:
+        raise KilitBozuk(f"{hipotez} KILIT.md: tohum on-kayit §7 degeri olmali ({config.TOHUM}); verilen "
+                         f"{alanlar['tohum']!r}.")
+    if _tam("analize_giren_olay") > _tam("olusmus_olay"):
+        raise KilitBozuk(f"{hipotez} KILIT.md: analize giren olay sayisi olusmus olay sayisini asamaz "
+                         "(on-kayit §8 madde 2).")
+    return KilitKaydi(hipotez=hipotez, hukum=alanlar["hukum"], gerekce=alanlar["gerekce"],
+                      yapilandirma=alanlar["yapilandirma"], parametreler=alanlar["parametreler"],
+                      olusmus_olay=_tam("olusmus_olay"), analize_giren_olay=_tam("analize_giren_olay"),
+                      k2_farki=_ondalik("k2_farki"), kesif_commit=alanlar["kesif_commit"],
+                      kesif_zamani=alanlar["kesif_zamani"], tohum=_tam("tohum"))
+
+
+def kilit_yolu(hipotez: str) -> Path:
+    """`analysis/<hipotez>/KILIT.md` (on-kayit §8 madde 5: "Dosyanin yolu bu on-kayitta yazili
+    olandir"). Test kipinde kok testin verdigi gecici dizindir."""
+    ad = _hipotez_dogrula(hipotez)
+    test = _test_ayari()
+    kok = test.kilit_koku if test is not None and test.kilit_koku is not None else _depo()
+    return Path(kok) / "analysis" / ad / KILIT_ADI
+
+
+def kilit_oku(hipotez: str) -> KilitKaydi:
+    """Hipotezin kilitli yapilandirmasini okur (on-kayit §8 madde 5, rev.13).
+
+    Dosya bulunmali ve COMMIT EDILMIS olmali ("Secim, onay kosusundan once ... commit edilir");
+    calisma agacindaki metin HEAD'dekinden farkliysa `KilitYok`. Sahte git kipinde (yalnizca
+    testler) HEAD denetimi yapilmaz, `ONAY_KAYDI` ile ayni yaklasim.
+    """
+    ad = _hipotez_dogrula(hipotez)
+    yol = kilit_yolu(ad)
+    if not yol.exists():
+        raise KilitYok(f"{ad} icin kilit dosyasi yok: {yol}. F2'nin secimi commit edilmeden onay kosusu "
+                       "acilmaz (on-kayit §8 madde 5).")
+    with yol.open("r", encoding="utf-8", newline="") as dosya:
+        metin = dosya.read()
+    if not _sahte_git():
+        try:
+            goreli = yol.resolve().relative_to(_depo().resolve()).as_posix()
+        except ValueError:
+            raise OnayOrtamiHatasi(f"{yol} git deposunun ({_depo()}) icinde degil.") from None
+        agac = _git("ls-tree", "--name-only", "HEAD", "--", goreli)
+        if agac is None:
+            raise OnayOrtamiHatasi(f"{goreli} denetlenemedi: HEAD okunamadi.")
+        if not agac.strip():
+            raise KilitYok(f"{goreli} HEAD'de yok: F2'nin secimi commit edilmeden onay kosusu acilmaz "
+                           "(on-kayit §8 madde 5).")
+        head_metni = _git("cat-file", "blob", f"HEAD:{goreli}")
+        if head_metni is None:
+            raise OnayOrtamiHatasi(f"HEAD:{goreli} okunamadi.")
+        if kilit_kaydi_coz(head_metni, ad) != kilit_kaydi_coz(metin, ad):
+            raise KilitYok(f"{goreli} calisma agacinda HEAD'dekinden farkli. Dosya yalnizca ekleme kuralina "
+                           "tabidir ve onay kosusundan once commit edilir (on-kayit §8 madde 5).")
+    return kilit_kaydi_coz(metin, ad)
+
+
 @dataclass(frozen=True)
 class KosuOrtami:
     """Onay kosusunun acildigi ortam: HEAD commit'i (40 hane) ve cagiran betigin depo icindeki yolu."""
@@ -364,6 +532,8 @@ class _TestAyari:
     izleniyor: bool
     depo: Path | None
     uzak: Path | None = None
+    # KILIT.md'lerin koku (on-kayit §8 madde 5). Verilmezse `_depo()`: gercek kosuda depo kokudur.
+    kilit_koku: Path | None = None
 
 
 _TEST_AYARI: _TestAyari | None = None
@@ -379,7 +549,7 @@ def _pytest_testi() -> str | None:
 
 def _test_kaydi_ayarla(yol, *, head: str | None = "0" * 40, durum: str | None = "",
                        betik: str | None = "tests/onay_testi.py", izleniyor: bool = True,
-                       depo=None, uzak=None) -> Path:
+                       depo=None, uzak=None, kilit_koku=None) -> Path:
     """YALNIZCA TESTLER ICIN: bu pytest testi suresince kayit yolunu ve git ortamini degistirir.
 
     Ayar yalnizca onu kuran testin kimligiyle (`PYTEST_CURRENT_TEST`) gecerlidir; test bitince kendiliginden
@@ -402,8 +572,11 @@ def _test_kaydi_ayarla(yol, *, head: str | None = "0" * 40, durum: str | None = 
     onceki = _test_ayari()
     if uzak is None and onceki is not None:
         uzak = onceki.uzak
+    if kilit_koku is None and onceki is not None:
+        kilit_koku = onceki.kilit_koku
     _TEST_AYARI = _TestAyari(test, Path(yol), head, durum, betik, izleniyor, None if depo is None else Path(depo),
-                             None if uzak is None else Path(uzak))
+                             None if uzak is None else Path(uzak),
+                             None if kilit_koku is None else Path(kilit_koku))
     return Path(yol)
 
 
@@ -807,6 +980,9 @@ class _Kosu:
     betik: str
     baslangic: str
     surec: int
+    # F2'nin kilitledigi yapilandirma (on-kayit §8 madde 5): koşu acilirken okunur ve kosu
+    # boyunca pozisyonlarin yapilandirmasiyla eslestirilir (`onay_baglami_dogrula`).
+    kilit: KilitKaydi | None = None
 
     def satir(self, alanlar: str) -> str:
         return (f"| {_tablo_zamani()} | {self.kume} | {self.betik} | {self.commit} (temiz) | "
@@ -844,10 +1020,16 @@ def aktif_onay_kosusu() -> tuple[str, str] | None:
     return None if kosu is None else (kosu.hipotez, kosu.kume)
 
 
-def onay_baglami_dogrula(hipotez: str, kume: str) -> None:
+def onay_baglami_dogrula(hipotez: str, kume: str, yapilandirma: str | None = None) -> None:
     """Karar noktasinin onay baglami (kapi sertlestirme turu 3, denetci KS2 D-B1): C1/C2 pozisyonu yalnizca
     ayni (hipotez, kume) ciftinin acik onay kosusu icinde; acik bir onay kosusu varken baska hicbir
-    (hipotez, kume) pozisyonu, KESIF dahil, olusturulamaz. Uyusmazlik `OnayUyusmazligi`."""
+    (hipotez, kume) pozisyonu, KESIF dahil, olusturulamaz. Uyusmazlik `OnayUyusmazligi`.
+
+    `yapilandirma` (yapilandirma KIMLIGI) verilirse acik kosunun KILIT.md'deki yapilandirmasiyla
+    eslestirilir (on-kayit §8 madde 5, rev.13: "Onay kosusu, kostugu hipotezin yapilandirmasini bu
+    dosyadan okur"). Boylece onay kosusu icinde baska bir yapilandirmanin pozisyonu olusturulamaz:
+    F3 yalnizca F2'nin kilitledigi yapilandirmayi kosar (§9: "Secilen yapilandirma C1 ve C2'de birer
+    kez kosulur")."""
     if kume in config.ONAY_KUMELERI or _AKTIF_KOSU is not None:
         aktif = aktif_onay_kosusu()
         if aktif != (hipotez, kume):
@@ -855,6 +1037,13 @@ def onay_baglami_dogrula(hipotez: str, kume: str) -> None:
                 f"Pozisyon ({hipotez}, {kume}) acik onay kosusuyla ({aktif}) eslesmiyor. C1/C2 pozisyonu yalnizca "
                 f"`with split.onay_kosusu({hipotez!r}, {kume!r}):` icinde; acik kosu varken baska pozisyon "
                 "olusturulamaz.")
+        kosu = _acik_kosu()
+        kilit = None if kosu is None else kosu.kilit
+        if yapilandirma is not None and kilit is not None and kilit.yapilandirma != yapilandirma:
+            raise OnayUyusmazligi(
+                f"Pozisyonun yapilandirmasi ({yapilandirma}) {hipotez} icin KILIT.md'de kilitlenen "
+                f"yapilandirmayla ({kilit.yapilandirma}) eslesmiyor. Onay kosusu yalnizca F2'nin sectigi "
+                "yapilandirmayi kosar (on-kayit §8 madde 5, §9).")
 
 
 class OnayKosusu:
@@ -953,12 +1142,21 @@ def onay_kosusu(hipotez: str, kume: str):
     _onay_kumesi_dogrula(kume)
     if _AKTIF_KOSU is not None:
         raise RuntimeError(f"Zaten acik bir onay kosusu var: {_AKTIF_KOSU}. Ic ice kosu acilamaz.")
+    # F2'nin secimi onay kosusundan ONCE okunur (on-kayit §8 madde 5, rev.13): "dosyada kaydi
+    # olmayan ya da hukmu 'hipotez kapandi' olan bir hipotez icin onay kosusu acilmaz". Hicbir sey
+    # yazilmadan once denetlenir, boylece kapanmis bir hipotez icin cift HARCANMAZ (madde 4).
+    kilit = kilit_oku(hipotez)
+    if not kilit.secildi:
+        raise HipotezKapandi(
+            f"{hipotez} KILIT.md'de kapanmis: hukum={kilit.hukum!r}, gerekce={kilit.gerekce!r}. Secilecek "
+            "yapilandirma yoktur ve onay verisi harcanmaz (on-kayit §8 madde 4-5).")
     _kayit_commitli_denetle()
     ortam = _kosu_ortami()  # yerel denetimler once: ag islemi yalnizca temiz, izlenen bir ortamda
     _uzak_adresi_denetle()
     _uzagi_getir()
     _itilmemis_denetle()
-    kosu = _Kosu(hipotez, kume, uuid.uuid4().hex[:12], ortam.commit, ortam.betik, _iso_zaman(), os.getpid())
+    kosu = _Kosu(hipotez, kume, uuid.uuid4().hex[:12], ortam.commit, ortam.betik, _iso_zaman(), os.getpid(),
+                 kilit)
     with _kayit_kilidi():
         eski = _kaydi_oku()
         if (hipotez, kume) in harcanan_ciftler():

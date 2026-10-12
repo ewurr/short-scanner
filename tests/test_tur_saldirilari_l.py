@@ -23,7 +23,7 @@ from data import funding, pencere, pozisyon, split, universe
 from kapi_yardimcisi import donem, veri
 from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler, uygunluk
-from onay_yardimcisi import kosu
+from onay_yardimcisi import gecici_kayit, kosu
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -103,7 +103,7 @@ def test_gercek_a_grubu_sembol_c1_kumesinde_reddedilir(tmp_path, monkeypatch):
     # Kapi sertlestirme turu 3: C1 cagrisi once onay baglamindan gecer; grup denetimi acik kosu icinde sinanir.
     kayit = tmp_path / "onay_gecici.md"
     kayit.write_text("bas\n", encoding="utf-8")
-    split._test_kaydi_ayarla(kayit)
+    gecici_kayit(kayit)
     with kosu("H1", "C1"), pytest.raises(ValueError, match="kumesine ait degil"):
         pozisyon.olay_karari(  # kapi sertlestirme turu 2: cerceve parametreleri kalkti
             T("2025-01-01"), tanim.birincil, tanim.bar, hipotez="H1",
@@ -203,7 +203,7 @@ def test_gercek_fundingsiz_donem_uygun_funding_cercevesiyle_bile_atlatilamaz(tmp
     monkeypatch.setitem(SENTETIK_VERI, sembol, (_hazirla(mumlar, uygun_bas=bas, hacim=5e7, eksik_gunler=()), fr))
     kayit = tmp_path / "onay_gecici.md"
     kayit.write_text("bas\n", encoding="utf-8")
-    split._test_kaydi_ayarla(kayit)
+    gecici_kayit(kayit)
     import contextlib
 
     baglam = kosu("H1", kume) if kume in config.ONAY_KUMELERI else contextlib.nullcontext()

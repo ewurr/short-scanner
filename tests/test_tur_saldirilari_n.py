@@ -22,7 +22,7 @@ from data import funding, pencere, pozisyon, split
 from kapi_yardimcisi import veri
 from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler
-from onay_yardimcisi import kosu
+from onay_yardimcisi import gecici_kayit as kayit_ayarla, kilit_yaz, kosu
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -42,7 +42,7 @@ T_SINYAL = T("2025-03-10 04:00")
 def gecici_kayit(tmp_path, monkeypatch):
     yol = tmp_path / "onay_gecici.md"
     yol.write_text("bas\n", encoding="utf-8")
-    split._test_kaydi_ayarla(yol)
+    kayit_ayarla(yol)
     return yol
 
 
@@ -170,8 +170,17 @@ def test_numpy_str_hipotez_adi_kosu_acamaz(gecici_kayit):
 def test_config_hipotezler_monkeypatch_belgeleme(gecici_kayit, monkeypatch):
     """Gorev tanimi geregi bu bir bulgu SAYILMAZ: `config.HIPOTEZLER` on-kayit sabitidir ve tek guven
     kaynagidir (CLAUDE.md §5); onu calisma aninda degistirmek, kilitli dosyayi elle duzenlemeye
-    esdeger kasitli bir mudahaledir. Burada yalnizca beklenen (kacinilmaz) davranis belgelenir."""
+    esdeger kasitli bir mudahaledir. Burada yalnizca beklenen (kacinilmaz) davranis belgelenir.
+
+    REV.13 ILE DEGISTI (on-kayit §8 madde 5): onay kosusu artik hipotezin KILIT.md kaydini da
+    okur ve kaydi olmayan hipotez icin acilmaz. Yani bu atlatma tek basina yetmiyor; sahte adin
+    kilit kaydini da yazmak gerekiyor. Testin hukmu ayni (kasitli mudahale engellenemez), eşik
+    yukseldi: iki mudahale birlikte gerekiyor."""
     monkeypatch.setattr(config, "HIPOTEZLER", config.HIPOTEZLER + ("SAHTE_HIPOTEZ",))
+    with pytest.raises(split.KilitYok):           # kilit kaydi olmadan acilmaz (rev.13)
+        with kosu("SAHTE_HIPOTEZ", "C1"):
+            pytest.fail("kilit kaydi olmadan kosu acilmamali")
+    kilit_yaz(split._test_ayari().kilit_koku, "SAHTE_HIPOTEZ")
     with kosu("SAHTE_HIPOTEZ", "C1"):
         assert split.aktif_onay_kosusu() == ("SAHTE_HIPOTEZ", "C1")
 

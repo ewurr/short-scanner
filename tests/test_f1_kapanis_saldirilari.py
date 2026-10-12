@@ -27,6 +27,7 @@ from data import binance_vision as bv
 from data import donem as donem_modulu
 from data import klines, pencere, split
 from tarama_yardimcisi import KUME_NONE_DESENI, ihlaller
+from onay_yardimcisi import gecici_kayit
 
 
 def _seri(bas: str, adet: int, bar: str = config.BAR_4H, deger: float = 1.0) -> pd.Series:
@@ -100,7 +101,7 @@ def test_kume_erisimi_onay_stringi_false_yetkisiz_erisimi_aciyor(tmp_path, monke
     kopya = tmp_path / "ONAY_KAYDI.md"
     kopya.write_bytes(config.ONAY_KAYDI.read_bytes())
     once = kopya.read_bytes()
-    split._test_kaydi_ayarla(kopya)
+    gecici_kayit(kopya)
 
     with pytest.raises(PermissionError):
         split.kume_erisimi("ZZUSDT", "C1", onay="False")

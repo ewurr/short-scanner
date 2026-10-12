@@ -19,6 +19,7 @@ import config
 from donem_yardimcisi import TOPLAM_DONEM_B, TOPLAM_DONEM_BASI  # noqa: E402
 from data import donem as donem_modulu
 from data import eligibility, pencere, split
+from onay_yardimcisi import gecici_kayit
 
 
 def _seri(bas: str, adet: int, bar: str = config.BAR_4H, deger: float = 1.0) -> pd.Series:
@@ -213,7 +214,7 @@ def test_gercek_onay_kaydina_onaysiz_erisim_dosyayi_degistirmez(tmp_path, monkey
     kopya = tmp_path / "ONAY_KAYDI.md"
     kopya.write_bytes(config.ONAY_KAYDI.read_bytes())
     once = kopya.read_bytes()
-    split._test_kaydi_ayarla(kopya)
+    gecici_kayit(kopya)
 
     for kume in ("C1", "C2"):
         with pytest.raises(PermissionError):

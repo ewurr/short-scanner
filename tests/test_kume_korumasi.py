@@ -20,7 +20,7 @@ import pytest
 import config
 from data import funding, klines, split, universe
 from tarama_yardimcisi import ihlaller
-from onay_yardimcisi import kosu
+from onay_yardimcisi import gecici_kayit, kosu
 
 
 @pytest.fixture
@@ -51,7 +51,7 @@ def tablo(tmp_path, monkeypatch):
 def kayit(tmp_path, monkeypatch):
     yol = tmp_path / "ONAY_KAYDI.md"
     yol.write_text("bas\n", encoding="utf-8")
-    split._test_kaydi_ayarla(yol)
+    gecici_kayit(yol)
     return yol
 
 
@@ -236,13 +236,13 @@ def test_satirda_commit_ve_calisma_agaci_durumu_var(tablo, kayit):
     # Onay kaydi turu (KS3 D-B2): git ortami `split._test_kaydi_ayarla` ile sahtelenir (eski `_git_commit` ve
     # `_calisma_agaci_durumu` yamalari kalkti). Kirli agacta kosu acilmaz; commit 40 haneyle yazilir.
     commit = "0123456789abcdef" * 2 + "01234567"
-    split._test_kaydi_ayarla(kayit, head=commit, durum=" M data/split.py\n")
+    gecici_kayit(kayit, head=commit, durum=" M data/split.py\n")
     with pytest.raises(split.OnayOrtamiHatasi, match="temiz"):
         with kosu("H1", "C2"):
             pytest.fail("kirli agacta kosu acilmamali")
     assert kayit.read_text(encoding="utf-8") == "bas\n"
 
-    split._test_kaydi_ayarla(kayit, head=commit)
+    gecici_kayit(kayit, head=commit)
     with kosu("H1", "C2"):
         pass
     satir = [s for s in kayit.read_text(encoding="utf-8").splitlines() if s.startswith("|")][0]

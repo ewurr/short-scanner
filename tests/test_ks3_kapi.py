@@ -15,7 +15,7 @@ from data import pencere, pozisyon, split
 from kapi_yardimcisi import veri
 from sinyal_yardimcisi import kontrol
 from uygunluk_yardimcisi import esikler
-from onay_yardimcisi import kosu
+from onay_yardimcisi import gecici_kayit as kayit_ayarla, kosu
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H = lambda n: pd.Timedelta(hours=n)  # noqa: E731
@@ -106,7 +106,7 @@ def gecici_kayit(tmp_path, monkeypatch):
 
     yol = tmp_path / "onay_gecici.md"
     yol.write_text("bas\n", encoding="utf-8")
-    split._test_kaydi_ayarla(yol)
+    kayit_ayarla(yol)
     return yol
 
 
