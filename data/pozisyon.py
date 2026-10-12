@@ -700,9 +700,15 @@ def sinyal_kosulu(t, *, hipotez: str, yapilandirma, capa, kume: str, sembol: str
         degerler = sinyal_modulu.sinyal_degerleri(
             hipotez, gecerli, zaman, mumlar_4h=mumlar_4h, gunluk=gunluk_mumlar, funding=funding,
             capa=capa, kume_bitis=kume_bitis, **sinir)
-    except ValueError:
-        # Tepe penceresi kurulamiyor (ör. teyit bari pump barindan 12 bardan uzak): izleme
-        # kurallari bu bari teyit adayi saymaz; kosul hesaplanamaz.
+    except sinyal_modulu.TepePenceresiKurulamaz:
+        # Tepe penceresi bu (pump, teyit) cifti icin TANIMSIZ (ör. teyit bari pump barindan 12
+        # bardan uzak): izleme kurallari bu bari teyit adayi saymaz; kosul hesaplanamaz.
+        #
+        # Yakalama rev.13'te daraltildi (denetci bulgusu D-C2): eskiden `except ValueError` idi ve
+        # `pencere.VeriHatasi` ile `ZamanDizisiHatasi` da (ikisi de `ValueError` alt sinifi) bu
+        # yoldan sessizce "kosul hesaplanamaz" oluyordu. Veri hatasi bir ret gerekcesi DEGILDIR:
+        # `pencere.OlayOlusmaz` ailesinden ayridir ve yukari cikmalidir (`pencere.VeriHatasi`
+        # aciklamasi; `sinyal._pozitif` ile ayni tutum).
         return None
     if sinyal_modulu.hesaplanamayan(hipotez, degerler):
         return None

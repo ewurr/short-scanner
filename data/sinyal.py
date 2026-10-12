@@ -50,6 +50,18 @@ PARAMETRELER = MappingProxyType({
 })
 
 
+class TepePenceresiKurulamaz(ValueError):
+    """H1'in tepe penceresi bu (pump, teyit) cifti icin TANIMSIZ (on-kayit §5 H1 madde 2-3).
+
+    Teyit bari pump barindan sonra ve en fazla `config.H1_IZLEME_BAR` bar sonra olmalidir; aksi
+    hali izleme kurallarinin (`data.dizi`) o bari teyit adayi SAYMADIGI anlamina gelir. Ayri bir
+    sinif olmasinin gerekcesi denetci bulgusu D-C2'dir: `pozisyon.sinyal_kosulu` bu durumu
+    "kosul hesaplanamaz" (`None`) olarak okur ve bunu genis bir `except ValueError` ile
+    yakaliyordu; o yakalama veri hatalarini (`pencere.VeriHatasi`, `ZamanDizisiHatasi`, ikisi de
+    `ValueError` alt sinifi) ve cagri hatalarini da sessizce ret gerekcesine ceviriyordu.
+    """
+
+
 class YapilandirmaHatasi(ValueError):
     """Izgarada bulunmayan bir parametre demeti (on-kayit §5 rev.11)."""
 
@@ -236,13 +248,15 @@ def h1_tepe_bar_sayisi(pump_bari, teyit_bari) -> int:
     adim = pencere_modulu.adim(config.BAR_4H)
     fark = teyit - pump
     if fark % adim != pd.Timedelta(0):
-        raise ValueError(f"teyit bari {teyit} pump barinin ({pump}) 4h izgarasinda degil.")
+        raise TepePenceresiKurulamaz(f"teyit bari {teyit} pump barinin ({pump}) 4h izgarasinda degil.")
     sayi = int(fark / adim)
     if sayi < 1:
-        raise ValueError(f"teyit bari ({teyit}) pump barindan ({pump}) sonra olmali (on-kayit §5 H1 madde 3).")
+        raise TepePenceresiKurulamaz(
+            f"teyit bari ({teyit}) pump barindan ({pump}) sonra olmali (on-kayit §5 H1 madde 3).")
     if sayi > config.H1_IZLEME_BAR:
-        raise ValueError(f"teyit bari pump barindan {sayi} bar sonra; on-kayit §5 H1 madde 3 en fazla "
-                         f"{config.H1_IZLEME_BAR} bar izler.")
+        raise TepePenceresiKurulamaz(
+            f"teyit bari pump barindan {sayi} bar sonra; on-kayit §5 H1 madde 3 en fazla "
+            f"{config.H1_IZLEME_BAR} bar izler.")
     return sayi
 
 
