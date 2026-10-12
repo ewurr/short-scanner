@@ -230,6 +230,16 @@ GECERSIZLIK_CARPANI = 1.02
 # bundan azsa adaylarin tamami alinir ve sayi sonuc dosyasina yazilir (§6 rev.11).
 KONTROL_SAYISI = 10
 
+# Olay sayisi esikleri (on-kayit §8 madde 2 ve §9 madde 6). Ikisi de ANALIZE GIREN olaylarin
+# sayisina bakar (rev.13 madde (h)): "Buradaki ve §9'daki olay sayisi, analize giren olaylarin
+# sayisidir: her iki kontrol havuzu da bos oldugu icin analize girmeyen olaylar (§6) sayilmaz.
+# Gerekce: esikler istatistik gucunu guvenceye almak icin vardir ve guc yalnizca teste giren
+# olaylardan gelir; olusmus ama analize girmeyen olayi saymak gucu oldugundan fazla gosterirdi."
+# Esiklerin KARARA baglanmasi F2 (aday secimi) ve F3 (yeterli guc hukmu) isidir; veri katmani
+# yalnizca yuklemi ve iki sayiyi uretir (`ornekleme.olay_sayilari`).
+ADAY_OLAY_ESIGI = 150      # §8 madde 2: aday yapilandirma icin asgari analize giren olay sayisi
+ONAY_OLAY_ESIGI = 100      # §9 madde 6: altinda hukum YETERSIZ GUC
+
 # --- Uygunluk (on-kayit §2) --------------------------------------------------
 
 # Listeleme yasi >= 30 gun
@@ -300,7 +310,7 @@ _DEGISMEZ_ADLAR = frozenset({
     "IZGARA", "H1_DIP_BAR", "H1_HACIM_TOPLAM_BAR", "H1_HACIM_MEDYAN_BAR", "H1_HACIM_CARPANI",
     "H1_IZLEME_BAR", "OTUZ_BAR_ONCE", "H2_YUKSELIS_ESIGI", "H3_HACIM_YAKIN_GUN",
     "H3_HACIM_UZAK_GUN", "H3_HACIM_UZAK_OFSET", "H3_SMA_GUN",
-    "GECERSIZLIK_CARPANI", "KONTROL_SAYISI",
+    "GECERSIZLIK_CARPANI", "KONTROL_SAYISI", "ADAY_OLAY_ESIGI", "ONAY_OLAY_ESIGI",
     "__class__",
 })
 

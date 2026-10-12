@@ -300,6 +300,56 @@ def _sirala(adaylar):
 
 
 def olay_analize_girer(k1: KontrolHavuzu, k2: KontrolHavuzu) -> bool:
-    """On-kayit §6 rev.11: "Bir olayin her iki havuzu da bossa o olay analize girmez; en az bir
-    kontrolu olan olay kalir." """
+    """TEK YUKLEM: bu olay analize giriyor mu? (on-kayit §6 rev.11, §8 madde 2 rev.13)
+
+    §6 rev.11: "Bir olayin her iki havuzu da bossa o olay analize girmez; en az bir kontrolu olan
+    olay kalir." §8 madde 2 (rev.13): "Buradaki ve §9'daki olay sayisi, ANALIZE GIREN olaylarin
+    sayisidir." Iki yer ayni olcute bakar, bu yuzden olcut tek bir yuklemde durur ve hem F2'nin
+    aday esigi (150) hem F3'un guc esigi (100) bu yuklemle sayilan olaylari kullanir.
+    """
     return bool(len(k1) or len(k2))
+
+
+@dataclass(frozen=True)
+class OlaySayilari:
+    """Bir yapilandirmanin iki olay sayisi (on-kayit §8 madde 1: "olusmus olay sayisi; analize
+    giren olay sayisi" -- ikisi de raporlanir)."""
+
+    olusmus: int
+    analize_giren: int
+
+    def esigi_gecer(self, esik: int) -> bool:
+        """Esik ANALIZE GIREN olay sayisina uygulanir (on-kayit §8 madde 2, rev.13)."""
+        return self.analize_giren >= int(esik)
+
+
+def olay_sayilari(havuz_ciftleri) -> OlaySayilari:
+    """Olusmus ve analize giren olay sayilari (on-kayit §8 madde 1-2, rev.13). Saf.
+
+    `havuz_ciftleri`: olusmus her olay icin `(k1, k2)` kontrol havuzu cifti, olay sirasinda.
+    Olusmus olay sayisi ciftlerin sayisidir; analize giren olay sayisi `olay_analize_girer`
+    yuklemini saglayanlarin sayisidir. Baska bir sayim yolu yoktur: iki sayi da buradan uretilir.
+    """
+    ciftler = list(havuz_ciftleri)
+    for i, cift in enumerate(ciftler):
+        if not (isinstance(cift, tuple) and len(cift) == 2
+                and all(isinstance(h, KontrolHavuzu) for h in cift)):
+            raise TypeError(f"havuz_ciftleri[{i}] (K1, K2) `KontrolHavuzu` cifti olmali; verilen {cift!r}.")
+    return OlaySayilari(olusmus=len(ciftler),
+                        analize_giren=sum(1 for k1, k2 in ciftler if olay_analize_girer(k1, k2)))
+
+
+def olay_esigi_dogrula(esik, *, asama: str) -> int:
+    """Olay sayisi esigi on-kayit degeri olmali (on-kayit §8 madde 2, §9 madde 6; rev.13).
+
+    `asama`: "F2" (aday esigi, 150) ya da "F3" (guc esigi, 100). Serbest deger kabul edilmez:
+    esikler "sonuc gorulduk sonra degistirilmez" (CLAUDE.md §3 madde 4) ve kodda tek yerden,
+    `config`ten okunur.
+    """
+    beklenen = {"F2": config.ADAY_OLAY_ESIGI, "F3": config.ONAY_OLAY_ESIGI}
+    if asama not in beklenen:
+        raise ValueError(f"asama 'F2' ya da 'F3' olmali; verilen {asama!r}.")
+    if isinstance(esik, bool) or int(esik) != beklenen[asama]:
+        raise ValueError(f"{asama} olay sayisi esigi on-kayit degeri olmali ({beklenen[asama]}); "
+                         f"verilen {esik!r}.")
+    return int(esik)
