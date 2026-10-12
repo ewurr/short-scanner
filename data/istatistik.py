@@ -1,7 +1,14 @@
 """Test istatistigi, `r` ve p-degeri (on-kayit §7, rev.11).
 
 On-kayit §7:
-  - "Test istatistigi: `ortalama(olay net getirisi) - ortalama(kontrol net getirisi)`"
+  - "Test istatistigi: `ortalama(olay net getirisi) - ortalama(kontrol net getirisi)`. Kontrol
+    ortalamasi OLAY BASINA agirliklandirilir (rev.13): once her olayin kontrol havuzunun
+    ortalamasi alinir, sonra bu ortalamalarin olaylar arasindaki ortalamasi alinir; havuzlar tek
+    bir kumede BIRLESTIRILMEZ. Gerekce: asagidaki yeniden ornekleme her tekrarda olay basina bir
+    kontrol ceker, dolayisiyla her olay dagilimda esit agirlik tasir. Havuzlar birlestirilirse
+    gozlenen istatistik ile yeniden ornekleme dagilimi ayni olcekte olmaz ve kucuk havuzlu
+    olaylar iki tarafta farkli agirliklanir. Bu tanim, §8 ve §9'da anilan 'K2 farki' icin de
+    gecerlidir; K1 farki ayni bicimde hesaplanir."
   - "p-degeri: 10.000 tekrarli eslestirilmis yeniden ornekleme. Her tekrarda her olayin kontrol
     havuzundan bir kontrol cekilir ve o tekrarin test istatistigi hesaplanir. `r`, test
     istatistiginin sifiri asmadigi (`<= 0`) tekrarlarin sayisidir (rev.11).
@@ -46,13 +53,38 @@ class PSonucu:
     tohum: int
 
 
-def test_istatistigi(olay_getirileri, kontrol_getirileri) -> float:
-    """`ortalama(olay net getirisi) - ortalama(kontrol net getirisi)` (on-kayit §7). Saf."""
+def test_istatistigi(olay_getirileri, kontrol_havuzlari) -> float:
+    """`ortalama(olay net getirisi) - ortalama(kontrol net getirisi)`, kontrol tarafi OLAY BASINA
+    agirliklandirilmis (on-kayit §7, rev.13). Saf.
+
+    `kontrol_havuzlari`: her olay icin O OLAYIN havuzundaki kontrollerin net getirileri, olaylarla
+    AYNI SIRADA. Havuzlar birlestirilmez: once her havuzun ortalamasi, sonra bu ortalamalarin
+    olaylar arasindaki ortalamasi alinir. Rev.13'ten once fonksiyon duz bir kontrol getirisi
+    listesi aliyordu ve havuzlari fiilen birlestiriyordu; o tanimda 1 kontrollu bir olay ile 10
+    kontrollu bir olay kontrol tarafina farkli agirlik tasirdi, oysa `yeniden_ornekle` her olaydan
+    BIR kontrol cektigi icin dagilimda ikisi de esit agirliktadir.
+
+    Bos havuzlu olay buraya verilmez (on-kayit §6 rev.11: her iki havuzu da bos olan olay analize
+    girmez; teste giren her havuzda en az bir kontrol vardir).
+    """
     olay = _getiriler(olay_getirileri, "olay_getirileri")
-    kontrol = _getiriler(kontrol_getirileri, "kontrol_getirileri")
-    if len(olay) == 0 or len(kontrol) == 0:
-        raise ValueError("test istatistigi bos kumede tanimsiz (olay ve kontrol getirisi gerekli).")
-    return float(olay.mean() - kontrol.mean())
+    havuzlar = _havuzlar(kontrol_havuzlari, olay)
+    kontrol_ortalamalari = np.array([float(h.mean()) for h in havuzlar], dtype=float)
+    return float(olay.mean() - kontrol_ortalamalari.mean())
+
+
+def _havuzlar(kontrol_havuzlari, olay) -> list:
+    """Olay basina kontrol havuzlarini dogrular (on-kayit §7 rev.13). Tek yer: `test_istatistigi`
+    ve `yeniden_ornekle` ayni denetimlerden gecer."""
+    havuzlar = [_getiriler(h, f"kontrol_havuzlari[{i}]") for i, h in enumerate(kontrol_havuzlari)]
+    if len(olay) == 0:
+        raise ValueError("test istatistigi bos olay kumesinde tanimsiz (olay getirisi gerekli).")
+    if len(havuzlar) != len(olay):
+        raise ValueError(f"her olay icin bir kontrol havuzu gerekli: {len(olay)} olay, {len(havuzlar)} havuz.")
+    bos = [i for i, h in enumerate(havuzlar) if h.size == 0]
+    if bos:
+        raise ValueError(f"kontrol havuzu bos olan olay teste giremez (on-kayit §6 rev.11): {bos}.")
+    return havuzlar
 
 
 def _getiriler(degerler, ad: str) -> np.ndarray:
@@ -87,14 +119,7 @@ def yeniden_ornekle(olay_getirileri, kontrol_havuzlari, *, tekrar: int = None, t
         raise ValueError(f"tohum on-kayit §7 degeri olmali ({config.TOHUM}); verilen {kullanilan_tohum}.")
 
     olay = _getiriler(olay_getirileri, "olay_getirileri")
-    havuzlar = [_getiriler(h, f"kontrol_havuzlari[{i}]") for i, h in enumerate(kontrol_havuzlari)]
-    if len(havuzlar) != len(olay):
-        raise ValueError(f"her olay icin bir kontrol havuzu gerekli: {len(olay)} olay, {len(havuzlar)} havuz.")
-    if len(olay) == 0:
-        raise ValueError("olay kumesi bos; p-degeri tanimsiz.")
-    bos = [i for i, h in enumerate(havuzlar) if h.size == 0]
-    if bos:
-        raise ValueError(f"kontrol havuzu bos olan olay p-degerine giremez (on-kayit §6 rev.11): {bos}.")
+    havuzlar = _havuzlar(kontrol_havuzlari, olay)
 
     uretec = np.random.default_rng(kullanilan_tohum)
     olay_ortalamasi = float(olay.mean())
@@ -104,6 +129,8 @@ def yeniden_ornekle(olay_getirileri, kontrol_havuzlari, *, tekrar: int = None, t
 
     r = 0
     for _ in range(n_tekrar):
+        # Her olaydan BIR kontrol cekilir; cekilenlerin ortalamasi olay basina esit agirliklidir,
+        # yani `test_istatistigi`nin rev.13 tanimiyla ayni olcektedir (on-kayit §7 gerekcesi).
         secim = baslangic + uretec.integers(0, boyutlar)
         istatistik = olay_ortalamasi - float(yigin[secim].mean())
         if istatistik <= 0:
