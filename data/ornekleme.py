@@ -71,12 +71,28 @@ class KontrolHavuzu:
         return len(self.secilenler)
 
 
+def tohum_turet(*parcalar) -> int:
+    """§7'deki tohumdan bir alt tohum turetir: TEK turetme yolu (on-kayit §6 rev.11, §7 rev.13).
+
+    Parcalar `|` ile birlestirilir, SHA256 ozetinin ilk 8 baytı tamsayiya cevrilir. Turetme
+    deterministiktir ve kosu sirasindan bagimsizdir: ayni demet her zaman ayni tohumu verir.
+    Hem §6'nin olay basina ornekleme alt tohumu hem de §7'nin p-degeri alt tohumu bu yoldan gecer
+    ("alt tohum §6'daki ornekleme deseniyle aynidir", rev.13).
+    """
+    if not parcalar or any(not isinstance(p, str) or not p or "|" in p for p in parcalar):
+        raise ValueError(f"alt tohum parcalari bos olmayan, '|' icermeyen metinler olmali: {parcalar!r}")
+    metin = "|".join((str(config.TOHUM), *parcalar))
+    return int.from_bytes(hashlib.sha256(metin.encode("utf-8")).digest()[:8], "big")
+
+
 def alt_tohum(hipotez, yapilandirma, kume, sembol, olay_zamani) -> int:
     """Olay basina alt tohum: (hipotez, yapilandirma, kume, sembol, olay zamani) demetinden
     §7'deki tohumla turetilir (on-kayit §6 rev.11, §7 "Tohum").
 
-    Turetme deterministiktir ve kosu sirasindan bagimsizdir: ayni demet her zaman ayni tohumu
-    verir. Zaman damgasi UTC ISO biciminde, nanosaniye duyarliginda yazilir.
+    Zaman damgasi UTC'ye NORMALLESTIRILIR ve ISO biciminde, nanosaniye duyarliginda yazilir
+    (sizinti bulgusu S-B4): `pencere.utc_zamani` yalnizca saat dilimsiz damgayi reddediyordu,
+    bu yuzden ayni an UTC disi bir saat diliminde tasindiginda (`...+03:00`) metin degisiyor ve
+    AYNI OLAY FARKLI TOHUM aliyordu. CLAUDE.md §5: "Tum zaman damgalari UTC."
     """
     ad = sinyal_modulu._hipotez_dogrula(hipotez)
     # Yapilandirma ya izgaradaki parametre demeti ya da onun KIMLIGIDIR (`Adaylar` kimligi tasir).
@@ -87,10 +103,8 @@ def alt_tohum(hipotez, yapilandirma, kume, sembol, olay_zamani) -> int:
     k = _kume_dogrula(kume)
     if not isinstance(sembol, str) or not sembol:
         raise TypeError(f"sembol bos olmayan bir str olmali: {sembol!r}")
-    t = pencere_modulu.utc_zamani(olay_zamani, "olay_zamani")
-    metin = f"{config.TOHUM}|{kimlik}|{k}|{sembol}|{t.isoformat()}"
-    ozet = hashlib.sha256(metin.encode("utf-8")).digest()[:8]
-    return int.from_bytes(ozet, "big")
+    t = pencere_modulu.utc_zamani(olay_zamani, "olay_zamani").tz_convert("UTC")
+    return tohum_turet(kimlik, k, sembol, t.isoformat())
 
 
 def _kume_dogrula(kume) -> str:

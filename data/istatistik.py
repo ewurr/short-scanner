@@ -13,7 +13,10 @@ On-kayit §7:
     havuzundan bir kontrol cekilir ve o tekrarin test istatistigi hesaplanir. `r`, test
     istatistiginin sifiri asmadigi (`<= 0`) tekrarlarin sayisidir (rev.11).
     `p = (r + 1) / (10000 + 1)`, tek yonlu (olay short'u daha iyi). Cekim iadelidir ve §7'deki
-    tohumdan turetilir."
+    tohumdan, (hipotez, yapilandirma, kume, kontrol kumesi) demetiyle turetilen ALT TOHUMLA
+    yapilir (rev.13). Gerekce: tek bir global tohum, 9 yapilandirma ve iki kontrol kumesi icin
+    ayni rastgele diziyi kullanir ve p-degerlerini birbirine baglar; alt tohum §6'daki ornekleme
+    deseniyle aynidir."
   - "Bu yordamin siniri (rev.11). Bu bir bootstrap p-degeridir, permutasyon testi degildir:
     belirsizlik yalnizca kontrol seciminden gelir, olay kumesi her tekrarda sabittir. Dolayisiyla
     p-degeri, olaylarin kendi ornekleme degiskenligini hesaba katmaz ve bu yoneyle iyimser
@@ -32,6 +35,12 @@ from dataclasses import dataclass
 import numpy as np
 
 import config
+from data import ornekleme as ornekleme_modulu
+from data import sinyal as sinyal_modulu
+
+# On-kayit §7 (rev.13): p-degerinin alt tohumu KONTROL KUMESI adini de icerir; iki kontrol kumesi
+# ayni rastgele diziyi kullanmaz.
+KONTROL_KUMELERI = ("K1", "K2")
 
 # On-kayit §7 "Bu yordamin siniri" (rev.11): raporlarda p-degeriyle birlikte anilacak cumle.
 # F2/F3 raporlari bu metni buradan okur, yeniden yazmaz.
@@ -50,7 +59,11 @@ class PSonucu:
     p: float
     tekrar: int
     olay_sayisi: int
+    # Kullanilan ALT tohum ve onu ureten demet (on-kayit §7 rev.13; §8 madde 1: "tohum ve alt
+    # tohum turetme demeti" raporlanacak kalemlerdendir). `genel_tohum` §7'deki tek tohumdur.
     tohum: int
+    alt_tohum_demeti: tuple = ()
+    genel_tohum: int = 0
 
 
 def test_istatistigi(olay_getirileri, kontrol_havuzlari) -> float:
@@ -96,7 +109,24 @@ def _getiriler(degerler, ad: str) -> np.ndarray:
     return dizi
 
 
-def yeniden_ornekle(olay_getirileri, kontrol_havuzlari, *, tekrar: int = None, tohum: int = None) -> PSonucu:
+def alt_tohum(hipotez, yapilandirma, kume, kontrol_kumesi) -> tuple[int, tuple[str, str, str, str]]:
+    """p-degerinin alt tohumu ve onu ureten demet (on-kayit §7, rev.13).
+
+    Demet (hipotez, yapilandirma kimligi, kume, kontrol kumesi); turetme §6'nin ornekleme
+    deseniyle ayni tek yoldan (`ornekleme.tohum_turet`) gecer. Doner: (alt tohum, demet); demet
+    sonuc dosyasina yazilir (§8 madde 1).
+    """
+    ad = sinyal_modulu._hipotez_dogrula(hipotez)
+    kimlik = sinyal_modulu.yapilandirma_kimligi(ad, yapilandirma)
+    k = ornekleme_modulu._kume_dogrula(kume)
+    if kontrol_kumesi not in KONTROL_KUMELERI:
+        raise ValueError(f"kontrol kumesi {KONTROL_KUMELERI} olmali (on-kayit §6); verilen {kontrol_kumesi!r}.")
+    demet = (ad, kimlik, k, str(kontrol_kumesi))
+    return ornekleme_modulu.tohum_turet(kimlik, k, str(kontrol_kumesi)), demet
+
+
+def yeniden_ornekle(olay_getirileri, kontrol_havuzlari, *, hipotez, yapilandirma, kume,
+                    kontrol_kumesi, tekrar: int = None) -> PSonucu:
     """Eslestirilmis yeniden ornekleme ile `r` ve p-degeri (on-kayit §7, rev.11). Saf.
 
     `olay_getirileri`: olaylarin net getirileri. `kontrol_havuzlari`: her olay icin o olayin
@@ -108,15 +138,15 @@ def yeniden_ornekle(olay_getirileri, kontrol_havuzlari, *, tekrar: int = None, t
     istatistigi hesaplanir. `r` = istatistigin sifiri asmadigi (`<= 0`) tekrar sayisi;
     `p = (r + 1) / (tekrar + 1)`, tek yonlu.
 
-    `tekrar` ve `tohum` varsayilan olarak on-kayit degerleridir (`config.PERMUTASYON_TEKRAR`,
-    `config.TOHUM`); baska deger verilemez.
+    `tekrar` varsayilan olarak on-kayit degeridir (`config.PERMUTASYON_TEKRAR`); baska deger
+    verilemez. TOHUM CAGIRANDAN ALINMAZ (rev.13): (hipotez, yapilandirma, kume, kontrol kumesi)
+    demetinden `alt_tohum` ile turetilir, bu yuzden dort alan da zorunludur ve iki kontrol kumesi
+    ya da iki yapilandirma ayni rastgele diziyi kullanamaz.
     """
     n_tekrar = config.PERMUTASYON_TEKRAR if tekrar is None else int(tekrar)
-    kullanilan_tohum = config.TOHUM if tohum is None else int(tohum)
     if n_tekrar != config.PERMUTASYON_TEKRAR:
         raise ValueError(f"tekrar on-kayit §7 degeri olmali ({config.PERMUTASYON_TEKRAR}); verilen {n_tekrar}.")
-    if kullanilan_tohum != config.TOHUM:
-        raise ValueError(f"tohum on-kayit §7 degeri olmali ({config.TOHUM}); verilen {kullanilan_tohum}.")
+    kullanilan_tohum, demet = alt_tohum(hipotez, yapilandirma, kume, kontrol_kumesi)
 
     olay = _getiriler(olay_getirileri, "olay_getirileri")
     havuzlar = _havuzlar(kontrol_havuzlari, olay)
@@ -136,4 +166,5 @@ def yeniden_ornekle(olay_getirileri, kontrol_havuzlari, *, tekrar: int = None, t
         if istatistik <= 0:
             r += 1
     p = (r + 1) / (n_tekrar + 1)
-    return PSonucu(r=r, p=float(p), tekrar=n_tekrar, olay_sayisi=int(olay.size), tohum=kullanilan_tohum)
+    return PSonucu(r=r, p=float(p), tekrar=n_tekrar, olay_sayisi=int(olay.size), tohum=kullanilan_tohum,
+                   alt_tohum_demeti=demet, genel_tohum=config.TOHUM)

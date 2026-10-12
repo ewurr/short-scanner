@@ -17,9 +17,14 @@ N = config.PERMUTASYON_TEKRAR  # 10.000
 # --- Test istatistigi (on-kayit §7) -----------------------------------------------------------
 
 
-def _p(olay_getirileri, kontrol_havuzlari):
-    """`yeniden_ornekle` cagrisinin tek yeri: imzasi rev.13'te degisecek (alt tohum demeti)."""
-    return istatistik.yeniden_ornekle(olay_getirileri, kontrol_havuzlari)
+DEMET = {"hipotez": "H2", "yapilandirma": {"phi": 0.0003, "k": 3}, "kume": "KESIF",
+         "kontrol_kumesi": "K1"}
+
+
+def _p(olay_getirileri, kontrol_havuzlari, **degisen):
+    """`yeniden_ornekle`; tohum CAGIRANDAN ALINMAZ (on-kayit §7 rev.13): (hipotez, yapilandirma,
+    kume, kontrol kumesi) demetinden turer, bu yuzden dort alan da zorunludur."""
+    return istatistik.yeniden_ornekle(olay_getirileri, kontrol_havuzlari, **{**DEMET, **degisen})
 
 
 def test_test_istatistigi_ortalama_farki():
@@ -106,7 +111,14 @@ def test_tek_kontrollu_havuzlarda_p_elle_hesaplanir_olay_lehine():
     sonuc = _p([0.10, 0.10], [[0.0], [0.0]])
     assert sonuc.r == 0
     assert sonuc.p == pytest.approx(1 / (N + 1))
-    assert sonuc.tekrar == N and sonuc.olay_sayisi == 2 and sonuc.tohum == config.TOHUM
+    assert sonuc.tekrar == N and sonuc.olay_sayisi == 2
+    # Rev.13: `tohum` artik ALT tohumdur; §7'deki tek tohum `genel_tohum`dur ve demet sonuc
+    # dosyasina yazilir (§8 madde 1: "tohum ve alt tohum turetme demeti").
+    alt, demet = istatistik.alt_tohum(DEMET["hipotez"], DEMET["yapilandirma"], DEMET["kume"],
+                                      DEMET["kontrol_kumesi"])
+    assert sonuc.tohum == alt != config.TOHUM
+    assert sonuc.genel_tohum == config.TOHUM
+    assert sonuc.alt_tohum_demeti == demet == ("H2", "H2:phi=0.0003,k=3", "KESIF", "K1")
 
 
 def test_tek_kontrollu_havuzlarda_p_elle_hesaplanir_kontrol_lehine():
@@ -125,12 +137,78 @@ def test_tam_sifir_istatistigi_r_ye_sayilir():
 
 def test_simetrik_havuzda_r_yarisina_yakin():
     """Her olayin havuzunda +1 ve -1 var; olay ortalamasi 0. Istatistik = -ortalama(cekilen).
-    Tek olayda cekim iki esit olasilikli degerden biridir; r ~ N/2 (tohum sabit oldugu icin
-    deger tam belirlidir ve tekrarlanabilir)."""
+    Tek olayda cekim iki esit olasilikli degerden biridir; r ~ N/2 (alt tohum demetten turedigi
+    icin deger tam belirlidir ve tekrarlanabilir)."""
     a = _p([0.0], [[1.0, -1.0]])
     b = _p([0.0], [[1.0, -1.0]])
-    assert a.r == b.r, "ayni tohum ayni r"
+    assert a.r == b.r, "ayni demet ayni r"
     assert 0.45 * N < a.r < 0.55 * N
+
+
+# --- Alt tohum (on-kayit §7, rev.13) ----------------------------------------------------------
+
+
+def test_alt_tohum_demetten_turer_ve_deterministiktir():
+    a, da = istatistik.alt_tohum("H2", DEMET["yapilandirma"], "KESIF", "K1")
+    b, db = istatistik.alt_tohum("H2", DEMET["yapilandirma"], "KESIF", "K1")
+    assert a == b and da == db and isinstance(a, int) and a > 0
+
+
+@pytest.mark.parametrize("degisen", [
+    {"hipotez": "H3", "yapilandirma": {"nu": 0.50, "tau": 0.15}},
+    {"yapilandirma": {"phi": 0.0005, "k": 3}},
+    {"yapilandirma": {"phi": 0.0003, "k": 6}},
+    {"kume": "C1"},
+    {"kume": "C2"},
+    {"kontrol_kumesi": "K2"},
+])
+def test_alt_tohum_demetin_her_ogesine_duyarli(degisen):
+    """On-kayit §7 rev.13 gerekcesi: "tek bir global tohum, 9 yapilandirma ve iki kontrol kumesi
+    icin ayni rastgele diziyi kullanir ve p-degerlerini birbirine baglar"."""
+    temel = {k: DEMET[k] for k in ("hipotez", "yapilandirma", "kume", "kontrol_kumesi")}
+    yeni = {**temel, **degisen}
+    a, _ = istatistik.alt_tohum(**temel)
+    b, _ = istatistik.alt_tohum(**yeni)
+    assert a != b
+
+
+def test_iki_kontrol_kumesi_ayni_diziyi_kullanmaz():
+    """Iki kontrol kumesi icin ayni olay ve havuzlarla farkli cekim dizisi olusur."""
+    olaylar = [0.0] * 5
+    havuzlar = [[1.0, -1.0, 0.5, -0.5]] * 5
+    k1 = _p(olaylar, havuzlar, kontrol_kumesi="K1")
+    k2 = _p(olaylar, havuzlar, kontrol_kumesi="K2")
+    assert k1.tohum != k2.tohum and k1.r != k2.r
+
+
+def test_iki_yapilandirma_ayni_diziyi_kullanmaz():
+    olaylar = [0.0] * 5
+    havuzlar = [[1.0, -1.0, 0.5, -0.5]] * 5
+    a = _p(olaylar, havuzlar, yapilandirma={"phi": 0.0003, "k": 3})
+    b = _p(olaylar, havuzlar, yapilandirma={"phi": 0.0003, "k": 6})
+    assert a.tohum != b.tohum and a.r != b.r
+
+
+def test_alt_tohum_on_kayit_tohumuna_bagli_ve_tek_turetme_yolundan_gecer():
+    """On-kayit §7 rev.13: "alt tohum §6'daki ornekleme deseniyle aynidir"; turetme tek yerde
+    (`ornekleme.tohum_turet`)."""
+    from data import ornekleme
+
+    alt, demet = istatistik.alt_tohum("H2", DEMET["yapilandirma"], "KESIF", "K1")
+    assert alt == ornekleme.tohum_turet(demet[1], demet[2], demet[3])
+
+
+@pytest.mark.parametrize("kontrol_kumesi", ["K3", "olay", "", None, 1])
+def test_bilinmeyen_kontrol_kumesi_reddedilir(kontrol_kumesi):
+    with pytest.raises(ValueError):
+        istatistik.alt_tohum("H2", DEMET["yapilandirma"], "KESIF", kontrol_kumesi)
+
+
+def test_izgara_disi_yapilandirma_ve_bilinmeyen_kume_reddedilir():
+    with pytest.raises(Exception):
+        istatistik.alt_tohum("H2", {"phi": 0.0004, "k": 3}, "KESIF", "K1")
+    with pytest.raises(ValueError):
+        istatistik.alt_tohum("H2", DEMET["yapilandirma"], "KESIF2", "K1")
 
 
 def test_cekim_havuz_icinden_yapilir():
@@ -165,12 +243,22 @@ def test_olay_kumesi_bos_olamaz():
 @pytest.mark.parametrize("tekrar", [100, 9999, 10001])
 def test_on_kayit_disi_tekrar_reddedilir(tekrar):
     with pytest.raises(ValueError, match="tekrar"):
-        istatistik.yeniden_ornekle([0.1], [[0.0]], tekrar=tekrar)
+        _p([0.1], [[0.0]], tekrar=tekrar)
 
 
-def test_on_kayit_disi_tohum_reddedilir():
-    with pytest.raises(ValueError, match="tohum"):
-        istatistik.yeniden_ornekle([0.1], [[0.0]], tohum=1)
+def test_tohum_cagirandan_alinmaz():
+    """REV.13 ILE DEGISTI (§7 madde (f)): rev.11'de `tohum` anahtar sozcugu vardi ve yalnizca
+    §7'deki global degere esit olmasi isteniyordu; bu test onu sabitliyordu. Rev.13'te tohum
+    CAGIRANDAN ALINMAZ: (hipotez, yapilandirma, kume, kontrol kumesi) demetinden turer, bu yuzden
+    dort alan zorunludur ve serbest bir tohum verilemez."""
+    with pytest.raises(TypeError):
+        istatistik.yeniden_ornekle([0.1], [[0.0]], tohum=1, **DEMET)
+    with pytest.raises(TypeError):
+        istatistik.yeniden_ornekle([0.1], [[0.0]])          # demet eksik
+    for eksik in ("hipotez", "yapilandirma", "kume", "kontrol_kumesi"):
+        with pytest.raises(TypeError):
+            istatistik.yeniden_ornekle([0.1], [[0.0]],
+                                       **{k: v for k, v in DEMET.items() if k != eksik})
 
 
 def test_yordamin_siniri_metni_tasinir():

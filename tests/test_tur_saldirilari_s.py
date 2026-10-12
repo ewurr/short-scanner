@@ -1283,8 +1283,9 @@ def test_kosu_sirasi_bagimsizligi_semboller_alfabetik_islenir_sonuc_degismez():
         ornekleme.sembol_sirasi(["AAAUSDT", "AAAUSDT"])
 
 
-@pytest.mark.xfail(strict=True, reason="SALDIRI BULGUSU B4: ornekleme.alt_tohum ayni anin UTC disi saat "
-                                       "diliminde verilmesiyle degisiyor.")
+# SALDIRI BULGUSU B4 KAPANDI (Rev.12-13 uygulamasi madde 2f): `alt_tohum` olay zamanini UTC'ye
+# NORMALLESTIRIYOR (`tz_convert("UTC")`), bu yuzden ayni an hangi saat diliminde tasinirsa tasinsin
+# ayni tohumu verir. xfail isareti kaldirildi; beklenti degismedi.
 def test_alt_tohum_ayni_an_utc_disi_saat_diliminde_ayni_olmali_ya_da_reddedilmeli():
     """CLAUDE.md §5: "Tum zaman damgalari UTC"; on-kayit §7 tohum "olay zamani" demeti. Bugunku davranis:
     `pencere.utc_zamani` yalniz tz'siz damgayi reddeder; UTC disi saat dilimi kabul edilir ve tohum metni
