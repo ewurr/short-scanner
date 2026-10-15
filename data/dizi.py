@@ -150,6 +150,13 @@ def olay_dogrula(olay) -> None:
                         "onayi tek basina olay DEGILDIR (on-kayit §4 rev.12: dizi kurallari da gerekli).")
     if olay._imza != _olay_imzasi(olay):
         raise ValueError("Olay elle kurulmus ya da degistirilmis; yalnizca dizi.olay_dizisi uretir.")
+    # Olayin tasidigi ONAY da degismemis olmali (sizinti bulgusu S-C1). `_olay_imzasi` pozisyonun
+    # kendi `_imza` ALANINI karistirir; `dataclasses.replace` o alani oldugu gibi kopyaladigi icin
+    # `p1` ya da `funding_toplami` bozulmus bir pozisyon tasiyan olay imza denetimini geciyordu.
+    # `pozisyon.onay_dogrula` imzayi ALANLARDAN yeniden hesaplar, yani degisiklik burada duser.
+    # Gerekce: olayin "hangi pozisyona ait oldugu" kimliginin parcasidir; bozulmus fiyat ya da
+    # funding tasiyan bir onay, on-kayit §4'teki tek karar noktasindan gecmis onay degildir.
+    pozisyon_modulu.onay_dogrula(olay.pozisyon)
 
 
 @dataclass(frozen=True)

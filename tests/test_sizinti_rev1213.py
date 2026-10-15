@@ -191,14 +191,10 @@ def test_olayin_pozisyonu_bozulunca_getiri_girdisi_olamaz():
         pozisyon.pozisyon_fiyatlari(bozuk)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C1): `dizi._olay_imzasi` pozisyonun yalnizca `_imza`, rol, hipotez ve yapilandirma alanlarini "
-    "karistirir; pozisyonun KENDI imzasini yeniden dogrulamaz (`pozisyon.onay_dogrula` cagrilmaz). "
-    "`dataclasses.replace(pozisyon, p1=...)` eski `_imza`yi kopyalar; ardindan `replace(olay, pozisyon=bozuk)` "
-    "da eski olay imzasini kopyalar ve `olay_dogrula` BOZUK pozisyonlu olayi kabul eder. Beklenen: ValueError; "
-    "gozlenen: hata yok. Olay kumesini yalnizca `olay_dogrula` ile suzen F2 kodu, fiyati/funding'i degistirilmis "
-    "bir olayi alir (getiri hesabi `pozisyon_fiyatlari`a giderse orada yakalanir, ama `olay.pozisyon.p1`i "
-    "dogrudan okuyan kod yakalamaz)."))
+# SIZINTI BULGUSU S-C1 KAPANDI (madde 1c): `dizi.olay_dogrula` artik olayin tasidigi onayi da
+# `pozisyon.onay_dogrula` ile dogruluyor; o imza ALANLARDAN yeniden hesaplandigi icin
+# `dataclasses.replace` ile bozulmus bir pozisyon tasiyan olay reddediliyor. Isaret kaldirildi;
+# testin beklentisi degismedi.
 def test_olayin_icindeki_pozisyon_replace_ile_bozulunca_olay_dogrulanamaz():
     """On-kayit §4 rev.12 + `dizi.Olay` aciklamasi: "yalnizca `olay_dizisi` uretir", "degistirilmemis"."""
     olay = _h2_dizi(lambda t, capa: _h2_onay(t, capa), [0]).olaylar[0]
