@@ -184,6 +184,17 @@ def adaylari_kur(onaylar, *, rol: str) -> Adaylar:
         semboller = {o.sembol for o in liste}
         if len(semboller) > 1:
             raise ValueError(f"K1 ayni coinden ornekler (on-kayit §6 K1); bulunan {sorted(semboller)}.")
+        # K1 ayni LISTELEME DONEMI icinden ornekler (on-kayit §6 K1: "ayni coinden, ayni kume ve
+        # donem icinden"; §6 "Donem uyeligi" rev.8). Denetci bulgusu D-B1: sembol birligi
+        # denetleniyordu, donem birligi denetlenmiyordu; iki listeleme donemi olan bir coinde
+        # (delist sonrasi yeniden listelenen) baska donemin bari havuza girebiliyordu. O bar
+        # kapidan gecmis oldugu icin hicbir yerde dusmezdi, ama ON-KAYITIN YASAKLADIGI bir
+        # rejimden (baska bir listeleme donemi, cogu kez baska likidite ve fiyat duzeyi) kontrol
+        # tasirdi.
+        donemler = {o.donem_no for o in liste}
+        if len(donemler) > 1:
+            raise ValueError(f"K1 ayni donem icinden ornekler (on-kayit §6 K1); bulunan donem numaralari "
+                             f"{sorted(donemler)}. Ayni sembolun baska listeleme donemi baska bir rejimdir.")
         ogeler = pd.DatetimeIndex([o.plan.sinyal_zamani for o in liste])
         if len(ogeler) and ogeler.has_duplicates:
             raise ValueError("K1 adaylari tekrarsiz olmali (ayni bar iki kez aday olamaz).")
