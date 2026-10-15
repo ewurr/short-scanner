@@ -41,7 +41,9 @@ Baslik -> test eslemesi
 6. KILIT.md okumasi (on-kayit §8 madde 5, rev.13):
    test_baska_hipotezin_kaydi_varken_kaydi_olmayan_hipotez_icin_kosu_acilmaz,
    test_ikinci_kayit_eklenen_kilit_bozuktur, test_gercek_git_*  (calisma agaci/HEAD/izlenmeyen/silinmis),
-   XFAIL: test_secildi_hukmunde_k2_farki_pozitif_olmak_zorunda, test_k2_farki_pozitif_olmayan_kilitle_onay_kosusu_acilmaz,
+   (KAPANDI: test_secildi_hukmunde_k2_farki_pozitif_olmak_zorunda,
+   test_k2_farki_pozitif_olmayan_kilitle_onay_kosusu_acilmaz -- madde 2a)
+   XFAIL:
    test_secildi_hukmunde_analize_giren_olay_aday_esiginin_altinda_olamaz,
    test_secildi_hukmunde_yapilandirma_izgarada_olmali, test_olay_sayilari_negatif_olamaz,
    test_kesif_commit_ve_zamani_bicim_denetimi, test_ayni_kapandi_metninin_iki_cozumu_esit_olmali,
@@ -801,11 +803,8 @@ def test_ikinci_kayit_eklenen_kilit_bozuktur(alan):
 # --- Gecerlilik: secildi hukmunun on-kayit §8 madde 2-4 sartlari (XFAIL) -----------------------------
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C3): `kilit_kaydi_coz` 'yapilandirma secildi' hukmunde K2 farkinin pozitif olmasini aramaz. "
-    "On-kayit §8 madde 4: 'K2 farki > 0' saglanmiyorsa hipotez ONAYA GONDERILMEDEN KAPANIR (onay verisi "
-    "harcanmaz). Girdi: k2_farki = '-0.0100', '0.0000', 'nan'. Beklenen: KilitBozuk; gozlenen: kayit kabul "
-    "edildi (negatif/sifir/NaN K2 farkli bir 'secildi' kaydi onay kosusunu acar)."))
+# SIZINTI BULGUSU S-C3 KAPANDI (madde 2a): `kilit_kaydi_coz` secildi hukmunde K2 farkinin pozitif
+# olmasini ariyor ve denetim kosu acilmadan ONCE calisiyor. Isaret kaldirildi; beklenti degismedi.
 @pytest.mark.parametrize("k2", ["-0.0100", "0.0000", "nan"])
 def test_secildi_hukmunde_k2_farki_pozitif_olmak_zorunda(k2):
     """On-kayit §8 madde 4."""
@@ -813,9 +812,7 @@ def test_secildi_hukmunde_k2_farki_pozitif_olmak_zorunda(k2):
         split.kilit_kaydi_coz(kilit_metni("H2", k2_farki=k2), "H2")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C3, uc uca): K2 farki negatif bir 'secildi' kaydiyla `onay_kosusu('H2','C1')` ACILIR ve kayda "
-    "BASLADI/BITTI yazilir (cift harcanir). Beklenen: OnayOrtamiHatasi alt sinifi, kayit baytlari degismez."))
+# SIZINTI BULGUSU S-C3 (uc uca) KAPANDI (madde 2a): kosu acilmiyor ve kayit baytlari degismiyor.
 def test_k2_farki_pozitif_olmayan_kilitle_onay_kosusu_acilmaz(tmp_path):
     """On-kayit §8 madde 4-5: secimin kosullari saglanmiyorsa onay verisi harcanmaz."""
     yol = _kayit_dosyasi(tmp_path)

@@ -332,6 +332,10 @@ KILIT_ALANLARI = ("hipotez", "hukum", "gerekce", "yapilandirma", "parametreler",
                   "analize_giren_olay", "k2_farki", "kesif_commit", "kesif_zamani", "tohum")
 # Hukum "hipotez kapandi" iken yapilandirmaya ait alanlar bos olabilir ("-").
 KILIT_SECIM_ALANLARI = ("yapilandirma", "parametreler", "k2_farki")
+# On-kayit §8 madde 5'in alan listesinde ORTALAMA NET GETIRI yoktur, ama §8 madde 4 secimin
+# kosullarindan biri olarak onu da sayar ("K2 farki > 0" ve "ortalama net getiri > 0"). Alan
+# ZORUNLU kilinmaz (on-kayitin listesi genisletilmez); kayitta varsa denetlenir.
+KILIT_ISTEGE_BAGLI_ALANLAR = ("ortalama_net_getiri",)
 
 
 @dataclass(frozen=True)
@@ -371,7 +375,7 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
         if len(hucreler) != 2 or set(hucreler[0]) <= set("-: ") or hucreler[0].lower() == "alan":
             continue
         ad = hucreler[0].lower()
-        if ad not in KILIT_ALANLARI:
+        if ad not in KILIT_ALANLARI and ad not in KILIT_ISTEGE_BAGLI_ALANLAR:
             continue
         if ad in alanlar:
             raise KilitBozuk(f"{hipotez} KILIT.md: `{ad}` alani birden fazla kez yazilmis. Dosya yalnizca "
@@ -410,6 +414,21 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
     elif not alanlar["gerekce"].strip() or alanlar["gerekce"].strip() in ("-", "—"):
         raise KilitBozuk(f"{hipotez} KILIT.md: hukum '{KILIT_KAPANDI}' iken gerekce yazilmali "
                          "(on-kayit §8 madde 4: 'kapanma gerekcesi').")
+    if secildi:
+        # On-kayit §8 madde 4: "Bir yapilandirma secilmisse, o yapilandirma icin su iki kosul
+        # kesifte saglanmiyorsa hipotez ONAYA GONDERILMEDEN kapanir (onay verisi harcanmaz):
+        # K2 farki > 0; ortalama net getiri > 0." Sizinti bulgusu S-C3: kayitta `k2_farki <= 0`
+        # oldugu halde kosu aciliyordu ve BASLADI satiri yazildigi icin (hipotez, kume) cifti
+        # harcaniyordu. Denetim bu yuzden kosu acilmadan ONCE, kaydi cozerken yapilir.
+        if not (_ondalik("k2_farki") > 0):
+            raise KilitBozuk(
+                f"{hipotez} KILIT.md: hukum '{KILIT_SECILDI}' iken K2 farki > 0 olmali; verilen "
+                f"{alanlar['k2_farki']!r}. On-kayit §8 madde 4: kosul saglanmiyorsa hipotez onaya "
+                "gonderilmeden kapanir, yani hukum 'hipotez kapandi' olmaliydi.")
+        if "ortalama_net_getiri" in alanlar and not (_ondalik("ortalama_net_getiri") > 0):
+            raise KilitBozuk(
+                f"{hipotez} KILIT.md: hukum '{KILIT_SECILDI}' iken ortalama net getiri > 0 olmali; "
+                f"verilen {alanlar['ortalama_net_getiri']!r} (on-kayit §8 madde 4).")
     if _tam("tohum") != config.TOHUM:
         raise KilitBozuk(f"{hipotez} KILIT.md: tohum on-kayit §7 degeri olmali ({config.TOHUM}); verilen "
                          f"{alanlar['tohum']!r}.")
