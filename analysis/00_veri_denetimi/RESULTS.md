@@ -2855,6 +2855,9 @@ olmayan sayısal sabit bulunamadı.
   çağıran yok (F2 kodu yazılmadı).
 - **D-C6: RESULTS §14.29'un madde numaraları ön-kaydın (a)–(m) harflerine bağlanmıyor.** Belge
   sorunu; (l) ve (m)'nin "yordamın sınırı" parçası tabloda ayrı satır değil.
+  **KAPANDI** (Rev.12-13 uygulaması turu): yukarıdaki "Madde → kod yeri → test" tablosuna
+  **Rev.11 harfi** sütunu eklendi, (a)–(m)'nin tamamı karşılandı, (l) ile (m)'nin "yordamın
+  sınırı" parçasının nereye düştüğü tablonun üstünde yazıldı.
 
 **Denetçinin (a) sorusuna yanıtı: bir yapısal yol kaldı.** Dizi kuralları (bekleme, tek izleme,
 ilk gün) yalnızca `data/dizi.py`'de yaşıyor; tek karar noktası `pozisyon.olay_karari` onları
@@ -2959,17 +2962,24 @@ Commit'ler: `3decb27` (1), `f41a7c3` (2), `f8bc392` (3), `c74ac19` (4 + 5), `bf2
 
 **Madde → kod yeri → test**
 
-| Madde | Ön-kayıt | Kod yeri | Test |
-|---|---|---|---|
-| 1 | §4 "Funding sinyal penceresinin tamlığı" revizyon bağı | `funding.SINYAL_PENCERESI_REVIZYONU = 11` | `test_rev10_kalan_bulgular` (2) |
-| 2 | §5 "Pencere sınırları", "Pencere sınırlarının tamamı" | `data/sinyal.py` kurucular; `config.IZGARA` + pencere uzunlukları (hepsi `_DEGISMEZ_ADLAR`) | `test_rev11_pencere_sinirlari` (92) |
-| 3 | §2 "1 günlük barlar" (eksik hücre) | `klines.HUCRE_SUTUNLARI`, `klines.hucreleri_tam_mi`, `gunluge_cevir` | `test_rev11_eksik_hucre` (88) + `test_f1_kapanis_saldirilari` (xfail → normal) |
-| 4 | §5 (kapı değerleri kendisi hesaplar) | `pozisyon.olay_karari` (`yapilandirma`, `rol`, `capa`); `sinyal.sinyal_degerleri`, `hesaplanamayan`, `kosullar_saglandi`, `h1_pump_*` | `test_rev11_kapi_sinyali` (47), `test_f1k_sinyal_kapisi` (10) |
-| 5 | §6 "Kontrolün ne ölçtüğü" | `pozisyon.ROLLER`, `_sinyal_gerekli`, `_capa_dogrula`, `OlayUretmis`, `SinyalKosuluSaglanmadi` | `test_rev11_kapi_sinyali` rol bölümleri |
-| 6 | §5 bekleme süresi; §5 H1 madde 4; §5 H3 madde 3 | `data/dizi.py`; `pozisyon.sinyal_kosulu` | `test_rev11_olay_dizisi` (30) |
-| 7 | §6 "Örnekleme kuralları" | `data/ornekleme.py` | `test_rev11_ornekleme` (24) |
-| 8 | §4 funding sinyal penceresi (küme sonu kaydı, sonlu olmayan oran) + §4 "Geçerli oran" | `funding.sinyal_penceresi_ayrintisi` (`kume_sonu_kaydi_disarida`), `funding_ortalamasi`, `funding_tamlik_ayrintisi` (`oran_gecerli`) | `test_rev11_funding` (19) + `test_rev8_funding` davranış testi |
-| 9 | §7 `r`, p-değeri, yordamın sınırı | `data/istatistik.py` | `test_rev11_istatistik` (20) |
+Madde numaraları bu turun commit sırasıdır; ön-kaydın Revizyon 11 günlüğündeki (a)–(m)
+harflerine bağlanması denetçi bulgusu D-C6 ile istenmiştir ve aşağıdaki tabloya **Rev.11
+harfi** sütunu olarak eklenmiştir (Rev.12-13 uygulaması turu). Harflerin tamamı (a)–(m)
+karşılanmıştır; (l) — "sinyal penceresinin tek kayıttan hesaplanabilmesi, bilinen sınır olarak" —
+madde 1'in revizyon bağıyla birlikte metne girmiştir ve ayrı bir kod yeri yoktur, (m)'nin
+"yordamın sınırı" parçası `istatistik.YORDAMIN_SINIRI` sabitidir.
+
+| Madde | Rev.11 harfi | Ön-kayıt | Kod yeri | Test |
+|---|---|---|---|---|
+| 1 | (j) kısmen, (l) | §4 "Funding sinyal penceresinin tamlığı" revizyon bağı | `funding.SINYAL_PENCERESI_REVIZYONU = 11` | `test_rev10_kalan_bulgular` (2) |
+| 2 | (a), (b), (f) | §5 "Pencere sınırları", "Pencere sınırlarının tamamı" | `data/sinyal.py` kurucular; `config.IZGARA` + pencere uzunlukları (hepsi `_DEGISMEZ_ADLAR`) | `test_rev11_pencere_sinirlari` (92) |
+| 3 | (c) | §2 "1 günlük barlar" (eksik hücre) | `klines.HUCRE_SUTUNLARI`, `klines.hucreleri_tam_mi`, `gunluge_cevir` | `test_rev11_eksik_hucre` (88) + `test_f1_kapanis_saldirilari` (xfail → normal) |
+| 4 | (f) | §5 (kapı değerleri kendisi hesaplar) | `pozisyon.olay_karari` (`yapilandirma`, `rol`, `capa`); `sinyal.sinyal_degerleri`, `hesaplanamayan`, `kosullar_saglandi`, `h1_pump_*` | `test_rev11_kapi_sinyali` (47), `test_f1k_sinyal_kapisi` (10) |
+| 5 | (d) | §6 "Kontrolün ne ölçtüğü" | `pozisyon.ROLLER`, `_sinyal_gerekli`, `_capa_dogrula`, `OlayUretmis`, `SinyalKosuluSaglanmadi` | `test_rev11_kapi_sinyali` rol bölümleri |
+| 6 | (g), (h), (i) | §5 bekleme süresi; §5 H1 madde 4; §5 H3 madde 3 | `data/dizi.py`; `pozisyon.sinyal_kosulu` | `test_rev11_olay_dizisi` (30) |
+| 7 | (e) | §6 "Örnekleme kuralları" | `data/ornekleme.py` | `test_rev11_ornekleme` (24) |
+| 8 | (j), (k) | §4 funding sinyal penceresi (küme sonu kaydı, sonlu olmayan oran) + §4 "Geçerli oran" | `funding.sinyal_penceresi_ayrintisi` (`kume_sonu_kaydi_disarida`), `funding_ortalamasi`, `funding_tamlik_ayrintisi` (`oran_gecerli`) | `test_rev11_funding` (19) + `test_rev8_funding` davranış testi |
+| 9 | (m) | §7 `r`, p-değeri, yordamın sınırı | `data/istatistik.py` | `test_rev11_istatistik` (20) |
 
 **Madde 4 ile 5 neden tek commit.** Değerlerin kapıda hesaplanması, o barın ROLÜNÜ (olay / K1 /
 K2) bilmeyi gerektiriyor: ön-kayıt §6 rev.11 kontrol barında sinyal koşullarının aranmayacağını
@@ -3087,6 +3097,110 @@ Notun pratikteki iki sonucu:
    kilit oturumunda kaldırıldı (bu tur doğrulandı: kayıt satırı tablonun içine düşüyor).
 4. **Beklemenin üst ucu ve K1'in tam eşitliği** için ön-kayıt kararı (yukarıdaki iki "yeni"
    madde). F2'nin ilk koşusundan önce.
+
+### §14.30 Rev.12 ve Rev.13'ün veri katmanı maddelerinin uygulanması
+
+Ön-kayıt Rev.12 ve Rev.13 (`d69e085`) veri katmanına ait on üç madde getirdi; bu tur onları koda geçirdi. **Her madde ayrı commit, her commit öncesi tam test
+takımı koşuldu ve yeşildi.** Getiri, fiyat farkı ya da sinyal **değeri** hiçbir yerde
+hesaplanmadı ve raporlanmadı; etki ölçümleri yalnızca sayılabilirlik düzeyinde (hesaplandı /
+hesaplanamadı) ve yalnızca KEŞİF kümesi için yapıldı (ön-kayıt §4 "Ölçüm raporlamasının küme
+sınırı"). `events/` ve `study/` bu turda **boş kaldı** (CLAUDE.md §4 faz sınırı); F2'ye ait
+gereksinimler §14.31'e yazıldı.
+
+Commit'ler (en eskiden yeniye): `6690cf1` (1c), `e132a30` (1b), `6267a56` (1a), `55563a6` (2a),
+`34b1b0f` (2b), `2737ece` (2c), `c0f1dd4` (3b), `195346e` (3a), `a4ef592` (2d), `85891f9` (2e),
+`c668530` (2f), `3471511` (2g), `56f0e50` (2h), `427a9ac` (D-C2).
+
+**Madde → ön-kayıt → kod yeri → test**
+
+| Madde | Ön-kayıt | Kod yeri | Test |
+|---|---|---|---|
+| 1c | §2 (rev.12): tamlık ölçütü **bar düzeyindedir** | `sinyal._seri` barın tamamını maskeler (`klines.hucreleri_tam_mi`) | `test_rev12_bar_duzeyi` (44) |
+| 1b | §6 (rev.12): kontrol barında **çapasız** pencereler hesaplanabilir olmalı | `sinyal.CAPASIZ_PENCERELER`, `capasiz_pencere_degerleri`, `capasiz_hesaplanamayan`; `pozisyon.olay_karari` kontrol rolü | `test_rev12_kontrol_penceresi` (37) |
+| 1a | §6 (rev.12): kontrol barı sinyal **koşullarını** hiç hesaplamaz | `pozisyon`: koşullar yalnızca `rol == "olay"` dalında; `OlayUretmis` ve `_sinyal_gerekli` kaldırıldı | `test_rev12_kontrol_kosulsuz` (13) |
+| 2a | §5 H1 madde 4 (rev.13): izleme penceresi dönemin ve kümenin içinde, sınır **takvimle** | `dizi`: `izleme_sonu = pump + H1_IZLEME_BAR × adım`, pencere dışındaki bar izlemeyi kapatır | `test_rev13_izleme_siniri` (9) |
+| 2b | §5 H3 madde 3 (rev.13): dizi **koşullarla** tanımlı, onayla değil | `dizi`: `dizi_suruyor` kapı denemesinden önce kurulur; takvim boşluğu diziyi keser | `test_rev13_h3_dizisi` (9) |
+| 2c | §5 H1 m.5, H2 m.4, H3 m.4 (rev.13): geçersizlik seviyesi | `sinyal.gecersizlik_seviyesi` + `yuksek_30_max`, `config.GECERSIZLIK_CARPANI = 1.02`; `OnaylanmisPozisyon.gecersizlik_seviyesi` (yalnızca olay rolü, imzada) | `test_rev13_gecersizlik_seviyesi` (12) |
+| 3b | §4 (rev.12): onay gerekli ama **yeterli değil** | `dizi._olay_dogrula`: imza, rol, hipotez + yapılandırma, sinyal zamanı, çapa | `test_rev13_dizi_kapisi` (16) |
+| 3a | §4 (rev.12) + §5: olay üretimi `data.dizi`den geçer | `dizi.Olay` imzalı tip + `olay_dogrula`; kaynak taraması `DIZI_ATLATMA_DESENI`, `olay_rolu_ihlalleri` | `test_rev13_tarama` (14) |
+| 2d | §6 (rev.13): adaylık **örneklemeden önce** belirlenir | `ornekleme.Adaylar` imzalı tip, `adaylari_kur`, `k1_adaylari`/`k2_adaylari`/`ornekle` yalnızca `Adaylar` alır | `test_rev13_adaylik` (44) |
+| 2e | §7 (rev.13): kontrol ortalaması **olay başına** ağırlıklandırılır | `istatistik.test_istatistigi` havuz ortalamalarının ortalamasını alır; denetimler `_havuzlar`da tek yerde | `test_rev11_istatistik` (38) |
+| 2f | §7 (rev.13): p-değerinin **alt tohumu** demetten türer | `istatistik.alt_tohum` + `yeniden_ornekle` (tohum çağırandan alınmaz); türetme tek yol `ornekleme.tohum_turet` | `test_rev11_istatistik` (38) |
+| 2g | §8 madde 2 (rev.13): olay sayısı = **analize giren** olaylar | `config.ADAY_OLAY_ESIGI`/`ONAY_OLAY_ESIGI`, `ornekleme.OlaySayilari`, `olay_sayilari`, `olay_esigi_dogrula` | `test_rev13_olay_sayisi` (25) |
+| 2h | §8 madde 5 (rev.13): onay koşusu **KILIT.md**'yi okur | `split.kilit_yolu`/`kilit_oku`/`kilit_kaydi_coz`/`KilitKaydi`; `onay_kosusu` kaydı BASLADI satırından önce okur; `onay_baglami_dogrula(..., yapilandirma)` | `test_rev13_kilit_okuma` (33) |
+| D-C2 | §5 H1 m.2-3 (yakalama kapsamı) | `sinyal.TepePenceresiKurulamaz`; `pozisyon.sinyal_kosulu` yalnızca onu yakalar | `test_rev13_tepe_penceresi_hatasi` (16) |
+
+**Kapanan ajan bulguları.** S-B1 (dizi kapının çıktısını doğrulamıyordu), S-B2 (H3 dizisi onaya
+bağlıydı), S-B3 (izleme sınırı takvimle ölçülmüyordu), S-B4 (`alt_tohum` UTC dışı saat diliminde
+değişiyordu), D-C5 (`ornekle` ön-kayıt değerlerini zorlamıyordu), D-C6 (§14.29'un maddeleri
+(a)–(m)'ye bağlanmıyordu), P-14 (`config.HIPOTEZLER` genişletilerek ek tek atış hakkı
+doğuyordu) ve D-C2. Yedi `xfail(strict=True)` işareti kaldırıldı; **hiçbirinde testin beklentisi
+değiştirilmedi**, yalnızca işaret kalktı.
+
+**Güncellenen mevcut testler.** Yalnızca rev.12/rev.13'ün **açıkça değiştirdiği** davranışı
+sabitleyen testler güncellendi; gevşetme, silme ya da xfail'e çevirme yok:
+`test_rev11_istatistik` (2e: girdi biçimi havuz listesi; 2f: `tohum=` anahtar sözcüğü kaldırıldı),
+`test_rev11_ornekleme` ve `test_k2_elemesi…` (2d: adaylar kapıdan kurulur), `test_rev11_kapi_sinyali`
+ile `test_f1k_sinyal_kapisi` (1a: kontrol barında koşul yok), `test_rev11_olay_dizisi` (2a/2b/3b),
+`test_tur_saldirilari_n` ve `_p` (2h: kilit kaydı olmayan ad için koşu açılmaz; redin **sınıfı**
+değişti, hükmü değil) ve onay koşusu açan testlerin fikstürleri (artık `onay_yardimcisi.gecici_kayit`
+/ `kilit_yaz` üzerinden bir kilit kaydı kuruyorlar). 1b nedeniyle üç testin sentetik dönem başı
+geriye alındı (H1 185 bar, H3 121 gün geçmiş ister); bunlardan üçünde uygunluk eşiği H1/H3'te
+**gözlenemez** hale geldiği için testler H2'ye taşındı, iddiaları korundu — bu, rev.12'nin
+ölçülmüş bir sonucudur: H1 ve H3'te çapasız pencere uygunluk penceresinden geniştir, dolayısıyla
+kontrol barında uygunluk eşiği tek başına yalnızca H2'de bağlayıcıdır.
+
+**Test dikişi (bilinçli zayıflatma).** 3b'nin doğrulaması, dizi testlerinde ucuz sahte onayları
+imkânsız kıldı; her bar için gerçek kapıyı çağırmak ise kabul edilemez yavaş. `pozisyon._test_onayi`
+eklendi: veri yüklemeden imzalı bir onay kurar, `split._pytest_testi()` dışında `RuntimeError`
+verir ve `tarama_yardimcisi.ONAY_ATLATMA_DESENI` ile analiz kodunda yasaktır (`split._test_kaydi_ayarla`
+ile aynı iki koruma). Gerçek bir F2/F3 koşusunda (pytest yok) kapalıdır.
+
+**Etki ölçümleri** (`rev1213_uygulama.py`; A grubu, KEŞİF aralığı, 272 sembol, 280 dönem):
+
+| Ölçüm | Sonuç | Yorum |
+|---|---|---|
+| 1c `--olcum bar_duzeyi` | dönem içi KEŞİF 4h barı **1.113.921**, bar düzeyli ölçütün maskelediği bar **0**; bozuk hücreli bar 0 | Rev.11 madde 3 ölçümüyle (bozuk hücre 0) tutarlı: kural bugünkü veride hiçbir barı düşürmüyor. |
+| 1b `--olcum capasiz` | H1: uygun 778.638 → düşen **491** (%0,06; 165 sembol); H2: **5.260** (%0,68; 108 sembol); H3: uygun 173.984 → düşen **25.311** (%14,55; 263 sembol) | Düşüş her hipotezde **tek bir pencereden** geliyor: H1'de 180 barlık hacim medyanı, H2'de 24 saatlik funding penceresi, H3'te 120–31 günlük hacim medyanı — yani en uzun geriye bakış. H3'ün payı yüksek, çünkü 120 günlük pencere dönem başında 90 gün boyunca kurulamıyor (sembol başına medyan 90 gün). H2'nin 5.260 barının **5.154'ü üç sembolde** (ICPUSDT 2.194, TLMUSDT 1.791, BNXUSDT 1.170 — funding'i olmayan/boşluklu dönemler); kalan 105 sembolde dönem başına 1 bar. |
+| 2c `--olcum gecersizlik` | H2 ve H3: uygunluk filtresini geçen barların **tamamında** (778.638 ve 173.984) seviye hesaplanabiliyor; hesaplanamayan **0** | `max(high[t-30..t])` penceresi (31 bar) uygunluk penceresinden (30 gün) kısa olduğu için uygunluk geçildiğinde seviye de hesaplanıyor. H1'in seviyesi pump barına **çapalıdır** ve yalnızca süren bir izleme içinde tanımlıdır; izleme dizisi F2'nin işi olduğu için H1 bu turda ölçülmedi (**F2'de ölçülecek**). |
+
+Ölçülmeyen maddeler (olay kümesi gerektirir, yani F2 kodu demektir): 1a, 2a, 2b, 2d, 2e, 2f, 2g —
+"F2'de ölçülecek".
+
+**Ölçümlerin iki sınırı.** (1) Üç ölçüm de `427a9ac` commit'inde, ama **kirli çalışma ağacında**
+koşuldu: ölçüm betiği ve bu bölüm o anda henüz commit edilmemişti; `data/` altında hiçbir fark
+yoktu (ortam CSV'lerinde `calisma_agaci=kirli` ve değişiklik listesi yazılıdır). (2) `capasiz` ve
+`gecersizlik` ölçümlerinin **sembol başına** ham çıktıları (`rev1213_capasiz_tam.csv`,
+`rev1213_gecersizlik_tam.csv`) depoya alınmadı; pencere kırılımı (`rev1213_capasiz_pencere_tam.csv`)
+ve hipotez başına özetler (`*_ozet_tam.csv`) commit edildi. Sembol başına tablolar commit edilen
+betikle yeniden üretilebilir (`--olcum capasiz` ≈ 2,5 saat, `--olcum gecersizlik` ≈ 18 dakika, 8 iş
+parçacığı).
+
+### §14.31 F2'nin karşılaması gereken ön-kayıt gereksinimleri (bu turda **kod yazılmadı**)
+
+Rev.12 ve Rev.13'ün bir bölümü veri katmanının değil **F2'nin kendi kodunun** kuralıdır: ızgara
+yürüyüşü, yapılandırma seçimi, beraberlik çözümü, aday yokluğu, raporlanacak kalemler, sıfır
+olaylı yapılandırmanın raporlanması, sağlamlık kontrolünün uygulanması ve ikincil ufukların ne
+zaman hesaplandığı. CLAUDE.md §4: "Bir faz bitmeden sonrakine ait kod yazılmaz." Bu yüzden bu
+maddeler **koda geçirilmedi**; `events/` ve `study/` bu turda boş kaldı. Aşağıdaki liste, F2'nin
+ilk koşusundan önce karşılanması gereken gereksinimlerin kaydıdır. Yetkili metin ön-kayıttır;
+burada yalnızca anılır.
+
+| # | Gereksinim | Ön-kayıt | Veri katmanının hazır verdiği |
+|---|---|---|---|
+| 1 | **Izgara yürüyüşü.** Her hipotezin 9 yapılandırmasının **hepsi** KEŞİF kümesinde hesaplanır ve **hepsi raporlanır**. | §8 madde 1 | `config.IZGARA`, `sinyal.yapilandirma_dogrula`, `sinyal.yapilandirma_kimligi`; ızgara dışı demet hata verir |
+| 2 | **Raporlanacak kalemler.** Yapılandırma kimliği ve parametre değerleri; oluşmuş olay sayısı; analize giren olay sayısı; ortalama net getiri; K1 ve K2 farkı (§7 tanımıyla, birincil ufukta); iki kontrol kümesi için p-değerleri; havuzu 10'dan az olan olay sayısı; §4 "F2 şartı"ndaki ritim başına pay ve sağlamlık kontrolü sonucu; tohum ve alt tohum türetme demeti. Olay başına ham kayıtta ayrıca MAE ve geçersizlik seviyesi. | §8 madde 1 | `ornekleme.olay_sayilari` (iki sayı), `KontrolHavuzu.eksik`/`aday_sayisi` (havuzu 10'dan az olan olay), `istatistik.yeniden_ornekle` → `PSonucu.genel_tohum` + `alt_tohum_demeti`, `pozisyon.mae`, `OnaylanmisPozisyon.gecersizlik_seviyesi`, `funding.*ritim*` |
+| 3 | **Sıfır olaylı yapılandırma da raporlanır:** olay sayıları sıfır yazılır; ortalama getiri, farklar ve p-değerleri "hesaplanamaz" olarak işaretlenir ve **sıfır sayılmaz**. | §8 madde 1 son cümle | `istatistik.test_istatistigi`/`yeniden_ornekle` boş olay kümesinde `ValueError` verir: sıfır üretmez, hesaplanamaz olduğunu söyler |
+| 4 | **Yapılandırma seçimi.** Adaylar (analize giren olay sayısı ≥ 150) arasından **K2 farkı en yüksek** olan seçilir (K2 farkı §7 tanımıyla, birincil ufukta). | §8 madde 2–3 | `config.ADAY_OLAY_ESIGI`, `ornekleme.OlaySayilari.esigi_gecer`, `ornekleme.olay_esigi_dogrula(…, asama="F2")`, `istatistik.test_istatistigi` (olay başına ağırlıklı) |
+| 5 | **Beraberlik mekanik çözülür:** K2 farkı eşitse analize giren olay sayısı daha büyük olan; o da eşitse §5'teki **ızgara sıralamasında** daha önce gelen yapılandırma. | §8 madde 3 | ızgara sırası `config.IZGARA` sırasıdır (tek kaynak); olay sayısı `OlaySayilari.analize_giren` |
+| 6 | **Aday yoksa hipotez onaya gönderilmeden kapanır:** dokuz yapılandırma madde 1'e göre raporlanır, kapanma gerekçesi "aday yok" yazılır. Bir yapılandırma seçilmişse K2 farkı > 0 ve ortalama net getiri > 0 koşulları keşifte sağlanmıyorsa hipotez yine kapanır; onay verisi harcanmaz. Seçim/kapanma `analysis/<hipotez>/KILIT.md` ile commit edilir. | §8 madde 3–5 | `split.kilit_oku`, `split.kilit_kaydi_coz`, `split.KILIT_ALANLARI`, `split.HipotezKapandi`: onay koşusu kaydı olmayan ya da hükmü "hipotez kapandı" olan hipotez için **açılmaz** |
+| 7 | **Sağlamlık kontrolünün uygulanması.** Net getirisi kısmi kuyruk ve pencere sonu eşitliği nedeniyle tam doğrulanamayan olayların payı **funding ritmi başına** raporlanır; ana sonuçlar bu olaylar dışlanarak yeniden hesaplanır. Dışlama **kontrol tarafına da** uygulanır (rev.13): kalan olayların havuzlarından aynı nedenlerle doğrulanamayan kontroller de çıkarılır ve **havuzu boşalan olay analize girmez**. Kalan olay ve kontrol sayıları raporlanır; sağlamlık kontrolü ana testin yerini almaz. | §4 "F2 şartı" (rev.9, rev.13) | `funding.funding_tamlik_ayrintisi` (`kuyruk_kismi`, `son_esitlik_affi` sütunları), `pozisyon` ritim sınıflaması, `ornekleme.olay_analize_girer` (tek yüklem: havuzu boşalan olay analize girmez) |
+| 8 | **İkincil ufuklar yalnızca seçilen yapılandırma için** hesaplanır (rev.13): ızgara raporu ve seçim **birincil** ufka dayanır; ikincil ufuklar seçim yapıldıktan sonra, olaylar **ve** kontrolleri için birlikte hesaplanır. İkincil ufuklar yalnızca raporlanır; onay kararları birincil ufka göre verilir. | §4 "Ufuk değerlerinin bağlanması" | `config.BIRINCIL_UFUK` / `config.IKINCIL_UFUKLAR` (tek kaynak); `pozisyon.olay_karari` serbest ufuk kabul etmez ve ikincil ufukta aynı kapıdan geçer |
+
+**Bu listenin sınırı.** Tablo, F2 kodunun yapacaklarının kaydıdır; hiçbiri bu turda koda
+geçirilmedi ve hiçbiri test edilmedi. Veri katmanının sağladığı parçalar sütun 3'te anılmıştır:
+F2 bu parçaları çağırmak zorundadır, kendi kopyasını yazmamalıdır (ön-kayıt §4 "tek karar
+noktası" ile aynı gerekçe).
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 

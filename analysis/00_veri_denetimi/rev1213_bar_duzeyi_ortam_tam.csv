@@ -1,0 +1,14 @@
+bilesen,surum
+git_commit,427a9acc4433ad72b260c6b716992172325f4985
+calisma_agaci,kirli
+calisma_agaci_degisiklikleri,?? analysis/00_veri_denetimi/rev1213_uygulama.py
+kosu_baslangic_utc,2026-10-12 20:13:49
+kosu_bitis_utc,2026-10-12 20:14:20
+python,3.13.12
+python_derleme,Feb 24 2026 16:05:56
+python_yolu,D:\Miniconda\python.exe
+platform,Windows-10-10.0.19045-SP0
+pandas,2.3.3
+numpy,2.4.4
+pyarrow,21.0.0
+requests,2.32.5

@@ -1,0 +1,14 @@
+bilesen,surum
+git_commit,427a9acc4433ad72b260c6b716992172325f4985
+calisma_agaci,kirli
+calisma_agaci_degisiklikleri, M analysis/00_veri_denetimi/RESULTS.md | ?? analysis/00_veri_denetimi/rev1213_bar_duzeyi_ortam_tam.csv | ?? analysis/00_veri_denetimi/rev1213_bar_duzeyi_sutun_tam.csv | ?? analysis/00_veri_denetimi/rev1213_bar_duzeyi_tam.csv | ?? analysis/00_veri_denetimi/rev1213_uygulama.py | ?? tests/test_sizinti_rev1213.py
+kosu_baslangic_utc,2026-10-14 21:10:43
+kosu_bitis_utc,2026-10-14 21:28:36
+python,3.13.12
+python_derleme,Feb 24 2026 16:05:56
+python_yolu,D:\Miniconda\python.exe
+platform,Windows-10-10.0.19045-SP0
+pandas,2.3.3
+numpy,2.4.4
+pyarrow,21.0.0
+requests,2.32.5
