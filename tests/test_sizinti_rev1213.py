@@ -211,13 +211,9 @@ def test_ayni_dizi_cagrisinda_ayni_sembol_donem_kume_onaylari_kabul_edilir_oluml
     assert _idx4(sonuc) == [0, 20]
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C2): `dizi._olay_dogrula` onayin (hipotez, yapilandirma, rol, t, capa) alanlarini denetler ama "
-    "sembol, kume ve donem_no'yu HIC denetlemez. Bir `olay_dizisi` cagrisi tek bir (sembol, donem, kume, "
-    "yapilandirma) dizisidir (modul aciklamasi; on-kayit §5: 'bekleme donem sinirini asmaz: yeni donemde "
-    "sifirlanir', her donem icin ayri cagri). `karar` cagrisi icinde baska sembolun, baska donemin ya da baska "
-    "kumenin onayini dondururse dizi kabul eder: ornegin KESIF cagrisina C1 pozisyonu girebilir. Beklenen: "
-    "ValueError; gozlenen: iki olay da kabul edildi."))
+# SIZINTI BULGUSU S-C2 KAPANDI (madde 1d): `dizi.olay_dizisi` artik bir cagrinin butun olaylarinin
+# ayni (sembol, kume, donem_no) ucluusune ait oldugunu denetliyor. Isaret kaldirildi; testin
+# beklentisi degismedi.
 @pytest.mark.parametrize("alan,degerler", [("sembol", ("AAAUSDT", "BBBUSDT")), ("donem_no", (0, 1)),
                                            ("kume", ("KESIF", "C1"))])
 def test_ayni_dizi_cagrisinda_farkli_sembol_donem_kume_onaylari_karisamaz(alan, degerler):

@@ -273,6 +273,7 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
 
     olaylar: list[Olay] = []
     retler: list[Ret] = []
+    dizi_kimligi = None      # (sembol, kume, donem_no): bir cagri TEK bir dizidir (bkz. _dene)
     son_olay = None          # bekleme suresinin cikti olay bari
     izleme_pump = None       # H1: yuruyen izlemenin pump bari
     dizi_suruyor = False     # H3: kesintisiz dizi suruyor mu
@@ -284,13 +285,27 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
 
     def _dene(t, capa):
         """Kapiyi cagirir; olay olustuysa kaydeder ve beklemeyi baslatir."""
-        nonlocal son_olay
+        nonlocal son_olay, dizi_kimligi
         try:
             pozisyon = karar(t, capa)
         except pencere_modulu.OlayOlusmaz as hata:
             retler.append(Ret(t, capa, pencere_modulu.ret_gerekcesi(hata)))
             return False
         _olay_dogrula(pozisyon, hipotez=ad, yapilandirma_kimligi=kimlik, t=t, capa=capa)
+        # Bir cagri TEK bir (sembol, kume, donem) dizisidir (yukaridaki aciklama; on-kayit §5
+        # rev.11 "bekleme donem sinirini asmaz: yeni donemde sifirlanir"; §3 kumeler arasi veri
+        # odunc alinmaz). Sizinti bulgusu S-C2: `_olay_dogrula` hipotez, yapilandirma, rol, t ve
+        # capayi denetliyordu; sembol, kume ve donem_no denetlenmiyordu, dolayisiyla `karar` ayni
+        # cagri icinde baska sembolun, baska donemin ya da baska KUMENIN onayini dondurebiliyordu
+        # (C1, KESIF ile ayni tarih araligini paylasir; ayiran sey coin grubudur).
+        uclu = (pozisyon.sembol, pozisyon.kume, pozisyon.donem_no)
+        if dizi_kimligi is None:
+            dizi_kimligi = uclu
+        elif uclu != dizi_kimligi:
+            raise ValueError(
+                f"bir olay dizisinin butun olaylari ayni (sembol, kume, donem) ucluusune ait olmali; "
+                f"dizi {dizi_kimligi} uzerinde kosuyor, {t} barinda {uclu} geldi. Bekleme donem basina "
+                "isler ve kumeler arasi veri odunc alinmaz (on-kayit §5 rev.11, §3).")
         olaylar.append(_olay_kur(t, capa, pozisyon))
         son_olay = t
         return True
