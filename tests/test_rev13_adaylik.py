@@ -26,6 +26,7 @@ import pytest
 import config
 from data import ornekleme, pozisyon
 from dizi_yardimcisi import olaylar_kur
+from onay_yardimcisi import gecici_kayit, kosu
 from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur, ornekle
 from sinyal_yardimcisi import yapilandirma
 
@@ -98,13 +99,21 @@ def test_bilinmeyen_rol_reddedilir(rol):
 # --- 2. Demet tutarliligi ---------------------------------------------------------------------
 
 
-def test_karisik_yapilandirma_hipotez_ya_da_kume_reddedilir():
-    """On-kayit §5, §6 rev.11: havuzlar yapilandirma basinadir."""
+def test_karisik_yapilandirma_hipotez_ya_da_kume_reddedilir(tmp_path):
+    """On-kayit §5, §6 rev.11: havuzlar yapilandirma basinadir.
+
+    MADDE 1e ILE DEGISTI (denetci bulgusu D-C2): `_test_onayi` C1/C2 icin artik ACIK bir onay
+    kosusu ister, bu yuzden C2 onayi bir `onay_kosusu` icinde kurulur. Iddia degismedi."""
     a = _onay()
-    for baska in (pozisyon._test_onayi(hipotez="H2", yapilandirma=yapilandirma("H2", k=12), t=TB, rol="K1"),
-                  pozisyon._test_onayi(hipotez="H1", yapilandirma=yapilandirma("H1"), t=TB, rol="K1"),
-                  pozisyon._test_onayi(hipotez="H2", yapilandirma=Y2, t=T("2025-10-10 04:00"),
-                                       rol="K1", kume="C2", sembol="TESTONAYUSDT")):
+    baskalar = [pozisyon._test_onayi(hipotez="H2", yapilandirma=yapilandirma("H2", k=12), t=TB, rol="K1"),
+                pozisyon._test_onayi(hipotez="H1", yapilandirma=yapilandirma("H1"), t=TB, rol="K1")]
+    yol = tmp_path / "onay_gecici.md"
+    yol.write_text("bas\n", encoding="utf-8")
+    gecici_kayit(yol)
+    with kosu("H2", "C2"):
+        baskalar.append(pozisyon._test_onayi(hipotez="H2", yapilandirma=Y2, t=T("2025-10-10 04:00"),
+                                             rol="K1", kume="C2", sembol="TESTONAYUSDT"))
+    for baska in baskalar:
         with pytest.raises(ValueError, match="ayni"):
             ornekleme.adaylari_kur([a, baska], rol="K1")
 

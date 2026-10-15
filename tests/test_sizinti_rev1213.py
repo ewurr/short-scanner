@@ -217,12 +217,16 @@ def test_ayni_dizi_cagrisinda_ayni_sembol_donem_kume_onaylari_kabul_edilir_oluml
 @pytest.mark.parametrize("alan,degerler", [("sembol", ("AAAUSDT", "BBBUSDT")), ("donem_no", (0, 1)),
                                            ("kume", ("KESIF", "C1"))])
 def test_ayni_dizi_cagrisinda_farkli_sembol_donem_kume_onaylari_karisamaz(alan, degerler):
-    """On-kayit §5 rev.11 ("Bekleme ... donem sinirini asmaz") + §3 (kumeler arasi veri odunc alinmaz)."""
+    """On-kayit §5 rev.11 ("Bekleme ... donem sinirini asmaz") + §3 (kumeler arasi veri odunc alinmaz).
+
+    Kume karismasinda redin SINIFI madde 1e ile degisti: `_test_onayi` C1/C2 icin acik bir onay
+    kosusu istedigi icin karisim daha ONCE, `split.OnayGerekli` ile reddediliyor. Hukum ayni: dizi
+    iki kumeyi karistiramaz."""
     def karar(t, capa):
         deger = degerler[0] if t == IZ4[0] else degerler[1]
         return _h2_onay(t, capa, **{alan: deger})
 
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, PermissionError)):
         _h2_dizi(karar, [0, 20])
 
 

@@ -47,10 +47,8 @@ def _onay(t, capa=None, *, hipotez="H2", **ek):
 
 @pytest.mark.parametrize("alan,degerler", [("sembol", ("AAAUSDT", "BBBUSDT")),
                                            ("donem_no", (0, 1)),
-                                           ("donem_no", (2, 0)),
-                                           ("kume", ("KESIF", "C1")),
-                                           ("kume", ("C1", "KESIF"))])
-def test_karisik_sembol_donem_kume_reddedilir(alan, degerler):
+                                           ("donem_no", (2, 0))])
+def test_karisik_sembol_ve_donem_reddedilir(alan, degerler):
     idxler = [0, 20]          # ikisi de beklemenin disinda (18 bar)
 
     def karar(t, capa):
@@ -59,6 +57,20 @@ def test_karisik_sembol_donem_kume_reddedilir(alan, degerler):
 
     with pytest.raises(ValueError, match="ayni \\(sembol, kume, donem"):
         _dizi(karar, idxler)
+
+
+@pytest.mark.parametrize("degerler", [("KESIF", "C1"), ("C1", "KESIF")])
+def test_karisik_kume_reddedilir(degerler):
+    """Kume karisimi madde 1e'den sonra daha ONCE, `split.OnayGerekli` ile reddedilir: `_test_onayi`
+    C1/C2 icin acik bir onay kosusu ister. Acik bir C1 kosusu varken de karisim kalir: o kosu
+    icinde KESIF pozisyonu olusturulamaz (kapi sertlestirme turu 3). Iki yol da "dizi iki kumeyi
+    karistiramaz" hukmunu verir."""
+    def karar(t, capa):
+        deger = degerler[0] if t == IZGARA[0] else degerler[1]
+        return _onay(t, capa, kume=deger)
+
+    with pytest.raises((ValueError, PermissionError)):
+        _dizi(karar, [0, 20])
 
 
 def test_hata_mesaji_iki_ucluyu_de_yazar():
@@ -79,22 +91,21 @@ def test_h3_de_ayni_denetim_isler():
         _dizi(karar, [0, 40], hipotez="H3")
 
 
-def test_kume_karismasi_ilk_olayda_da_yakalanir():
-    """Uc olay: ilk ikisi KESIF, ucuncusu C1. Dizi ucuncude durur."""
+def test_kume_karismasi_ucuncu_olayda_da_yakalanir():
+    """Uc olay: ilk ikisi KESIF, ucuncusu C1. Dizi ucuncude durur (red sinifi icin yukariya bak)."""
     secim = {IZGARA[0]: "KESIF", IZGARA[20]: "KESIF", IZGARA[40]: "C1"}
 
     def karar(t, capa):
         return _onay(t, capa, kume=secim[t])
 
-    with pytest.raises(ValueError, match="ayni \\(sembol, kume, donem"):
+    with pytest.raises((ValueError, PermissionError)):
         _dizi(karar, [0, 20, 40])
 
 
 # --- 2. Tek uclu gecer; onceki denetimler korundu ---------------------------------------------
 
 
-@pytest.mark.parametrize("uclu", [("AAAUSDT", "KESIF", 0), ("BBBUSDT", "KESIF", 3),
-                                  ("CCCUSDT", "C1", 0)])
+@pytest.mark.parametrize("uclu", [("AAAUSDT", "KESIF", 0), ("BBBUSDT", "KESIF", 3)])
 def test_tek_uclu_gecer(uclu):
     sembol, kume, donem_no = uclu
 

@@ -201,12 +201,36 @@ def _imza(p: OnaylanmisPozisyon) -> int:
                  p.sembol, p.kume, p.donem_no))
 
 
+# Test dikisinin (`_test_onayi`) urettigi onaylarin OMUR kaydi: imza -> onu kuran pytest testinin
+# kimligi (denetci bulgusu D-C2). `split._test_kaydi_ayarla` kurdugu ayari testin kimligine baglar
+# ve test bitince ayar kendiliginden gecersizlesir; dikisin urettigi nesne ise ayni oturumdaki
+# BASKA bir testte de gecerliydi. Sozluk yalnizca pytest icinde dolar (dikis dislarda
+# `RuntimeError` verir), bu yuzden gercek kosuda bostur ve denetim bedelsizdir.
+_TEST_ONAY_OMURLERI: dict[int, str] = {}
+
+
+def _test_onay_omru_dogrula(pozisyon) -> None:
+    """Dikisin urettigi onay YALNIZCA kendi testinde gecerlidir (denetci bulgusu D-C2)."""
+    if not _TEST_ONAY_OMURLERI:
+        return
+    kuran = _TEST_ONAY_OMURLERI.get(pozisyon._imza)
+    if kuran is None:
+        return
+    simdi = split_modulu._pytest_testi()
+    if simdi != kuran:
+        raise ValueError(
+            "Bu onay `pozisyon._test_onayi` ile BASKA bir testte kuruldu ve omru o testle sinirlidir "
+            f"(kuran test: {kuran}; simdiki: {simdi}). Dikis gercek onayin yerine gecmez "
+            "(on-kayit §4 'tek karar noktasi'; denetci bulgusu D-C2).")
+
+
 def onay_dogrula(pozisyon) -> None:
     """`olay_karari`nin urettigi ve degistirilmemis bir pozisyon mu?"""
     if not isinstance(pozisyon, OnaylanmisPozisyon):
         raise TypeError(f"Onaylanmis pozisyon gerekir (pozisyon.olay_karari ciktisi); verilen: {type(pozisyon).__name__}")
     if pozisyon._imza != _imza(pozisyon):
         raise ValueError("OnaylanmisPozisyon elle kurulmus ya da degistirilmis; yalnizca olay_karari uretir.")
+    _test_onay_omru_dogrula(pozisyon)
 
 
 def _close_time_nat_yok(mumlar: pd.DataFrame, ad: str) -> None:
@@ -630,10 +654,19 @@ def _test_onayi(*, hipotez: str, yapilandirma, t, rol: str = "olay", capa=None,
     gecerli bir onay verir; plan `pencere.pozisyon_plani`nin kendisinden gecer, fiyat ve funding
     degerleri yer tutucudur (1.0, 1.0, 0.0) ve hicbir getiri hesabinda kullanilmaz.
 
-    KORUMA. Yalnizca bir pytest testi icinde cagrilabilir (`split._pytest_testi`); dislarda
-    `RuntimeError`. Adi analiz kodunda gecemez: `tests/tarama_yardimcisi.ONAY_ATLATMA_DESENI`
-    tarafindan taranir. Kilit, dikkatsiz bir kullanima karsi korur, kararli bir atlatmaya karsi
-    degil (CLAUDE.md "Koruma katmani" ile ayni tutum).
+    KORUMA (denetci bulgusu D-C2 ile tamamlandi). Dort katman:
+      1. Yalnizca bir pytest testi icinde cagrilabilir (`split._pytest_testi`); dislarda
+         `RuntimeError`.
+      2. Urettigi nesnenin OMRU o testle sinirlidir: baska bir testte `onay_dogrula` reddeder
+         (`_TEST_ONAY_OMURLERI`). Oncesinde nesne ayni oturumdaki her testte gecerliydi.
+      3. C1/C2 icin acik bir ONAY KOSUSU sarttir (`split.onay_baglami_dogrula`): "C1/C2 pozisyonu
+         yalnizca acik onay kosusu icinde olusur" degismezi pytest icinde de delinemez
+         (CLAUDE.md §3.3, on-kayit §3). Gercek kosuda dikis zaten kapalidir; buradaki amac tek
+         atis guvencesinin test baglaminda da gecerli kalmasidir.
+      4. Adi analiz kodunda gecemez: `tests/tarama_yardimcisi.ONAY_ATLATMA_DESENI` tarafindan
+         taranir.
+    Kilit, dikkatsiz bir kullanima karsi korur, kararli bir atlatmaya karsi degil (CLAUDE.md
+    "Koruma katmani" ile ayni tutum).
     """
     if split_modulu._pytest_testi() is None:
         raise RuntimeError("_test_onayi yalnizca bir pytest testi icinde kullanilabilir; gercek onay "
@@ -653,12 +686,17 @@ def _test_onayi(*, hipotez: str, yapilandirma, t, rol: str = "olay", capa=None,
     plan = pencere_modulu.pozisyon_plani(
         zamanlar, zaman, tanim.birincil, tanim.bar, birincil_ufuk=tanim.birincil,
         kume_baslangic=kume_baslangic, kume_bitis=kume_bitis, donem_baslangic=bas, donem_bitis=son)
+    yapilandirma_kimligi = sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli)
+    # Onay kumesi icin acik kosu sarti: gercek kapidaki denetimin aynisi (kapi sertlestirme turu 3).
+    split_modulu.onay_baglami_dogrula(hipotez, kume, yapilandirma_kimligi)
     sonuc = OnaylanmisPozisyon(
         plan, 1.0, 1.0, 0.0, hipotez=hipotez,
-        yapilandirma=sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli), rol=rol,
+        yapilandirma=yapilandirma_kimligi, rol=rol,
         capa=None if capa is None else _utc_sinyal_zamani(capa), sembol=sembol, kume=kume,
         donem_no=int(donem_no))
-    return replace(sonuc, _imza=_imza(sonuc))
+    imzali = replace(sonuc, _imza=_imza(sonuc))
+    _TEST_ONAY_OMURLERI[imzali._imza] = split_modulu._pytest_testi()
+    return imzali
 
 
 def sinyal_kosulu(t, *, hipotez: str, yapilandirma, capa, kume: str, sembol: str, donem_no: int):

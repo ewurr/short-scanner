@@ -27,6 +27,7 @@ import pytest
 import config
 from data import dizi, ornekleme
 from dizi_yardimcisi import olaylar_kur, olaylar_sembollerde, tek_olay
+from onay_yardimcisi import gecici_kayit, kosu
 from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur, ornekle
 from sinyal_yardimcisi import yapilandirma
 
@@ -90,10 +91,17 @@ def test_baska_hipotezin_olayi_reddedilir():
         ornekleme.k1_adaylari(adaylar, baska, UFUK, config.BAR_4H)
 
 
-def test_baska_kumenin_olayi_reddedilir():
-    """§3: kumeler arasi veri odunc alinmaz."""
+def test_baska_kumenin_olayi_reddedilir(tmp_path):
+    """§3: kumeler arasi veri odunc alinmaz.
+
+    MADDE 1e: C2 onayi ACIK bir onay kosusu ister, bu yuzden olay oyle kurulur. Iddia degismedi:
+    havuz olcutu baska kumenin olayini kabul etmez."""
     adaylar = k1_adaylari_kur(BARLAR[:10])
-    baska = olaylar_kur([T("2025-10-10 04:00")], kume="C2")
+    yol = tmp_path / "onay_gecici.md"
+    yol.write_text("bas\n", encoding="utf-8")
+    gecici_kayit(yol)
+    with kosu("H2", "C2"):
+        baska = olaylar_kur([T("2025-10-10 04:00")], kume="C2")
     with pytest.raises(ValueError, match="demetine ait"):
         ornekleme.k1_adaylari(adaylar, baska, UFUK, config.BAR_4H)
 
