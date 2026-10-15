@@ -3176,6 +3176,17 @@ ve hipotez başına özetler (`*_ozet_tam.csv`) commit edildi. Sembol başına t
 betikle yeniden üretilebilir (`--olcum capasiz` ≈ 2,5 saat, `--olcum gecersizlik` ≈ 18 dakika, 8 iş
 parçacığı).
 
+**Temiz koşu (madde 7).** `4ed62c5` commit'inde, temiz çalışma ağacında tam denetim
+(`calistir.py --eski-evren`, 678 sembol, hatalı 0) ve A1 ölçümü (`a1_olcumu.py`) yeniden koşuldu;
+farklar `karsilastir.py --onceki 427a9ac` ile listelendi
+(`karsilastirma_rev1213_uygulama_tam.csv`): **68 dosya aynı**, 2 dosya farklı (`ortam_tam.csv` ve
+`a1_ortam_tam.csv` — yalnızca commit hash'i ve koşu zamanı), 8 dosya yeni (bu turun etki ölçümü
+çıktıları). Yani Rev.12/Rev.13'ün veri katmanı değişiklikleri F1'in denetim sayılarının
+**hiçbirini** değiştirmedi; beklenen de buydu, çünkü değişen kurallar olay ve kontrol üretimine
+ait, F1'in bütünlük/tamlık sayımlarına değil. Denetim özeti de aynı: toplam 4h bar 3.692.573,
+dönem içi bar 3.378.942, dolgu bar 313.626 (156 koşu), kısa sıfır koşusu 0, dönem tutarsızlığı 0,
+funding'siz dönem 3, sıçrama 10, boşluk 105 (10 olay), 60 günden kısa dönem 5.
+
 ### §14.31 F2'nin karşılaması gereken ön-kayıt gereksinimleri (bu turda **kod yazılmadı**)
 
 Rev.12 ve Rev.13'ün bir bölümü veri katmanının değil **F2'nin kendi kodunun** kuralıdır: ızgara
