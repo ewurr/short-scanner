@@ -19,6 +19,7 @@ import pytest
 
 import config
 from data import ornekleme, pozisyon
+from dizi_yardimcisi import olaylar_kur
 from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur, ornekle
 from sinyal_yardimcisi import yapilandirma
 
@@ -75,8 +76,8 @@ def test_bos_aday_kumesi_donem_denetiminden_etkilenmez():
 
 def test_zincir_tek_donemle_calisir():
     adaylar = ornekleme.adaylari_kur([_onay(t, donem_no=2) for t in BARLAR], rol="K1")
-    ayiklanmis = ornekleme.k1_adaylari(adaylar, [BARLAR[0]], config.BIRINCIL_UFUK[config.BAR_4H],
-                                       config.BAR_4H)
+    ayiklanmis = ornekleme.k1_adaylari(adaylar, olaylar_kur([BARLAR[0]]),
+                                       config.BIRINCIL_UFUK[config.BAR_4H], config.BAR_4H)
     havuz = ornekle(ayiklanmis)
     assert len(havuz) == min(config.KONTROL_SAYISI, len(ayiklanmis))
     assert set(havuz.secilenler) <= set(ayiklanmis.ogeler)

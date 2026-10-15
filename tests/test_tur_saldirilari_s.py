@@ -51,6 +51,7 @@ import pytest
 import config
 from data import dizi, ornekleme, pencere, pozisyon, sinyal
 from kapi_yardimcisi import veri
+from dizi_yardimcisi import olaylar_kur, olaylar_sembollerde
 from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur
 from sinyal_yardimcisi import kontrol, olay, yapilandirma
 from uygunluk_yardimcisi import UYGUN_ONCELIK, esikler
@@ -574,7 +575,10 @@ def test_k2_adayi_olay_ureten_barda_kapi_elemez_eleme_ornekleme_adiminda():
     assert _karar(dunya, "H2", ZG[35], kontrol("H2", "K2")).rol == "K2"
     # Eleme ornekleme adimindadir: olay ureten sembol havuzdan cikar, verilmezse kalir.
     kur = lambda ss: k2_adaylari_kur(ss, t=ZG[TH], hipotez="H2")  # noqa: E731
-    assert ornekleme.k2_adaylari(kur(["AAAUSDT"]), ["AAAUSDT"], olay_sembolu="BBBUSDT").ogeler == ()
+    # REV.14 (denetci bulgusu D-B2): olcutun girdisi ham sembol adi degil, AYNI bardaki olay
+    # nesneleridir. Iddialar degismedi.
+    ureten = olaylar_sembollerde(["AAAUSDT"], t=ZG[TH], hipotez="H2")
+    assert ornekleme.k2_adaylari(kur(["AAAUSDT"]), ureten, olay_sembolu="BBBUSDT").ogeler == ()
     assert ornekleme.k2_adaylari(kur(["AAAUSDT"]), [], olay_sembolu="BBBUSDT").ogeler == ("AAAUSDT",)
 
 
@@ -588,7 +592,8 @@ def test_h1_k2_kapisi_olay_barini_kendisi_elemez_havuz_k2_adaylari_ile_elenir():
     assert p.rol == "K2"
     sembol = dunya["sembol"]
     aday = k2_adaylari_kur([sembol, "BBBUSDT"], t=ZG[PG], hipotez="H1")
-    assert ornekleme.k2_adaylari(aday, [sembol], olay_sembolu="AAAUSDT").ogeler == ("BBBUSDT",)
+    ureten = olaylar_sembollerde([sembol], t=ZG[PG], hipotez="H1", yapilandirma=Y_H1)
+    assert ornekleme.k2_adaylari(aday, ureten, olay_sembolu="AAAUSDT").ogeler == ("BBBUSDT",)
     assert ornekleme.k2_adaylari(aday, [], olay_sembolu="AAAUSDT").ogeler == tuple(sorted([sembol, "BBBUSDT"]))
 
 
@@ -1332,16 +1337,21 @@ def test_k1_birden_cok_olay_hicbirine_yakin_olmamali_bos_olay_listesi_hepsini_bi
     ikisinden de uzak ama birine yakin bar elenir. Olay yoksa tum adaylar kalir; sira korunur."""
     e1, e2 = OLAY_T, OLAY_T + 30 * H4
     aday = [e1 + k * H4 for k in range(-5, 40)]
-    kalan = ornekleme.k1_adaylari(_k1(aday), [e1, e2], 18, "4h")
+    # REV.14 (D-B2): olaylar DOGRULANMIS nesnelerdir; iddialar degismedi.
+    olaylar = olaylar_kur([e1], hipotez="H1", yapilandirma=Y_H1) +         olaylar_kur([e2], hipotez="H1", yapilandirma=Y_H1)
+    kalan = ornekleme.k1_adaylari(_k1(aday), olaylar, 18, "4h")
     beklenen = tuple(t for t in aday if abs((t - e1) / H4) >= 18 and abs((t - e2) / H4) >= 18)
     assert kalan.ogeler == beklenen
     assert tuple(ornekleme.k1_adaylari(_k1(aday), [], 18, "4h").ogeler) == tuple(aday)
     assert all(ornekleme.k1_uzak_mi(t, [e1, e2], 18, "4h") for t in kalan.ogeler)
     with pytest.raises(ValueError):
         _k1(aday + aday[:2])
-    # Ham liste de kabul edilmez (rev.13): adaylik kapidan gecer.
+    # Ham aday listesi de kabul edilmez (rev.13): adaylik kapidan gecer.
     with pytest.raises(TypeError):
-        ornekleme.k1_adaylari(aday, [e1], 18, "4h")
+        ornekleme.k1_adaylari(aday, olaylar[:1], 18, "4h")
+    # Ham OLAY listesi de kabul edilmez (rev.14).
+    with pytest.raises(TypeError):
+        ornekleme.k1_adaylari(_k1(aday), [e1], 18, "4h")
 
 
 def test_k1_ufuk_degeri_on_kayit_disi_ve_tzsiz_zaman_reddedilir():
@@ -1364,15 +1374,22 @@ def test_k2_havuzu_olay_ureten_coin_ve_olayin_kendi_coini_dusulur_sira_bagimsiz(
     sirasi karistirilsa sonuc ayni ve alfabetik. Tekrarli aday ValueError."""
     adaylar = ["EEEUSDT", "AAAUSDT", "DDDUSDT", "BBBUSDT", "CCCUSDT"]
     kur = lambda ss: k2_adaylari_kur(ss, t=OLAY_T, hipotez="H1", yapilandirma=Y_H1)  # noqa: E731
-    sonuc = ornekleme.k2_adaylari(kur(adaylar), ["CCCUSDT", "ZZZUSDT"], olay_sembolu="AAAUSDT")
+    # REV.14 (D-B2): "olay ureten coinler" olay nesneleriyle verilir. Havuzda olmayan bir coinin
+    # ("ZZZUSDT") olayi da verilebilir: eleme kume kesisimidir.
+    olay = lambda ss: olaylar_sembollerde(ss, t=OLAY_T, hipotez="H1", yapilandirma=Y_H1)  # noqa: E731
+    sonuc = ornekleme.k2_adaylari(kur(adaylar), olay(["CCCUSDT", "ZZZUSDT"]), olay_sembolu="AAAUSDT")
     assert sonuc.ogeler == ("BBBUSDT", "DDDUSDT", "EEEUSDT")
-    assert ornekleme.k2_adaylari(kur(adaylar[::-1]), {"CCCUSDT"}, olay_sembolu="AAAUSDT").ogeler == sonuc.ogeler
+    assert ornekleme.k2_adaylari(kur(adaylar[::-1]), olay(["CCCUSDT"]),
+                                 olay_sembolu="AAAUSDT").ogeler == sonuc.ogeler
     assert ornekleme.k2_adaylari(kur(adaylar), [], olay_sembolu="NNNUSDT").ogeler == tuple(sorted(adaylar))
-    assert ornekleme.k2_adaylari(kur(adaylar), adaylar, olay_sembolu="AAAUSDT").ogeler == ()
+    assert ornekleme.k2_adaylari(kur(adaylar), olay(adaylar), olay_sembolu="AAAUSDT").ogeler == ()
     with pytest.raises(ValueError):
         kur(adaylar + ["AAAUSDT"])
     with pytest.raises(TypeError):
         ornekleme.k2_adaylari(adaylar, [], olay_sembolu="ZZZUSDT")
+    # Ham sembol listesi de kabul edilmez (rev.14).
+    with pytest.raises(TypeError):
+        ornekleme.k2_adaylari(kur(adaylar), ["CCCUSDT"], olay_sembolu="AAAUSDT")
 
 
 def test_k2_ornekleme_olay_ureten_coini_asla_secmez_binlerce_tohumla():
@@ -1381,7 +1398,8 @@ def test_k2_ornekleme_olay_ureten_coini_asla_secmez_binlerce_tohumla():
     adaylar = [f"C{i:02d}USDT" for i in range(40)]
     ureten = {"C03USDT", "C11USDT", "C17USDT", "C25USDT", "C39USDT"}
     kur = k2_adaylari_kur(adaylar, t=OLAY_T, hipotez="H1", yapilandirma=Y_H1)
-    havuz = ornekleme.k2_adaylari(kur, ureten, olay_sembolu="C00USDT")
+    ureten_olaylar = olaylar_sembollerde(sorted(ureten), t=OLAY_T, hipotez="H1", yapilandirma=Y_H1)
+    havuz = ornekleme.k2_adaylari(kur, ureten_olaylar, olay_sembolu="C00USDT")
     assert len(havuz) == 40 - 5 - 1
     for i in range(500):
         sec = _ornekle(havuz, olay_zamani=OLAY_T + i * H4).secilenler

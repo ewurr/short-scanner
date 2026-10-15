@@ -49,6 +49,7 @@ import numpy as np
 import pandas as pd
 
 import config
+from data import dizi as dizi_modulu
 from data import pencere as pencere_modulu
 from data import pozisyon as pozisyon_modulu
 from data import sinyal as sinyal_modulu
@@ -131,6 +132,10 @@ class Adaylar:
     yapilandirma: str
     kume: str
     ogeler: tuple
+    # K2'de adaylarin ORTAK bar zamani (§6 K2 "ayni t barinda"); K1'de `None`, cunku K1'in
+    # adaylari zaten farkli barlardir. `k2_adaylari` olay kumesinin bu bara ait oldugunu bununla
+    # dogrular (denetci bulgusu D-B2).
+    bar_zamani: pd.Timestamp | None = None
     _imza: int = field(default=0, repr=False, compare=False)
 
     def __len__(self) -> int:
@@ -138,7 +143,7 @@ class Adaylar:
 
 
 def _aday_imzasi(a: Adaylar) -> int:
-    return hash((_ADAY_GIZLI, a.rol, a.hipotez, a.yapilandirma, a.kume, a.ogeler))
+    return hash((_ADAY_GIZLI, a.rol, a.hipotez, a.yapilandirma, a.kume, a.ogeler, a.bar_zamani))
 
 
 def aday_dogrula(adaylar) -> Adaylar:
@@ -152,8 +157,8 @@ def aday_dogrula(adaylar) -> Adaylar:
     return adaylar
 
 
-def _aday_kur(rol, hipotez, yapilandirma, kume, ogeler) -> Adaylar:
-    a = Adaylar(rol, hipotez, yapilandirma, kume, tuple(ogeler))
+def _aday_kur(rol, hipotez, yapilandirma, kume, ogeler, bar_zamani=None) -> Adaylar:
+    a = Adaylar(rol, hipotez, yapilandirma, kume, tuple(ogeler), bar_zamani)
     return replace(a, _imza=_aday_imzasi(a))
 
 
@@ -203,7 +208,8 @@ def adaylari_kur(onaylar, *, rol: str) -> Adaylar:
     if len(zamanlar) and not all(pencere_modulu.ayni_an(z, zamanlar[0]) for z in zamanlar):
         raise ValueError("K2 ayni t barindan ornekler (on-kayit §6 K2); adaylarin sinyal zamanlari farkli: "
                          f"{sorted({str(z) for z in zamanlar})}.")
-    return _aday_kur(rol, hipotez, yapilandirma, kume, sembol_sirasi([o.sembol for o in liste]))
+    return _aday_kur(rol, hipotez, yapilandirma, kume, sembol_sirasi([o.sembol for o in liste]),
+                     zamanlar[0] if len(zamanlar) else None)
 
 def sembol_sirasi(semboller) -> tuple[str, ...]:
     """Semboller alfabetik sirada islenir (on-kayit §6 rev.11). Tekrarlar reddedilir."""
@@ -231,12 +237,50 @@ def k1_uzak_mi(t, olay_zamanlari, birincil_ufuk: int, bar: str) -> bool:
     return True
 
 
-def k1_adaylari(adaylar: Adaylar, olay_zamanlari, birincil_ufuk: int, bar: str) -> Adaylar:
+def _olaylari_dogrula(olaylar, adaylar: Adaylar, *, yer: str) -> tuple:
+    """Havuz olcutlerinin girdisi: DOGRULANMIS olay nesneleri (denetci bulgusu D-B2).
+
+    On-kayit §6 "Ornekleme kurallari" (rev.11, rev.12): K1'deki "o hipotezin herhangi bir olayi"
+    ve K2'deki "olay uretmemis", AYNI YAPILANDIRMANIN olusmus olay kumesine gore uygulanir;
+    "kapidan gecmemis (reddedilmis) adaylar ve baska yapilandirmalarin olaylari sayilmaz".
+
+    Bulgu: iki olcut de ham `DatetimeIndex` / sembol kumesi aliyordu ve bu listenin gercekten
+    olusmus olaylardan geldigi hicbir yerde dogrulanmiyordu. Eksik ya da yanlis bir liste
+    (reddedilmis adaylarin da verilmesi, ya da bos kume verilmesi) sessizce yanlis havuz uretir:
+    birinci durumda havuz gereginden dar, ikincisinde olay barlari K2 havuzunda kalir -- ikisi de
+    OLCULEN FARKIN YONUNU degistirir. Modul, kendisinin turetebilecegi bir olguyu cagirandan
+    serbest bicimde kabul etmemeli (kapi sertlestirmesinin ilkesi).
+
+    Dogrulanan: her oge gercek bir `dizi.Olay` (imzali, elle kurulamaz) ve olayin pozisyonu
+    adaylarla ayni (hipotez, yapilandirma, kume) demetine ait. SEMBOL kapsamı K1 icin ON-KAYITTA
+    BELIRSIZDIR ("o hipotezin herhangi bir olayi" baska coinlerin olaylarini da kapsiyor olabilir)
+    ve burada DARALTILMAZ; K2'de olcut zaten "ayni t barinda ... diger coinlerden"dir, bu yuzden
+    orada bar zamani dogrulanir.
+    """
+    liste = list(olaylar)
+    for i, olay in enumerate(liste):
+        try:
+            dizi_modulu.olay_dogrula(olay)
+        except TypeError as hata:
+            raise TypeError(f"{yer}[{i}]: {hata} Ham bar damgasi ya da sembol adi, olusmus bir olayin "
+                            "YERINE gecmez (on-kayit §6 rev.11; denetci bulgusu D-B2).") from None
+        p = olay.pozisyon
+        if (p.hipotez, p.yapilandirma, p.kume) != (adaylar.hipotez, adaylar.yapilandirma, adaylar.kume):
+            raise ValueError(
+                f"{yer}[{i}]: olay ({p.hipotez}, {p.yapilandirma}, {p.kume}) demetine ait; adaylar "
+                f"({adaylar.hipotez}, {adaylar.yapilandirma}, {adaylar.kume}). Havuz olcutu AYNI "
+                "yapilandirmanin olay kumesine gore uygulanir (on-kayit §6 rev.11).")
+    return tuple(liste)
+
+
+def k1_adaylari(adaylar: Adaylar, olaylar, birincil_ufuk: int, bar: str) -> Adaylar:
     """K1 adaylarindan, ayni yapilandirmanin olaylarina yakin olanlari ayiklar (ORNEKLEMEDEN ONCE).
 
     `adaylar`: `adaylari_kur(..., rol="K1")` ciktisi -- ayni coinin, ayni kume ve donem icindeki,
-    kapidan gecmis barlari. `olay_zamanlari`: AYNI YAPILANDIRMANIN olusmus olaylarinin zamanlari;
-    reddedilmis adaylar ve baska yapilandirmalarin olaylari verilmez (on-kayit §6 rev.11).
+    kapidan gecmis barlari. `olaylar`: AYNI YAPILANDIRMANIN olusmus olaylari, yani
+    `dizi.olay_dizisi`nin urettigi `dizi.Olay` nesneleri; ham zaman damgasi kabul edilmez
+    (denetci bulgusu D-B2). Reddedilmis adaylar ve baska yapilandirmalarin olaylari verilemez
+    (on-kayit §6 rev.11) -- ikisi de `_olaylari_dogrula`da duser.
 
     Doner: ayiklanmis `Adaylar`. Ayiklama yalnizca BURADA yapilir; `ornekle` secilen bir adayi
     sonradan dusurmez (on-kayit §6 rev.13).
@@ -244,27 +288,38 @@ def k1_adaylari(adaylar: Adaylar, olay_zamanlari, birincil_ufuk: int, bar: str) 
     gecerli = aday_dogrula(adaylar)
     if gecerli.rol != "K1":
         raise ValueError(f"k1_adaylari K1 rolunde aday bekler; verilen {gecerli.rol!r}.")
+    dogrulanmis = _olaylari_dogrula(olaylar, gecerli, yer="olaylar")
+    zamanlar = pd.DatetimeIndex([o.zaman for o in dogrulanmis])
     kalan = tuple(t for t in pd.DatetimeIndex(gecerli.ogeler)
-                  if k1_uzak_mi(t, olay_zamanlari, birincil_ufuk, bar))
-    return _aday_kur(gecerli.rol, gecerli.hipotez, gecerli.yapilandirma, gecerli.kume, kalan)
+                  if k1_uzak_mi(t, zamanlar, birincil_ufuk, bar))
+    return _aday_kur(gecerli.rol, gecerli.hipotez, gecerli.yapilandirma, gecerli.kume, kalan,
+                     gecerli.bar_zamani)
 
 
-def k2_adaylari(adaylar: Adaylar, olay_ureten_semboller, *, olay_sembolu: str) -> Adaylar:
+def k2_adaylari(adaylar: Adaylar, olaylar, *, olay_sembolu: str) -> Adaylar:
     """K2 adaylarindan, o anda olay ureten coinleri ve olayin kendi coinini ayiklar (ORNEKLEMEDEN ONCE).
 
     `adaylar`: `adaylari_kur(..., rol="K2")` ciktisi -- AYNI t barinda kapidan gecmis coinler.
-    `olay_ureten_semboller`: o barda AYNI YAPILANDIRMANIN olayini ureten coinler (on-kayit §6
-    rev.12: olcut kosullar degil, o yapilandirmanin olusmus OLAY KUMESIDIR). On-kayit §6 K2 "diger
-    coinlerden" dedigi icin olayin kendi sembolu de ayiklanir.
+    `olaylar`: o barda AYNI YAPILANDIRMANIN olayini ureten `dizi.Olay` nesneleri (on-kayit §6
+    rev.12: olcut kosullar degil, o yapilandirmanin olusmus OLAY KUMESIDIR); ham sembol adi kabul
+    edilmez (denetci bulgusu D-B2) ve her olayin bari adaylarin bariyla AYNI an olmali. On-kayit
+    §6 K2 "diger coinlerden" dedigi icin olayin kendi sembolu de ayiklanir.
 
     Doner: ayiklanmis `Adaylar` (semboller alfabetik sirada; on-kayit §6 rev.11).
     """
     gecerli = aday_dogrula(adaylar)
     if gecerli.rol != "K2":
         raise ValueError(f"k2_adaylari K2 rolunde aday bekler; verilen {gecerli.rol!r}.")
-    ureten = set(olay_ureten_semboller)
+    dogrulanmis = _olaylari_dogrula(olaylar, gecerli, yer="olaylar")
+    for i, olay in enumerate(dogrulanmis):
+        if gecerli.bar_zamani is None or not pencere_modulu.ayni_an(olay.zaman, gecerli.bar_zamani):
+            raise ValueError(
+                f"olaylar[{i}]: olay bari {olay.zaman}, K2 adaylarinin bari {gecerli.bar_zamani}. "
+                "K2'nin 'o anda olay uretmemis' olcutu AYNI t barina gore uygulanir (on-kayit §6 K2).")
+    ureten = {o.pozisyon.sembol for o in dogrulanmis}
     kalan = tuple(s for s in gecerli.ogeler if s != olay_sembolu and s not in ureten)
-    return _aday_kur(gecerli.rol, gecerli.hipotez, gecerli.yapilandirma, gecerli.kume, kalan)
+    return _aday_kur(gecerli.rol, gecerli.hipotez, gecerli.yapilandirma, gecerli.kume, kalan,
+                     gecerli.bar_zamani)
 
 
 def ornekle(adaylar: Adaylar, *, sembol: str, olay_zamani, sayi: int = None) -> KontrolHavuzu:

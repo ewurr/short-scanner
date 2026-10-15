@@ -24,6 +24,7 @@ import config
 from data import ornekleme, pencere, pozisyon, sinyal
 from kapi_yardimcisi import veri
 from kume_yardimcisi import kume_adi
+from dizi_yardimcisi import olaylar_sembollerde
 from ornekleme_yardimcisi import k2_adaylari_kur
 from sinyal_yardimcisi import kontrol, olay, yapilandirma
 from uygunluk_yardimcisi import esikler
@@ -171,7 +172,9 @@ def test_k2_elemesi_olay_kumesine_gore_ornekleme_adiminda():
 
     Adaylar kapidan gecmis onaylardan kurulur (rev.13 madde (d))."""
     kur = lambda ss: k2_adaylari_kur(ss, t=T2, hipotez="H2")  # noqa: E731
-    assert ornekleme.k2_adaylari(kur(["AAAUSDT", "BBBUSDT"]), ["AAAUSDT"],
+    # REV.14 (D-B2): olcutun girdisi ham sembol adi degil, o bardaki olay nesneleridir.
+    assert ornekleme.k2_adaylari(kur(["AAAUSDT", "BBBUSDT"]),
+                                 olaylar_sembollerde(["AAAUSDT"], t=T2),
                                  olay_sembolu="CCCUSDT").ogeler == ("BBBUSDT",)
     # Olay uretmemisse kalir; olayin kendi coini de ayiklanir ("diger coinlerden").
     assert ornekleme.k2_adaylari(kur(["AAAUSDT", "CCCUSDT"]), [],

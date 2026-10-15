@@ -25,6 +25,7 @@ import pytest
 
 import config
 from data import ornekleme, pozisyon
+from dizi_yardimcisi import olaylar_kur
 from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur, ornekle
 from sinyal_yardimcisi import yapilandirma
 
@@ -138,7 +139,8 @@ def test_ayiklayicilar_aday_kumesi_dondurur_ve_rolu_korur():
 
 def test_ayiklayicinin_ciktisi_dogrudan_ornekelemeye_girer():
     """Ayiklama -> ornekleme zinciri: ara adimda ham listeye dusulmez."""
-    ayiklanmis = ornekleme.k1_adaylari(k1_adaylari_kur(BARLAR), [BARLAR[0]], UFUK, config.BAR_4H)
+    ayiklanmis = ornekleme.k1_adaylari(k1_adaylari_kur(BARLAR), olaylar_kur([BARLAR[0]]), UFUK,
+                                       config.BAR_4H)
     havuz = ornekle(ayiklanmis)
     assert len(havuz) == config.KONTROL_SAYISI
     assert set(havuz.secilenler) <= set(ayiklanmis.ogeler)

@@ -18,6 +18,7 @@ import pytest
 
 import config
 from data import ornekleme
+from dizi_yardimcisi import olaylar_kur, olaylar_sembollerde
 from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur, ornekle
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -82,11 +83,15 @@ def test_k1_birincil_ufuk_mesafesi_siniri():
 
 
 def test_k1_adaylari_butun_olaylara_bakar():
-    olaylar = [T("2025-03-10"), T("2025-03-20")]
+    """REV.14 (denetci bulgusu D-B2): `k1_adaylari` ham zaman damgasi degil DOGRULANMIS olay
+    nesneleri alir; iddia degismedi, olaylar `dizi_yardimcisi` ile gercek diziden uretiliyor."""
+    zamanlar = [T("2025-03-10"), T("2025-03-20")]
+    olaylar = olaylar_kur(zamanlar)
+    assert len(olaylar) == len(zamanlar)
     barlar = pd.date_range(T("2025-03-01"), T("2025-03-31"), freq="4h")
     adaylar = ornekleme.k1_adaylari(k1_adaylari_kur(barlar), olaylar, H4_UFUK, config.BAR_4H)
     for t in adaylar.ogeler:
-        assert all(abs(t - o) >= H4_UFUK * H4 for o in olaylar)
+        assert all(abs(t - o) >= H4_UFUK * H4 for o in zamanlar)
     assert len(adaylar) < len(barlar)
 
 
@@ -100,8 +105,10 @@ def test_k1_olay_listesi_bos_olabilir():
 
 
 def test_k2_olay_ureten_ve_olayin_kendi_coini_ayiklanir():
-    adaylar = k2_adaylari_kur(["CUSDT", "AUSDT", "BUSDT", "DUSDT"], t=T("2025-03-10 04:00"))
-    sonuc = ornekleme.k2_adaylari(adaylar, ["BUSDT"], olay_sembolu="AUSDT")
+    """REV.14 (D-B2): "olay ureten coinler" ham sembol adi degil, o bardaki olay nesneleridir."""
+    t = T("2025-03-10 04:00")
+    adaylar = k2_adaylari_kur(["CUSDT", "AUSDT", "BUSDT", "DUSDT"], t=t)
+    sonuc = ornekleme.k2_adaylari(adaylar, olaylar_sembollerde(["BUSDT"], t=t), olay_sembolu="AUSDT")
     assert sonuc.ogeler == ("CUSDT", "DUSDT")
 
 
