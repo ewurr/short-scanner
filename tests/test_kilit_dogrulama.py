@@ -8,6 +8,7 @@ yaniyordu.
 Bu dosya sirayla su bulgulari kapatir:
   2a (S-C3) §8 madde 4 olcutleri: K2 farki > 0 (ve kayitta varsa ortalama net getiri > 0).
   2b (S-C4) §8 madde 2-3 aday esigi: analize giren olay sayisi >= `config.ADAY_OLAY_ESIGI`.
+  2c (S-C5 / D-C4) §5, §8 madde 5: yapilandirma kimligi izgarada bulunmali.
 
 Aga cikmaz; getiri hesaplanmaz.
 """
@@ -151,4 +152,65 @@ def test_esigin_altindaki_kayitla_kosu_acilmaz(bos_kilit, tmp_path):
     with pytest.raises(split.KilitBozuk):
         with kosu("H2", "C1"):
             pytest.fail("aday esigini gecmeyen kayitla kosu acilmamali")
+    assert kayit_yolu.read_bytes() == once
+
+
+# --- 2c. §5, §8 madde 5: yapilandirma kimligi izgarada --------------------------------------
+
+
+@pytest.mark.parametrize("kimlik", ["H2:phi=0.0003,k=4", "H2:phi=0.0004,k=3", "H2", "baska",
+                                    "H1:theta=0.2,delta=0.08", "h2:phi=0.0003,k=3",
+                                    "phi=0.0003,k=3", "H2:k=3,phi=0.0003"])
+def test_izgara_disi_kimlik_reddedilir(kimlik):
+    """On-kayit §5 (rev.11): "Izgara parametreleri ... yalnizca bu on-kayitta tanimlidir ...
+    izgarada bulunmayan bir parametre demeti hata verir." §9: secilen yapilandirma C1 ve C2'de
+    birer kez kosulur -- bozuk kimlik, kosu acildiktan sonra her pozisyonu reddeder ve onay hakki
+    bos yere yanar."""
+    with pytest.raises(split.KilitBozuk, match="izgarasinda yok"):
+        _coz(yapilandirma=kimlik)
+
+
+def test_sondaki_bosluk_kirpilir():
+    """Bicim denetimi degerin KIRPILMIS halini kullanir; tablo hucresindeki bosluk kaydi bozmaz."""
+    assert _coz(yapilandirma="H2:phi=0.0003,k=3 ").yapilandirma.strip() == "H2:phi=0.0003,k=3"
+
+
+@pytest.mark.parametrize("kimlik", ["H2:phi=0.0003,k=3", "H2:phi=0.0005,k=6", "H2:phi=0.001,k=12"])
+def test_izgaradaki_kimlik_gecer(kimlik):
+    from data import sinyal
+
+    gecerliler = [sinyal.yapilandirma_kimligi("H2", y) for y in sinyal.izgara("H2")]
+    assert kimlik in gecerliler, "test kurulumu: kimlik gercekten izgarada"
+    assert _coz(yapilandirma=kimlik).yapilandirma == kimlik
+
+
+def test_butun_izgara_kimlikleri_kabul_edilir():
+    from data import sinyal
+
+    for y in sinyal.izgara("H2"):
+        kimlik = sinyal.yapilandirma_kimligi("H2", y)
+        assert _coz(yapilandirma=kimlik).secildi
+
+
+def test_baska_hipotezin_izgara_kimligi_reddedilir():
+    from data import sinyal
+
+    h1_kimlik = sinyal.yapilandirma_kimligi("H1", sinyal.izgara("H1")[0])
+    with pytest.raises(split.KilitBozuk, match="izgarasinda yok"):
+        _coz(yapilandirma=h1_kimlik)
+
+
+def test_kapandi_hukmunde_kimlik_aranmaz():
+    kayit = split.kilit_kaydi_coz(kilit_metni("H2", **KAPANDI_ALANLARI), "H2")
+    assert kayit.secildi is False and kayit.yapilandirma == "-"
+
+
+def test_izgara_disi_kimlikle_kosu_acilmaz(bos_kilit, tmp_path):
+    """D-C4'un zarari: bozuk kimlik kosu ACILDIKTAN sonra patliyordu, cift harcaniyordu."""
+    kilit_yaz(bos_kilit, "H2", yapilandirma="H2:phi=0.0003,k=4")
+    kayit_yolu = tmp_path / "onay_gecici.md"
+    once = kayit_yolu.read_bytes()
+    with pytest.raises(split.KilitBozuk, match="izgarasinda yok"):
+        with kosu("H2", "C1"):
+            pytest.fail("izgara disi kimlikle kosu acilmamali")
     assert kayit_yolu.read_bytes() == once

@@ -359,6 +359,33 @@ class KilitKaydi:
         return self.hukum == KILIT_SECILDI
 
 
+def _kilit_yapilandirmasi_dogrula(kimlik: str, hipotez: str) -> str:
+    """Kayittaki yapilandirma, hipotezin §5'teki IZGARASINDA bulunan bir demetin kimligi mi?
+
+    On-kayit §8 madde 5: "secildiyse yapilandirmanin KIMLIGI ve butun parametre degerleri"; §5
+    (rev.11): "Izgara parametreleri ... yalnizca bu on-kayitta tanimlidir ... izgarada bulunmayan
+    bir parametre demeti hata verir"; §9: "Secilen yapilandirma C1 ve C2'de birer kez kosulur."
+
+    Sizinti bulgusu S-C5 ve denetci bulgusu D-C4: alan yalnizca "bos degil" diye denetleniyordu.
+    Izgara disi ya da bicimi bozuk bir kimlik, kosu ACILDIKTAN sonra -- ilk `olay_karari`
+    cagrisinda, `onay_baglami_dogrula` icinde -- `OnayUyusmazligi` olarak patliyordu; BASLADI
+    satiri yazildigi icin (hipotez, kume) cifti bos yere yaniyordu. Denetim bu yuzden kaydi
+    cozerken, yani kosu acilmadan once yapilir.
+
+    `data.sinyal` YEREL olarak ice alinir: `sinyal` -> `klines` -> `split` zinciri modul duzeyinde
+    bir dongu olusturur.
+    """
+    from data import sinyal as sinyal_modulu
+
+    gecerliler = [sinyal_modulu.yapilandirma_kimligi(hipotez, y) for y in sinyal_modulu.izgara(hipotez)]
+    if kimlik not in gecerliler:
+        raise KilitBozuk(
+            f"{hipotez} KILIT.md: yapilandirma {kimlik!r} {hipotez} izgarasinda yok (on-kayit §5). "
+            f"Gecerli kimlikler: {gecerliler}. Izgara disi bir kimlik, kosu acildiktan sonra her "
+            "pozisyonu reddeder ve onay cifti bos yere yanar (on-kayit §8 madde 5, §9).")
+    return kimlik
+
+
 def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
     """KILIT.md metnini `KilitKaydi`ya cevirir. SAF.
 
@@ -411,6 +438,7 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
         if bos:
             raise KilitBozuk(f"{hipotez} KILIT.md: hukum '{KILIT_SECILDI}' iken {bos} alan(lari) bos olamaz "
                              "(on-kayit §8 madde 5).")
+        _kilit_yapilandirmasi_dogrula(alanlar["yapilandirma"].strip(), hipotez)
     elif not alanlar["gerekce"].strip() or alanlar["gerekce"].strip() in ("-", "—"):
         raise KilitBozuk(f"{hipotez} KILIT.md: hukum '{KILIT_KAPANDI}' iken gerekce yazilmali "
                          "(on-kayit §8 madde 4: 'kapanma gerekcesi').")

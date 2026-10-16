@@ -44,7 +44,6 @@ Baslik -> test eslemesi
    (KAPANDI: test_secildi_hukmunde_k2_farki_pozitif_olmak_zorunda,
    test_k2_farki_pozitif_olmayan_kilitle_onay_kosusu_acilmaz -- madde 2a)
    XFAIL:
-   test_secildi_hukmunde_yapilandirma_izgarada_olmali,
    test_kesif_commit_ve_zamani_bicim_denetimi, test_ayni_kapandi_metninin_iki_cozumu_esit_olmali,
    test_gercek_git_commitli_kapandi_kaydi_hipotez_kapandi_hatasi_verir,
    test_gercek_git_kilit_commit_gecmisinde_degistirilmisse_kosu_acilmaz.
@@ -835,12 +834,9 @@ def test_secildi_hukmunde_analize_giren_olay_aday_esiginin_altinda_olamaz(analiz
         split.kilit_kaydi_coz(kilit_metni("H2", olusmus=200, analize_giren=analize), "H2")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C5): `kilit_kaydi_coz` yapilandirma kimliginin hipotezin IZGARASINDA oldugunu denetlemez "
-    "(`sinyal.yapilandirma_kimligi` ile karsilastirma yok). Girdiler: 'H2:phi=0.0003,k=4' (izgarada yok), "
-    "'H1:theta=0.2,delta=0.08' (baska hipotezin kimligi, H2 dosyasinda), 'H2', 'baska'. Beklenen: KilitBozuk; "
-    "gozlenen: kabul. Sonuc: `onay_kosusu` acilir (BASLADI yazilir, tek atis harcanir), sonra "
-    "`onay_baglami_dogrula` her gercek pozisyonu reddeder: onay hakki bos yere yanar (on-kayit §8 madde 5, §9)."))
+# SIZINTI BULGUSU S-C5 ve DENETCI BULGUSU D-C4 KAPANDI (madde 2c): kayittaki yapilandirma kimligi
+# hipotezin izgarasinda araniyor ve denetim kosu acilmadan ONCE calisiyor. Isaret kaldirildi;
+# beklenti degismedi.
 @pytest.mark.parametrize("kimlik", ["H2:phi=0.0003,k=4", "H1:theta=0.2,delta=0.08", "H2", "baska"])
 def test_secildi_hukmunde_yapilandirma_izgarada_olmali(kimlik):
     """On-kayit §5 rev.11 (izgarada olmayan demet hata verir) + §8 madde 5 (yapilandirmanin kimligi)."""
