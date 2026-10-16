@@ -12,6 +12,7 @@ Bu dosya sirayla su bulgulari kapatir:
   2d (S-C6) §8 madde 5: olay sayilari negatif olamaz, ondalik ayirici sessizce atilmaz.
   2e (S-C7) §8 madde 5: kesif commit hash'i 40 haneli onaltilik, kesif zamani UTC ve ISO.
   2f (S-C8) §8 madde 4-5: kapanmis hipotez `HipotezKapandi` verir (`KilitYok` degil).
+  2g (S-C9) §8 madde 5: ekleme kurali git GECMISINDEN denetlenir (hook'a dayanmaz).
 
 Aga cikmaz; getiri hesaplanmaz.
 """
@@ -22,7 +23,7 @@ import pytest
 
 import config
 from data import split
-from onay_yardimcisi import gecici_kayit, kilit_metni, kilit_yaz, kosu
+from onay_yardimcisi import gecici_depo, gecici_kayit, git, kilit_metni, kilit_yaz, kosu
 
 KAPANDI_ALANLARI = dict(hukum=split.KILIT_KAPANDI, gerekce="aday yok", yapilandirma="-",
                         parametreler="-", k2_farki="-")
@@ -206,6 +207,86 @@ def test_baska_hipotezin_izgara_kimligi_reddedilir():
 def test_kapandi_hukmunde_kimlik_aranmaz():
     kayit = split.kilit_kaydi_coz(kilit_metni("H2", **KAPANDI_ALANLARI), "H2")
     assert kayit.secildi is False and kayit.yapilandirma == "-"
+
+
+# --- 2g. §8 madde 5: ekleme kurali git gecmisinden ---------------------------------------------
+
+
+def test_gecmiste_degistirilmis_kayit_reddedilir(tmp_path):
+    """On-kayit §8 madde 5: "Dosya da yalnizca ekleme kuralina tabidir: bir hipotezin kaydi
+    yazildiktan sonra degistirilmez." Onceki uygulama yalnizca HEAD ile calisma agacini
+    karsilastiriyordu, bu yuzden IKINCI BIR COMMIT'LE degistirilen kayit fark edilmiyordu ve
+    ekleme kurali yalnizca `PreToolUse` hook'una dayaniyordu (hook arac cagrilarini yakalar,
+    calisan git'i degil)."""
+    depo = gecici_depo(tmp_path, kilitler=("H1", "H3"))
+    kilit_yaz(depo, "H2")
+    git(depo, "add", ".")
+    git(depo, "commit", "-q", "-m", "H2 kaydi")
+    split.kilit_oku("H2")                               # tek commit: gecerli
+
+    kilit_yaz(depo, "H2", yapilandirma="H2:phi=0.0005,k=6", parametreler="phi=0.0005 k=6")
+    git(depo, "add", ".")
+    git(depo, "commit", "-q", "-m", "H2 kaydi degistirildi")
+    with pytest.raises(split.KilitBozuk, match="farkli icerikle"):
+        split.kilit_oku("H2")
+
+
+def test_gecmiste_degistirilmis_kayitla_kosu_acilmaz(tmp_path):
+    depo = gecici_depo(tmp_path, kilitler=("H1", "H3"))
+    kilit_yaz(depo, "H2")
+    git(depo, "add", ".")
+    git(depo, "commit", "-q", "-m", "H2 kaydi")
+    git(depo, "push", "-q", "origin", "main")
+    kilit_yaz(depo, "H2", k2_farki="0.9999")
+    git(depo, "add", ".")
+    git(depo, "commit", "-q", "-m", "K2 farki buyutuldu")
+    git(depo, "push", "-q", "origin", "main")
+    once = (depo / "ONAY_KAYDI.md").read_bytes()
+    with pytest.raises(split.KilitBozuk, match="farkli icerikle"):
+        with kosu("H2", "C1"):
+            pytest.fail("gecmiste degistirilmis kayitla kosu acilmamali")
+    assert (depo / "ONAY_KAYDI.md").read_bytes() == once
+    assert split.aktif_onay_kosusu() is None
+
+
+def test_tek_committe_eklenen_kayit_gecerli(tmp_path):
+    """Ekleme ile degistirme ayirt edilir: tek commit'te eklenen kayit sorunsuz okunur."""
+    depo = gecici_depo(tmp_path, kilitler=("H1", "H3"))
+    kilit_yaz(depo, "H2")
+    git(depo, "add", ".")
+    git(depo, "commit", "-q", "-m", "H2 kaydi")
+    kayit = split.kilit_oku("H2")
+    assert kayit.secildi and kayit.hipotez == "H2"
+    # Baska dosyalari degistiren commit'ler kaydi etkilemez.
+    (depo / "analysis" / "baska.txt").write_text("x\n", encoding="utf-8")
+    git(depo, "add", ".")
+    git(depo, "commit", "-q", "-m", "ilgisiz degisiklik")
+    assert split.kilit_oku("H2").secildi
+
+
+def test_ayni_icerikle_yeniden_eklenen_kayit_gecerli(tmp_path):
+    """Olcut commit SAYISI degil, farkli ICERIK sayisidir: silinip ayni icerikle geri eklenen
+    kayit ekleme kuralini bozmaz (ve `git stash` gibi agac anlik goruntuleri yanlis pozitif
+    uretmez)."""
+    depo = gecici_depo(tmp_path, kilitler=("H1", "H3"))
+    yol = kilit_yaz(depo, "H2")
+    metin = yol.read_text(encoding="utf-8")
+    git(depo, "add", ".")
+    git(depo, "commit", "-q", "-m", "H2 kaydi")
+    yol.unlink()
+    git(depo, "add", "-A")
+    git(depo, "commit", "-q", "-m", "kayit silindi")
+    yol.write_text(metin, encoding="utf-8", newline="")
+    git(depo, "add", "-A")
+    git(depo, "commit", "-q", "-m", "ayni kayit geri")
+    assert split.kilit_oku("H2").secildi
+
+
+def test_sahte_git_kipinde_gecmis_aranmaz(bos_kilit):
+    """Sahte git kipi (yalnizca pytest) HEAD ve gecmis denetimlerini atlar; `ONAY_KAYDI` ile ayni
+    yaklasim. Gercek kipte iki denetim de calisir (yukaridaki testler)."""
+    kilit_yaz(bos_kilit, "H2")
+    assert split.kilit_oku("H2").secildi
 
 
 # --- 2f. §8 madde 4-5: kapanmis hipotezin hata sinifi -----------------------------------------

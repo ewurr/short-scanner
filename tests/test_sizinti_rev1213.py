@@ -43,10 +43,8 @@ Baslik -> test eslemesi
    test_ikinci_kayit_eklenen_kilit_bozuktur, test_gercek_git_*  (calisma agaci/HEAD/izlenmeyen/silinmis),
    (KAPANDI: test_secildi_hukmunde_k2_farki_pozitif_olmak_zorunda,
    test_k2_farki_pozitif_olmayan_kilitle_onay_kosusu_acilmaz -- madde 2a)
-   XFAIL:
-   test_ayni_kapandi_metninin_iki_cozumu_esit_olmali,
+   (KAPANDI: butun kilit bulgulari -- maddeler 2a-2g)
    test_gercek_git_commitli_kapandi_kaydi_hipotez_kapandi_hatasi_verir,
-   test_gercek_git_kilit_commit_gecmisinde_degistirilmisse_kosu_acilmaz.
 """
 
 from __future__ import annotations
@@ -908,7 +906,9 @@ def test_gercek_git_calisma_agaci_kilidi_committen_farkliysa_kosu_acilmaz(tmp_pa
 def test_gercek_git_hukmu_degistirilmis_calisma_agaci_kapanmis_hipotezi_acamaz(tmp_path):
     """Saldiri: HEAD'de 'hipotez kapandi', calisma agacinda 'yapilandirma secildi'. Kapanmis hipotezin
     onay verisi calisma agacindaki bir duzenlemeyle acilamaz (on-kayit §8 madde 4-5)."""
-    depo = gecici_depo(tmp_path)
+    # MADDE 2g: kayit git gecmisinde tam bir kez eklenmis olmali, bu yuzden H2'nin kaydi ilk
+    # commit'e KONMAZ ve asagida tek commit'te yazilir (on-kayit §8 madde 5 ekleme kurali).
+    depo = gecici_depo(tmp_path, kilitler=("H1", "H3"))
     _kilit_commit(depo, "kapandi", **_KAPANDI)
     kilit_yaz(depo, "H2")                                        # commit edilmemis 'secildi' kaydi
     once = _git_durumu(depo)
@@ -960,7 +960,9 @@ def test_gercek_git_kilide_yoksayilan_satir_eklenince_kirli_agac_kosuyu_durdurur
 def test_gercek_git_kapandi_kaydi_icin_kosu_acilmaz_ve_hicbir_sey_yazilmaz(tmp_path):
     """On-kayit §8 madde 4-5: 'hipotez kapandi' kaydi icin kosu acilmaz, onay verisi harcanmaz. (Hata sinifi
     iki kod yolunda farklidir; bkz. asagidaki XFAIL. Burada yalnizca reddedilme ve 'hicbir sey yazilmadi'.)"""
-    depo = gecici_depo(tmp_path)
+    # MADDE 2g: kayit git gecmisinde tam bir kez eklenmis olmali, bu yuzden H2'nin kaydi ilk
+    # commit'e KONMAZ ve asagida tek commit'te yazilir (on-kayit §8 madde 5 ekleme kurali).
+    depo = gecici_depo(tmp_path, kilitler=("H1", "H3"))
     _kilit_commit(depo, "kapandi", **_KAPANDI)
     once = _git_durumu(depo)
     with pytest.raises(split.OnayOrtamiHatasi):
@@ -976,7 +978,9 @@ def test_gercek_git_kapandi_kaydi_icin_kosu_acilmaz_ve_hicbir_sey_yazilmaz(tmp_p
 def test_gercek_git_commitli_kapandi_kaydi_hipotez_kapandi_hatasi_verir(tmp_path):
     """On-kayit §8 madde 4-5 (rev.13): hukmu 'hipotez kapandi' olan hipotez icin kosu acilmaz; kayit
     okunabilir olmali ve hata `HipotezKapandi` olmali."""
-    depo = gecici_depo(tmp_path)
+    # MADDE 2g: kayit git gecmisinde tam bir kez eklenmis olmali, bu yuzden H2'nin kaydi ilk
+    # commit'e KONMAZ ve asagida tek commit'te yazilir (on-kayit §8 madde 5 ekleme kurali).
+    depo = gecici_depo(tmp_path, kilitler=("H1", "H3"))
     _kilit_commit(depo, "kapandi", **_KAPANDI)
     kayit = split.kilit_oku("H2")
     assert kayit.secildi is False and kayit.gerekce == "aday yok"
@@ -985,19 +989,18 @@ def test_gercek_git_commitli_kapandi_kaydi_hipotez_kapandi_hatasi_verir(tmp_path
             pytest.fail("kapanmis hipotez icin kosu acilmamali")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C9): `kilit_oku` yalnizca HEAD ile calisma agacini karsilastirir; KILIT.md'nin git GECMISINI "
-    "okumaz. Dosya bir kez commit edildikten sonra ikinci bir commit'le DEGISTIRILIRSE (ornegin kesif "
-    "sonucu goruldukten sonra yapilandirma baska bir izgara noktasina cevrilirse) HEAD == calisma agaci "
-    "olur ve kosu ACILIR. On-kayit §8 madde 5: 'bir hipotezin kaydi yazildiktan sonra degistirilmez'. "
-    "Korunma bugun yalnizca hook'a (arac cagrilarina) dayanir; calisan Python kodu bunu gormez. Beklenen: "
-    "OnayOrtamiHatasi alt sinifi; gozlenen: kosu acildi, BASLADI/BITTI yazildi."))
+# SIZINTI BULGUSU S-C9 KAPANDI (madde 2g): `kilit_oku` artik kaydin git GECMISINI de okuyor ve
+# dosyanin gecmiste tek bir ICERIKLE bulunmasini istiyor. Isaret kaldirildi; testin hukmu
+# degismedi (kosu acilmamali). On kosul artik `kilit_oku` ile degil dosya metniyle okunuyor,
+# cunku degistirilmis kayit `kilit_oku`da zaten reddediliyor.
 def test_gercek_git_kilit_commit_gecmisinde_degistirilmisse_kosu_acilmaz(tmp_path):
     """On-kayit §8 madde 5 ekleme kurali (git gecmisi uzerinden)."""
     depo = gecici_depo(tmp_path)
-    ilk = split.kilit_oku("H2").yapilandirma
+    yol = split.kilit_yolu("H2")
+    ilk = yol.read_text(encoding="utf-8")
     _kilit_commit(depo, "kilit degistirildi", yapilandirma="H2:phi=0.0005,k=6", parametreler="phi=0.0005 k=6")
-    assert split.kilit_oku("H2").yapilandirma != ilk          # degisiklik gercekten commit'li ve okunuyor
+    assert yol.read_text(encoding="utf-8") != ilk             # degisiklik gercekten commit'li
+    assert git(depo, "status", "--porcelain") == ""           # ve calisma agaci temiz
     with pytest.raises(split.OnayOrtamiHatasi):
         with kosu("H2", "C1"):
             pass

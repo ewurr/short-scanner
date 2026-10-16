@@ -537,6 +537,37 @@ def kilit_yolu(hipotez: str) -> Path:
     return Path(kok) / "analysis" / ad / KILIT_ADI
 
 
+def _kilit_gecmisini_denetle(goreli: str, hipotez: str) -> None:
+    """Kayit git gecmisinde TAM BIR KEZ eklenmis ve sonradan degistirilmemis olmali.
+
+    On-kayit §8 madde 5: "Dosya da yalnizca ekleme kuralina tabidir: bir hipotezin kaydi
+    yazildiktan sonra degistirilmez."
+
+    Sizinti bulgusu S-C9: `kilit_oku` yalnizca HEAD ile calisma agacini karsilastiriyordu, bu
+    yuzden ikinci bir COMMIT'LE degistirilen kayit fark edilmiyordu ve ekleme kurali yalnizca
+    `PreToolUse` hook'una dayaniyordu (hook arac cagrilarini yakalar, git'i degil). Denetim
+    `ONAY_KAYDI` ile ayni yaklasimi kullanir: butun referanslar ve reflog (`--all --reflog
+    --full-history`) taranir, yani silinmis dal, `rebase`, `amend` ve `reset` ile birakilan
+    commit'ler de gorunur. Dosyayi DEGISTIREN her commit bir ihlaldir; yalnizca eklendigi tek
+    commit bulunmalidir.
+    """
+    cikti = _git("rev-list", "--all", "--reflog", "--objects", "--", goreli)
+    if cikti is None:
+        raise OnayOrtamiHatasi(f"{goreli} denetlenemedi: git gecmisi okunamadi.")
+    # `rev-list --objects` her nesneyi "<oid> <yol>" satiriyla listeler; yoldaki BLOB kimlikleri
+    # dosyanin gecmisteki ICERIKLERIDIR. Olcut commit SAYISI degil, farkli icerik sayisidir:
+    # `git stash` gibi islemler butun agacin anlik goruntusunu commit'ler ve dosyanin icerigi
+    # degismese de yeni bir commit uretir; ayni blob tekrar gorundugunde ihlal yoktur.
+    bloblar = {satir.split()[0] for satir in cikti.splitlines()
+               if satir.strip().endswith(goreli) and satir.split()}
+    if len(bloblar) != 1:
+        raise KilitBozuk(
+            f"{hipotez} KILIT.md git gecmisinde {len(bloblar)} farkli icerikle bulunuyor "
+            f"({sorted(bloblar)[:5]}{'...' if len(bloblar) > 5 else ''}). Dosya yalnizca EKLEME "
+            "kuralina tabidir: bir hipotezin kaydi yazildiktan sonra degistirilmez (on-kayit §8 "
+            "madde 5).")
+
+
 def kilit_oku(hipotez: str) -> KilitKaydi:
     """Hipotezin kilitli yapilandirmasini okur (on-kayit §8 madde 5, rev.13).
 
@@ -570,6 +601,7 @@ def kilit_oku(hipotez: str) -> KilitKaydi:
         if kilit_kaydi_coz(head_metni, ad) != kilit_kaydi_coz(metin, ad):
             raise KilitYok(f"{goreli} calisma agacinda HEAD'dekinden farkli. Dosya yalnizca ekleme kuralina "
                            "tabidir ve onay kosusundan once commit edilir (on-kayit §8 madde 5).")
+        _kilit_gecmisini_denetle(goreli, ad)
     return kilit_kaydi_coz(metin, ad)
 
 

@@ -105,12 +105,17 @@ def git(depo, *argumanlar) -> str:
                           encoding="utf-8").stdout
 
 
-def gecici_depo(kok):
+def gecici_depo(kok, kilitler=("H1", "H2", "H3")):
     """`kok/depo` altinda gercek bir git deposu kurar (kayit dosyasi ve izlenen bir betik commit edilmis) ve bu
     test suresince onay kaydini oraya yonlendirir. Doner: depo yolu. Kayit: `depo / "ONAY_KAYDI.md"`.
 
     Onay kaydi kapanis turu: `kok/uzak.git` ciplak bir depo `origin` olarak eklenir ve `main` oraya itilir (dosya
-    yolu uzerinden; aga cikilmaz). Uzak depo: `uzak_depo(depo)`."""
+    yolu uzerinden; aga cikilmaz). Uzak depo: `uzak_depo(depo)`.
+
+    `kilitler`: ilk commit'e girecek kilit kayitlarinin hipotezleri. Kaydi SONRADAN yazan testler
+    ilgili hipotezi listeden cikarir, cunku kayit git gecmisinde TAM BIR KEZ eklenmis olmalidir
+    (on-kayit §8 madde 5 ekleme kurali; madde 2g).
+    """
     depo = kok / "depo"
     (depo / "analysis").mkdir(parents=True)
     git(depo, "init", "-q")
@@ -122,7 +127,7 @@ def gecici_depo(kok):
     (depo / DEPO_BETIGI).write_text("# onay betigi (test)\n", encoding="utf-8")
     # F2'nin kilitledigi yapilandirma, commit edilmis halde (on-kayit §8 madde 5: "Secim, onay
     # kosusundan once `analysis/<hipotez>/KILIT.md` dosyasiyla commit edilir").
-    kilitleri_kur(depo)
+    kilitleri_kur(depo, kilitler)
     git(depo, "add", ".")
     git(depo, "commit", "-q", "-m", "ilk")
     uzak = kok / "uzak.git"
