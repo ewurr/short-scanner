@@ -311,6 +311,14 @@ _DEGISMEZ_ADLAR = frozenset({
     "H1_IZLEME_BAR", "OTUZ_BAR_ONCE", "H2_YUKSELIS_ESIGI", "H3_HACIM_YAKIN_GUN",
     "H3_HACIM_UZAK_GUN", "H3_HACIM_UZAK_OFSET", "H3_SMA_GUN",
     "GECERSIZLIK_CARPANI", "KONTROL_SAYISI", "ADAY_OLAY_ESIGI", "ONAY_OLAY_ESIGI",
+    # Denetci bulgusu D-B4: §7'deki tohum ve tekrar sayisi. Tohum rev.13'ten beri IKI turetme
+    # yolunun girdisidir (`ornekleme.alt_tohum` ile olay basina ornekleme ve `istatistik.alt_tohum`
+    # ile p-degeri); calisma aninda degistirilirse butun alt tohumlar sessizce kayar ve sonuc
+    # dosyasina yazilan `genel_tohum` da kaydigi icin fark raporda GORUNMEZ. `yeniden_ornekle`nin
+    # `tekrar` denetimi de `config.PERMUTASYON_TEKRAR`a baktigi icin koruma saglamaz. CLAUDE.md §5:
+    # "Rastgelelik her zaman sabit tohumla ve tohum sonuc dosyasina yazilir"; on-kayit §7: tohum
+    # 20260911, tekrar 10.000.
+    "TOHUM", "PERMUTASYON_TEKRAR", "ALFA_BONFERRONI",
     "__class__",
 })
 

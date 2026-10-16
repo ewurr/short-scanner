@@ -380,7 +380,11 @@ def _kilit_yapilandirmasi_dogrula(kimlik: str, hipotez: str) -> str:
     """
     from data import sinyal as sinyal_modulu
 
-    gecerliler = [sinyal_modulu.yapilandirma_kimligi(hipotez, y) for y in sinyal_modulu.izgara(hipotez)]
+    try:
+        gecerliler = [sinyal_modulu.yapilandirma_kimligi(hipotez, y) for y in sinyal_modulu.izgara(hipotez)]
+    except Exception as hata:          # §5'te izgarasi olmayan ad (ör. calisma aninda eklenmis)
+        raise KilitBozuk(f"{hipotez} icin on-kayit §5'te bir izgara yok, dolayisiyla gecerli bir "
+                         f"yapilandirma kimligi de yok ({type(hata).__name__}: {hata}).") from None
     if kimlik not in gecerliler:
         raise KilitBozuk(
             f"{hipotez} KILIT.md: yapilandirma {kimlik!r} {hipotez} izgarasinda yok (on-kayit §5). "

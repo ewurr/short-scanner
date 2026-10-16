@@ -173,16 +173,24 @@ def test_config_hipotezler_monkeypatch_belgeleme(gecici_kayit, monkeypatch):
     esdeger kasitli bir mudahaledir. Burada yalnizca beklenen (kacinilmaz) davranis belgelenir.
 
     REV.13 ILE DEGISTI (on-kayit §8 madde 5): onay kosusu artik hipotezin KILIT.md kaydini da
-    okur ve kaydi olmayan hipotez icin acilmaz. Yani bu atlatma tek basina yetmiyor; sahte adin
-    kilit kaydini da yazmak gerekiyor. Testin hukmu ayni (kasitli mudahale engellenemez), eşik
-    yukseldi: iki mudahale birlikte gerekiyor."""
+    okur ve kaydi olmayan hipotez icin acilmaz. MADDE 2c ILE BIR KEZ DAHA DEGISTI: kayittaki
+    yapilandirma kimligi hipotezin §5 IZGARASINDA aranir; calisma aninda eklenmis bir adin
+    izgarasi yoktur, dolayisiyla gecerli bir kimlik de uretilemez ve kosu bu kez `KilitBozuk` ile
+    reddedilir.
+
+    Testin HUKMU degisti ve bu bir SERTLESME: `config.HIPOTEZLER`i monkeypatch'lemek artik tek
+    basina da, kilit kaydiyla birlikte de yetmiyor. Sahte adla kosu acabilmek icin ayrica
+    `sinyal.PARAMETRELER` / `config.IZGARA` gibi on-kayit sabitlerinin de degistirilmesi gerekir;
+    o noktada mudahale artik "atlatma" degil, kodun yeniden yazilmasidir."""
     monkeypatch.setattr(config, "HIPOTEZLER", config.HIPOTEZLER + ("SAHTE_HIPOTEZ",))
     with pytest.raises(split.KilitYok):           # kilit kaydi olmadan acilmaz (rev.13)
         with kosu("SAHTE_HIPOTEZ", "C1"):
             pytest.fail("kilit kaydi olmadan kosu acilmamali")
     kilit_yaz(split._test_ayari().kilit_koku, "SAHTE_HIPOTEZ")
-    with kosu("SAHTE_HIPOTEZ", "C1"):
-        assert split.aktif_onay_kosusu() == ("SAHTE_HIPOTEZ", "C1")
+    with pytest.raises(split.KilitBozuk):         # izgarasi olmayan ad (madde 2c)
+        with kosu("SAHTE_HIPOTEZ", "C1"):
+            pytest.fail("izgarasi olmayan ad icin kosu acilmamali")
+    assert split.aktif_onay_kosusu() is None
 
 
 # --- 8. Hata siniflari: `DonemDisiSinyal` `pencere` seviyesinde de `OlayOlusmaz` degil ----------------
