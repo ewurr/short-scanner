@@ -429,6 +429,17 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
             raise KilitBozuk(
                 f"{hipotez} KILIT.md: hukum '{KILIT_SECILDI}' iken ortalama net getiri > 0 olmali; "
                 f"verilen {alanlar['ortalama_net_getiri']!r} (on-kayit §8 madde 4).")
+        # On-kayit §8 madde 2-3: "Aday yapilandirmalar: olay sayisi >= 150 ... Buradaki ve §9'daki
+        # olay sayisi, ANALIZE GIREN olaylarin sayisidir" ve "Adaylar arasindan K2 farki en yuksek
+        # olan secilir". Esigi gecmeyen bir yapilandirma ADAY DEGILDIR, dolayisiyla secilemez;
+        # madde 4'e gore hipotez "aday yok" gerekcesiyle kapanmis olmaliydi (sizinti bulgusu
+        # S-C4). Esik koddan tek yerden okunur (`config.ADAY_OLAY_ESIGI`).
+        if _tam("analize_giren_olay") < config.ADAY_OLAY_ESIGI:
+            raise KilitBozuk(
+                f"{hipotez} KILIT.md: hukum '{KILIT_SECILDI}' iken analize giren olay sayisi on-kayit "
+                f"§8 madde 2 esigini gecmeli (>= {config.ADAY_OLAY_ESIGI}); verilen "
+                f"{alanlar['analize_giren_olay']!r}. Esigi gecmeyen yapilandirma aday degildir; madde 4 "
+                "geregi hukum 'hipotez kapandi' (gerekce: aday yok) olmaliydi.")
     if _tam("tohum") != config.TOHUM:
         raise KilitBozuk(f"{hipotez} KILIT.md: tohum on-kayit §7 degeri olmali ({config.TOHUM}); verilen "
                          f"{alanlar['tohum']!r}.")

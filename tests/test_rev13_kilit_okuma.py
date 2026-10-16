@@ -155,12 +155,15 @@ def test_tohum_on_kayit_degeri_olmali():
 
 
 def test_analize_giren_olusmusu_asamaz():
-    """On-kayit §8 madde 2: analize giren olaylar olusmus olaylarin ALT kumesidir."""
+    """On-kayit §8 madde 2: analize giren olaylar olusmus olaylarin ALT kumesidir.
+
+    MADDE 2b ILE DEGISTI: sayilar artik aday esiginin (`config.ADAY_OLAY_ESIGI`) ustune cekildi,
+    cunku secildi hukmunde esigin altindaki bir kayit zaten reddediliyor. Iddia degismedi."""
     with pytest.raises(split.KilitBozuk, match="asamaz"):
-        split.kilit_kaydi_coz(kilit_metni("H2", olusmus=100, analize_giren=101), "H2")
+        split.kilit_kaydi_coz(kilit_metni("H2", olusmus=200, analize_giren=201), "H2")
     # Esitlik gecerlidir (hicbir olay havuzsuz kalmamis olabilir).
-    kayit = split.kilit_kaydi_coz(kilit_metni("H2", olusmus=100, analize_giren=100), "H2")
-    assert kayit.olusmus_olay == kayit.analize_giren_olay == 100
+    kayit = split.kilit_kaydi_coz(kilit_metni("H2", olusmus=200, analize_giren=200), "H2")
+    assert kayit.olusmus_olay == kayit.analize_giren_olay == 200
 
 
 def test_cozulen_kayit_on_kayit_alanlarini_tasir():

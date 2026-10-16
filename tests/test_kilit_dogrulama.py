@@ -7,6 +7,7 @@ yaniyordu.
 
 Bu dosya sirayla su bulgulari kapatir:
   2a (S-C3) §8 madde 4 olcutleri: K2 farki > 0 (ve kayitta varsa ortalama net getiri > 0).
+  2b (S-C4) §8 madde 2-3 aday esigi: analize giren olay sayisi >= `config.ADAY_OLAY_ESIGI`.
 
 Aga cikmaz; getiri hesaplanmaz.
 """
@@ -113,4 +114,41 @@ def test_rev13_denetimleri_korundu():
     with pytest.raises(split.KilitBozuk, match="tohum"):
         _coz(tohum=config.TOHUM + 1)
     with pytest.raises(split.KilitBozuk, match="asamaz"):
-        _coz(olusmus=100, analize_giren=101)
+        _coz(olusmus=200, analize_giren=201)
+
+
+# --- 2b. §8 madde 2-3: aday esigi -------------------------------------------------------------
+
+
+@pytest.mark.parametrize("analize", [0, 1, 149])
+def test_aday_esiginin_altinda_secim_olamaz(analize):
+    """On-kayit §8 madde 2-3: yalnizca analize giren olay sayisi >= 150 olanlar ADAYDIR ve secim
+    adaylar arasindan yapilir. Esigin altindaki bir "secildi" kaydi madde 4 geregi "aday yok"
+    gerekcesiyle kapanmis olmaliydi."""
+    with pytest.raises(split.KilitBozuk, match="esigini gecmeli"):
+        _coz(olusmus=400, analize_giren=analize)
+
+
+def test_esik_kenari_tam_150_gecer():
+    assert config.ADAY_OLAY_ESIGI == 150
+    kayit = _coz(olusmus=400, analize_giren=config.ADAY_OLAY_ESIGI)
+    assert kayit.analize_giren_olay == config.ADAY_OLAY_ESIGI
+    with pytest.raises(split.KilitBozuk, match="esigini gecmeli"):
+        _coz(olusmus=400, analize_giren=config.ADAY_OLAY_ESIGI - 1)
+
+
+def test_kapandi_hukmunde_esik_aranmaz():
+    """Kapanmis hipotezde olay sayisi esigin altinda olabilir; zaten bu yuzden kapanmistir."""
+    kayit = split.kilit_kaydi_coz(
+        kilit_metni("H2", olusmus=10, analize_giren=3, **KAPANDI_ALANLARI), "H2")
+    assert kayit.secildi is False and kayit.analize_giren_olay == 3
+
+
+def test_esigin_altindaki_kayitla_kosu_acilmaz(bos_kilit, tmp_path):
+    kilit_yaz(bos_kilit, "H2", olusmus=200, analize_giren=149)
+    kayit_yolu = tmp_path / "onay_gecici.md"
+    once = kayit_yolu.read_bytes()
+    with pytest.raises(split.KilitBozuk):
+        with kosu("H2", "C1"):
+            pytest.fail("aday esigini gecmeyen kayitla kosu acilmamali")
+    assert kayit_yolu.read_bytes() == once

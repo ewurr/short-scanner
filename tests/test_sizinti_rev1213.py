@@ -44,8 +44,7 @@ Baslik -> test eslemesi
    (KAPANDI: test_secildi_hukmunde_k2_farki_pozitif_olmak_zorunda,
    test_k2_farki_pozitif_olmayan_kilitle_onay_kosusu_acilmaz -- madde 2a)
    XFAIL:
-   test_secildi_hukmunde_analize_giren_olay_aday_esiginin_altinda_olamaz,
-   test_secildi_hukmunde_yapilandirma_izgarada_olmali, test_olay_sayilari_negatif_olamaz,
+   test_secildi_hukmunde_yapilandirma_izgarada_olmali,
    test_kesif_commit_ve_zamani_bicim_denetimi, test_ayni_kapandi_metninin_iki_cozumu_esit_olmali,
    test_gercek_git_commitli_kapandi_kaydi_hipotez_kapandi_hatasi_verir,
    test_gercek_git_kilit_commit_gecmisinde_degistirilmisse_kosu_acilmaz.
@@ -826,13 +825,8 @@ def test_k2_farki_pozitif_olmayan_kilitle_onay_kosusu_acilmaz(tmp_path):
     assert yol.read_bytes() == once
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C4): `kilit_kaydi_coz` secilen yapilandirmanin analize giren olay sayisini "
-    "`config.ADAY_OLAY_ESIGI` (150) ile karsilastirmaz. On-kayit §8 madde 2-3: yalnizca olay sayisi >= 150 "
-    "olan yapilandirmalar aday olabilir ve secim adaylar arasindan yapilir. Girdi: olusmus=200, "
-    "analize_giren=149 ve 0. Beklenen: KilitBozuk; gozlenen: kabul. (Dikkat: mevcut "
-    "test_rev13_kilit_okuma.test_analize_giren_olusmusu_asamaz 100/100'u gecerli sayiyor; kural eklenirse "
-    "o testin girdisi da guncellenmelidir.)"))
+# SIZINTI BULGUSU S-C4 KAPANDI (madde 2b): secildi hukmunde analize giren olay sayisi
+# `config.ADAY_OLAY_ESIGI` ile karsilastiriliyor. Isaret kaldirildi; beklenti degismedi.
 @pytest.mark.parametrize("analize", [149, 0])
 def test_secildi_hukmunde_analize_giren_olay_aday_esiginin_altinda_olamaz(analize):
     """On-kayit §8 madde 2 (rev.13: eşik analize giren olay sayisina bakar)."""
@@ -854,9 +848,9 @@ def test_secildi_hukmunde_yapilandirma_izgarada_olmali(kimlik):
         split.kilit_kaydi_coz(kilit_metni("H2", yapilandirma=kimlik), "H2")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C6): olay sayilari negatif olabilir ('-5' ve '-6' kabul edilir; `_tam` isaret ve alt sinir "
-    "denetlemez, ayrica '.' karakterini siler: '1.5' -> 15). Beklenen: KilitBozuk; gozlenen: kabul."))
+# SIZINTI BULGUSU S-C6'nin ISARET parcasi KAPANDI (madde 2b): negatif olay sayisi aday esigi
+# karsilastirmasina takiliyor. Ayristirmanin kendisi (ondalik ayiricinin sessizce silinmesi,
+# "1.5" -> 15) madde 2d'de duzeltildi. Isaret kaldirildi; beklenti degismedi.
 def test_olay_sayilari_negatif_olamaz():
     """On-kayit §8 madde 5: olay sayilari sayimdir."""
     with pytest.raises(split.KilitBozuk):
