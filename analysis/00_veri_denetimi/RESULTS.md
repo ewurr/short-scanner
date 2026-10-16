@@ -3327,6 +3327,45 @@ denetiminde `--full-history` eksikliği, kapının P0 ≤ 0 fiyatla onay vermesi
 korumasının üç yoldan delinmesi. Hiçbiri bu turda düzeltilmedi; **F2'nin ilk satırından önce
 karara bağlanmalıdır** (dökümü `prompts/rapor_kimlik_kilit.md`).
 
+### §14.33 Koruma turu: kimlik ve kilit turunun bulgularının kapatılması
+
+Bu tur, kimlik ve kilit turunun bıraktığı bulguları (K-B1…K-C9 ve sızıntı testçisinin işaretli
+açıkları) kapatır. **Yeni bir ön-kayıt kararı çıkmadı** (tek istisna madde 2'nin ölçüme bağlı
+kararıydı; bkz. aşağısı). `events/` ve `study/` boş kaldı.
+
+**Hook: komut taşıyan her araç denetlenir (madde 1a).** `main()` yalnızca `tool_name == "Bash"`
+komutuna bakıyordu ve ayar eşleştiricisi `Write|Edit|NotebookEdit|Bash` idi; bu ortamın birincil
+kabuğu PowerShell olduğu için bütün kilitli dosyaların koruması o kanaldan delikti. Artık
+`tool_input` içinde komut alanı taşıyan **her** araç denetlenir (beyaz liste değil: bilinmeyen bir
+araç adı da denetlenir, araç adı yalnızca lehçe seçer) ve PowerShell'in yazan cmdlet'leri,
+takma adları ile `>`/`>>` yönlendirmesi reddedilir. Denetlenen araçların listesi testte yazılıdır.
+
+**Hook: yol normalleştirmesi (madde 1b).** Eşleştirme öncesinde `./`, `../`, `//`, ters eğik çizgi,
+ad sonundaki nokta/boşluk, `::$DATA` ve büyük/küçük harf eşdeğerlikleri kapatıldı. `Path.resolve()`
+yetmiyordu: Windows'ta ad sonundaki noktayı **temizlemediği ölçüldü**, yani açık Write/Edit yolunda
+da duruyordu. Büyük/küçük harf asimetrisi (K-C2) de burada kapandı: ad **tam** eşleşir ama harf
+duyarsızdır, bu yüzden eski yanlış pozitif (`.rev1213_capasiz.kilit`, `kilitler.md`) geri gelmez.
+
+**Hook'un kasıtlı açık yolları (madde 1c).** CLAUDE.md §5: kilit dikkatsiz bir düzenlemeye karşı
+korur, kararlı bir atlatmaya karşı değil. Aşağıdaki yollar **bilerek açık** bırakıldı; tablo
+ölçülmüştür (her satır hook'a metin olarak verilip kararı okunmuştur):
+
+| Yol | Desen girdisi (`analysis/*/KILIT.md`) | Tam yol girdileri (ör. `CLAUDE.md`) | Gerekçe |
+|---|---|---|---|
+| `cd <dizin> && echo x > <ad>` | **açık** | reddedilir | Hook `cd`'yi izlemez; yalın ad hangi dizinde olduğunu söylemez. Tam yol girdilerinde dosya **adı** yettiği için yakalanır |
+| `git -C <dizin> rm <ad>` | **açık** | reddedilir | Aynı sebep: `-C` ile birleşen yalın ad |
+| `find ... -name <ad> -delete` | **açık** | reddedilir | Yol hiç yazılmaz; desen girdisi `analysis/<ad>/KILIT.md` biçimi ister |
+| `python -c` ile parçalı yol | **açık** | reddedilir | `Path('analysis','h1','KILIT.md')` metinde bitişik yol olarak görünmez |
+| glob (`rm <dizin>/*`) | **açık** | reddedilir | Glob kapsaması kalıbı desen olarak alır; `analysis/h1/*` deseni `analysis/*/KILIT.md` kalıbıyla eşleşmez |
+| `sed -n 'w <dosya>'` | **açık** | **açık** | Hook yalnızca `sed -i`'yi yazma sayar; `w` komutu betiğin içindedir |
+| `awk 'BEGIN{print > "<dosya>"}'` | **açık** | **açık** | Yönlendirme awk programının içindedir, kabuk tokeni değildir |
+| değişkenli yol (`D=<dizin>; echo x > $D/<ad>`) | **açık** | **açık** | Hook değişken genişletmez |
+
+İlk beş satır **yalnızca desen girdisinde** açıktır (tam yol girdilerinde dosya adının metinde
+geçmesi yeterli olduğu için koruma işler); son üç satır her iki girdide de açıktır ve yeni değildir.
+Kilidi delmenin yolu, kilidi açmanın (`SHORT_LAB_KILIT_ACIK=1`) yerine geçmez: bu liste, kilidin
+neye karşı koruduğunu dürüstçe yazmak içindir.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
