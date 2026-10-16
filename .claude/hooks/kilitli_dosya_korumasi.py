@@ -84,6 +84,43 @@ def _desen_mi(kalip: str) -> bool:
     return any(c in kalip for c in "*?[")
 
 
+# NTFS veri akisi (`dosya::$DATA`) ayni dosyayi gosterir.
+_AKIS_SONEKI = re.compile(r"::\$?[A-Za-z0-9_]+$")
+
+
+def yol_normalle(yol: str) -> str:
+    """Yolu ESLESTIRME ONCESI normalize eder (madde 1b).
+
+    Kapatilan esdegerlikler: ters egik cizgi, `./`, `../`, `//`, sondaki nokta ve
+    bosluk (Win32 `GetFullPathName` bunlari yok sayar), NTFS veri akisi soneki
+    (`::$DATA`). Buyuk/kucuk harf burada DEGISTIRILMEZ; cagiran yere gore ya
+    `casefold` uygulanir ya da regex `IGNORECASE` ile eslesir.
+
+    `Path.resolve()` yetmez: Windows'ta sondaki noktayi temizlemedigi olculdu
+    (sizinti turu), yani `analysis/h1/KILIT.md.` ayni dosyayi gosterdigi halde
+    desene uymuyordu. Saf fonksiyon; dosya sistemine dokunmaz.
+    """
+    metin = yol.strip().strip('"').strip("'")
+    metin = metin.replace("\\", "/")
+    metin = _AKIS_SONEKI.sub("", metin)
+    onek = ""
+    surucu = re.match(r"^[A-Za-z]:(?=/|$)", metin)
+    if surucu:
+        onek, metin = surucu.group(0), metin[surucu.end():]
+    if metin.startswith("/"):
+        onek += "/"
+    parcalar: list[str] = []
+    for parca in metin.split("/"):
+        if parca in ("", "."):
+            continue                      # `//` ve `./`
+        if parca == "..":
+            if parcalar:
+                parcalar.pop()            # `a/../b` -> `b`
+            continue
+        parcalar.append(parca.rstrip(". \t"))
+    return onek + "/".join(parcalar)
+
+
 def _anma_deseni(kalip: str) -> re.Pattern[str]:
     """Desen girdisi icin METINDE arama regexi.
 
@@ -97,11 +134,10 @@ def _anma_deseni(kalip: str) -> re.Pattern[str]:
     ya da `kilit` iceren baska bir ad korumaya girmez. Bu yanlis pozitif, kosu
     kilidi artiklarinin silinmesini engelliyordu.
 
-    SINIR (bilincli): Windows dosya adlarinda buyuk/kucuk harf ayrimi yoktur,
-    yani `analysis/h1/kilit.md` ayni dosyayi gosterse de bu desen onu
-    ESLESTIRMEZ. Koruma dikkatsiz bir duzenlemeye karsidir, kararli bir
-    atlatmaya karsi degil (CLAUDE.md "Koruma katmani"); ad tam yazildiginda
-    koruma islerdir.
+    Dosya adi TAM eslesir ama buyuk/kucuk harf duyarsizdir (madde 1b, bulgu K-C2):
+    Windows'ta `analysis/h1/kilit.md` ayni dosyayi gosterdigi icin o yazim da
+    korunur. Eski yanlis pozitif (`.rev1213_capasiz.kilit`) geri gelmez, cunku
+    eslesme adin TAMAMINI ister, `kilit` alt dizgisini degil.
     """
     parcalar = []
     for p in kalip.split("/"):
@@ -109,7 +145,7 @@ def _anma_deseni(kalip: str) -> re.Pattern[str]:
             parcalar.append(r"[^/\\\s]+")
         else:
             parcalar.append(re.escape(p))
-    return re.compile(r"[/\\]".join(parcalar))
+    return re.compile(r"[/\\]".join(parcalar), re.IGNORECASE)
 
 
 def _yol_deseni(kalip: str) -> re.Pattern[str]:
@@ -120,7 +156,7 @@ def _yol_deseni(kalip: str) -> re.Pattern[str]:
     yolunu da eslestiriyordu ve kilitli olmayan bir dosya korumaya giriyordu.
     """
     parcalar = [r"[^/\\]+" if _desen_mi(p) else re.escape(p) for p in kalip.split("/")]
-    return re.compile(r"(?:^|.*[/\\])" + r"[/\\]".join(parcalar) + r"$")
+    return re.compile(r"(?:^|.*[/\\])" + r"[/\\]".join(parcalar) + r"$", re.IGNORECASE)
 
 
 def _dizin_kapsar(dizin: str, kalip: str) -> bool:
@@ -131,7 +167,7 @@ def _dizin_kapsar(dizin: str, kalip: str) -> bool:
     karsilastirma yol parcasi duzeyindedir: `analysis` kapsar, `analysis/h1`
     kapsar, `analysis/h1/baska.md` KAPSAMAZ.
     """
-    arg = [p for p in dizin.replace("\\", "/").strip("/").split("/") if p not in ("", ".")]
+    arg = [p for p in yol_normalle(dizin).strip("/").split("/") if p not in ("", ".")]
     hedef = kalip.split("/")[:-1]          # dosya adi haric ust dizinler
     if not arg or len(arg) > len(hedef):
         return False
@@ -230,12 +266,9 @@ def kilitli_mi(yol: str) -> str | None:
     ayni adli dosya da engellenir. Yanlis engelleme zararsizdir (kullanici kilidi
     acabilir); yanlis izin vermek degildir.
     """
+    normal = yol_normalle(yol)
     try:
-        mutlak = Path(yol).resolve()
-        try:
-            goreli = mutlak.relative_to(KOK).as_posix().lower()
-        except ValueError:
-            goreli = None
+        mutlak = Path(normal).resolve()
         goreli_ham = None
         try:
             goreli_ham = mutlak.relative_to(KOK).as_posix()
@@ -250,7 +283,7 @@ def kilitli_mi(yol: str) -> str | None:
     except Exception:
         pass
 
-    ham = yol.replace("\\", "/").rstrip("/")
+    ham = normal.rstrip("/")
     duz = ham.lower()
     for kalip in KILITLI:
         hedef = kalip.lower()
@@ -262,22 +295,46 @@ def kilitli_mi(yol: str) -> str | None:
     return None
 
 
+def _metin_normalle(metin: str) -> str:
+    """Komut METNINDEKI yol yazimlarini normalize eder (madde 1b).
+
+    `yol_normalle` tek bir yol icindir; burada metnin tamami taranir, bu yuzden
+    donusumler yol parcasi duzeyinde ve yineleyerek uygulanir. Fazla normalleme
+    zararsizdir: sonuc yalnizca "kilitli dosya ANILIYOR mu" sorusunda kullanilir
+    ve yanlis anma temkinli redde goturur (hook aciklamasi).
+    """
+    m = metin.replace("\\", "/")
+    m = re.sub(r"::\$?[A-Za-z0-9_]+", "", m)
+    m = re.sub(r"/{2,}", "/", m)
+    m = re.sub(r"/\./", "/", m)
+    onceki = None
+    while onceki != m:                      # `a/../b` -> `b`, ic ice yazimlar icin yinele
+        onceki = m
+        m = re.sub(r"[^/\s\"']+/\.\./", "", m)
+    return re.sub(r"\.+(?=[\s\"';|&)]|$)", "", m)
+
+
 def _ad_geciyor_mu(metin: str) -> str | None:
     """Metinde kilitli bir dosyanin adi geciyor mu? (buyuk-kucuk harf duyarsiz)
 
     Tam yol girdileri icin dosya adi yeter. Desen girdileri icin yolun tamami
     aranir: `KILIT.md` tek basina anilmis olmak yetmez, `analysis/<ad>/KILIT.md`
     bicimi gerekir.
+
+    Arama hem HAM metinde hem de normallestirilmis kopyada yapilir (madde 1b),
+    boylece `analysis/h1/../h1/KILIT.md`, `analysis//h1/KILIT.md`,
+    `analysis\\h1\\KILIT.md` ve `KILIT.md.` yazimlari da anma sayilir.
     """
-    kucuk = metin.lower()
-    for kalip in KILITLI:
-        if _desen_mi(kalip):
-            # Desen girdisinde dosya adi harf harf eslesir: `.kilit` uzantili ya da
-            # `kilit` iceren baska adlar korumaya girmez (yanlis pozitif).
-            if DESEN_ANMA[kalip].search(metin):
+    for aday in (metin, _metin_normalle(metin)):
+        kucuk = aday.lower()
+        for kalip in KILITLI:
+            if _desen_mi(kalip):
+                # Desen girdisinde dosya adi TAM eslesir (buyuk/kucuk duyarsiz): `.kilit`
+                # uzantili ya da `kilit` iceren baska adlar korumaya girmez.
+                if DESEN_ANMA[kalip].search(aday):
+                    return kalip
+            elif kalip.rsplit("/", 1)[-1].lower() in kucuk:
                 return kalip
-        elif kalip.rsplit("/", 1)[-1].lower() in kucuk:
-            return kalip
     return None
 
 
@@ -291,11 +348,12 @@ def kapsar_mi(arguman: str) -> str | None:
     """
     if not arguman:
         return None
-    duz = arguman.replace("\\", "/").strip()
+    duz = arguman.strip()
     if "=" in duz and not duz.startswith("-"):  # dd of=..., --file=...
         duz = duz.split("=", 1)[1]
     elif duz.startswith("--") and "=" in duz:
         duz = duz.split("=", 1)[1]
+    duz = yol_normalle(duz)          # madde 1b: `./`, `../`, `//`, `\`, sondaki nokta, `::$DATA`
     kucuk = duz.lower()
 
     # 1) Dosyanin kendisi: tam goreli yol ya da ayni dosya adi
@@ -379,10 +437,18 @@ def heredoc_ayikla(komut: str) -> tuple[str, list[tuple[str, str]]]:
 
 
 def tokenlara_ayir(metin: str) -> list[str]:
-    """Kabuk benzeri tokenlara ayirir; satir sonu komut ayiricisidir."""
+    """Kabuk benzeri tokenlara ayirir; satir sonu komut ayiricisidir.
+
+    Ters egik cizgi KACIS KARAKTERI SAYILMAZ (madde 1b): bu ortamda yollar
+    `analysis\\h1\\KILIT.md` bicimiyle de yazilir ve posix kacisi onu
+    `analysish1KILIT.md` tokenina cevirip eslesmeyi delerdi. Tirnak islemesi
+    korunur; `\\;` gibi kacislar ayri token olarak gorunur, bu yalnizca
+    siniflandirmayi temkinli yonde etkiler.
+    """
     lex = shlex.shlex(metin, posix=True, punctuation_chars=";&|<>()\n")
     lex.whitespace = " \t\r"
     lex.whitespace_split = True
+    lex.escape = ""
     return list(lex)
 
 

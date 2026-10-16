@@ -11,9 +11,10 @@ genis esliyordu:
 Simdi desen yol parcasi duzeyinde ve dosya adi harf harf eslesiyor. Mevcut alti kilitli dosyanin
 ve `analysis/<hipotez>/KILIT.md`nin korumasi aynen duruyor (tests/test_hook.py).
 
-SINIR (bilincli, testte yazili): Windows'ta dosya adlari buyuk/kucuk harf ayrimi yapmaz, yani
-`analysis/h1/kilit.md` ayni dosyayi gosterir ama desen onu eslestirmez. Koruma dikkatsiz bir
-duzenlemeye karsidir, kararli bir atlatmaya karsi degil (CLAUDE.md "Koruma katmani").
+Madde 1b (bulgu K-C2) ile buyuk/kucuk harf sinirii kaldirildi: ad TAM eslesir ama harf
+duyarsizdir, yani `analysis/h1/kilit.md` de korunur. Yanlis pozitif geri gelmez, cunku eslesme
+adin tamamini ister (`kilit` alt dizgisi degil). Yol normallestirmesi (`./`, `../`, `//`, `\`,
+sondaki nokta, `::$DATA`) ayni maddede eklendi; bkz. tests/test_hook_yol_normallestirme.py.
 """
 
 from __future__ import annotations
@@ -96,11 +97,15 @@ def test_kosu_kilidi_artigi_silinebilir():
 
 @pytest.mark.parametrize("yol", ["analysis/h1/kilit.md", "analysis/h1/Kilit.Md",
                                  "analysis/h1/KILIT.MD"])
-def test_harf_varyasyonlari_eslesmez(yol):
-    """BILINCLI SINIR: Windows'ta bu yollar ayni dosyayi gosterir, ama desen yalnizca tam
-    `KILIT.md` yazimini korur. Koruma dikkatsiz duzenlemeye karsidir; ad tam yazildiginda
-    (ve araclar yolu dosya sisteminden aldiginda) koruma islerdir."""
-    assert hook.kilitli_mi(yol) is None, yol
+def test_harf_varyasyonlari_da_korunur(yol):
+    """Madde 1b (bulgu K-C2): bu yollar Windows'ta AYNI dosyayi gosterir, bu yuzden korunurlar.
+
+    Turun ilk halinde burada bilincli bir sinir vardi (yalnizca tam `KILIT.md` yazimi korunuyordu);
+    denetci bunu gereksiz buldu, cunku yanlis pozitif (`.kilit` artigi) adin TAMAMINI eslestirerek
+    de giderilebiliyor -- harf duyarliligina gerek yoktu. Simdi ad buyuk/kucuk harf duyarsiz ama
+    TAM eslesiyor."""
+    assert hook.kilitli_mi(yol) == DESEN, yol
+    assert not hook.bash_degerlendir(f"echo x > {yol}").izin, yol
 
 
 def test_tam_yol_girdileri_duyarsiz_kaldi():

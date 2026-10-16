@@ -1238,9 +1238,6 @@ def test_hook_dizin_kapsami_analysis_ve_hipotez_dizini_evet_icindeki_baska_dosya
     assert hook.kapsar_mi(arg) == beklenen, arg
 
 
-@acik("`kapsar_mi`/`DESEN_TAM` Bash tarafinda yolu NORMALLESTIRMEZ; '..', '.', '//' ile yazilan "
-      "`analysis/h1/KILIT.md` desene uymaz (tam yol girdilerinde `endswith('/' + ad)` bunu kapatiyordu; desen "
-      "girdisinde kapatmiyor). Write/Edit tarafi `Path.resolve()` kullandigi icin etkilenmez.")
 @pytest.mark.parametrize("yol", ["analysis/h1/../h1/KILIT.md", "analysis//h1/KILIT.md", "analysis/h1/./KILIT.md",
                                  "./analysis/h1/../h2/KILIT.md", "analysis/./h1/KILIT.md"])
 def test_hook_bash_yol_dolambaclari_kilit_md_korumasini_delmemeli(yol):
@@ -1249,8 +1246,6 @@ def test_hook_bash_yol_dolambaclari_kilit_md_korumasini_delmemeli(yol):
         _acik(f"izin verilen komutlar: {kacan}")
 
 
-@acik("Dizin kapsamasi parca sayisina bakar (`len(arg) > len(hedef)`); 'analysis/h1/..' ya da "
-      "'analysis/h1/../h1' gibi dolambacli dizin yollari kapsanmaz.")
 @pytest.mark.parametrize("komut", ["rm -rf analysis/h1/..", "rm -rf analysis/h1/../h1", "mv analysis/h1/.. /tmp/x"])
 def test_hook_bash_dizin_dolambaclari_korumayi_delmemeli(komut):
     if hook.bash_degerlendir(komut).izin:
@@ -1363,9 +1358,6 @@ def test_hook_ayari_powershell_aracini_kapsamali():
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="NTFS ad esdegerlikleri yalniz Windows'ta")
-@acik("NTFS'te dosya adlari buyuk/kucuk harf duyarsiz: 'analysis/h1/kilit.md' KILIT.md ile ayni dosyadir; desen "
-      "ad kismini harf harf eslestirir (hook aciklamasinda BILINCLI SINIR olarak yazili, tests/test_hook_kilit_deseni.py "
-      "bu davranisi sabitler). Burada yalniz gercek delik oldugu gosterilir.")
 @pytest.mark.parametrize("yol", ["analysis/h1/kilit.md", "analysis/h1/Kilit.Md"])
 def test_hook_windows_buyuk_kucuk_harf_varyasyonu_ayni_dosyayi_gosterir(yol):
     if hook.bash_degerlendir(f"echo x > {yol}").izin:
@@ -1373,8 +1365,6 @@ def test_hook_windows_buyuk_kucuk_harf_varyasyonu_ayni_dosyayi_gosterir(yol):
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="NTFS ad esdegerlikleri yalniz Windows'ta")
-@acik("Win32 yol normallestirmesi sondaki nokta ve '::$DATA' akisini yok sayar; Bash tarafi dizgiyi oldugu gibi "
-      "karsilastirir ($ cipasi) ve 'KILIT.md.' / 'KILIT.md::$DATA' desene uymaz.")
 @pytest.mark.parametrize("yol", ["analysis/h1/KILIT.md.", "analysis/h1/KILIT.md::$DATA"])
 def test_hook_windows_sondaki_nokta_ve_veri_akisi_ayni_dosyayi_gosterir(yol):
     if hook.bash_degerlendir(f"echo x > {yol}").izin:
@@ -1382,9 +1372,6 @@ def test_hook_windows_sondaki_nokta_ve_veri_akisi_ayni_dosyayi_gosterir(yol):
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Win32 GetFullPathName davranisi")
-@acik("Olculdu (sizinti turu, Windows 10 / Python 3.13): `Path.resolve()` sondaki noktayi TEMIZLEMIYOR, yani "
-      "Write/Edit yolu da Bash yolu gibi delik: ad kismina eklenen sondaki nokta ayni dosyayi gosterir ama "
-      "desene uymaz. Testi yazan ajanin 'resolve temizler' cikarimi yanlisti; aciklik iki arac yolunda da duruyor.")
 def test_hook_windows_write_yolunda_sondaki_nokta_resolve_ile_temizlenir():
     """Write/Edit tarafinda `Path.resolve()` sondaki noktayi temizler mi? (Bash tarafinin tersine.)"""
     if hook.kilitli_mi(str(KOK / "analysis" / "h1" / "KILIT.md.")) != DESEN:
