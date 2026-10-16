@@ -9,6 +9,7 @@ Bu dosya sirayla su bulgulari kapatir:
   2a (S-C3) §8 madde 4 olcutleri: K2 farki > 0 (ve kayitta varsa ortalama net getiri > 0).
   2b (S-C4) §8 madde 2-3 aday esigi: analize giren olay sayisi >= `config.ADAY_OLAY_ESIGI`.
   2c (S-C5 / D-C4) §5, §8 madde 5: yapilandirma kimligi izgarada bulunmali.
+  2d (S-C6) §8 madde 5: olay sayilari negatif olamaz, ondalik ayirici sessizce atilmaz.
 
 Aga cikmaz; getiri hesaplanmaz.
 """
@@ -203,6 +204,51 @@ def test_baska_hipotezin_izgara_kimligi_reddedilir():
 def test_kapandi_hukmunde_kimlik_aranmaz():
     kayit = split.kilit_kaydi_coz(kilit_metni("H2", **KAPANDI_ALANLARI), "H2")
     assert kayit.secildi is False and kayit.yapilandirma == "-"
+
+
+# --- 2d. §8 madde 5: sayi ayristirmasi --------------------------------------------------------
+
+
+@pytest.mark.parametrize("deger", ["-5", "-1", "- 5", "+5", "1.5", "0.5", "151.5", "1,5",
+                                   "yok", "", " ", "1e3", "0x10", "nan", "inf", "1 500"])
+def test_bozuk_olay_sayisi_reddedilir(deger):
+    """Sayilar sayimdir: negatif, isaretli, ondalikli ya da sayi olmayan deger kabul edilmez.
+    Onceki uygulama butun noktalari siliyordu, bu yuzden "1.5" sessizce 15 okunuyordu."""
+    with pytest.raises(split.KilitBozuk, match="negatif olmayan bir tamsayi"):
+        _coz(olusmus=deger, analize_giren=200)
+    with pytest.raises(split.KilitBozuk, match="negatif olmayan bir tamsayi"):
+        _coz(olusmus=400, analize_giren=deger)
+
+
+@pytest.mark.parametrize("ham,beklenen", [("200", 200), ("1500", 1500), ("1.500", 1500),
+                                          ("12.345.678", 12345678), (" 200 ", 200)])
+def test_gecerli_tamsayi_bicimleri(ham, beklenen):
+    """Nokta yalnizca BINLIK ayirici olarak, uclu gruplar halinde kabul edilir."""
+    kayit = _coz(olusmus=ham, analize_giren="200")
+    assert kayit.olusmus_olay == beklenen
+
+
+@pytest.mark.parametrize("deger", ["1.50", "1.5000", "12.34", "1.500.00"])
+def test_uclu_olmayan_gruplar_reddedilir(deger):
+    with pytest.raises(split.KilitBozuk, match="negatif olmayan bir tamsayi"):
+        _coz(olusmus=deger, analize_giren=200)
+
+
+def test_tohum_alani_da_ayni_ayristirmadan_gecer():
+    with pytest.raises(split.KilitBozuk, match="negatif olmayan bir tamsayi"):
+        _coz(tohum="-20260911")
+    with pytest.raises(split.KilitBozuk, match="negatif olmayan bir tamsayi"):
+        _coz(tohum="2.0260911")
+
+
+def test_negatif_sayilarla_kosu_acilmaz(bos_kilit, tmp_path):
+    kilit_yaz(bos_kilit, "H2", olusmus="-5", analize_giren="-6")
+    kayit_yolu = tmp_path / "onay_gecici.md"
+    once = kayit_yolu.read_bytes()
+    with pytest.raises(split.KilitBozuk):
+        with kosu("H2", "C1"):
+            pytest.fail("negatif olay sayilariyla kosu acilmamali")
+    assert kayit_yolu.read_bytes() == once
 
 
 def test_izgara_disi_kimlikle_kosu_acilmaz(bos_kilit, tmp_path):

@@ -420,10 +420,19 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
     secildi = alanlar["hukum"] == KILIT_SECILDI
 
     def _tam(ad: str) -> int:
-        try:
-            return int(str(alanlar[ad]).replace(".", "").strip())
-        except ValueError:
-            raise KilitBozuk(f"{hipotez} KILIT.md: `{ad}` bir tamsayi olmali; verilen {alanlar[ad]!r}.") from None
+        """Olay sayisi ve tohum: NEGATIF OLMAYAN tamsayi (sizinti bulgusu S-C6).
+
+        Nokta yalnizca BINLIK ayirici olarak kabul edilir ("1.500" = 1500) ve yalnizca uclu
+        gruplar halinde; onceki uygulama butun noktalari siliyordu, bu yuzden "1.5" sessizce 15
+        okunuyordu ve isaret hic denetlenmiyordu ("-5" -> -5 kabul ediliyordu).
+        """
+        ham = str(alanlar[ad]).strip()
+        if not re.fullmatch(r"\d{1,3}(\.\d{3})+|\d+", ham):
+            raise KilitBozuk(
+                f"{hipotez} KILIT.md: `{ad}` negatif olmayan bir tamsayi olmali (binlik ayirici nokta "
+                f"olabilir: '1.500'); verilen {alanlar[ad]!r}. Ondalikli, isaretli ya da sayi olmayan "
+                "deger kabul edilmez (on-kayit §8 madde 5).")
+        return int(ham.replace(".", ""))
 
     def _ondalik(ad: str) -> float:
         if not secildi:
