@@ -386,10 +386,38 @@ def _kume_verisi(sembol: str, kume: str, kume_baslangic, kume_bitis) -> tuple[pd
     if len(fr):
         funding_modulu._zaman_dizisi(fr, "_kume_verisi (funding)")
     mumlar = klines_modulu.donem_kes(mumlar, kume_baslangic, kume_bitis)
+    mumlar = _tam_hucreli_barlar(mumlar)
     if len(fr):
         zaman = pd.DatetimeIndex(fr["odeme_zamani"])
         fr = fr.loc[np.asarray((zaman >= kume_baslangic) & (zaman <= kume_bitis), dtype=bool)].reset_index(drop=True)
     return mumlar, fr
+
+
+def _tam_hucreli_barlar(mumlar: pd.DataFrame) -> pd.DataFrame:
+    """Hucresi bozuk barlari seriden DUSURUR: bar duzeyli mevcutluk olcutu (on-kayit §2, rev.12).
+
+    On-kayit §2 (rev.12): "olcut alan duzeyinde degil BAR DUZEYINDEDIR ve her izgarada, her
+    pencerede ve her HESAPTA gecerlidir." Denetci bulgusu D-B3: olcut `sinyal._seri` ve
+    `klines.gunluge_cevir` icinde uygulaniyordu, ama pozisyonun FIYAT OKUMALARI (P0, P1, MAE'nin
+    high'lari) ve plan adimi yalnizca damgaya bakiyordu. Hucresi bozuk (ör. `volume` NaN) ama
+    `open`i gecerli bir 4h bar, on-kayit geregi "mevcut degil" olmasina ragmen giris bari olarak
+    kabul ediliyordu; ileri kayma kurali hic devreye girmiyordu ve ayni bar sinyal penceresinde
+    eksik sayildigi icin kod kendi icinde tutarsizdi.
+
+    Olcutu TEK YERDE, verinin kapiya girdigi noktada uygulamak bu tutarsizligi kaldirir: bozuk
+    bar seride yoktur, dolayisiyla plan onu giris/cikis bari saymaz (ileri kayma devreye girer),
+    MAE penceresine girmez ve tamlik kontrolleri onu eksik bar olarak gorur. Olcut `data.klines`
+    icindeki tek uygulamadan (`hucreleri_tam_mi`) gecer; ikinci bir kopya yoktur.
+
+    Olculen etki bugun SIFIRDIR (dönem ici KESIF barlarinda bozuk hucre bulunmuyor); yine de
+    uygulanir, cunku "olculmus sifir etki muafiyet degildir" (RESULTS §14.13).
+    """
+    if not len(mumlar):
+        return mumlar
+    tam = np.asarray(klines_modulu.hucreleri_tam_mi(mumlar), dtype=bool)
+    if tam.all():
+        return mumlar
+    return mumlar.loc[tam].reset_index(drop=True)
 
 
 def _utc_sinyal_zamani(sinyal_zamani) -> pd.Timestamp:

@@ -176,17 +176,44 @@ def test_nan_oran_funding_tam_degil_olarak_kalir():
 
 @pytest.mark.parametrize("deger", [float("inf"), float("-inf"), float("nan")])
 @pytest.mark.parametrize("yer", ["P0", "P1", "high"])
-def test_sonlu_olmayan_fiyat_reddedilir(yer, deger):
+def test_sonlu_olmayan_fiyat_hesaba_girmez(yer, deger):
+    """DENETCI BULGUSU D-B3 ILE DEGISTI. Onceki davranis: sonlu olmayan P0/P1/high acik
+    `ValueError` ("sonlu degil") verirdi. On-kayit §2 (rev.12) bu barlari zaten "MEVCUT DEGIL"
+    sayiyor ("olcut ... bar duzeyindedir ve ... her hesapta gecerlidir") ve olcut artik fiyat
+    okuma yoluna da uygulaniyor: bozuk hucreli bar seriden DUSER. Bu yuzden sonlu olmayan deger
+    hicbir hesaba girmez -- ama artik "yok sayilarak", acik hatayla degil.
+
+    Hukum ayni kaliyor: sonlu olmayan bir fiyat hicbir hesapta kullanilmaz. Degisen, hangi
+    mekanizmanin once davrandigi. `pozisyon._sonlu` korumasi kaldirilmadi (asagidaki test)."""
     p = _karar()
     m = MUM.copy()
     if yer == "P0":
         m.loc[m["open_time"] == p.plan.giris, "open"] = deger
-    elif yer == "P1":
+        # Giris barinda ileri kayma yoktur (on-kayit §4): "boyle bir bar yoksa olay olusmaz".
+        with pytest.raises(pencere.GirisBariYok):
+            _karar(mum=m)
+        return
+    if yer == "P1":
         m.loc[m["open_time"] == p.plan.cikis.zaman, p.plan.cikis.fiyat_alani] = deger
-    else:
-        m.loc[m["open_time"] == p.plan.giris + H(8), "high"] = deger
-    with pytest.raises(ValueError, match="sonlu degil"):
-        _karar(mum=m)
+        yeni_plan = _karar(mum=m).plan
+        assert yeni_plan.cikis.zaman != p.plan.cikis.zaman, "bozuk cikis bari atlandi (ileri kayma)"
+        assert yeni_plan.cikis.ileri_kayma > pd.Timedelta(0)
+        return
+    orta = p.plan.giris + H(8)
+    m.loc[m["open_time"] == orta, "high"] = deger
+    # MAE penceresindeki bozuk bar hesaba girmez: MAE sonludur ve degeri saglam seridekiyle ayni.
+    mae_bozuk = pozisyon.mae(_karar(mum=m))
+    assert np.isfinite(mae_bozuk) and mae_bozuk == pozisyon.mae(p)
+
+
+def test_sonlu_deger_korumasi_yerinde_kaldi():
+    """D-B3 ikinci savunmayi kaldirmadi: `_sonlu` sonlu olmayan degeri hala acik hata yapar.
+    Kapiya `_kume_verisi` disindan gelen bir cerceve (ör. ileride baska bir cagri yolu) bu
+    korumaya takilir."""
+    for deger in (float("inf"), float("-inf"), float("nan")):
+        with pytest.raises(ValueError, match="sonlu degil"):
+            pozisyon._sonlu(deger, "deneme")
+    assert pozisyon._sonlu(1.5, "deneme") == 1.5
 
 
 def test_sonsuz_sinyal_degeri_tamlik_kapisinda_kalir():
