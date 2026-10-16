@@ -440,9 +440,30 @@ def _sonlu(deger: float, ad: str) -> float:
     return deger
 
 
+def _pozitif_fiyat(deger: float, ad: str) -> float:
+    """Kapinin okudugu FIYAT sonlu VE POZITIF olmali; aksi halde `VeriHatasi` (koruma turu madde 2b).
+
+    Gerekce: sifir ya da negatif bir perpetual fiyati mesru bir piyasa durumu degil, bozuk
+    veridir. Olculdu (`koruma_olcumu.py --olcum pozitif_fiyat`, butun evren, temiz agac): donem
+    ici 3.378.942 4h barin HICBIRINDE open/high/low/close sifir ya da negatif degil (sembol 0).
+    Olcum sifir cikmasi muafiyet degildir (RESULTS §14.13): kapi bu durumu sessizce "olay olusmaz"
+    diye gecmez, acik hata verir. Bu bir KURAL degil HATA yoludur, bu yuzden on-kayit degisikligi
+    gerektirmez (`sinyal._pozitif` ile ayni tutum; Rev.9 D-C5).
+
+    P0 ≤ 0 ayrica MAE'yi (`max(H, P1) / P0 - 1`) sifira bolmeye goturuyordu (sizinti bulgusu).
+    """
+    _sonlu(deger, ad)
+    if deger <= 0:
+        raise pencere_modulu.VeriHatasi(
+            f"{ad} pozitif bir fiyat olmali; verilen {deger!r}. Sifir ya da negatif fiyat bozuk veridir ve "
+            "on-kayitta tanimlanmaz: kapi kural icat etmez, veri denetlenmeli (RESULTS §14.33).")
+    return deger
+
+
 def _mae_tepesi(mumlar_4h: pd.DataFrame, zamanlar: pd.DatetimeIndex, plan, p1: float) -> float:
     """MAE'nin H'si (on-kayit §4 rev.8): giris anindan once acilmayan, cikis anindan sonra kapanmayan donem
-    ici 4h barlarin en yuksek high'i ile P1'in buyugu. Secilen high'lar sonlu olmali (`_sonlu`)."""
+    ici 4h barlarin en yuksek high'i ile P1'in buyugu. Secilen high'lar sonlu VE POZITIF olmali
+    (`_pozitif_fiyat`; koruma turu madde 2b)."""
     kapanislar = zamanlar + pencere_modulu.ADIM_4H
     secim = (np.asarray(pencere_modulu.ayni_ya_da_sonra(zamanlar, plan.giris), dtype=bool)
              & np.asarray(pencere_modulu.ayni_ya_da_once(kapanislar, plan.cikis_ani), dtype=bool)
@@ -452,7 +473,7 @@ def _mae_tepesi(mumlar_4h: pd.DataFrame, zamanlar: pd.DatetimeIndex, plan, p1: f
     if secim.any():
         yuksekler = mumlar_4h["high"].to_numpy(dtype=float)[secim]
         for deger in yuksekler:
-            _sonlu(float(deger), "pozisyon penceresindeki high")
+            _pozitif_fiyat(float(deger), "pozisyon penceresindeki high")
         tepe = max(float(np.max(yuksekler)), p1)
     return tepe
 
@@ -654,8 +675,8 @@ def olay_karari(
         raise FundingTamDegil(f"Pozisyonun funding'i hesaplanamadi (oran NaN): giris {plan.giris}.")
     # Sonlu olmayan degerler (kapi sertlestirme turu 2): +-inf funding toplami, fiyat ve MAE penceresi.
     _sonlu(toplam, "funding toplami")
-    p0 = _sonlu(_bar_degeri(mumlar_4h, zamanlar, plan.giris, "open"), "P0")
-    p1 = _sonlu(_bar_degeri(mumlar_4h, zamanlar, plan.cikis.zaman, plan.cikis.fiyat_alani), "P1")
+    p0 = _pozitif_fiyat(_bar_degeri(mumlar_4h, zamanlar, plan.giris, "open"), "P0")
+    p1 = _pozitif_fiyat(_bar_degeri(mumlar_4h, zamanlar, plan.cikis.zaman, plan.cikis.fiyat_alani), "P1")
     _mae_tepesi(mumlar_4h, zamanlar, plan, p1)
     sonuc = OnaylanmisPozisyon(plan, p0, p1, toplam, kuyruk_kismi=bool(ayrinti["kuyruk_kismi"]),
                                son_esitlik_affi=bool(ayrinti["son_esitlik_affi"]),

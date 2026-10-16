@@ -3373,6 +3373,27 @@ geçmesi yeterli olduğu için koruma işler); son üç satır her iki girdide d
 Kilidi delmenin yolu, kilidi açmanın (`SHORT_LAB_KILIT_ACIK=1`) yerine geçmez: bu liste, kilidin
 neye karşı koruduğunu dürüstçe yazmak içindir.
 
+**Pozitif fiyat: önce ölçüm, sonra uygulama (madde 2).** Ölçüm (`koruma_olcumu.py --olcum
+pozitif_fiyat`, temiz ağaç, bütün evren, yalnızca sayı):
+
+| Kalem | Değer |
+|---|---|
+| sembol | 678 |
+| dönem içi 4h bar | 3.378.942 |
+| `open`/`high`/`low`/`close`'tan biri **sıfır ya da negatif** olan bar | **0** (sembol 0) |
+| küme kırılımı (bar / pozitif olmayan) | KEŞİF 1.113.921 / 0 · C1 1.112.226 / 0 · C2 1.152.795 / 0 · küme dışı 0 / 0 |
+
+Küme = (gruplar, tarih aralığı) olduğu için her bar yalnızca sembolün grubuna uyan kümelerde
+sayılır; aksi halde KEŞİF ile C1 aynı tarih aralığını paylaştığından her bar iki kez sayılırdı.
+
+Sayı sıfır olduğu için madde 2'nin **"sıfırsa"** dalı uygulandı: sıfır ya da negatif bir perpetual
+fiyatı meşru bir piyasa durumu değil **bozuk veridir**. Kapı bunu sessizce "olay oluşmaz" diye
+geçmez, `pencere.VeriHatasi` verir (`pozisyon._pozitif_fiyat`; P0, P1 ve MAE penceresindeki
+high'lar). Bu bir **kural değil hata yoludur** — ön-kayıt sıfır/negatif fiyatı tanımlamaz ve kapı
+kural icat etmez (`sinyal._pozitif` ile aynı tutum, Rev.9 D-C5) — bu yüzden ön-kayıt değişikliği
+gerekmedi. "Ölçülmüş sıfır etki muafiyet değildir" (§14.13). Yan etki: P0 ≤ 0 ile MAE'nin
+(`max(H, P1) / P0 - 1`) sıfıra bölmesi de kapandı.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,

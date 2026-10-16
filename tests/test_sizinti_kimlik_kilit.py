@@ -950,8 +950,6 @@ def test_bar_duzeyi_sinyal_penceresindeki_bozuk_bar_kontrolu_engeller_ayni_bar_i
         _b3_karar(m)
 
 
-@acik("`_sonlu` yalniz NaN/inf'i reddeder; P0 = 0 ya da negatif fiyat onaylanir (hucreleri_tam_mi yalniz "
-      "isfinite). Onayli pozisyon P0=0 tasir; `mae` sifira bolme yapar, brut getiri tanimsizdir.")
 @pytest.mark.parametrize("fiyat", [0.0, -1.0])
 def test_bar_duzeyi_giris_acilisi_pozitif_olmayan_fiyatla_onay_verilmemeli(fiyat):
     """§4 'Fiyat okuma tabani' + §2 rev.12 (sonlu hucre): fiyat sonlu ama 0/negatif olan bar gercek veri
