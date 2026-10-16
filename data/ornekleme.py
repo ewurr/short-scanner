@@ -57,11 +57,23 @@ from data import sinyal as sinyal_modulu
 
 @dataclass(frozen=True)
 class KontrolHavuzu:
-    """Bir olayin kontrol havuzu: secilenler ve aday sayisi (on-kayit §6: "sayi sonuc dosyasina
-    yazilir")."""
+    """Bir olayin kontrol havuzu: secilenler, aday sayisi ve cekimin alt tohumu.
+
+    On-kayit §6: "Aday sayisi 10'dan azsa adaylarin tamami alinir ve SAYI sonuc dosyasina yazilir";
+    §8 madde 1 (rev.13) raporlanacak kalemler arasinda "tohum ve ALT TOHUM TURETME DEMETI" de var.
+    Denetci bulgusu D-C6: p-degeri tarafinda bu iki alan `istatistik.PSonucu`da tasiniyordu, ama
+    ornekleme tarafinda hicbir yerde tasinmiyordu ve F2'nin yeniden turetmesi gerekiyordu. Simdi
+    simetrik: cekimi yapan alt tohum ve onu ureten demet havuzla birlikte doner.
+
+    `alt_tohum_demeti`: (hipotez, yapilandirma kimligi, kume, sembol, olay zamani ISO). Bos
+    havuzda cekim yapilmadigi icin `tohum` 0 ve demet bostur.
+    """
 
     secilenler: tuple
     aday_sayisi: int
+    tohum: int = 0
+    alt_tohum_demeti: tuple = ()
+    genel_tohum: int = 0
 
     @property
     def eksik(self) -> bool:
@@ -106,6 +118,18 @@ def alt_tohum(hipotez, yapilandirma, kume, sembol, olay_zamani) -> int:
         raise TypeError(f"sembol bos olmayan bir str olmali: {sembol!r}")
     t = pencere_modulu.utc_zamani(olay_zamani, "olay_zamani").tz_convert("UTC")
     return tohum_turet(kimlik, k, sembol, t.isoformat())
+
+
+def alt_tohum_demeti(hipotez, yapilandirma, kume, sembol, olay_zamani) -> tuple[str, str, str, str]:
+    """Alt tohumu ureten demet, raporlanacak bicimde (on-kayit §8 madde 1: "tohum ve alt tohum
+    TURETME DEMETI"). Denetci bulgusu D-C6: p-degeri tarafinda demet `PSonucu.alt_tohum_demeti`
+    ile tasiniyordu, ornekleme tarafinda hic tasinmiyordu."""
+    ad = sinyal_modulu._hipotez_dogrula(hipotez)
+    kimlik = (yapilandirma if isinstance(yapilandirma, str)
+              else sinyal_modulu.yapilandirma_kimligi(ad, yapilandirma))
+    k = _kume_dogrula(kume)
+    t = pencere_modulu.utc_zamani(olay_zamani, "olay_zamani").tz_convert("UTC")
+    return (kimlik, k, str(sembol), t.isoformat())
 
 
 def _kume_dogrula(kume) -> str:
@@ -347,12 +371,17 @@ def ornekle(adaylar: Adaylar, *, sembol: str, olay_zamani, sayi: int = None) -> 
     if n == 0:
         return KontrolHavuzu((), 0)
     tohum = alt_tohum(gecerli.hipotez, gecerli.yapilandirma, gecerli.kume, sembol, olay_zamani)
+    # Alt tohum ve onu ureten demet havuzla birlikte doner (on-kayit §8 madde 1; denetci D-C6):
+    # F2 raporunda yeniden turetilmesi gerekmez ve p-degeri tarafiyla simetriktir.
+    kimlik_demeti = alt_tohum_demeti(gecerli.hipotez, gecerli.yapilandirma, gecerli.kume, sembol,
+                                     olay_zamani)
+    iz = dict(tohum=int(tohum), alt_tohum_demeti=kimlik_demeti, genel_tohum=config.TOHUM)
     if n <= hedef:
-        havuz = KontrolHavuzu(tuple(sirali), n)
+        havuz = KontrolHavuzu(tuple(sirali), n, **iz)
     else:
         uretec = np.random.default_rng(int(tohum))
         secilen = sorted(int(i) for i in uretec.choice(n, size=hedef, replace=False))
-        havuz = KontrolHavuzu(tuple(sirali[i] for i in secilen), n)
+        havuz = KontrolHavuzu(tuple(sirali[i] for i in secilen), n, **iz)
     if len(havuz) != min(hedef, n) or not set(havuz.secilenler) <= set(sirali):
         raise AssertionError("secilen aday sonradan dusmemeli (on-kayit §6 rev.13).")
     return havuz
