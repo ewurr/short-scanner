@@ -862,12 +862,9 @@ def test_kesif_commit_ve_zamani_bicim_denetimi(alanlar):
         split.kilit_kaydi_coz(kilit_metni("H2", **alanlar), "H2")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C8): 'hipotez kapandi' kaydinda `k2_farki` NaN olarak cozulur (`float('nan')` her cagrida yeni "
-    "nesne) ve dataclass `==` NaN'i kendisine esit saymaz: AYNI metnin iki cozumu birbirine ESIT DEGIL. "
-    "`split.kilit_oku` gercek git kipinde HEAD ile calisma agaci cozumlerini `!=` ile karsilastirdigi icin "
-    "COMMIT EDILMIS, TEMIZ bir 'hipotez kapandi' kaydi bile her zaman KilitYok verir (asagidaki git testi). "
-    "Beklenen: esit; gozlenen: esit degil."))
+# SIZINTI BULGUSU S-C8 KAPANDI (madde 2f): kapandi hukmunde `k2_farki` None (NaN degil), bu yuzden
+# ayni metnin iki cozumu esit ve kapanmis hipotez gercek git kipinde de `HipotezKapandi` veriyor.
+# Isaret kaldirildi; beklenti degismedi.
 def test_ayni_kapandi_metninin_iki_cozumu_esit_olmali():
     """Saflik/tekrarlanabilirlik (CLAUDE.md §5): `kilit_kaydi_coz` saf bir fonksiyondur, ayni girdi esit cikti."""
     m = kilit_metni("H2", hukum=split.KILIT_KAPANDI, gerekce="aday yok", yapilandirma="-", parametreler="-",
@@ -973,11 +970,9 @@ def test_gercek_git_kapandi_kaydi_icin_kosu_acilmaz_ve_hicbir_sey_yazilmaz(tmp_p
     assert split.aktif_onay_kosusu() is None
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C8): gercek git kipinde COMMIT EDILMIS ve temiz bir 'hipotez kapandi' kaydi `HipotezKapandi` "
-    "yerine `KilitYok` ('calisma agacinda HEAD'dekinden farkli') verir, cunku kapandi kaydinin k2_farki NaN "
-    "ve iki cozum `!=`. Reddedilme dogru ama hata sinifi/mesaji yanlis: 'kapandi' hukmu gercek git "
-    "ortaminda HIC taninmaz; `kilit_oku('H2')` de ayni nedenle kapanmis bir kaydi okuyamaz."))
+# SIZINTI BULGUSU S-C8 KAPANDI (madde 2f): kapandi hukmunde `k2_farki` None (NaN degil), bu yuzden
+# ayni metnin iki cozumu esit ve kapanmis hipotez gercek git kipinde de `HipotezKapandi` veriyor.
+# Isaret kaldirildi; beklenti degismedi.
 def test_gercek_git_commitli_kapandi_kaydi_hipotez_kapandi_hatasi_verir(tmp_path):
     """On-kayit §8 madde 4-5 (rev.13): hukmu 'hipotez kapandi' olan hipotez icin kosu acilmaz; kayit
     okunabilir olmali ve hata `HipotezKapandi` olmali."""

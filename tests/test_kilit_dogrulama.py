@@ -11,6 +11,7 @@ Bu dosya sirayla su bulgulari kapatir:
   2c (S-C5 / D-C4) §5, §8 madde 5: yapilandirma kimligi izgarada bulunmali.
   2d (S-C6) §8 madde 5: olay sayilari negatif olamaz, ondalik ayirici sessizce atilmaz.
   2e (S-C7) §8 madde 5: kesif commit hash'i 40 haneli onaltilik, kesif zamani UTC ve ISO.
+  2f (S-C8) §8 madde 4-5: kapanmis hipotez `HipotezKapandi` verir (`KilitYok` degil).
 
 Aga cikmaz; getiri hesaplanmaz.
 """
@@ -205,6 +206,39 @@ def test_baska_hipotezin_izgara_kimligi_reddedilir():
 def test_kapandi_hukmunde_kimlik_aranmaz():
     kayit = split.kilit_kaydi_coz(kilit_metni("H2", **KAPANDI_ALANLARI), "H2")
     assert kayit.secildi is False and kayit.yapilandirma == "-"
+
+
+# --- 2f. §8 madde 4-5: kapanmis hipotezin hata sinifi -----------------------------------------
+
+
+def test_ayni_kapandi_metninin_iki_cozumu_esit():
+    """Kok neden: kapandi kaydinda `k2_farki` NaN'di ve `NaN != NaN` oldugu icin ayni metnin iki
+    cozumu esit cikmiyordu; `kilit_oku`nun HEAD/calisma agaci karsilastirmasi bu yuzden kapandi
+    kayitlarinda HER ZAMAN "farkli" diyor ve `KilitYok` veriyordu (sizinti bulgusu S-C8)."""
+    metin = kilit_metni("H2", **KAPANDI_ALANLARI)
+    assert split.kilit_kaydi_coz(metin, "H2") == split.kilit_kaydi_coz(metin, "H2")
+
+
+def test_kapandi_hukmunde_k2_farki_none():
+    """"Hesaplanamaz" `None` ile gosterilir; NaN kullanilmaz (esitlik bozulmasin)."""
+    kayit = split.kilit_kaydi_coz(kilit_metni("H2", **KAPANDI_ALANLARI), "H2")
+    assert kayit.k2_farki is None
+
+
+def test_secildi_hukmunde_k2_farki_sayi():
+    assert _coz().k2_farki == pytest.approx(0.0210)
+
+
+def test_kapanmis_hipotez_hipotez_kapandi_verir(bos_kilit, tmp_path):
+    """On-kayit §8 madde 5: "hukmu 'hipotez kapandi' olan bir hipotez icin onay kosusu acilmaz."
+    Red dogruydu, SINIFI yanlisti (sahte git kipinde `HipotezKapandi`, gercek kipte `KilitYok`)."""
+    kilit_yaz(bos_kilit, "H2", **KAPANDI_ALANLARI)
+    kayit_yolu = tmp_path / "onay_gecici.md"
+    once = kayit_yolu.read_bytes()
+    with pytest.raises(split.HipotezKapandi):
+        with kosu("H2", "C1"):
+            pytest.fail("kapanmis hipotez icin kosu acilmamali")
+    assert kayit_yolu.read_bytes() == once
 
 
 # --- 2e. §8 madde 5: commit hash'i ve UTC zamani ----------------------------------------------

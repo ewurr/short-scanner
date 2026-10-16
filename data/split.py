@@ -349,7 +349,10 @@ class KilitKaydi:
     parametreler: str
     olusmus_olay: int
     analize_giren_olay: int
-    k2_farki: float
+    # Hukum "hipotez kapandi" iken K2 farki HESAPLANAMAZ'dir ve `None` ile gosterilir; NaN
+    # kullanilamaz, cunku `NaN != NaN` yuzunden iki ayni metnin cozumu esit cikmaz ve
+    # `kilit_oku`nun HEAD ile calisma agacini karsilastirmasi yanlis ret verir (sizinti S-C8).
+    k2_farki: float | None
     kesif_commit: str
     kesif_zamani: str
     tohum: int
@@ -467,9 +470,9 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
                 "deger kabul edilmez (on-kayit §8 madde 5).")
         return int(ham.replace(".", ""))
 
-    def _ondalik(ad: str) -> float:
+    def _ondalik(ad: str) -> float | None:
         if not secildi:
-            return float("nan")
+            return None
         try:
             return float(str(alanlar[ad]).replace(",", ".").strip())
         except ValueError:
@@ -562,6 +565,8 @@ def kilit_oku(hipotez: str) -> KilitKaydi:
         head_metni = _git("cat-file", "blob", f"HEAD:{goreli}")
         if head_metni is None:
             raise OnayOrtamiHatasi(f"HEAD:{goreli} okunamadi.")
+        # Karsilastirma kaydin ALANLARIYLA yapilir; "hipotez kapandi" hukmunde `k2_farki` artik
+        # `None`dur (NaN degil), bu yuzden ayni metnin iki cozumu esittir (sizinti bulgusu S-C8).
         if kilit_kaydi_coz(head_metni, ad) != kilit_kaydi_coz(metin, ad):
             raise KilitYok(f"{goreli} calisma agacinda HEAD'dekinden farkli. Dosya yalnizca ekleme kuralina "
                            "tabidir ve onay kosusundan once commit edilir (on-kayit §8 madde 5).")
