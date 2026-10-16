@@ -1,9 +1,9 @@
 bilesen,surum
-git_commit,4ed62c53ab2d5231a03f7b337087b17b87ab00c4
+git_commit,8db3cc9813a507f48dd043702ee30afe4ade4b9c
 calisma_agaci,kirli
 calisma_agaci_degisiklikleri, M analysis/00_veri_denetimi/ortam_tam.csv
-kosu_baslangic_utc,2026-10-15 16:52:00
-kosu_bitis_utc,2026-10-15 16:59:31
+kosu_baslangic_utc,2026-10-16 19:38:33
+kosu_bitis_utc,2026-10-16 19:50:11
 python,3.13.12
 python_derleme,Feb 24 2026 16:05:56
 python_yolu,D:\Miniconda\python.exe

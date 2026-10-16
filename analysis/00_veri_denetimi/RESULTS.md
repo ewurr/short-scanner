@@ -3295,6 +3295,38 @@ eşliyor. Windows'ta dosya adları büyük/küçük harf ayrımı yapmadığı i
 aynı dosyayı gösterir ama desen onu eşleştirmez; koruma dikkatsiz bir düzenlemeye karşıdır,
 kararlı bir atlatmaya karşı değil (CLAUDE.md "Koruma katmanı"). Bu davranış testte yazılıdır.
 
+**Temiz koşu ve kapanış denetimi (madde 6).** `8db3cc9` commit'inde, temiz çalışma ağacında tam
+denetim (`calistir.py --eski-evren`, 678 sembol, hatalı 0) ve `a1_olcumu.py` yeniden koşuldu;
+farklar `karsilastir.py --onceki 8db3cc9` ile listelendi
+(`karsilastirma_kimlik_kilit_tam.csv`): **76 dosya AYNI, 2 dosya farklı** (`ortam_tam.csv` ve
+`a1_ortam_tam.csv`; her ikisinde yalnızca `surum` sütununun 3 satırı — commit hash'i ve koşu
+zamanları). Denetim özeti değişmedi: toplam 4h bar 3.692.573, dönem içi 3.378.942, dolgu 313.626
+(156 koşu), kısa sıfır koşusu 0, dönem tutarsızlığı 0, funding'siz dönem 3, sıçrama 10, boşluk 105
+(10 olay), 60 günden kısa dönem 5. Bu turun kod değişiklikleri F1'in denetim sayılarının hiçbirini
+değiştirmedi; beklenen de buydu, çünkü değişen kurallar olay ve kontrol üretimine ait.
+
+**Parçalı tam takım (yeni test kuralı).** `tests/` dört gruba (35 dosya × 4) bölünerek koşuldu:
+grup 00 **720 geçti / 4 xfailed**, grup 01 **796 / 10**, grup 02 **921 / 71**, grup 03 **868 / 16**
+— toplam **3305 geçti, 101 xfailed, 0 kırmızı**. İlk koşuda grup 00 **dört kırmızı** verdi; dördü de
+D-B3 (`f5a4e06`) öncesi davranışı sabitleyen mevcut testlerdi ve hedefli koşuların dışında kalmıştı
+(`test_ks3_kapi` iki parametre, `test_tur_saldirilari_m` iki test). Düzeltme ayrı commit olarak
+yazıldı (`8a9f58d`): bozuk fiyat **hücresi** veri hatası değil "bar mevcut değil" okumasıdır, yani
+girişte `GirisBariYok`, çıkışta ileri kayma. Hiçbir test gevşetilmedi. **Bu, yeni test kuralının
+bilinen bedelidir:** her commit öncesi yalnızca dokunulan alanın hedefli testleri koşulduğu için
+hedefin dışındaki bir beklenti tur sonuna kadar kırmızı kalabilir; korunan güvence "kırmızı takımla
+push yapılmaz"dır ve tur sonunda sağlandı.
+
+**Kapanış denetiminin bulguları (düzeltilmedi, raporlandı).** Metodoloji denetçisi bir ağır bulgu
+(**K-B1**: `olay_dizisi`in dönem/küme sözleşmesi + yukarıdaki D-C1 paragrafının "gözlemlenebilir
+ihlal yok" gerekçesinin eksik olduğu; reddedilen bir bar da H1 izlemesini ve H3 dizisini
+değiştirebilir) ve sekiz hafif bulgu (K-C1…K-C9) döndürdü. Sızıntı testçisi 111 testlik yeni bir
+dosya yazdı (`tests/test_sizinti_kimlik_kilit.py`, 286 geçti / 70 `xfail(strict)`); işaretli
+açıkların en önemlileri: koruma hook'unun **PowerShell aracını hiç denetlememesi**, `ornekle`'nin
+olay kimliğini adaylarla çapraz doğrulamaması, `KontrolHavuzu`nun imzasız olması, ekleme kuralı
+denetiminde `--full-history` eksikliği, kapının P0 ≤ 0 fiyatla onay vermesi ve `config` sabit
+korumasının üç yoldan delinmesi. Hiçbiri bu turda düzeltilmedi; **F2'nin ilk satırından önce
+karara bağlanmalıdır** (dökümü `prompts/rapor_kimlik_kilit.md`).
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
