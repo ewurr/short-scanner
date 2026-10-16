@@ -50,11 +50,13 @@ BARLAR = pd.date_range(T("2025-03-01 00:00"), periods=10, freq="4h")
 Y2 = yapilandirma("H2")
 
 
+DIZI_KIMLIGI = dict(sembol="TESTONAYUSDT", kume="KESIF", donem_no=0)
+
 def _dizi_sonucu():
     return dizi.olay_dizisi(
         "H2", Y2, BARLAR[:3], config.BAR_4H, birincil_ufuk=config.BIRINCIL_UFUK[config.BAR_4H],
         kosul=lambda t, capa: True,
-        karar=lambda t, capa: pozisyon._test_onayi(hipotez="H2", yapilandirma=Y2, t=t, capa=capa))
+        karar=lambda t, capa: pozisyon._test_onayi(hipotez="H2", yapilandirma=Y2, t=t, capa=capa), **DIZI_KIMLIGI)
 
 
 # --- 1. Calisma ani: olay tipi yalnizca diziden cikar ----------------------------------------
@@ -116,7 +118,7 @@ def test_tarama_elle_kurulan_olayi_yakalar(tmp_path):
     (tmp_path / "study" / "kotu2.py").write_text("from data.dizi import Olay\ny = Olay(t, None, p)\n",
                                                  encoding="utf-8")
     (tmp_path / "study" / "kotu3.py").write_text("z = dizi._OLAY_GIZLI\n", encoding="utf-8")
-    (tmp_path / "study" / "iyi.py").write_text("sonuc = dizi.olay_dizisi(...)\nolaylar = sonuc.olaylar\n",
+    (tmp_path / "study" / "iyi.py").write_text("sonuc = dizi.olay_dizisi(..., **DIZI_KIMLIGI)\nolaylar = sonuc.olaylar\n",
                                                encoding="utf-8")
     bulunan = ihlaller(DIZI_ATLATMA_DESENI, kok=tmp_path, izinli_altlar=IZINLI_ALTLAR)
     assert bulunan == ["study/kotu1.py", "study/kotu2.py", "study/kotu3.py"]
@@ -128,7 +130,7 @@ def test_tarama_dizisiz_olay_rolunu_yakalar(tmp_path):
                                                 encoding="utf-8")
     (tmp_path / "study" / "iyi.py").write_text(
         'karar = lambda t, c: olay_karari(t, rol="olay", capa=c)\n'
-        'sonuc = dizi.olay_dizisi(h, y, zamanlar, bar, karar=karar)\n', encoding="utf-8")
+        'sonuc = dizi.olay_dizisi(h, y, zamanlar, bar, karar=karar, **DIZI_KIMLIGI)\n', encoding="utf-8")
     assert olay_rolu_ihlalleri(kok=tmp_path) == ["study/kotu.py"]
     assert OLAY_ROLU_DESENI  # desen bos olmasin
 

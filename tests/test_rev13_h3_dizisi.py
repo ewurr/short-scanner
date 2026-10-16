@@ -26,6 +26,8 @@ UFUK = config.BIRINCIL_UFUK[config.BAR_1D]       # 14 gun
 # Her adayi onaylayan kapi: SORULAN (t, capa) ciftine ait IMZALI onay. `dizi.olay_dizisi`
 # donen onayi dogruladigi icin (sizinti bulgusu S-B1) ham bir nesne olay sayilmaz;
 # `pozisyon._test_onayi` veri yuklemeden imzali bir onay kurar (yalnizca pytest icinde).
+DIZI_KIMLIGI = dict(sembol="TESTONAYUSDT", kume="KESIF", donem_no=0)
+
 def _onay(t, capa=None):
     return pozisyon._test_onayi(hipotez="H3", yapilandirma=dict(nu=0.50, tau=0.15), t=t, capa=capa)
 GUNLER = pd.date_range(T("2025-03-01"), periods=80, freq="D")
@@ -49,7 +51,7 @@ def _kosul(saglanan, hesaplanamaz=()):
 def _calistir(idxler, kosul, karar=None):
     return dizi.olay_dizisi("H3", dict(nu=0.50, tau=0.15), GUNLER[list(idxler)], config.BAR_1D,
                             birincil_ufuk=UFUK, kosul=kosul,
-                            karar=karar if karar is not None else _onay)
+                            karar=karar if karar is not None else _onay, **DIZI_KIMLIGI)
 
 
 def _idx(sonuc):
@@ -171,7 +173,7 @@ def test_h2_bosluktan_etkilenmez_dizi_kurali_yalnizca_h3te():
 
     sonuc = dizi.olay_dizisi("H2", dict(phi=0.0003, k=3), barlar[secilen], config.BAR_4H,
                              birincil_ufuk=config.BIRINCIL_UFUK[config.BAR_4H], kosul=kosul,
-                             karar=_h2_onay)
+                             karar=_h2_onay, **DIZI_KIMLIGI)
     # Bekleme 18 bar: 0'da olay, 19..29 seride yok, 30'da bekleme dolmus -> olay; sonra 49 yok.
     assert [int(barlar.get_loc(z)) for z in sonuc.olay_zamanlari] == [0, 30]
 

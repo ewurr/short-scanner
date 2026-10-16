@@ -50,6 +50,8 @@ def olaylar_kur(zamanlar, *, hipotez: str = "H2", yapilandirma=None, kume: str =
     indeks = pd.DatetimeIndex(zamanlar)
     karar = _karar_kur(ad, y, kume, sembol, donem_no)
     ortak = dict(bar=bar, birincil_ufuk=config.BIRINCIL_UFUK[bar], karar=karar)
+    # Dizinin kimligi cagriya verilir (madde 3a, bulgu K-B1): `karar`in uretecegi onayla ayni uclu.
+    kimlik = dict(sembol=sembol, kume=kume, donem_no=donem_no)
 
     if ad in dizi.IZLEMELI_HIPOTEZLER:
         olaylar: list[dizi.Olay] = []
@@ -58,13 +60,13 @@ def olaylar_kur(zamanlar, *, hipotez: str = "H2", yapilandirma=None, kume: str =
             sonuc = dizi.olay_dizisi(ad, y, ikili, ortak["bar"],
                                      birincil_ufuk=ortak["birincil_ufuk"],
                                      kosul=lambda t2, capa, t=t: capa is not None or t2 != t,
-                                     karar=karar)
+                                     karar=karar, **kimlik)
             assert len(sonuc.olaylar) == 1, (t, sonuc)
             olaylar.append(sonuc.olaylar[0])
         return tuple(olaylar)
 
     sonuc = dizi.olay_dizisi(ad, y, indeks, ortak["bar"], birincil_ufuk=ortak["birincil_ufuk"],
-                             kosul=lambda t, capa: True, karar=karar)
+                             kosul=lambda t, capa: True, karar=karar, **kimlik)
     return sonuc.olaylar
 
 

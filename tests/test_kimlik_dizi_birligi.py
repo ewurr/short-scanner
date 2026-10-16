@@ -28,13 +28,17 @@ Y2, Y3 = yapilandirma("H2"), yapilandirma("H3")
 UFUK4 = config.BIRINCIL_UFUK[config.BAR_4H]
 
 
-def _dizi(karar, idxler, *, hipotez="H2"):
+def _dizi(karar, idxler, *, hipotez="H2", sembol="TESTONAYUSDT", kume="KESIF", donem_no=0):
+    """Dizi cagrisi. Kimlik (sembol, kume, donem_no) madde 3a'dan beri CAGRIDAN gelir (bulgu K-B1);
+    varsayilanlar `pozisyon._test_onayi`nin varsayilanlariyla ayni, boylece karismayan durumda
+    cagri ile onaylar ayni ucluye aittir."""
     y = Y2 if hipotez == "H2" else Y3
     izgara = IZGARA if hipotez == "H2" else GUNLER
     bar = config.HIPOTEZ_IZGARASI[hipotez]
     return dizi.olay_dizisi(hipotez, y, izgara[list(idxler)], bar,
                             birincil_ufuk=config.BIRINCIL_UFUK[bar],
-                            kosul=lambda t, capa: True, karar=karar)
+                            kosul=lambda t, capa: True, karar=karar,
+                            sembol=sembol, kume=kume, donem_no=donem_no)
 
 
 def _onay(t, capa=None, *, hipotez="H2", **ek):
@@ -55,8 +59,9 @@ def test_karisik_sembol_ve_donem_reddedilir(alan, degerler):
         deger = degerler[0] if t == IZGARA[idxler[0]] else degerler[1]
         return _onay(t, capa, **{alan: deger})
 
-    with pytest.raises(ValueError, match="ayni \\(sembol, kume, donem"):
-        _dizi(karar, idxler)
+    # Cagrinin kimligi ILK olayin ucluusu: red IKINCI olayda, yani karisimin kendisinde olusur.
+    with pytest.raises(ValueError, match="baska bir diziye ait"):
+        _dizi(karar, idxler, **{alan: degerler[0]})
 
 
 @pytest.mark.parametrize("degerler", [("KESIF", "C1"), ("C1", "KESIF")])
@@ -70,7 +75,7 @@ def test_karisik_kume_reddedilir(degerler):
         return _onay(t, capa, kume=deger)
 
     with pytest.raises((ValueError, PermissionError)):
-        _dizi(karar, [0, 20])
+        _dizi(karar, [0, 20], kume=degerler[0])
 
 
 def test_hata_mesaji_iki_ucluyu_de_yazar():
@@ -78,7 +83,7 @@ def test_hata_mesaji_iki_ucluyu_de_yazar():
         return _onay(t, capa, sembol="AAAUSDT" if t == IZGARA[0] else "BBBUSDT")
 
     with pytest.raises(ValueError) as hata:
-        _dizi(karar, [0, 20])
+        _dizi(karar, [0, 20], sembol="AAAUSDT")
     metin = str(hata.value)
     assert "AAAUSDT" in metin and "BBBUSDT" in metin
 
@@ -87,8 +92,8 @@ def test_h3_de_ayni_denetim_isler():
     def karar(t, capa):
         return _onay(t, capa, hipotez="H3", donem_no=0 if t == GUNLER[0] else 3)
 
-    with pytest.raises(ValueError, match="ayni \\(sembol, kume, donem"):
-        _dizi(karar, [0, 40], hipotez="H3")
+    with pytest.raises(ValueError, match="baska bir diziye ait"):
+        _dizi(karar, [0, 40], hipotez="H3", donem_no=0)
 
 
 def test_kume_karismasi_ucuncu_olayda_da_yakalanir():
@@ -99,7 +104,7 @@ def test_kume_karismasi_ucuncu_olayda_da_yakalanir():
         return _onay(t, capa, kume=secim[t])
 
     with pytest.raises((ValueError, PermissionError)):
-        _dizi(karar, [0, 20, 40])
+        _dizi(karar, [0, 20, 40], kume="KESIF")
 
 
 # --- 2. Tek uclu gecer; onceki denetimler korundu ---------------------------------------------
@@ -112,7 +117,7 @@ def test_tek_uclu_gecer(uclu):
     def karar(t, capa):
         return _onay(t, capa, sembol=sembol, kume=kume, donem_no=donem_no)
 
-    sonuc = _dizi(karar, [0, 20, 40])
+    sonuc = _dizi(karar, [0, 20, 40], sembol=sembol, kume=kume, donem_no=donem_no)
     assert len(sonuc.olaylar) == 3
     for olay in sonuc.olaylar:
         dizi.olay_dogrula(olay)
@@ -133,3 +138,39 @@ def test_rev13_denetimleri_korundu():
         _dizi(lambda t, capa: _onay(t, capa, rol="K1"), [0])
     with pytest.raises(ValueError, match="sinyal zamani"):
         _dizi(lambda t, capa: _onay(IZGARA[1], capa), [0])
+
+
+# --- 3. Kimlik CAGRIDAN gelir (madde 3a, bulgu K-B1) ------------------------------------------
+
+
+@pytest.mark.parametrize("alan,deger", [("sembol", "BASKAUSDT"), ("donem_no", 7)])
+def test_tek_olayli_cagri_da_dis_referansla_denetlenir(alan, deger):
+    """Bulgunun kendisi: tek olay ureten cagri. Rev.13'te ilk olay ucluyu KURUYORDU, yani hicbir dis
+    referansla karsilastirilmiyordu; `karar` yanlis sembolun ya da baska donemin onayini dondurse
+    kabul ediliyordu. Artik uclu cagridan gelir."""
+    with pytest.raises(ValueError, match="baska bir diziye ait"):
+        _dizi(lambda t, capa: _onay(t, capa, **{alan: deger}), [5])
+
+
+def test_sifir_olayli_cagri_kimligi_gerektirir():
+    """Olay uretmeyen cagri da kimlik ister: eksik arguman programlama hatasidir."""
+    bar = config.HIPOTEZ_IZGARASI["H2"]
+    with pytest.raises(TypeError):
+        dizi.olay_dizisi("H2", Y2, IZGARA[[0]], bar, birincil_ufuk=UFUK4,
+                         kosul=lambda t, capa: False, karar=lambda t, capa: None)
+
+
+def test_kume_karisimi_tek_olayda_da_yakalanir():
+    """KESIF cagrisina C1 onayi: tek olayli cagrida da reddedilir (kume karisimi, on-kayit §3)."""
+    with pytest.raises((ValueError, PermissionError)):
+        _dizi(lambda t, capa: _onay(t, capa, kume="C1"), [0], kume="KESIF")
+
+
+@pytest.mark.parametrize("kimlik", [
+    {"sembol": ""}, {"sembol": None}, {"sembol": 3},
+    {"kume": "kesif"}, {"kume": "C3"}, {"kume": None},
+    {"donem_no": -1}, {"donem_no": 1.0}, {"donem_no": "0"}, {"donem_no": True},
+])
+def test_gecersiz_kimlik_argumani_reddedilir(kimlik):
+    with pytest.raises((TypeError, ValueError)):
+        _dizi(lambda t, capa: _onay(t, capa), [0], **kimlik)

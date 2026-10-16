@@ -752,7 +752,15 @@ def sinyal_kosulu(t, *, hipotez: str, yapilandirma, capa, kume: str, sembol: str
     split_modulu.onay_baglami_dogrula(hipotez, kume, sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli))
     donem_baslangic, donem_bitis, _ = donem_kaydi(sembol, donem_no)
     grup_dogrula(sembol, kume)
-    mumlar_4h, funding = _kume_verisi(sembol, kume, kume_baslangic, kume_bitis)
+    # Veri kume araligina VE DONEME kesilir (bulgu K-B1; on-kayit §2 "Listeleme donemi": "Donem
+    # disindaki hiçbir bar ... hicbir hesaba girmez"). Rev.13'te yalnizca kume araligina
+    # kesiliyordu: donem bitisinden SONRAKI bir t icin kosul hesaplanabiliyor ve penceresi
+    # donemler arasi barlari (dolgu barlari, sonraki donemin barlari) icerebiliyordu. Sonucu
+    # olay kumesini de etkiler, cunku dizi durumu (H1 izlemesi, H3 dizisi) kosulun sonucuna
+    # gore degisir -- kapinin onayina degil (rev.13: "dizi kosullarla tanimlidir").
+    veri_baslangic = max(pd.Timestamp(kume_baslangic), pd.Timestamp(donem_baslangic))
+    veri_bitis = min(pd.Timestamp(kume_bitis), pd.Timestamp(donem_bitis))
+    mumlar_4h, funding = _kume_verisi(sembol, kume, veri_baslangic, veri_bitis)
     _mum_zamanlari(mumlar_4h)
     gunluk_mumlar = klines_modulu.gunluge_cevir(
         mumlar_4h, donemler=[_DonemSiniri(donem_baslangic, donem_bitis)])

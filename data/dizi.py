@@ -246,8 +246,16 @@ def _olay_dogrula(pozisyon, *, hipotez: str, yapilandirma_kimligi: str, t, capa)
                          "olay sayar).")
 
 
-def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int, kosul, karar) -> DiziSonucu:
+def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int, kosul, karar,
+                sembol: str, kume: str, donem_no: int) -> DiziSonucu:
     """Bir (sembol, donem, kume, yapilandirma) dizisinde olaylari sirayla bulur (on-kayit §5 rev.11).
+
+    `sembol`, `kume`, `donem_no`: dizinin KIMLIGI; zorunludur (bulgu K-B1). Cagri bu ucluyu
+    argüman olarak alir ve `karar`in dondurdugu her onay buna gore denetlenir. Rev.13'te uclu
+    yalnizca cagrinin KENDI ICINDE tutarli kilinmisti: ilk olay ucluyu kuruyor, sonrakiler onunla
+    karsilastiriliyordu; tek olay (ya da sifir olay) ureten bir cagrida hicbir dis referans yoktu,
+    yani `karar` yanlis sembolun, baska donemin ya da baska KUMENIN onayini dondurse de kabul
+    edilirdi (C1 ile KESIF ayni tarih araligini paylasir; ayiran sey coin grubudur).
 
     `zamanlar`: hipotezin izgarasindaki DONEM ICI ve KUME ICI sinyal barlari, artan sirada. Dizi
     kurallari donem ve kume basina isler; bekleme donem sinirini asmaz (on-kayit §5: "yeni
@@ -273,7 +281,15 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
 
     olaylar: list[Olay] = []
     retler: list[Ret] = []
-    dizi_kimligi = None      # (sembol, kume, donem_no): bir cagri TEK bir dizidir (bkz. _dene)
+    # (sembol, kume, donem_no): bir cagri TEK bir dizidir ve kimligi CAGRIDAN gelir (bulgu K-B1).
+    if not isinstance(sembol, str) or not sembol:
+        raise TypeError("olay_dizisi: `sembol` zorunlu ve bos olmayan bir dizgi olmali (on-kayit §5 rev.11).")
+    if kume not in config.KUMELER:
+        raise ValueError(f"olay_dizisi: `kume` {config.KUMELER} icinden olmali; verilen {kume!r} (on-kayit §3).")
+    if isinstance(donem_no, bool) or not isinstance(donem_no, int) or donem_no < 0:
+        raise TypeError(f"olay_dizisi: `donem_no` negatif olmayan tamsayi olmali; verilen {donem_no!r} "
+                        "(on-kayit §2 'Listeleme donemi').")
+    dizi_kimligi = (sembol, kume, donem_no)
     son_olay = None          # bekleme suresinin cikti olay bari
     izleme_pump = None       # H1: yuruyen izlemenin pump bari
     dizi_suruyor = False     # H3: kesintisiz dizi suruyor mu
@@ -285,7 +301,7 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
 
     def _dene(t, capa):
         """Kapiyi cagirir; olay olustuysa kaydeder ve beklemeyi baslatir."""
-        nonlocal son_olay, dizi_kimligi
+        nonlocal son_olay
         try:
             pozisyon = karar(t, capa)
         except pencere_modulu.OlayOlusmaz as hata:
@@ -299,13 +315,11 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
         # cagri icinde baska sembolun, baska donemin ya da baska KUMENIN onayini dondurebiliyordu
         # (C1, KESIF ile ayni tarih araligini paylasir; ayiran sey coin grubudur).
         uclu = (pozisyon.sembol, pozisyon.kume, pozisyon.donem_no)
-        if dizi_kimligi is None:
-            dizi_kimligi = uclu
-        elif uclu != dizi_kimligi:
+        if uclu != dizi_kimligi:
             raise ValueError(
-                f"bir olay dizisinin butun olaylari ayni (sembol, kume, donem) ucluusune ait olmali; "
-                f"dizi {dizi_kimligi} uzerinde kosuyor, {t} barinda {uclu} geldi. Bekleme donem basina "
-                "isler ve kumeler arasi veri odunc alinmaz (on-kayit §5 rev.11, §3).")
+                f"onayli pozisyon baska bir diziye ait: {uclu}; dizi {dizi_kimligi} uzerinde kosuyor "
+                f"({t} bari). Bekleme donem basina isler ve kumeler arasi veri odunc alinmaz "
+                "(on-kayit §5 rev.11, §3). Uclu cagridan gelir (bulgu K-B1).")
         olaylar.append(_olay_kur(t, capa, pozisyon))
         son_olay = t
         return True

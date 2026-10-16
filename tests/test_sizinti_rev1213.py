@@ -79,6 +79,8 @@ Y1, Y2, Y3 = yapilandirma("H1"), yapilandirma("H2"), yapilandirma("H3")
 # =================================================================================================
 
 
+DIZI_KIMLIGI = dict(sembol="TESTONAYUSDT", kume="KESIF", donem_no=0)
+
 def _h1_onay(t, capa=None, **ek):
     return pozisyon._test_onayi(hipotez="H1", yapilandirma=Y1, t=t, capa=capa, **ek)
 
@@ -91,19 +93,21 @@ def _h3_onay(t, capa=None, **ek):
     return pozisyon._test_onayi(hipotez="H3", yapilandirma=Y3, t=t, capa=capa, **ek)
 
 
-def _h2_dizi(karar, idxler, kosul=None):
+def _h2_dizi(karar, idxler, kosul=None, **kimlik):
+    """Kimlik madde 3a'dan beri cagridan gelir (bulgu K-B1); varsayilan `_test_onayi` ile ayni."""
     return dizi.olay_dizisi("H2", Y2, IZ4[list(idxler)], config.BAR_4H, birincil_ufuk=UFUK4,
-                            kosul=kosul if kosul is not None else (lambda t, capa: True), karar=karar)
+                            kosul=kosul if kosul is not None else (lambda t, capa: True), karar=karar,
+                            **{**DIZI_KIMLIGI, **kimlik})
 
 
 def _h1_dizi(idxler, kosul, karar=_h1_onay):
     return dizi.olay_dizisi("H1", Y1, IZ4[list(idxler)], config.BAR_4H, birincil_ufuk=UFUK4,
-                            kosul=kosul, karar=karar)
+                            kosul=kosul, karar=karar, **DIZI_KIMLIGI)
 
 
 def _h3_dizi(idxler, kosul, karar=_h3_onay):
     return dizi.olay_dizisi("H3", Y3, IZ1[list(idxler)], config.BAR_1D, birincil_ufuk=UFUK1,
-                            kosul=kosul, karar=karar)
+                            kosul=kosul, karar=karar, **DIZI_KIMLIGI)
 
 
 def _h1_kosul(pumplar, teyitler):
@@ -205,7 +209,7 @@ def test_olayin_icindeki_pozisyon_replace_ile_bozulunca_olay_dogrulanamaz():
 
 def test_ayni_dizi_cagrisinda_ayni_sembol_donem_kume_onaylari_kabul_edilir_olumlu_kontrol():
     """Olumlu kontrol (asagidaki XFAIL'in saglamligi icin): ayni (sembol, donem, kume) iki olay uretir."""
-    sonuc = _h2_dizi(lambda t, capa: _h2_onay(t, capa, sembol="AAAUSDT"), [0, 20])
+    sonuc = _h2_dizi(lambda t, capa: _h2_onay(t, capa, sembol="AAAUSDT"), [0, 20], sembol="AAAUSDT")
     assert _idx4(sonuc) == [0, 20]
 
 
@@ -553,7 +557,7 @@ def _dunya(hipotez, tohum):
 
 def _kos(d, idx):
     return dizi.olay_dizisi(d["hipotez"], d["y"], d["iz"][np.asarray(idx, dtype=int)], d["bar"],
-                            birincil_ufuk=config.BIRINCIL_UFUK[d["bar"]], kosul=d["kosul"], karar=d["karar"])
+                            birincil_ufuk=config.BIRINCIL_UFUK[d["bar"]], kosul=d["kosul"], karar=d["karar"], **DIZI_KIMLIGI)
 
 
 def _olay_ciftleri(d, sonuc):

@@ -121,7 +121,8 @@ def test_c_baska_testte_kurulan_onay_dizi_ve_havuza_da_giremez():
 
     with pytest.raises(ValueError, match="BASKA bir testte"):
         dizi.olay_dizisi("H2", Y2, pd.DatetimeIndex([TB]), config.BAR_4H, birincil_ufuk=UFUK,
-                         kosul=lambda t, capa: True, karar=karar)
+                         kosul=lambda t, capa: True, karar=karar,
+                         sembol=onay.sembol, kume=onay.kume, donem_no=onay.donem_no)
 
 
 def test_ayni_test_icinde_yeniden_dogrulama_calisir():

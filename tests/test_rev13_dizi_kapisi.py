@@ -35,12 +35,14 @@ BARLAR = pd.date_range(T("2025-03-01 00:00"), periods=30, freq="4h")
 Y2 = yapilandirma("H2")
 
 
+DIZI_KIMLIGI = dict(sembol="TESTONAYUSDT", kume="KESIF", donem_no=0)
+
 def _calistir(karar, *, hipotez="H2", y=None, kosul=None, idxler=range(5)):
     bar = config.HIPOTEZ_IZGARASI[hipotez]
     izgara = BARLAR if bar == config.BAR_4H else pd.date_range(T("2025-03-01"), periods=30, freq="D")
     return dizi.olay_dizisi(hipotez, y if y is not None else yapilandirma(hipotez),
                             izgara[list(idxler)], bar, birincil_ufuk=config.BIRINCIL_UFUK[bar],
-                            kosul=kosul if kosul is not None else (lambda t, capa: True), karar=karar)
+                            kosul=kosul if kosul is not None else (lambda t, capa: True), karar=karar, **DIZI_KIMLIGI)
 
 
 def _onay(t, capa=None, **ek):

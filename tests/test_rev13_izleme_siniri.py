@@ -33,6 +33,8 @@ IZLEME = config.H1_IZLEME_BAR            # 12
 # Her adayi onaylayan kapi: SORULAN (t, capa) ciftine ait IMZALI onay. `dizi.olay_dizisi`
 # donen onayi dogruladigi icin (sizinti bulgusu S-B1) ham bir nesne olay sayilmaz;
 # `pozisyon._test_onayi` veri yuklemeden imzali bir onay kurar (yalnizca pytest icinde).
+DIZI_KIMLIGI = dict(sembol="TESTONAYUSDT", kume="KESIF", donem_no=0)
+
 def _onay(t, capa=None):
     return pozisyon._test_onayi(hipotez="H1", yapilandirma=dict(theta=0.20, delta=0.08), t=t, capa=capa)
 
@@ -55,7 +57,7 @@ def _kosul(pumplar, teyitler):
 
 def _calistir(idxler, kosul):
     return dizi.olay_dizisi("H1", dict(theta=0.20, delta=0.08), IZGARA[list(idxler)], config.BAR_4H,
-                            birincil_ufuk=UFUK, kosul=kosul, karar=_onay)
+                            birincil_ufuk=UFUK, kosul=kosul, karar=_onay, **DIZI_KIMLIGI)
 
 
 def _idx(sonuc):

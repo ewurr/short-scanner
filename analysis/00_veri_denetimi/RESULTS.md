@@ -3281,14 +3281,21 @@ gerektirir, yani F2 kodu demektir → **F2'de ölçülecek**. Ölçüm temiz ağ
 |---|---|---|
 | `rev1213_uygulama.py --olcum bar_duzeyi` | dönem içi KEŞİF 4h barı **1.113.921**, bar düzeyli ölçütün maskelediği bar **0** | Beklenen 0; D-B3 bugünkü veride hiçbir barı düşürmüyor. Fiyat okuma yolu aynı seriyi kullandığı için düşen bar sayısı da 0'dır: hiçbir olay, kontrol, P0/P1 ya da MAE değeri değişmez. "Ölçülmüş sıfır etki muafiyet değildir" (§14.13), kural yine de uygulandı. |
 
-**Açık kalan: D-C1 (bilinçli, savunma derinliği).** `dizi.olay_dizisi`in `zamanlar` argümanının
-dönem içi ve küme içi olduğu ve `pozisyon.sinyal_kosulu`nun t'sinin dönem içinde olduğu **kod
-düzeyinde doğrulanmıyor**; bugün yalnızca çağıranın sözleşmesine güveniliyor. Gözlemlenebilir bir
-ihlal yok: dönem dışı bir barda koşul hesaplanabilse de kapı (`olay_karari`) o barı
-`SinyalBariYok`/plan denetimleriyle reddeder, yani **olay oluşmaz**. Kapatılmadı, çünkü dizi
-çağrısının girdisini kod düzeyinde dönem/kümeye bağlamak F2'nin çağrı yapısını (her dönem için
-ayrı çağrı, hangi barların verildiği) kodda sabitlemek demektir ve o yapı F2'ye aittir. F2'nin ilk
-satırından önce ya kapatılmalı ya da §14.31'e gereksinim olarak eklenmelidir.
+**D-C1 KAPANDI (koruma turu madde 3a; bulgu K-B1).** Bu paragraf ilk yazıldığında D-C1 "bilinçli
+açık nokta" olarak bırakılmış ve gerekçesi **"gözlemlenebilir bir ihlal yok: dönem dışı bir barda
+koşul hesaplanabilse de kapı o barı reddeder, yani olay oluşmaz"** diye yazılmıştı. **Bu gerekçe
+yanlıştı** ve denetçi (K-B1) iki yerden çürüttü: (1) `sinyal_kosulu` kapıyı çağırmaz, veriyi
+yalnızca **küme** aralığına kesiyordu — döneme kesmiyordu, yani dönem bitişinden sonraki bir t
+için koşul hesaplanabiliyor ve penceresi dönemler arası barları içerebiliyordu; (2) reddedilen
+bir bar bile **dizi durumunu** değiştirir (H1'in izlemesi, H3'ün dizisi), çünkü rev.13'ten beri
+dizi koşullarla tanımlıdır, kapının onayıyla değil — dolayısıyla dönem dışı bir bar, kendisi olay
+olmasa bile sonraki geçerli barın "ilk gün" ya da "yeni pump barı" sayılıp sayılmayacağını
+değiştirebiliyordu, yani **olay kümesini etkileyebiliyordu**.
+
+Koruma turunda ikisi de kapatıldı: `olay_dizisi` artık (sembol, küme, dönem) üçlüsünü **argüman
+olarak** alır ve `karar`ın döndürdüğü her onayı bu dış referansla karşılaştırır (tek olaylı çağrı
+dahil); `sinyal_kosulu` veriyi küme aralığına **ve döneme** keser. Dizi durumunun koşullarla
+tanımlı olması **kural gereğidir** ve değiştirilmedi (rev.13).
 
 **Hook'un bilinçli sınırı (madde 4).** Desen artık yalnızca adı tam `KILIT.md` olan yolları
 eşliyor. Windows'ta dosya adları büyük/küçük harf ayrımı yapmadığı için `analysis/h1/kilit.md`
