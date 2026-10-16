@@ -386,6 +386,39 @@ def _kilit_yapilandirmasi_dogrula(kimlik: str, hipotez: str) -> str:
     return kimlik
 
 
+def _kilit_commiti_dogrula(deger: str, hipotez: str) -> str:
+    """On-kayit §8 madde 5: "kesif kosusunun commit hash'i". Tam 40 haneli onaltilik (git SHA-1).
+
+    Sizinti bulgusu S-C7: alan hic denetlenmiyordu; "yok" ya da 39 haneli bir deger de geciyordu.
+    Hash kaydin tekrarlanabilirlik baglantisidir (CLAUDE.md §5 "tohum ve commit sonuc dosyasina
+    yazilir"), bu yuzden bicimi denetlenir -- varligi git'te ARANMAZ: kesif kosusunun commit'i
+    baska bir dalda ya da henuz itilmemis olabilir.
+    """
+    ham = str(deger).strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{40}", ham):
+        raise KilitBozuk(f"{hipotez} KILIT.md: `kesif_commit` 40 haneli onaltilik bir git hash'i olmali; "
+                         f"verilen {deger!r} (on-kayit §8 madde 5).")
+    return ham
+
+
+def _kilit_zamani_dogrula(deger: str, hipotez: str) -> str:
+    """On-kayit §8 madde 5: "kesif kosusunun ... UTC zamani". ISO 8601, saat dilimi UTC.
+
+    CLAUDE.md §5: "Tum zaman damgalari UTC." Saat dilimsiz ya da UTC disi bir damga reddedilir
+    (sizinti bulgusu S-C7); "dun" gibi serbest metin de.
+    """
+    ham = str(deger).strip()
+    try:
+        zaman = pd.Timestamp(ham)
+    except (ValueError, TypeError):
+        raise KilitBozuk(f"{hipotez} KILIT.md: `kesif_zamani` ISO 8601 bir zaman damgasi olmali; verilen "
+                         f"{deger!r} (on-kayit §8 madde 5).") from None
+    if zaman.tz is None or zaman.utcoffset() != dt.timedelta(0):
+        raise KilitBozuk(f"{hipotez} KILIT.md: `kesif_zamani` UTC olmali (ör. '2026-10-20T12:00:00+00:00'); "
+                         f"verilen {deger!r} (CLAUDE.md §5: 'Tum zaman damgalari UTC').")
+    return ham
+
+
 def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
     """KILIT.md metnini `KilitKaydi`ya cevirir. SAF.
 
@@ -477,6 +510,8 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
                 f"§8 madde 2 esigini gecmeli (>= {config.ADAY_OLAY_ESIGI}); verilen "
                 f"{alanlar['analize_giren_olay']!r}. Esigi gecmeyen yapilandirma aday degildir; madde 4 "
                 "geregi hukum 'hipotez kapandi' (gerekce: aday yok) olmaliydi.")
+    _kilit_commiti_dogrula(alanlar["kesif_commit"], hipotez)
+    _kilit_zamani_dogrula(alanlar["kesif_zamani"], hipotez)
     if _tam("tohum") != config.TOHUM:
         raise KilitBozuk(f"{hipotez} KILIT.md: tohum on-kayit §7 degeri olmali ({config.TOHUM}); verilen "
                          f"{alanlar['tohum']!r}.")

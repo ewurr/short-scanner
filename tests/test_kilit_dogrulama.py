@@ -10,6 +10,7 @@ Bu dosya sirayla su bulgulari kapatir:
   2b (S-C4) §8 madde 2-3 aday esigi: analize giren olay sayisi >= `config.ADAY_OLAY_ESIGI`.
   2c (S-C5 / D-C4) §5, §8 madde 5: yapilandirma kimligi izgarada bulunmali.
   2d (S-C6) §8 madde 5: olay sayilari negatif olamaz, ondalik ayirici sessizce atilmaz.
+  2e (S-C7) §8 madde 5: kesif commit hash'i 40 haneli onaltilik, kesif zamani UTC ve ISO.
 
 Aga cikmaz; getiri hesaplanmaz.
 """
@@ -204,6 +205,60 @@ def test_baska_hipotezin_izgara_kimligi_reddedilir():
 def test_kapandi_hukmunde_kimlik_aranmaz():
     kayit = split.kilit_kaydi_coz(kilit_metni("H2", **KAPANDI_ALANLARI), "H2")
     assert kayit.secildi is False and kayit.yapilandirma == "-"
+
+
+# --- 2e. §8 madde 5: commit hash'i ve UTC zamani ----------------------------------------------
+
+
+@pytest.mark.parametrize("deger", ["yok", "", "0" * 39, "0" * 41, "g" * 40, "0123456789",
+                                   "0" * 40 + " ", "HEAD", "0" * 20 + "-" + "0" * 19])
+def test_bozuk_kesif_commiti_reddedilir(deger):
+    """On-kayit §8 madde 5: "kesif kosusunun commit hash'i". Tam 40 haneli onaltilik (git SHA-1).
+
+    Sondaki bosluk kirpilir, bu yuzden "0"*40 + " " gecerli sayilir -- onu ayri test eder."""
+    if deger.strip() == "0" * 40:
+        assert _coz(commit=deger).kesif_commit.strip() == "0" * 40
+        return
+    with pytest.raises(split.KilitBozuk, match="40 haneli onaltilik"):
+        _coz(commit=deger)
+
+
+@pytest.mark.parametrize("deger", ["0" * 40, "a1b2c3d4e5" * 4, ("A1B2C3D4E5" * 4)])
+def test_gecerli_commit_hashi_gecer(deger):
+    """Buyuk harfli hash de gecerlidir (git ciktisi kucuk harf olsa da kayit elle yazilir)."""
+    assert _coz(commit=deger).kesif_commit == deger
+
+
+@pytest.mark.parametrize("deger", ["dun", "", "2026-13-45", "yakinda",
+                                   "2026-10-20T12:00:00", "2026-10-20 12:00:00",
+                                   "2026-10-20T12:00:00+03:00", "2026-10-20T12:00:00-05:00"])
+def test_bozuk_kesif_zamani_reddedilir(deger):
+    """On-kayit §8 madde 5: "kesif kosusunun ... UTC zamani"; CLAUDE.md §5: butun damgalar UTC.
+    Saat dilimsiz ve UTC disi damga reddedilir."""
+    with pytest.raises(split.KilitBozuk, match="ISO 8601|UTC olmali"):
+        _coz(zaman=deger)
+
+
+@pytest.mark.parametrize("deger", ["2026-10-20T12:00:00+00:00", "2026-10-20 12:00:00+00:00",
+                                   "2026-10-20T12:00:00Z", "2026-01-01T00:00:00+00:00"])
+def test_gecerli_utc_zamani_gecer(deger):
+    assert _coz(zaman=deger).kesif_zamani == deger
+
+
+def test_bozuk_commitle_kosu_acilmaz(bos_kilit, tmp_path):
+    kilit_yaz(bos_kilit, "H2", commit="yok")
+    kayit_yolu = tmp_path / "onay_gecici.md"
+    once = kayit_yolu.read_bytes()
+    with pytest.raises(split.KilitBozuk, match="40 haneli"):
+        with kosu("H2", "C1"):
+            pytest.fail("bozuk commit hash'iyle kosu acilmamali")
+    assert kayit_yolu.read_bytes() == once
+
+
+def test_commitin_varligi_gitte_aranmaz():
+    """Bicim denetlenir, VARLIK aranmaz: kesif kosusunun commit'i baska bir dalda ya da henuz
+    itilmemis olabilir."""
+    assert _coz(commit="f" * 40).kesif_commit == "f" * 40
 
 
 # --- 2d. §8 madde 5: sayi ayristirmasi --------------------------------------------------------

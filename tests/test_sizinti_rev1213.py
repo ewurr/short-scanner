@@ -44,7 +44,7 @@ Baslik -> test eslemesi
    (KAPANDI: test_secildi_hukmunde_k2_farki_pozitif_olmak_zorunda,
    test_k2_farki_pozitif_olmayan_kilitle_onay_kosusu_acilmaz -- madde 2a)
    XFAIL:
-   test_kesif_commit_ve_zamani_bicim_denetimi, test_ayni_kapandi_metninin_iki_cozumu_esit_olmali,
+   test_ayni_kapandi_metninin_iki_cozumu_esit_olmali,
    test_gercek_git_commitli_kapandi_kaydi_hipotez_kapandi_hatasi_verir,
    test_gercek_git_kilit_commit_gecmisinde_degistirilmisse_kosu_acilmaz.
 """
@@ -853,10 +853,8 @@ def test_olay_sayilari_negatif_olamaz():
         split.kilit_kaydi_coz(kilit_metni("H2", olusmus=-5, analize_giren=-6), "H2")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "ACIK (S-C7, dusuk onem): `kesif_commit` ve `kesif_zamani` alanlari bicim denetimi gormez; "
-    "'yok', '0'*39 (39 hane) ve 'dun' kabul edilir. On-kayit §8 madde 5: 'kesif kosusunun commit hash'i ve "
-    "UTC zamani'. Beklenen: KilitBozuk; gozlenen: kabul."))
+# SIZINTI BULGUSU S-C7 KAPANDI (madde 2e): `kesif_commit` 40 haneli onaltilik, `kesif_zamani`
+# ISO 8601 ve UTC olmak zorunda. Isaret kaldirildi; beklenti degismedi.
 @pytest.mark.parametrize("alanlar", [dict(commit="yok"), dict(commit="0" * 39), dict(zaman="dun")])
 def test_kesif_commit_ve_zamani_bicim_denetimi(alanlar):
     """On-kayit §8 madde 5: commit hash'i 40 hane, zaman UTC."""
