@@ -1349,8 +1349,6 @@ def test_hook_main_bash_kontrolu_reddeder(monkeypatch, capsys):
     assert '"deny"' in cikti
 
 
-@acik("`main()` yalniz `tool_name == 'Bash'` komutunu denetler; baska bir kabuk araci (PowerShell) komut "
-      "tasisa da hicbir denetimden gecmez. Bu ortamin birincil kabugu PowerShell'dir.")
 def test_hook_main_powershell_komutu_denetlenmeli(monkeypatch, capsys):
     girdi = {"tool_name": "PowerShell",
              "tool_input": {"command": "Set-Content -Path analysis/h1/KILIT.md -Value x"}}
@@ -1358,8 +1356,6 @@ def test_hook_main_powershell_komutu_denetlenmeli(monkeypatch, capsys):
     assert '"deny"' in cikti, "PowerShell komutu kilitli dosyaya yazdi ve hook sessiz kaldi"
 
 
-@acik(".claude/settings.json hook eslestiricisi 'Write|Edit|NotebookEdit|Bash': PowerShell araci hook'a HIC "
-      "ugramaz.")
 def test_hook_ayari_powershell_aracini_kapsamali():
     ayar = json.loads((KOK / ".claude" / "settings.json").read_text(encoding="utf-8"))
     eslestirici = ayar["hooks"]["PreToolUse"][0]["matcher"]

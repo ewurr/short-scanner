@@ -7,11 +7,24 @@ kullanicinin acik izniyle degistirilebilir (CLAUDE.md §3.2-3.4).
 
 Calisma bicimi:
   - Write / Edit / NotebookEdit: hedef dosya yolu kilitliyse reddeder.
+  - KOMUT TASIYAN her arac (Bash, PowerShell, bilinmeyen bir kabuk araci):
+    komut metni denetlenir. Arac adi BEYAZ LISTEYE baglanmaz; `tool_input`
+    icinde komut alani varsa denetim yapilir, cunku yeni bir kabuk araci
+    eklendiginde sessizce atlanmasi korumanin tamamini deler. Arac adi yalnizca
+    hangi LEHCENIN (bash / powershell) ayristirildigini secer; taninmayan bir
+    arac adinda her iki lehce de denetlenir ve biri reddediyorsa komut reddedilir.
   - Bash: komut metni kilitli bir dosyaya YAZMA niyeti tasiyorsa reddeder
     (yonlendirme, sed -i, mv, cp hedefi, rm, truncate, tee, agac degistiren git
     alt komutlari). Salt okuma komutlari (cat, git log, git show, grep, head,
     tail ...) gecer. Sinifi belirlenemeyen ve kilitli dosyayi anan komutlar
     TEMKINLI olarak reddedilir; gerekce bunu acikca soyler.
+  - PowerShell: yazan cmdlet'ler (`Set-Content`, `Add-Content`, `Out-File`,
+    `Clear-Content`, `Remove-Item`, `Move-Item`, `Rename-Item`, `New-Item`,
+    `Copy-Item` hedefi, `Tee-Object`, `Export-Csv` ...), `>`/`>>` yonlendirmesi
+    ve bunlarin takma adlari (`sc`, `ri`, `del`, `mv`, `cp` ...) reddedilir;
+    salt okuma cmdlet'leri (`Get-Content`, `Select-String`, `Get-ChildItem`,
+    `Test-Path` ...) gecer. Taninmayan cmdlet kilitli dosyayi aniyorsa temkinli
+    reddedilir.
   - Calisan Python kodunu ETKILEMEZ. `data/split.py` icindeki `onay_kaydet`
     ONAY_KAYDI.md'ye yazmaya devam eder; o bir arac cagrisi degil.
   - `SHORT_LAB_KILIT_ACIK=1` ayarliysa her seye izin verir.
@@ -593,6 +606,200 @@ def bash_degerlendir(komut: str) -> Karar:
     return IZIN
 
 
+# --- PowerShell --------------------------------------------------------------
+
+# Dosya icerigini DEGISTIREN cmdlet'ler. Argumanlardan biri kilitli dosyayi
+# kapsiyorsa reddedilir.
+PS_YAZMA = frozenset(
+    {
+        "set-content", "add-content", "out-file", "clear-content", "remove-item",
+        "move-item", "rename-item", "new-item", "tee-object", "export-csv",
+        "export-clixml", "set-itemproperty", "clear-item", "write-ps1xml",
+    }
+)
+
+# Hedefi yalnizca VARIS yolu olan cmdlet'ler (kaynagin kilitli olmasi yazma degildir).
+PS_KOPYALAMA = frozenset({"copy-item"})
+
+# Dosya icerigini degistirmeyen cmdlet'ler.
+PS_OKUMA = frozenset(
+    {
+        "get-content", "select-string", "get-childitem", "get-item", "test-path",
+        "resolve-path", "join-path", "split-path", "measure-object", "select-object",
+        "sort-object", "where-object", "foreach-object", "compare-object",
+        "format-table", "format-list", "write-output", "write-host", "out-host",
+        "out-null", "out-string", "get-location", "get-help", "get-date",
+        "convertfrom-json", "convertto-json", "get-filehash", "import-csv",
+    }
+)
+
+# PowerShell takma adlari (alias) -> gercek cmdlet.
+PS_TAKMA_ADLAR = {
+    "sc": "set-content", "set": "set-content", "ac": "add-content",
+    "clc": "clear-content", "ri": "remove-item", "rm": "remove-item",
+    "rmdir": "remove-item", "del": "remove-item", "erase": "remove-item",
+    "rd": "remove-item", "mi": "move-item", "move": "move-item", "mv": "move-item",
+    "ren": "rename-item", "rni": "rename-item", "rnp": "rename-itemproperty",
+    "ni": "new-item", "cpi": "copy-item", "copy": "copy-item", "cp": "copy-item",
+    "tee": "tee-object", "epcsv": "export-csv", "sp": "set-itemproperty",
+    "gc": "get-content", "cat": "get-content", "type": "get-content",
+    "sls": "select-string", "ls": "get-childitem", "dir": "get-childitem",
+    "gci": "get-childitem", "gi": "get-item", "gl": "get-location",
+    "echo": "write-output", "write": "write-output", "ipcsv": "import-csv",
+    "select": "select-object", "sort": "sort-object", "where": "where-object",
+    "foreach": "foreach-object", "measure": "measure-object",
+}
+
+# Komutun onune gelip asil cmdlet'i degistirmeyen PowerShell sarmalayicilari.
+PS_SARMALAYICILAR = frozenset({"&", ".", "invoke-expression", "iex", "start-process", "sudo"})
+
+# `-Destination`/`-LiteralPath`/`-Path` gibi adlandirilmis parametrelerin degeri
+# zaten token olarak gorulur; ayrica VARIS parametresi adiyla aranir.
+PS_VARIS_PARAMETRELERI = frozenset({"-destination", "-dest", "-literalpath", "-path", "-filepath", "-outfile"})
+
+
+def _ps_cmdlet(ad: str) -> str:
+    """Cmdlet adini normalize eder: yol, `.exe`, takma ad ve buyuk/kucuk harf."""
+    temiz = ad.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if temiz.endswith(".exe"):
+        temiz = temiz[:-4]
+    return PS_TAKMA_ADLAR.get(temiz, temiz)
+
+
+def _ps_varis(argumanlar: list[str]) -> list[str]:
+    """`Copy-Item` gibi cmdlet'lerde VARIS yolu olabilecek argumanlar."""
+    varis: list[str] = []
+    for i, token in enumerate(argumanlar):
+        if token.lower() in PS_VARIS_PARAMETRELERI and i + 1 < len(argumanlar):
+            varis.append(argumanlar[i + 1])
+    konum = _konumsallar(argumanlar)
+    if konum:
+        varis.append(konum[-1])
+    return varis
+
+
+def _ps_parca_degerlendir(parca: list[str]) -> Karar:
+    """Tek bir PowerShell komut parcasini degerlendirir."""
+    argumanlar, hedefler = _yonlendirmeleri_ayir(parca)
+
+    for hedef in hedefler:
+        kalip = kapsar_mi(hedef)
+        if kalip:
+            return _red(kalip, f"yonlendirme kilitli dosyaya yaziyor: {hedef}")
+
+    i = 0
+    while i < len(argumanlar) and (
+        re.fullmatch(r"\$[A-Za-z_][A-Za-z0-9_]*", argumanlar[i])
+        or argumanlar[i].lower() in PS_SARMALAYICILAR
+    ):
+        i += 1
+    argumanlar = argumanlar[i:]
+    if not argumanlar:
+        return IZIN
+
+    cmdlet = _ps_cmdlet(argumanlar[0])
+    geri = argumanlar[1:]
+    anilan = _ad_geciyor_mu(" ".join(geri))
+
+    if cmdlet in PS_YAZMA:
+        kalip = _kapsayan(geri)
+        if kalip:
+            return _red(kalip, f"`{cmdlet}` kilitli dosyayi degistiriyor ya da siliyor")
+        return IZIN
+
+    if cmdlet in PS_KOPYALAMA:
+        for aday in _ps_varis(geri):
+            kalip = kapsar_mi(aday)
+            if kalip:
+                return _red(kalip, f"`{cmdlet}` kilitli dosyanin uzerine yaziyor")
+        return IZIN
+
+    if cmdlet in PS_OKUMA:
+        return IZIN
+
+    if anilan:
+        return _red(anilan, f"`{cmdlet}` cmdlet'inin sinifi belirlenemedi", belirsiz=True)
+    return IZIN
+
+
+def powershell_degerlendir(komut: str) -> Karar:
+    """Bir PowerShell komutunun kilitli dosyalara yazma niyetini soyler. Saf fonksiyon.
+
+    Lehce farklari: ayiricilar `;`, `|`, satir sonu ve `&&`/`||` (PowerShell 7);
+    here-string (`@'...'@`) govdesi bir betige girdi olabilir, bu yuzden kilitli
+    dosyayi aniyorsa temkinli reddedilir.
+    """
+    for govde in re.findall(r"@[\"'](.*?)[\"']@", komut, flags=re.DOTALL):
+        kalip = _ad_geciyor_mu(govde)
+        if kalip:
+            return _red(kalip, "here-string icerigi kilitli dosyayi aniyor; betik olarak calisabilir",
+                        belirsiz=True)
+    try:
+        tokenlar = tokenlara_ayir(komut)
+    except ValueError:
+        kalip = _ad_geciyor_mu(komut)
+        if kalip:
+            return _red(kalip, "komut ayristirilamadi (kapanmamis tirnak)", belirsiz=True)
+        return IZIN
+
+    for parca in parcalara_bol(tokenlar):
+        karar = _ps_parca_degerlendir(parca)
+        if not karar.izin:
+            return karar
+    return IZIN
+
+
+# --- Arac adindan lehceye ----------------------------------------------------
+
+# Arac adi -> lehce. Bu sozluk BEYAZ LISTE DEGILDIR: burada olmayan bir arac da
+# komut tasiyorsa denetlenir (her iki lehce de calisir). Liste testte yazilidir,
+# boylece yeni bir kabuk araci eklendiginde fark edilir (madde 1a).
+KABUK_ARACLARI = {
+    "bash": "bash",
+    "shell": "bash",
+    "sh": "bash",
+    "zsh": "bash",
+    "powershell": "powershell",
+    "pwsh": "powershell",
+    "powershellcore": "powershell",
+}
+
+# Komutun bulunabilecegi `tool_input` alanlari.
+KOMUT_ALANLARI = ("command", "cmd", "script", "komut")
+
+# Hedef yolun bulunabilecegi `tool_input` alanlari.
+YOL_ALANLARI = ("file_path", "notebook_path", "path", "filePath")
+
+
+def komut_degerlendir(arac: str | None, komut: str) -> Karar:
+    """Arac adina gore lehce secer ve komutu degerlendirir.
+
+    Taninmayan arac adinda IKI lehce de denetlenir: bir kabuk aracinin adini
+    bilmemek, komutunu denetlemeden gecirmek icin gerekce degildir. Birlestirme
+    kurali:
+      - bir lehce KESIN red veriyorsa (`belirsiz=False`) komut reddedilir;
+      - iki lehce de yalnizca TEMKINLI red veriyorsa komut reddedilir;
+      - bir lehce komutu TANIYIP izin veriyorsa (ör. `Get-Content` PowerShell'de
+        salt okuma, bash'te taninmayan komut) diger lehcenin temkinli reddi
+        dusurulur, cunku o red komutu tanimamaktan doguyor.
+    """
+    lehce = KABUK_ARACLARI.get((arac or "").strip().lower())
+    if lehce == "bash":
+        return bash_degerlendir(komut)
+    if lehce == "powershell":
+        return powershell_degerlendir(komut)
+    kararlar = (bash_degerlendir(komut), powershell_degerlendir(komut))
+    for karar in kararlar:
+        if not karar.izin and not karar.belirsiz:
+            return karar
+    if any(karar.izin for karar in kararlar):
+        return IZIN
+    for karar in kararlar:
+        if not karar.izin:
+            return karar
+    return IZIN
+
+
 # --- Cikti -------------------------------------------------------------------
 
 
@@ -620,7 +827,7 @@ def reddet(kalip: str) -> None:
 
 
 def bash_reddet(karar: Karar) -> None:
-    """Bash icin PreToolUse deny cevabini yazar."""
+    """Kabuk komutlari (Bash, PowerShell, taninmayan kabuk araci) icin deny cevabi."""
     ek = (
         " Komutun sinifi kesin belirlenemedigi icin TEMKINLI reddedildi; bu bir "
         "yanlis pozitifse kullaniciya bildir, hook'u atlatmaya calisma."
@@ -628,7 +835,7 @@ def bash_reddet(karar: Karar) -> None:
         else ""
     )
     _deny_yaz(
-        f"Bash komutu kilitli bir dosyaya yazma niyeti tasiyor ({karar.kalip}): "
+        f"Kabuk komutu kilitli bir dosyaya yazma niyeti tasiyor ({karar.kalip}): "
         f"{karar.neden}. Kilitli dosyalar yalnizca kullanicinin acik izniyle "
         f"({ACMA_DEGISKENI}=1) degistirilir (CLAUDE.md §3.2-3.4).{ek}"
     )
@@ -656,22 +863,20 @@ def main() -> int:
     arac = girdi.get("tool_name")
     arac_girdi = girdi.get("tool_input") or {}
 
-    if arac == "Bash":
-        komut = arac_girdi.get("command")
-        if not isinstance(komut, str) or not komut:
-            return 0
+    # Komut tasiyan her arac denetlenir (madde 1a): arac adi yalnizca lehce secer.
+    komut = next((arac_girdi[a] for a in KOMUT_ALANLARI
+                  if isinstance(arac_girdi.get(a), str) and arac_girdi[a]), None)
+    if komut is not None:
         try:
-            karar = bash_degerlendir(komut)
+            karar = komut_degerlendir(arac, komut)
         except Exception as hata:  # hook hatasi komutu sessizce gecirmemeli
             kalip = _ad_geciyor_mu(komut)
-            if kalip:
-                bash_reddet(_red(kalip, f"hook hatasi: {type(hata).__name__}", belirsiz=True))
-            return 0
+            karar = _red(kalip, f"hook hatasi: {type(hata).__name__}", belirsiz=True) if kalip else IZIN
         if not karar.izin:
             bash_reddet(karar)
         return 0
 
-    for alan in ("file_path", "notebook_path", "path"):
+    for alan in YOL_ALANLARI:
         deger = arac_girdi.get(alan)
         if isinstance(deger, str) and deger:
             kalip = kilitli_mi(deger)
