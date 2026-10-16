@@ -3213,6 +3213,88 @@ geçirilmedi ve hiçbiri test edilmedi. Veri katmanının sağladığı parçala
 F2 bu parçaları çağırmak zorundadır, kendi kopyasını yazmamalıdır (ön-kayıt §4 "tek karar
 noktası" ile aynı gerekçe).
 
+### §14.32 Kimlik ve kilit turu: Rev.12-13 bulgularının kapatılması
+
+Rev.12-13 uygulama turunun bıraktığı bulgular kapatıldı. **Yeni bir ön-kayıt kararı çıkmadı:**
+kapatılan her madde yazılı bir kurala karşı kod boşluğuydu. `events/` ve `study/` yine boş kaldı
+(CLAUDE.md §4); yalnızca `data/`, `.claude/hooks/`, `config.py`, `tests/` ve bu rapor değişti.
+Getiri, fiyat farkı ya da sinyal **değeri** hiçbir yerde hesaplanmadı ve raporlanmadı.
+
+**Test kuralı değişikliği (bu turda yürürlüğe girdi).** Takım 2845 teste çıktı ve her commit
+öncesi tam koşu bellek yetersizliğinden öldürülmeye başladı (bir koşu sistem tarafından
+sonlandırıldı: "running low on memory"). Bu turdan itibaren:
+
+- her commit öncesi yalnızca **dokunulan alanın hedefli testleri** koşulur;
+- **tam takım turun sonunda, son commit'ten önce bir kez** ve `tests/` dizini gruplara
+  bölünerek koşulur; her grubun sonucu rapora yazılır;
+- tam takım kırmızı çıkarsa düzeltme **yeni bir commit** olur (amend yok).
+
+Korunan güvence değişmedi: **kırmızı takımla push yapılmaz.** Kaybedilen güvence, her commit'in
+tek tek tam takımla doğrulanmış olmasıdır; bunun yerine her commit kendi alanının testleriyle ve
+tur sonunda tamamı bir arada doğrulanır.
+
+**Madde → ön-kayıt → kod yeri → test**
+
+| Madde | Bulgu | Ön-kayıt | Kod yeri | Test |
+|---|---|---|---|---|
+| 1a | D-B1 | §6 K1 ("aynı coinden, aynı küme ve **dönem** içinden") | `ornekleme.adaylari_kur`: K1'de `donem_no` birliği | `test_kimlik_k1_donem` (13) |
+| 1b | D-B2 | §6 "Örnekleme kuralları" rev.11 | `ornekleme._olaylari_dogrula`; `k1_adaylari`/`k2_adaylari` artık `dizi.Olay` alır; `Adaylar.bar_zamani` | `test_kimlik_havuz_girdisi` (30) |
+| 1c | S-C1 | §4 "Olayın kümede oluşma ölçütü" rev.12 | `dizi.olay_dogrula` → `pozisyon.onay_dogrula` | `test_kimlik_olay_imzasi` (12) |
+| 1d | S-C2 | §5 rev.11 (bekleme dönem başına), §3 | `dizi.olay_dizisi`: tek (sembol, küme, dönem) üçlüsü | `test_kimlik_dizi_birligi` (17) |
+| 1e | D-C2 | CLAUDE.md §3.3, §4 "tek karar noktası" | `pozisyon._TEST_ONAY_OMURLERI` + dikişte `onay_baglami_dogrula` | `test_kimlik_test_dikisi` (14) |
+| 2a | S-C3 | §8 madde 4 | `kilit_kaydi_coz`: K2 farkı > 0 (ve varsa ortalama net getiri > 0) | `test_kilit_dogrulama` |
+| 2b | S-C4 | §8 madde 2-3 | aynı yer: analize giren olay ≥ `config.ADAY_OLAY_ESIGI` | `test_kilit_dogrulama` |
+| 2c | S-C5, D-C4 | §5 rev.11, §8 madde 5, §9 | `split._kilit_yapilandirmasi_dogrula` (ızgara kimliği) | `test_kilit_dogrulama` |
+| 2d | S-C6 | §8 madde 5 | `_tam`: negatif olmayan tamsayı, binlik ayırıcı üçlü gruplar | `test_kilit_dogrulama` |
+| 2e | S-C7 | §8 madde 5, CLAUDE.md §5 | `_kilit_commiti_dogrula`, `_kilit_zamani_dogrula` | `test_kilit_dogrulama` |
+| 2f | S-C8 | §8 madde 4-5 | kapandı hükmünde `k2_farki = None` (NaN değil) | `test_kilit_dogrulama` |
+| 2g | S-C9 | §8 madde 5 ekleme kuralı | `split._kilit_gecmisini_denetle` (git geçmişi, blob tabanlı) | `test_kilit_dogrulama` (104 toplam) |
+| 3 | D-B3 | §2 rev.12 | `pozisyon._tam_hucreli_barlar` (`_kume_verisi` içinde) | `test_db3_fiyat_bar_duzeyi` (17) |
+| 3 | D-B4 | §7, CLAUDE.md §5 | `config._DEGISMEZ_ADLAR` + `TOHUM`, `PERMUTASYON_TEKRAR`, `ALFA_BONFERRONI` | `test_db4_tohum_degismez` (14) |
+| 3 | D-C6 | §8 madde 1, §6 | `KontrolHavuzu.tohum`/`alt_tohum_demeti`/`genel_tohum`, `ornekleme.alt_tohum_demeti` | `test_dc6_havuz_alt_tohumu` (9) |
+| 3 | D-C5 | §8 madde 1 son cümle | — (belge bulgusu: §14.31 satır 3 düzeltildi) | — |
+| 4 | — | CLAUDE.md "Koruma katmanı" | `_yol_deseni`, `_dizin_kapsar` (hook) | `test_hook_kilit_deseni` (34) |
+
+**Kapanan bulgular.** Sızıntı testçisinin dokuz bulgusunun **tamamı** (S-C1…S-C9) ve denetçinin
+D-B1, D-B2, D-B3, D-B4, D-C2, D-C4, D-C5, D-C6 bulguları kapandı. Dokuz `xfail(strict=True)`
+işareti kaldırıldı; **hiçbirinde testin beklentisi değiştirilmedi**. `test_sizinti_rev1213.py`'de
+artık hiç xfail yok. D-B5 (RESULTS kaydı eksik) bu bölümle kapanır. **Açık kalan tek bulgu
+D-C1'dir** (aşağıda, bilinçli).
+
+**Güncellenen mevcut testler** (yalnızca kapatılan bulgunun açıkça değiştirdiği davranışı
+sabitleyenler; gevşetme, silme, xfail'e alma yok):
+
+| Test | Değişen kural |
+|---|---|
+| `test_rev11_ornekleme` (2), `test_rev13_adaylik`, `test_rev12_kontrol_kosulsuz`, `test_kimlik_k1_donem`, `test_tur_saldirilari_s` (5 yer) | 1b: ölçütün girdi tipi ham liste değil `dizi.Olay` |
+| `test_rev13_adaylik`, `test_kimlik_havuz_girdisi` | 1e: C1/C2 onayı artık açık onay koşusu ister |
+| `test_kimlik_dizi_birligi`, `test_sizinti_rev1213` | 1e: küme karışımında redin **sınıfı** `OnayGerekli` oldu (hüküm aynı) |
+| `test_rev13_kilit_okuma.test_analize_giren_olusmusu_asamaz` | 2b: olay sayıları aday eşiğinin üstüne çekildi (100/101 → 200/201) |
+| `test_ks2_kapi_veri.test_sonlu_olmayan_fiyat_reddedilir` → `..._hesaba_girmez` | D-B3: sonlu olmayan P0/P1/high artık "bar yok" yoluyla elenir; `_sonlu` koruması ayrı testle yerinde bırakıldı |
+| `test_tur_saldirilari_n.test_config_hipotezler_monkeypatch_belgeleme` | 2c: sahte hipotez adının §5 ızgarası olmadığı için koşu `KilitBozuk` ile reddedilir (**sertleşme**) |
+| `onay_yardimcisi.gecici_depo(kok, kilitler=...)` (test altyapısı) | 2g: kaydı sonradan yazan testler hipotezi ilk commit'ten çıkarır |
+
+**Etki ölçümü (madde 5).** Yalnızca D-B3 ölçülebilir; diğer maddelerin etkisi olay kümesi
+gerektirir, yani F2 kodu demektir → **F2'de ölçülecek**. Ölçüm temiz ağaçta (`a272641`) koşuldu:
+
+| Ölçüm | Sonuç | Yorum |
+|---|---|---|
+| `rev1213_uygulama.py --olcum bar_duzeyi` | dönem içi KEŞİF 4h barı **1.113.921**, bar düzeyli ölçütün maskelediği bar **0** | Beklenen 0; D-B3 bugünkü veride hiçbir barı düşürmüyor. Fiyat okuma yolu aynı seriyi kullandığı için düşen bar sayısı da 0'dır: hiçbir olay, kontrol, P0/P1 ya da MAE değeri değişmez. "Ölçülmüş sıfır etki muafiyet değildir" (§14.13), kural yine de uygulandı. |
+
+**Açık kalan: D-C1 (bilinçli, savunma derinliği).** `dizi.olay_dizisi`in `zamanlar` argümanının
+dönem içi ve küme içi olduğu ve `pozisyon.sinyal_kosulu`nun t'sinin dönem içinde olduğu **kod
+düzeyinde doğrulanmıyor**; bugün yalnızca çağıranın sözleşmesine güveniliyor. Gözlemlenebilir bir
+ihlal yok: dönem dışı bir barda koşul hesaplanabilse de kapı (`olay_karari`) o barı
+`SinyalBariYok`/plan denetimleriyle reddeder, yani **olay oluşmaz**. Kapatılmadı, çünkü dizi
+çağrısının girdisini kod düzeyinde dönem/kümeye bağlamak F2'nin çağrı yapısını (her dönem için
+ayrı çağrı, hangi barların verildiği) kodda sabitlemek demektir ve o yapı F2'ye aittir. F2'nin ilk
+satırından önce ya kapatılmalı ya da §14.31'e gereksinim olarak eklenmelidir.
+
+**Hook'un bilinçli sınırı (madde 4).** Desen artık yalnızca adı tam `KILIT.md` olan yolları
+eşliyor. Windows'ta dosya adları büyük/küçük harf ayrımı yapmadığı için `analysis/h1/kilit.md`
+aynı dosyayı gösterir ama desen onu eşleştirmez; koruma dikkatsiz bir düzenlemeye karşıdır,
+kararlı bir atlatmaya karşı değil (CLAUDE.md "Koruma katmanı"). Bu davranış testte yazılıdır.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
