@@ -59,16 +59,11 @@ def _olay_olusmaz_yakalayan_dongu(cagri):
     return "onay"
 
 
-@pytest.mark.parametrize("bozma", ["inf_p0", "nan_p1", "tz_naive", "tekrarli", "izgara_disi"])
+@pytest.mark.parametrize("bozma", ["tz_naive", "tekrarli", "izgara_disi"])
 def test_veri_hatasi_olay_olusmaz_olarak_yakalanmaz(bozma):
-    p = _karar()
     m = MUM.copy()
     ham = False
-    if bozma == "inf_p0":
-        m.loc[m["open_time"] == p.plan.giris, "open"] = float("inf")
-    elif bozma == "nan_p1":
-        m.loc[m["open_time"] == p.plan.cikis.zaman, p.plan.cikis.fiyat_alani] = float("nan")
-    elif bozma == "tz_naive":
+    if bozma == "tz_naive":
         m["open_time"] = pd.DatetimeIndex(m["open_time"]).tz_localize(None)
         ham = True
     elif bozma == "tekrarli":
@@ -77,6 +72,30 @@ def test_veri_hatasi_olay_olusmaz_olarak_yakalanmaz(bozma):
         m["open_time"] = m["open_time"] + H(1)
     with pytest.raises(pencere.VeriHatasi):
         _olay_olusmaz_yakalayan_dongu(lambda: _karar(mum=m, ham=ham) if ham else _karar(mum=m))
+
+
+def test_bozuk_fiyat_hucresi_veri_hatasi_degil_olay_dusmesidir():
+    """Rev.12 (D-B3): bozuk fiyat HUCRESI veri hatasi degil, "bar mevcut degil" okumasidir.
+
+    Bu iki durum bu testin ilk halinde `VeriHatasi` bekleyen parametrelerdi (`inf_p0`, `nan_p1`).
+    Bar duzeyli mevcutluk olcutu (on-kayit §2 rev.11-12) fiyat okuma yoluna da uygulandiktan
+    sonra (`pozisyon._tam_hucreli_barlar`) bozuk hucreli bar seriden duser:
+      - giris barinda -> `GirisBariYok` (olay olusmaz, bir RET GEREKCESIDIR, veri hatasi degil),
+      - cikis barinda -> ileri kayma, P1 sonraki mevcut barin ACILISINDAN okunur.
+    Bicim/dizi bozukluklari (tz'siz, tekrarli, izgara disi) veri hatasi olarak kalir; onlari
+    yukaridaki test sabitler."""
+    p = _karar()
+    giris_bozuk = MUM.copy()
+    giris_bozuk.loc[giris_bozuk["open_time"] == p.plan.giris, "open"] = float("inf")
+    assert _olay_olusmaz_yakalayan_dongu(lambda: _karar(mum=giris_bozuk)) == pencere.ret_gerekcesi(
+        pencere.GirisBariYok("x"))
+
+    cikis_bozuk = MUM.copy()
+    cikis_bozuk.loc[cikis_bozuk["open_time"] == p.plan.cikis.zaman, p.plan.cikis.fiyat_alani] = float("nan")
+    kaymis = _karar(mum=cikis_bozuk)
+    assert kaymis.plan.cikis.zaman > p.plan.cikis.zaman, "bozuk cikis bari ileri kaymaliydi"
+    assert kaymis.plan.cikis.fiyat_alani == "open", "ileri kayan cikis sonraki barin acilisindan okunur"
+    assert pd.notna(kaymis.p1)
 
 
 def test_ret_gerekcesi_except_valueerror_ile_yutulmaz():

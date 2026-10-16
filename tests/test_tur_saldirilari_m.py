@@ -108,27 +108,35 @@ def test_mumlarda_close_time_nat_reddedilir():
 
 
 def test_fiyat_sutununda_string_deger_giris_barinda_reddedilir():
-    """Giris barinin `open` degeri string ise (bozuk kayit) P0 sessizce hesaplanmamali."""
+    """Giris barinin `open` degeri string ise (bozuk kayit) P0 sessizce hesaplanmamali.
+
+    Rev.12 (D-B3) sonrasi beklenti: bar duzeyli mevcutluk olcutu (`klines.hucreleri_tam_mi`,
+    on-kayit §2 rev.11-12) sayisal olmayan hucreyi EKSIK sayar, bar fiyat okuma yolunda da
+    seriden duser (`pozisyon._tam_hucreli_barlar`) ve giris bari bulunmaz: `GirisBariYok`,
+    yani olay olusmaz. Testin ilk hali (ValueError) kapinin o zamanki davranisini sabitliyordu;
+    beklenti kurala gore guncellendi -- korunan guvence aynidir: P0 sessizce hesaplanmaz."""
     m = _hazirlanmis_mumlar()
     giris_ani = SINYAL_T["H1"] + H(4)
     m2 = m.copy()
     m2.loc[m2["open_time"] == giris_ani, "open"] = "bozuk"
     assert (m2["open_time"] == giris_ani).any(), "test kurulumu: giris bari seride bulunamadi"
-    with pytest.raises(ValueError):
+    with pytest.raises(pencere.GirisBariYok):
         _karar_ham(m2)
 
 
 def test_fiyat_sutununda_none_deger_giris_barinda_reddedilir():
     """`open` sutunu object turune donup (ör. bozuk parquet okuma) giris barinda None tasirsa
-    P0 sessizce NaN'a degil, acik bir hataya dusmeli (nan atamasindan farkli olarak None gercek
-    bir object degeridir; pandas float sutununa None atarsa NaN'a cevirir, bu yuzden sutun once
-    object turune zorlanir)."""
+    P0 sessizce NaN'a dusmemeli (nan atamasindan farkli olarak None gercek bir object degeridir;
+    pandas float sutununa None atarsa NaN'a cevirir, bu yuzden sutun once object turune zorlanir).
+
+    Rev.12 (D-B3) sonrasi beklenti: None hucresi de eksik sayilir, bar seriden duser ve
+    `GirisBariYok` ile olay olusmaz (onceki beklenti TypeError'du; bkz. yukaridaki test)."""
     m = _hazirlanmis_mumlar()
     giris_ani = SINYAL_T["H1"] + H(4)
     m2 = m.copy()
     m2["open"] = m2["open"].astype(object)
     m2.loc[m2["open_time"] == giris_ani, "open"] = None
-    with pytest.raises(TypeError):
+    with pytest.raises(pencere.GirisBariYok):
         _karar_ham(m2)
 
 
