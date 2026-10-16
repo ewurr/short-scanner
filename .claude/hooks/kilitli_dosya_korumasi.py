@@ -72,26 +72,67 @@ def _desen_mi(kalip: str) -> bool:
 
 
 def _anma_deseni(kalip: str) -> re.Pattern[str]:
-    """Desen girdisi icin METINDE arama regexi (kucuk harfli metinde aranir).
+    """Desen girdisi icin METINDE arama regexi.
 
     Yol bicimi korunur: `analysis/*/KILIT.md` yalnizca `analysis/<ad>/KILIT.md`
     seklinde anildiginda eslesir, yalin `KILIT.md` eslesmez. Hem `/` hem `\\`
     ayiricisi kabul edilir.
+
+    Dosya adi HARF HARF eslesir (buyuk/kucuk duyarli) ve `*` tek bir yol
+    parcasini karsilar. Gerekce: desen YALNIZCA adi tam `KILIT.md` olan yollari
+    korur; `.kilit` uzantili bir dosya (ör. kosu kilidi `.rev1213_capasiz.kilit`)
+    ya da `kilit` iceren baska bir ad korumaya girmez. Bu yanlis pozitif, kosu
+    kilidi artiklarinin silinmesini engelliyordu.
+
+    SINIR (bilincli): Windows dosya adlarinda buyuk/kucuk harf ayrimi yoktur,
+    yani `analysis/h1/kilit.md` ayni dosyayi gosterse de bu desen onu
+    ESLESTIRMEZ. Koruma dikkatsiz bir duzenlemeye karsidir, kararli bir
+    atlatmaya karsi degil (CLAUDE.md "Koruma katmani"); ad tam yazildiginda
+    koruma islerdir.
     """
-    parcalar = [
-        r"[^/\\\s]+" if _desen_mi(p) else re.escape(p)
-        for p in kalip.lower().split("/")
-    ]
+    parcalar = []
+    for p in kalip.split("/"):
+        if _desen_mi(p):
+            parcalar.append(r"[^/\\\s]+")
+        else:
+            parcalar.append(re.escape(p))
     return re.compile(r"[/\\]".join(parcalar))
 
 
-# Desen girdileri icin: metinde anma regexi ve yol sonuna capali tam eslesme.
+def _yol_deseni(kalip: str) -> re.Pattern[str]:
+    """Desen girdisi icin YOL regexi: `*` tek bir yol parcasini karsilar.
+
+    `fnmatch` yerine regex kullanilir, cunku `fnmatch`te `*` `/` karakterini de
+    karsilar: `analysis/*` deseni `analysis/00_veri_denetimi/.rev1213_capasiz.kilit`
+    yolunu da eslestiriyordu ve kilitli olmayan bir dosya korumaya giriyordu.
+    """
+    parcalar = [r"[^/\\]+" if _desen_mi(p) else re.escape(p) for p in kalip.split("/")]
+    return re.compile(r"(?:^|.*[/\\])" + r"[/\\]".join(parcalar) + r"$")
+
+
+def _dizin_kapsar(dizin: str, kalip: str) -> bool:
+    """`dizin` argumani, desen girdisinin UST DIZINLERINDEN biri mi?
+
+    Parca parca karsilastirilir; desenin `*` parcasi tek bir parcayi karsilar.
+    Dizin adlari buyuk/kucuk duyarsiz (dizin adi korumanin konusu degil), ama
+    karsilastirma yol parcasi duzeyindedir: `analysis` kapsar, `analysis/h1`
+    kapsar, `analysis/h1/baska.md` KAPSAMAZ.
+    """
+    arg = [p for p in dizin.replace("\\", "/").strip("/").split("/") if p not in ("", ".")]
+    hedef = kalip.split("/")[:-1]          # dosya adi haric ust dizinler
+    if not arg or len(arg) > len(hedef):
+        return False
+    for verilen, beklenen in zip(arg, hedef):
+        if _desen_mi(beklenen):
+            continue                        # `*`: hangi hipotez dizini olursa olsun
+        if verilen.lower() != beklenen.lower():
+            return False
+    return True
+
+
+# Desen girdileri icin: metinde anma regexi ve yol regexi.
 DESEN_ANMA = {k: _anma_deseni(k) for k in KILITLI if _desen_mi(k)}
-DESEN_TAM = {
-    k: re.compile(r"(?:^|[/\\])" + _anma_deseni(k).pattern + r"$")
-    for k in KILITLI
-    if _desen_mi(k)
-}
+DESEN_TAM = {k: _yol_deseni(k) for k in KILITLI if _desen_mi(k)}
 
 # --- Bash komut siniflari ----------------------------------------------------
 
@@ -182,20 +223,26 @@ def kilitli_mi(yol: str) -> str | None:
             goreli = mutlak.relative_to(KOK).as_posix().lower()
         except ValueError:
             goreli = None
+        goreli_ham = None
+        try:
+            goreli_ham = mutlak.relative_to(KOK).as_posix()
+        except ValueError:
+            pass
         for kalip in KILITLI:
             if _desen_mi(kalip):
-                if goreli is not None and fnmatch.fnmatch(goreli, kalip.lower()):
+                if goreli_ham is not None and DESEN_TAM[kalip].search(goreli_ham):
                     return kalip
             elif mutlak == (KOK / kalip).resolve():
                 return kalip
     except Exception:
         pass
 
-    duz = yol.replace("\\", "/").lower().rstrip("/")
+    ham = yol.replace("\\", "/").rstrip("/")
+    duz = ham.lower()
     for kalip in KILITLI:
         hedef = kalip.lower()
         if _desen_mi(kalip):
-            if fnmatch.fnmatch(duz, hedef) or fnmatch.fnmatch(duz, "*/" + hedef):
+            if DESEN_TAM[kalip].search(ham):
                 return kalip
         elif duz == hedef or duz.endswith("/" + hedef):
             return kalip
@@ -212,7 +259,9 @@ def _ad_geciyor_mu(metin: str) -> str | None:
     kucuk = metin.lower()
     for kalip in KILITLI:
         if _desen_mi(kalip):
-            if DESEN_ANMA[kalip].search(kucuk):
+            # Desen girdisinde dosya adi harf harf eslesir: `.kilit` uzantili ya da
+            # `kilit` iceren baska adlar korumaya girmez (yanlis pozitif).
+            if DESEN_ANMA[kalip].search(metin):
                 return kalip
         elif kalip.rsplit("/", 1)[-1].lower() in kucuk:
             return kalip
@@ -240,7 +289,7 @@ def kapsar_mi(arguman: str) -> str | None:
     #    (desen girdilerinde yalin dosya adi YETMEZ, yolun bicimi gerekir)
     for kalip in KILITLI:
         if _desen_mi(kalip):
-            if DESEN_TAM[kalip].search(kucuk):
+            if DESEN_TAM[kalip].search(duz):
                 return kalip
             continue
         ad = kalip.lower()
@@ -260,12 +309,14 @@ def kapsar_mi(arguman: str) -> str | None:
         if dizin == kok_adi or dizin.endswith("/" + kok_adi):
             return kalip
         if _desen_mi(kalip):
-            # Desenin ust dizini de desenli olabilir (`analysis/*`): hem desenin
-            # sabit koku (`analysis`) hem desenin kendisi hedef sayilir.
-            sabit_kok = ust.split("/", 1)[0]
-            if sabit_kok and (dizin == sabit_kok or dizin.endswith("/" + sabit_kok)):
+            # Desenin ust dizini de desenli olabilir (`analysis/*`): arguman bu ust
+            # dizinlerden biriyse kapsar. Karsilastirma PARCA PARCA yapilir; `fnmatch`
+            # kullanilmaz, cunku oradaki `*` `/` karakterini de karsilar ve
+            # `analysis/<dizin>/<baska dosya>` yollari da kapsanmis sayilirdi.
+            if _dizin_kapsar(dizin, kalip):
                 return kalip
-            if ust and (fnmatch.fnmatch(dizin, ust) or fnmatch.fnmatch(dizin, "*/" + ust)):
+            sabit_kok = ust.split("/", 1)[0]
+            if sabit_kok and dizin.endswith("/" + sabit_kok):
                 return kalip
             continue
         if ust and (dizin == ust or dizin.endswith("/" + ust)):
