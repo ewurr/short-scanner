@@ -3373,6 +3373,21 @@ geçmesi yeterli olduğu için koruma işler); son üç satır her iki girdide d
 Kilidi delmenin yolu, kilidi açmanın (`SHORT_LAB_KILIT_ACIK=1`) yerine geçmez: bu liste, kilidin
 neye karşı koruduğunu dürüstçe yazmak içindir.
 
+**`config` sabit korumasının kalan açık noktaları (madde 5).** Bu turda iki yol kapatıldı:
+`type(config).__setattr__ = ...` (sınıfın kendisi artık değiştirilemez, `_SabitModulTuru`) ve
+`object.__setattr__(config, "TOHUM", 1)` (değişmez adlar artık **veri tanımlayıcısıdır**, yani
+örnek sözlüğünden önce gelirler). Gerekçe: `config` ön-kayıt değerlerini taşır (tohum, eşikler,
+ızgaralar, küme sınırları); çalışma anında değişirse bütün alt tohumlar ve hükümler **sessizce**
+kayar ve sonuç dosyasına yazılan `genel_tohum` da kaydığı için fark raporda görünmez.
+
+Bilerek açık kalan iki yol (CLAUDE.md "Koruma katmanı": kilit dikkatsiz bir değişikliğe karşıdır,
+kararlı bir atlatmaya karşı değil):
+
+| Yol | Durum |
+|---|---|
+| `vars(config)[ad] = ...` | Engellenmiyor, ama **etkisi kalmadı**: `config.<ad>` okumaları veri tanımlayıcısından gelir, sözlüğe bakmaz. Sözlükten okuyan analiz kodu kaynak taramasıyla yasaktır |
+| `object.__setattr__(config, "__class__", types.ModuleType)` | Modülün **sınıfını** değiştirir; o anda tanımlayıcılar da gider ve sözlükteki kopyalar görünür. `config.__class__ = ...` ve `type(config).__setattr__ = ...` yolları kapalıdır |
+
 **Pozitif fiyat: önce ölçüm, sonra uygulama (madde 2).** Ölçüm (`koruma_olcumu.py --olcum
 pozitif_fiyat`, temiz ağaç, bütün evren, yalnızca sayı):
 

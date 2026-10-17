@@ -289,9 +289,16 @@ ALFA_BONFERRONI = 0.05 / 3  # uc hipotez icin Bonferroni = 0.0167
 #
 # ON-KAYIT DEGILDIR. Onay kaydi ve kosu butunlugu turu (denetci KS3 D-B1): onay kaydinin yolu calisma aninda
 # yeniden atanamaz (`config.ONAY_KAYDI = ...`, `monkeypatch.setattr(config, "ONAY_KAYDI", ...)`). Testler kayit
-# yolunu yalnizca `data.split._test_kaydi_ayarla` ile, kendi testleri suresince degistirir. Sinir: modul
-# sozlugune dogrudan yazim (`vars(config)`) engellenmez; `data.split` kayit yolunu yukleme aninda sabitler ve
-# farki yakalar. Kume sabitleri icin sozluk yolu yakalanmaz; analiz kodunda taramayla yasaktir.
+# yolunu yalnizca `data.split._test_kaydi_ayarla` ile, kendi testleri suresince degistirir.
+#
+# SINIRLAR (bilincli, koruma turu madde 5; RESULTS §14.33'te acik nokta olarak yazili):
+#   1. Modul sozlugune dogrudan yazim (`vars(config)[ad] = ...`) ENGELLENMEZ. Artik etkisi de
+#      yoktur: degismez adlar veri tanimlayicisina baglandigi icin `config.<ad>` okumalari
+#      sozluge bakmaz. Sozluk uzerinden OKUYAN kod analiz katmaninda taramayla yasaktir.
+#   2. `object.__setattr__(config, "__class__", types.ModuleType)` ile modulun SINIFI
+#      degistirilebilir; o anda tanimlayicilar da gider ve sozlukteki kopyalar gorunur. Bu
+#      kararli bir atlatmadir (CLAUDE.md "Koruma katmani": kilit dikkatsiz bir degisiklige
+#      karsidir). `config.__class__ = ...` ve `type(config).__setattr__ = ...` yollari kapalidir.
 
 import sys as _sys  # noqa: E402
 
@@ -323,16 +330,68 @@ _DEGISMEZ_ADLAR = frozenset({
 })
 
 
-class _SabitModul(_types.ModuleType):
-    def __setattr__(self, ad, deger):
-        if ad in _DEGISMEZ_ADLAR:
-            raise SabitDegistirilemez(f"config.{ad} calisma aninda yeniden atanamaz.")
-        super().__setattr__(ad, deger)
+class _SabitModulTuru(type):
+    """Sinifin KENDISI de degistirilemez (koruma turu madde 5).
 
-    def __delattr__(self, ad):
-        if ad in _DEGISMEZ_ADLAR:
-            raise SabitDegistirilemez(f"config.{ad} silinemez.")
-        super().__delattr__(ad)
+    Kapatilan yol: `type(config).__setattr__ = types.ModuleType.__setattr__`. Sinifin ozel
+    yontemini degistirmek butun korumayi tek satirda kaldiriyordu.
+    """
 
+    def __setattr__(cls, ad, deger):
+        raise SabitDegistirilemez(f"config modul sinifinin {ad!r} ozelligi degistirilemez "
+                                  "(sabit koruma katmani).")
+
+    def __delattr__(cls, ad):
+        raise SabitDegistirilemez(f"config modul sinifinin {ad!r} ozelligi silinemez "
+                                  "(sabit koruma katmani).")
+
+
+def _sabit_atama(self, ad, deger):
+    if ad in _DEGISMEZ_ADLAR:
+        raise SabitDegistirilemez(f"config.{ad} calisma aninda yeniden atanamaz.")
+    _types.ModuleType.__setattr__(self, ad, deger)
+
+
+def _sabit_silme(self, ad):
+    if ad in _DEGISMEZ_ADLAR:
+        raise SabitDegistirilemez(f"config.{ad} silinemez.")
+    _types.ModuleType.__delattr__(self, ad)
+
+
+def _sabit_ozellik(ad: str, deger):
+    """Degismez bir sabiti VERI TANIMLAYICISINA (data descriptor) baglar (madde 5).
+
+    Kapatilan yol: `object.__setattr__(config, "TOHUM", 1)`. `object.__setattr__` modulun ornek
+    sozlugune dogrudan yaziyordu, yani `_SabitModul.__setattr__` atlanabiliyordu. Veri
+    tanimlayicisi ornek sozlugunden ONCE gelir: hem okuma degeri buradan gelir hem de
+    `object.__setattr__` tanimlayicinin `__set__`ini cagirmak zorundadir, dolayisiyla red calisir.
+
+    Degerin kendisi KAPANISTA tutulur; modul sozlugundeki kopya yalnizca geriye uyumluluk
+    icindir ve okunmaz. Bu yuzden `vars(config)[ad] = ...` (asagidaki bilincli sinir) artik
+    `config.<ad>` okumalarini da degistirmez.
+    """
+
+    def _al(self, _deger=deger):
+        return _deger
+
+    def _ata(self, yeni, _ad=ad):
+        raise SabitDegistirilemez(f"config.{_ad} calisma aninda yeniden atanamaz "
+                                  "(veri tanimlayicisi; `object.__setattr__` de gecemez).")
+
+    def _sil(self, _ad=ad):
+        raise SabitDegistirilemez(f"config.{_ad} silinemez (veri tanimlayicisi).")
+
+    return property(_al, _ata, _sil)
+
+
+# Sinif kurulurken tanimlayicilar yerlestirilir: `_SabitModulTuru.__setattr__` sinifi kilitledigi
+# icin sonradan eklenemezler, bu yuzden `type()` ile yeni bir alt sinif uretilir.
+_sabitler = {ad: _sabit_ozellik(ad, globals()[ad]) for ad in sorted(_DEGISMEZ_ADLAR)
+             if ad in globals() and ad != "__class__"}
+_SabitModul = _SabitModulTuru("_SabitModul", (_types.ModuleType,),
+                              {**_sabitler,
+                               "__setattr__": _sabit_atama,
+                               "__delattr__": _sabit_silme,
+                               "__doc__": "config modulunun sabit koruma sinifi (madde 5)."})
 
 _sys.modules[__name__].__class__ = _SabitModul

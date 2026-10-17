@@ -1002,16 +1002,16 @@ def test_sabit_monkeypatch_setattr_reddedilir(ad):
 
 
 def test_sabit_sinifa_ayni_adli_deger_yazmak_modul_degerini_gizlemez():
-    """`setattr(config.__class__, 'TOHUM', 1)`: ornek sozlugu sinif ozniteligini golgeler; deger degismez."""
-    sinif = type(config)
+    """`setattr(config.__class__, 'TOHUM', 1)`: deger degismez.
+
+    Koruma turu madde 5'ten beri sinifin ozellikleri de yazilamaz (`_SabitModulTuru`), yani yazim
+    DENEMESI reddedilir; hukum ayni: `config.TOHUM` ve ondan turetilen tohum degismez."""
     asil = config.TOHUM
-    sinif.TOHUM = 1
-    try:
-        assert config.TOHUM == asil
-        assert ornekleme.tohum_turet("x") == int.from_bytes(
-            hashlib.sha256(f"{asil}|x".encode("utf-8")).digest()[:8], "big")
-    finally:
-        del sinif.TOHUM
+    with pytest.raises(config.SabitDegistirilemez):
+        type(config).TOHUM = 1
+    assert config.TOHUM == asil
+    assert ornekleme.tohum_turet("x") == int.from_bytes(
+        hashlib.sha256(f"{asil}|x".encode("utf-8")).digest()[:8], "big")
 
 
 def test_sabit_class_atamasi_reddedilir():
@@ -1019,28 +1019,25 @@ def test_sabit_class_atamasi_reddedilir():
         config.__class__ = types.ModuleType
 
 
-@acik("Koruma `type(config).__setattr__` ile saglaniyor; sinifin `__setattr__`i `ModuleType.__setattr__` ile "
-      "degistirilince atama serbest kalir (config.__class__ atamasi engelli ama sinif ozniteligi degil).")
 def test_sabit_sinifin_setattr_degistirilerek_tohum_atlatilamaz():
     sinif = type(config)
-    orijinal = sinif.__dict__["__setattr__"]
     asil = config.TOHUM
     degisti = False
     try:
-        sinif.__setattr__ = types.ModuleType.__setattr__
+        try:
+            sinif.__setattr__ = types.ModuleType.__setattr__
+        except AttributeError:
+            pass
         try:
             config.TOHUM = 1
         except AttributeError:
             pass
         degisti = config.TOHUM != asil
     finally:
-        sinif.__setattr__ = orijinal
         config.__dict__["TOHUM"] = asil
     assert not degisti, "config.TOHUM sinifin __setattr__i degistirilerek yeniden atandi"
 
 
-@acik("`object.__setattr__(config, 'TOHUM', 1)` modulun __setattr__ gecersiz kilar (ModuleType'in tp_setattro'su "
-      "ile genel setattr ayni): koruma atlatilir.")
 def test_sabit_object_setattr_ile_tohum_atlatilamaz():
     asil = config.TOHUM
     degisti = False
@@ -1055,8 +1052,6 @@ def test_sabit_object_setattr_ile_tohum_atlatilamaz():
     assert not degisti, "config.TOHUM object.__setattr__ ile degistirildi"
 
 
-@acik("Modul sozlugune dogrudan yazim engellenmiyor (config.py yorumunda bilincli sinir olarak yazili); alt "
-      "tohumlar sessizce kayar ve `genel_tohum` da kaydigi icin fark raporda gorunmez.")
 @pytest.mark.parametrize("ad", DEGISMEZLER)
 def test_sabit_modul_sozlugu_uzerinden_degistirilemez(ad, monkeypatch):
     asil = getattr(config, ad)
