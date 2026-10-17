@@ -79,9 +79,16 @@ def test_mumlari_yukle_4h_ciktisi_kabul_edilir(sembol):
 
 
 def test_close_time_olmadan_1d_cercevesi_de_reddedilir(sembol):
+    """`close_time` yoksa bar suresi olculemez; o zaman ARDISIKLIK tek olcuttur ve 1d serisi duser.
+
+    Koruma turu madde 7 (bulgu K-C8): ardisiklik sarti artik yalnizca `close_time` YOKSA aranir,
+    cunku bar duzeyli olcut (D-B3) seriden bar dusurdugunde komsu olmayan barlar kalabilir ve o
+    durum bir ret gerekcesidir, veri hatasi degil. Bu testin hukmu degismedi; denetim `_mum_zamanlari`
+    uzerinde dogrudan yapilir, cunku kapi fiksturu seriyi 4h barlarla uzatip `close_time` ekliyor
+    (yani "close_time yok" durumu kapiya ulasmiyor)."""
     gunluk = klines.mumlari_yukle(sembol, config.BAR_1D, "KESIF").drop(columns=["close_time"])
     with pytest.raises(ValueError, match="4h"):
-        _karar(gunluk)
+        pozisyon._mum_zamanlari(gunluk)
 
 
 def test_mae_de_1d_cercevesini_reddeder(sembol):

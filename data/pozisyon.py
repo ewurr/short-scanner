@@ -266,7 +266,14 @@ def _mum_zamanlari(mumlar: pd.DataFrame) -> pd.DatetimeIndex:
     tasidigi icin sessizce kabul edilirse her cikis ileri kaymaya duser; burada acik hata verir:
       - acilislar 4h izgarasinda (gun basindan 0, 4, ..., 20 saat) olmali,
       - `close_time` varsa hicbir barin suresi 4 saati asmamali; yoksa en az iki bar olmali,
-      - en az iki bar varsa ardisik iki acilis arasindaki en kucuk fark 4 saat olmali.
+      - `close_time` YOKSA ardisik iki acilis arasindaki en kucuk fark 4 saat olmali.
+
+    Ardisiklik sarti yalnizca `close_time` yoksa aranir (bulgu K-C8, koruma turu madde 7). Bar
+    duzeyli mevcutluk olcutu (D-B3) bozuk hucreli barlari seriden DUSURUR; dar bir donemde geriye
+    yalnizca komsu olmayan barlar kalirsa ardisiklik sarti `VeriHatasi` firlatiyordu -- yani bir
+    ret gerekcesi yerine yukari cikan bir hata. Oysa eksik barin normal yolu rettir (`GirisBariYok`,
+    tamlik). 4h serisi oldugunu dogrulayan asil olcutler IZGARA ve BAR SURESIDIR; ikisi de yerinde
+    kalir, bu yuzden 1d cercevesinin 4h gibi verilmesi (D-B3'un amaci) yine yakalanir.
     """
     zamanlar = pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(mumlar["open_time"]), "olay_karari")
     if len(zamanlar) == 0:
@@ -285,7 +292,7 @@ def _mum_zamanlari(mumlar: pd.DataFrame) -> pd.DatetimeIndex:
         if bool((sure > adim).any()):
             raise pencere_modulu.VeriHatasi("mumlar_4h 4h serisi olmali: bar suresi 4 saati asiyor (1d cercevesi verilmis olabilir; "
                              "on-kayit §4 'Fiyat okuma tabani').")
-    if len(zamanlar) > 1 and (zamanlar[1:] - zamanlar[:-1]).min() != adim:
+    if "close_time" not in mumlar and len(zamanlar) > 1 and (zamanlar[1:] - zamanlar[:-1]).min() != adim:
         raise pencere_modulu.VeriHatasi("mumlar_4h 4h serisi olmali: ardisik acilislar arasinda 4 saatlik fark yok "
                          "(1d cercevesi verilmis olabilir; on-kayit §4 'Fiyat okuma tabani').")
     return zamanlar
