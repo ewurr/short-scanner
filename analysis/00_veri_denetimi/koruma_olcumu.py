@@ -145,9 +145,10 @@ def donem_siniri_olc(sembol: str) -> list[dict]:
     mumlar = klines_modulu.ham_mumlari_yukle(sembol, config.BAR_4H)
     if mumlar.empty:
         return []
-    hacim_maskesi = np.asarray(donem_modulu.gercek_bar_maskesi(mumlar), dtype=bool)
+    hacim_maskesi = np.asarray(donem_modulu.gercek_bar_maskesi(mumlar["quote_volume"]), dtype=bool)
     hucre_tam = np.asarray(klines_modulu.hucreleri_tam_mi(mumlar), dtype=bool)
-    yeni_maske = hacim_maskesi & hucre_tam
+    yeni_maske = np.asarray(
+        donem_modulu.gercek_bar_maskesi(mumlar["quote_volume"], hucreler_tam=hucre_tam), dtype=bool)
     fark = int((hacim_maskesi != yeni_maske).sum())
     zamanlar = pd.DatetimeIndex(mumlar["open_time"])
     eski_ilk = str(zamanlar[hacim_maskesi].min()) if hacim_maskesi.any() else ""

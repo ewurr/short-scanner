@@ -235,7 +235,8 @@ def settled_kirp(settled_aylari, ilk_ay: str, son_ay: str) -> list[str]:
 # --- Evren kurma -------------------------------------------------------------
 
 
-def sembol_satirlari(ortak: dict, zamanlar, hacim, funding: pd.DataFrame) -> list[dict]:
+def sembol_satirlari(ortak: dict, zamanlar, hacim, funding: pd.DataFrame,
+                    hucreler_tam=None) -> list[dict]:
     """Bir sembolun evren satirlari: her listeleme donemi icin bir satir. Saf.
 
     `ortak`: sembol duzeyindeki sutunlar (sembol, ilk_ay, son_ay, ...). Donemi
@@ -246,7 +247,8 @@ def sembol_satirlari(ortak: dict, zamanlar, hacim, funding: pd.DataFrame) -> lis
     """
     from data import funding as funding_modulu
 
-    donemler = donem_modulu.listeleme_donemleri(zamanlar, hacim, config.BAR_4H)
+    donemler = donem_modulu.listeleme_donemleri(zamanlar, hacim, config.BAR_4H,
+                                               hucreler_tam=hucreler_tam)
     if not donemler:
         return [{**ortak, "donem_id": -1, "donem_baslangic": pd.NaT, "donem_bitis": pd.NaT,
                  "donem_bar_sayisi": 0, "donem_gercek_bar_sayisi": 0, "donem_funding_yok": True}]
@@ -309,6 +311,9 @@ def evren_kur(haric_liste: frozenset[str] | None = None) -> pd.DataFrame:
         }
         satirlar.extend(sembol_satirlari(
             ortak, pd.DatetimeIndex(mumlar["open_time"]), mumlar["quote_volume"], fund,
+            # Bar duzeyli mevcutluk olcutu donem sinirlarinda da gecerlidir (bulgu K-C9,
+            # on-kayit §2 rev.12 "her hesapta"): hucresi bozuk bar sinir tanimlayamaz.
+            hucreler_tam=klines.hucreleri_tam_mi(mumlar),
         ))
 
     return pd.DataFrame(satirlar).sort_values(["sembol", "donem_id"], ignore_index=True)

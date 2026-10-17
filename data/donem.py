@@ -63,10 +63,26 @@ class DolguKosusu:
     konum: str  # "bas", "ic" ya da "son"
 
 
-def gercek_bar_maskesi(hacim) -> np.ndarray:
-    """Sifir olmayan hacimli barlar. NaN hacim gercek islem sayilmaz (ihtiyatli)."""
+def gercek_bar_maskesi(hacim, *, hucreler_tam=None) -> np.ndarray:
+    """Sifir olmayan hacimli VE hucreleri tam barlar. NaN hacim gercek islem sayilmaz (ihtiyatli).
+
+    `hucreler_tam` (bulgu K-C9, koruma turu madde 6): bar duzeyli mevcutluk olcutunun maskesi
+    (`klines.hucreleri_tam_mi`). On-kayit §2 (rev.12): "olcut alan duzeyinde degil BAR
+    DUZEYINDEDIR ve her izgarada, her pencerede ve HER HESAPTA gecerlidir." Dönem siniri da bir
+    hesaptir: fiyat hucresi bozuk ama hacmi pozitif bir bar, kapida seriden dustugu halde
+    (`pozisyon._tam_hucreli_barlar`) "sifir olmayan hacimli ilk/son bar" olarak donem sinirini
+    tanimlayabiliyordu, yani sinir SERIDE BULUNMAYAN bir bari gosteriyordu.
+
+    Verilmezse yalnizca hacme bakilir (geriye uyumluluk; cagiran cerceveyi tasimayan yollar).
+    """
     degerler = pd.to_numeric(pd.Series(np.asarray(hacim)), errors="coerce").to_numpy(dtype=float)
-    return np.nan_to_num(degerler, nan=0.0) > 0
+    gercek = np.nan_to_num(degerler, nan=0.0) > 0
+    if hucreler_tam is None:
+        return gercek
+    tam = np.asarray(hucreler_tam, dtype=bool)
+    if tam.shape != gercek.shape:
+        raise ValueError("hucreler_tam, hacim ile ayni uzunlukta olmali.")
+    return gercek & tam
 
 
 def _kosular(sifir: np.ndarray) -> list[tuple[int, int]]:
@@ -75,17 +91,17 @@ def _kosular(sifir: np.ndarray) -> list[tuple[int, int]]:
     return [(int(b), int(e) - 1) for b, e in zip(degisim[::2], degisim[1::2])]
 
 
-def _hazirla(zamanlar, hacim, bar: str):
+def _hazirla(zamanlar, hacim, bar: str, hucreler_tam=None):
     indeks = pencere_modulu._zaman_dizisi_dogrula(zamanlar, "listeleme_donemleri")
     if len(indeks) != len(np.asarray(hacim)):
         raise ValueError("zamanlar ve hacim ayni uzunlukta olmali.")
     adim = pencere_modulu.adim(bar)
-    return indeks, gercek_bar_maskesi(hacim), adim
+    return indeks, gercek_bar_maskesi(hacim, hucreler_tam=hucreler_tam), adim
 
 
-def dolgu_kosulari(zamanlar, hacim, bar: str) -> list[DolguKosusu]:
+def dolgu_kosulari(zamanlar, hacim, bar: str, *, hucreler_tam=None) -> list[DolguKosusu]:
     """Esigi (`config.DOLGU_KOSU_ESIGI_BAR`) gecen sifir hacim kosulari (denetim)."""
-    indeks, gercek, _ = _hazirla(zamanlar, hacim, bar)
+    indeks, gercek, _ = _hazirla(zamanlar, hacim, bar, hucreler_tam)
     sonuc = []
     for b, e in _kosular(~gercek):
         n = e - b + 1
@@ -96,13 +112,13 @@ def dolgu_kosulari(zamanlar, hacim, bar: str) -> list[DolguKosusu]:
     return sonuc
 
 
-def kisa_sifir_kosulari(zamanlar, hacim, bar: str) -> list[DolguKosusu]:
+def kisa_sifir_kosulari(zamanlar, hacim, bar: str, *, hucreler_tam=None) -> list[DolguKosusu]:
     """Serinin ORTASINDA kalan, esikten kisa (1..esik-1 bar) sifir hacim kosulari.
 
     F1 olcumu S2: evrende boyle bir kosu yoktu. Cikarsa bir likidite boslugunun
     donemin parcasi sayildigini gosterir ve denetim testi uyarir.
     """
-    indeks, gercek, _ = _hazirla(zamanlar, hacim, bar)
+    indeks, gercek, _ = _hazirla(zamanlar, hacim, bar, hucreler_tam)
     sonuc = []
     for b, e in _kosular(~gercek):
         n = e - b + 1
@@ -112,13 +128,13 @@ def kisa_sifir_kosulari(zamanlar, hacim, bar: str) -> list[DolguKosusu]:
     return sonuc
 
 
-def listeleme_donemleri(zamanlar, hacim, bar: str) -> list[Donem]:
+def listeleme_donemleri(zamanlar, hacim, bar: str, *, hucreler_tam=None) -> list[Donem]:
     """Bar serisinden listeleme donemleri (on-kayit §2 rev.7). Saf fonksiyon.
 
     `zamanlar`: kesin artan, tekrarsiz, UTC bar acilis zamanlari.
     `hacim`: ayni uzunlukta hacim dizisi (quote_volume).
     """
-    indeks, gercek, adim = _hazirla(zamanlar, hacim, bar)
+    indeks, gercek, adim = _hazirla(zamanlar, hacim, bar, hucreler_tam)
     n = len(indeks)
     if n == 0:
         return []

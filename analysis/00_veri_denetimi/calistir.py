@@ -166,10 +166,16 @@ def sembol_denetle(sembol: str, evren: pd.DataFrame) -> dict:
     zamanlar = pd.DatetimeIndex(mumlar["open_time"])
     hacim = mumlar["quote_volume"]
 
-    # Commit edilmis donemler ham seriden yeniden turetilenle ayni mi?
-    yeniden = donem_modulu.listeleme_donemleri(zamanlar, hacim, config.BAR_4H) if len(mumlar) else []
-    dolgu = donem_modulu.dolgu_kosulari(zamanlar, hacim, config.BAR_4H) if len(mumlar) else []
-    kisa_sifir = donem_modulu.kisa_sifir_kosulari(zamanlar, hacim, config.BAR_4H) if len(mumlar) else []
+    # Commit edilmis donemler ham seriden yeniden turetilenle ayni mi? Bar duzeyli mevcutluk
+    # olcutu donem sinirlarinda da gecerlidir (bulgu K-C9; on-kayit §2 rev.12 "her hesapta"),
+    # bu yuzden denetim evren tablosunu kuran yolla ayni maskeyi kullanir.
+    hucreler_tam = klines_modulu.hucreleri_tam_mi(mumlar) if len(mumlar) else None
+    yeniden = donem_modulu.listeleme_donemleri(zamanlar, hacim, config.BAR_4H,
+                                               hucreler_tam=hucreler_tam) if len(mumlar) else []
+    dolgu = donem_modulu.dolgu_kosulari(zamanlar, hacim, config.BAR_4H,
+                                        hucreler_tam=hucreler_tam) if len(mumlar) else []
+    kisa_sifir = donem_modulu.kisa_sifir_kosulari(zamanlar, hacim, config.BAR_4H,
+                                                  hucreler_tam=hucreler_tam) if len(mumlar) else []
 
     bosluklar = klines_modulu.eksik_barlar(mumlar, config.BAR_4H)
     uzun_bosluk = bosluklar.loc[bosluklar["eksik_bar"] > config.DENETIM_UZUN_BOSLUK_BAR] if not bosluklar.empty else bosluklar

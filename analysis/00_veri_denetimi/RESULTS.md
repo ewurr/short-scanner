@@ -3373,6 +3373,48 @@ geçmesi yeterli olduğu için koruma işler); son üç satır her iki girdide d
 Kilidi delmenin yolu, kilidi açmanın (`SHORT_LAB_KILIT_ACIK=1`) yerine geçmez: bu liste, kilidin
 neye karşı koruduğunu dürüstçe yazmak içindir.
 
+**Olay ve kontrol kimliği (madde 3).** K-B1 iki parçalıydı ve ikisi de kapatıldı: `dizi.olay_dizisi`
+artık (sembol, küme, dönem) üçlüsünü **argüman olarak** alır ve kapının döndürdüğü her onayı bu
+**dış** referansla karşılaştırır (tek olaylı çağrı dahil; rev.13'te üçlü yalnızca çağrının kendi
+içinde tutarlıydı), `pozisyon.sinyal_kosulu` ise veriyi küme aralığına **ve döneme** keser. Ayrıca:
+`ornekle` olayın kendisini alır ve adaylarla çapraz doğrular (olayın kendi barı K1'e, kendi coini
+K2'ye giremez; K1 adayları olayın sembolü ve dönemiyle, K2 adayları olayın t'siyle eşleşmeli);
+`olay_dogrula` olayın zamanını ve çapasını taşıdığı pozisyonla karşılaştırır; `alt_tohum` ızgara
+dışı yapılandırma kimliğini reddeder; `KontrolHavuzu` **imzalıdır** ve `olay_sayilari` çiftin aynı
+olaya ait olduğunu, her olayın bir kez sayıldığını ve bütün çiftlerin aynı (yapılandırma, küme)
+demetine ait olduğunu denetler — o sayı F2'nin aday eşiği (150) ve F3'ün güç eşiği (100) demektir;
+boş aday kümesi kimliğini korur ve boş havuz da ön-kayıt tohumunu raporlar; K1 tekrar denetimi
+artık §4 "Zaman toleransı"na göre yapılır.
+
+**Kilit kaydı (madde 4).** Ekleme kuralı denetimine `--full-history` eklendi (docstring söylüyordu,
+komut söylemiyordu: bayrak olmadan `rev-list` birleştirmelerin tek ebeveynini izler ve yan dalda
+değiştirilen içerik görünmez) ve `origin/main` **simetrisi** kuruldu — kayıt uzak depo geçmişinde
+de bulunmalı ve içerikleri yerel geçmişle aynı olmalı, çünkü yerel geçmiş ve reflog sahibi
+tarafından yeniden yazılabilir (`ONAY_KAYDI` aynı riski aynı ölçütle kapatıyor, CLAUDE.md §3.3).
+Ayrıştırma sıkılaştı: `inf`/`Infinity`/`nan`/üstel gösterim ve **Unicode rakamlar** reddedilir,
+`parametreler` alanı yapılandırma kimliğiyle sayısal olarak karşılaştırılır, `ortalama_net_getiri`
+"seçildi" hükmünde zorunludur (aksi halde §8 madde 4'ün ikinci koşulu kod düzeyinde hiç
+denetlenemiyordu). `gerekce` ise artık **yalnızca "kapandı" hükmünde** zorunlu: ön-kayıt alanı
+"hüküm … ve **kapandıysa** gerekçesi" diye sayar, kod her hükümde zorunlu tutuyordu ve dosya hem
+kilitli hem ekleme kurallı olduğu için ön-kaydın harfine uyan bir kayıt kurtarılamaz duruma
+düşüyordu.
+
+**Dönem sınırı ve bar düşürme (madde 6-7).** Bar düzeyli mevcutluk ölçütü dönem sınırı hesabında da
+uygulanır (`donem.gercek_bar_maskesi(..., hucreler_tam=...)`; ön-kayıt §2 rev.12 "her hesapta"):
+fiyat hücresi bozuk ama hacmi pozitif bir bar, kapıda seriden düştüğü hâlde "sıfır olmayan hacimli
+ilk/son bar" olarak sınır tanımlayabiliyordu. **Zorunlu doğrulama:** evren tablosu değişiklikten
+sonra geçici bir yola yeniden kuruldu ve kilitli `data/universe.csv` ile karşılaştırıldı —
+**876 satır, 16 sütun, değer düzeyinde 0 farklı hücre** (ilk karşılaştırmada görülen 1752 "fark",
+yalnızca doğrulama betiğinin zaman damgası yazımıydı: `2025-09-17 12:00:00+00:00` ile
+`2025-09-17T12:00:00Z` aynı an; ikinci karşılaştırma damgaları ayrıştırarak yaptı). Yani ölçüt
+dönem sınırlarında da uygulandığında bugünkü veride **hiçbir sınır değişmiyor**; `universe.csv`
+dokunulmadı ve kilit oturumu gerekmedi. Aynı maske F1 denetiminde de kullanılıyor, böylece evren
+tablosunu kuran yol ile denetim yolu ayrışmıyor. K-C8 (şüpheli bulgu) sentetik testle **üretildi**:
+seriden bar düşünce `_mum_zamanlari`nın ardışıklık şartı `VeriHatasi` veriyordu — bir ret gerekçesi
+değil, yukarı çıkan bir hata. Şart artık yalnızca `close_time` yokken aranır; 4h serisi olduğunu
+doğrulayan asıl ölçütler ızgara ve bar süresidir, bu yüzden 1d çerçevesinin 4h gibi verilmesi yine
+yakalanır.
+
 **`config` sabit korumasının kalan açık noktaları (madde 5).** Bu turda iki yol kapatıldı:
 `type(config).__setattr__ = ...` (sınıfın kendisi artık değiştirilemez, `_SabitModulTuru`) ve
 `object.__setattr__(config, "TOHUM", 1)` (değişmez adlar artık **veri tanımlayıcısıdır**, yani
