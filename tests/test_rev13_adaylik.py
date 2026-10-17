@@ -43,6 +43,12 @@ def _onay(t=TB, rol="K1", **ek):
     return pozisyon._test_onayi(hipotez="H2", yapilandirma=Y2, t=t, rol=rol, **ek)
 
 
+def _olay(sembol="AAAUSDT", t=TB, **ek):
+    """Ornekelemenin olayi. Madde 3b'den beri `ornekle` olayin KENDISINI alir; sembol ve bar
+    zamani ondan okunur ve adaylarla capraz dogrulanir."""
+    return olaylar_kur([t], hipotez="H2", yapilandirma=Y2, kume="KESIF", sembol=sembol, **ek)[0]
+
+
 # --- 1. Kapidan gecmemis aday kabul edilmez --------------------------------------------------
 
 
@@ -52,7 +58,7 @@ def test_ham_liste_aday_degildir(ham):
     with pytest.raises(TypeError, match="adaylari_kur"):
         ornekleme.aday_dogrula(ham)
     with pytest.raises(TypeError):
-        ornekleme.ornekle(ham, sembol="AAAUSDT", olay_zamani=TB)
+        ornekleme.ornekle(ham, olay=_olay())
     with pytest.raises(TypeError):
         ornekleme.k1_adaylari(ham, [], UFUK, config.BAR_4H)
     with pytest.raises(TypeError):
@@ -77,7 +83,7 @@ def test_elle_kurulmus_aday_kumesi_reddedilir():
     with pytest.raises(ValueError, match="elle kurulmus"):
         ornekleme.aday_dogrula(elle)
     with pytest.raises(ValueError):
-        ornekleme.ornekle(elle, sembol="AAAUSDT", olay_zamani=TB)
+        ornekleme.ornekle(elle, olay=_olay())
 
 
 def test_olay_rolundeki_onay_aday_olamaz():
@@ -148,9 +154,12 @@ def test_ayiklayicilar_aday_kumesi_dondurur_ve_rolu_korur():
 
 def test_ayiklayicinin_ciktisi_dogrudan_ornekelemeye_girer():
     """Ayiklama -> ornekleme zinciri: ara adimda ham listeye dusulmez."""
-    ayiklanmis = ornekleme.k1_adaylari(k1_adaylari_kur(BARLAR), olaylar_kur([BARLAR[0]]), UFUK,
+    # Olay ve adaylar ayni coinden olmali (madde 3b): olay BARLAR[0] barinda, o bar ayiklama
+    # sonrasi adaylar arasinda yok.
+    ayiklanmis = ornekleme.k1_adaylari(k1_adaylari_kur(BARLAR),
+                                       olaylar_kur([BARLAR[0]], sembol="AAVEUSDT"), UFUK,
                                        config.BAR_4H)
-    havuz = ornekle(ayiklanmis)
+    havuz = ornekle(ayiklanmis, olay=olaylar_kur([BARLAR[0]], sembol="AAVEUSDT")[0])
     assert len(havuz) == config.KONTROL_SAYISI
     assert set(havuz.secilenler) <= set(ayiklanmis.ogeler)
 
@@ -176,32 +185,33 @@ def test_bos_aday_kumesi_bos_havuz():
 
 @pytest.mark.parametrize("sayi", [1, 5, 9, 11, 40, 0, -1, True])
 def test_on_kayit_disi_sayi_reddedilir(sayi):
-    adaylar = k1_adaylari_kur(BARLAR)
+    adaylar = k1_adaylari_kur(BARLAR, sembol="AAAUSDT")
     with pytest.raises(ValueError, match="on-kayit"):
-        ornekleme.ornekle(adaylar, sembol="AAAUSDT", olay_zamani=TB, sayi=sayi)
-    assert len(ornekleme.ornekle(adaylar, sembol="AAAUSDT", olay_zamani=TB,
+        ornekleme.ornekle(adaylar, olay=_olay(), sayi=sayi)
+    assert len(ornekleme.ornekle(adaylar, olay=_olay(),
                                  sayi=config.KONTROL_SAYISI)) == config.KONTROL_SAYISI
 
 
 def test_tohum_cagirandan_alinmaz():
     """D-C5: serbest tohum verilemez; `ornekle` demetten turetir."""
-    adaylar = k1_adaylari_kur(BARLAR)
+    adaylar = k1_adaylari_kur(BARLAR, sembol="AAAUSDT")
     with pytest.raises(TypeError):
         ornekleme.ornekle(adaylar, tohum=1)
     with pytest.raises(TypeError):
-        ornekleme.ornekle(adaylar, sembol="AAAUSDT", olay_zamani=TB, tohum=1)
+        ornekleme.ornekle(adaylar, olay=_olay(), tohum=1)
 
 
 def test_havuz_demetin_her_ogesine_duyarli():
     """Alt tohum (hipotez, yapilandirma, kume, sembol, olay zamani) demetinden turer."""
-    temel = ornekle(k1_adaylari_kur(BARLAR), sembol="AAAUSDT", olay_zamani=TB).secilenler
-    assert ornekle(k1_adaylari_kur(BARLAR), sembol="BBBUSDT", olay_zamani=TB).secilenler != temel
-    assert ornekle(k1_adaylari_kur(BARLAR), sembol="AAAUSDT", olay_zamani=TB + H4).secilenler != temel
-    baska_y = ornekle(k1_adaylari_kur(BARLAR, yapilandirma=yapilandirma("H2", k=12)),
-                      sembol="AAAUSDT", olay_zamani=TB).secilenler
+    temel = ornekle(k1_adaylari_kur(BARLAR, sembol="AAAUSDT"), olay_zamani=TB).secilenler
+    assert ornekle(k1_adaylari_kur(BARLAR, sembol="BBBUSDT"), olay_zamani=TB).secilenler != temel
+    assert ornekle(k1_adaylari_kur(BARLAR, sembol="AAAUSDT"), olay_zamani=TB + H4).secilenler != temel
+    baska_y = ornekle(k1_adaylari_kur(BARLAR, sembol="AAAUSDT",
+                                      yapilandirma=yapilandirma("H2", k=12)),
+                      olay_zamani=TB).secilenler
     assert baska_y != temel
     # Ayni demet ayni havuz (tekrarlanabilirlik).
-    assert ornekle(k1_adaylari_kur(BARLAR), sembol="AAAUSDT", olay_zamani=TB).secilenler == temel
+    assert ornekle(k1_adaylari_kur(BARLAR, sembol="AAAUSDT"), olay_zamani=TB).secilenler == temel
 
 
 def test_alt_tohum_kimligi_de_kabul_eder():

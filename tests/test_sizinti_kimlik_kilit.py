@@ -86,11 +86,29 @@ def _onay(rol, t, *, hipotez="H2", sembol="AAVEUSDT", donem_no=0, kume="KESIF", 
 
 
 def _k1_kur(barlar, **ek) -> ornekleme.Adaylar:
-    return ornekleme.adaylari_kur([_onay("K1", t, **ek) for t in barlar], rol="K1")
+    hipotez = ek.get("hipotez", "H2")
+    kimlik = dict(hipotez=hipotez, yapilandirma=ek.get("y") or dict(sinyal.izgara(hipotez)[0]),
+                  kume=ek.get("kume", "KESIF"), sembol=ek.get("sembol", "AAVEUSDT"),
+                  donem_no=ek.get("donem_no", 0))
+    return ornekleme.adaylari_kur([_onay("K1", t, **ek) for t in barlar], rol="K1", **kimlik)
 
 
 def _k2_kur(semboller, t, **ek) -> ornekleme.Adaylar:
-    return ornekleme.adaylari_kur([_onay("K2", t, sembol=s, **ek) for s in semboller], rol="K2")
+    hipotez = ek.get("hipotez", "H2")
+    kimlik = dict(hipotez=hipotez, yapilandirma=ek.get("y") or dict(sinyal.izgara(hipotez)[0]),
+                  kume=ek.get("kume", "KESIF"), bar_zamani=t)
+    return ornekleme.adaylari_kur([_onay("K2", t, sembol=s, **ek) for s in semboller], rol="K2",
+                                  **kimlik)
+
+
+def _olay(sembol="AAVEUSDT", t=None, **ek) -> dizi.Olay:
+    """Ornekelemenin olayi (madde 3b: `ornekle` olayin KENDISINI alir).
+
+    Varsayilan bar `_bar(100)`: aday barlarindan uzak, cunku olayin kendi bari K1 adayi olamaz.
+    """
+    return tek_olay(_bar(100) if t is None else t, hipotez=ek.pop("hipotez", "H2"),
+                    yapilandirma=ek.pop("yapilandirma", Y2), kume=ek.pop("kume", "KESIF"),
+                    sembol=sembol, **ek)
 
 
 @pytest.fixture
@@ -136,8 +154,6 @@ def test_k1_ayni_bar_iki_kez_aday_olamaz():
         ornekleme.adaylari_kur(onaylar, rol="K1")
 
 
-@acik("K1 tekrar denetimi TAM esitlige bakar; §4 'Zaman toleransi' (|fark| < 1 dk = ayni an) uygulanmaz: "
-      "T ve T+30sn iki ayri aday olur, ornekleme ayni 4h bari iki kez cekebilir.")
 def test_k1_yakin_zamanli_tekrar_aday_xfail():
     """On-kayit §4 'Zaman toleransi' + §6 iadesiz ornekleme. Kapi (`olay_karari`) t+30sn'yi AYNI bar sayip
     kabul eder (`ayni_andaki_bar`), ama `adaylari_kur` yalniz `has_duplicates` ile tekrar arar."""
@@ -288,84 +304,78 @@ def test_adaylar_alani_degistirilmis_hicbir_tuketiciden_gecmez(alan, deger):
     with pytest.raises(ValueError, match="elle kurulmus|degistirilmis"):
         ornekleme.k1_adaylari(bozuk, [], UFUK, config.BAR_4H)
     with pytest.raises(ValueError, match="elle kurulmus|degistirilmis"):
-        ornekleme.ornekle(bozuk, sembol="AAVEUSDT", olay_zamani=BAS)
+        ornekleme.ornekle(bozuk, olay=_olay())
 
 
 def test_adaylar_ogeleri_degistirilmis_ya_da_elle_kurulmus_gecmez():
     adaylar = _k1_kur([_bar(0), _bar(1)])
     ekli = dataclasses.replace(adaylar, ogeler=adaylar.ogeler + (_bar(40),))
     with pytest.raises(ValueError, match="elle kurulmus|degistirilmis"):
-        ornekleme.ornekle(ekli, sembol="AAVEUSDT", olay_zamani=BAS)
+        ornekleme.ornekle(ekli, olay=_olay())
     elle = ornekleme.Adaylar("K1", "H2", adaylar.yapilandirma, "KESIF", (_bar(0), _bar(1)))
     with pytest.raises(ValueError, match="elle kurulmus|degistirilmis"):
-        ornekleme.ornekle(elle, sembol="AAVEUSDT", olay_zamani=BAS)
+        ornekleme.ornekle(elle, olay=_olay())
     sifir = dataclasses.replace(elle, _imza=0)
     with pytest.raises(ValueError, match="elle kurulmus|degistirilmis"):
-        ornekleme.ornekle(sifir, sembol="AAVEUSDT", olay_zamani=BAS)
+        ornekleme.ornekle(sifir, olay=_olay())
 
 
 def test_ornekle_ham_liste_ve_serbest_sayi_reddedilir():
     """§6 rev.13: ham liste aday degildir; D-C5: sayi on-kayit degeri (10) olmali."""
     with pytest.raises(TypeError):
-        ornekleme.ornekle([_bar(0), _bar(1)], sembol="AAVEUSDT", olay_zamani=BAS)
+        ornekleme.ornekle([_bar(0), _bar(1)], olay=_olay())
     adaylar = _k1_kur([_bar(i) for i in range(12)])
     for sayi in (0, 1, 9, 11, True):
         with pytest.raises(ValueError):
-            ornekleme.ornekle(adaylar, sembol="AAVEUSDT", olay_zamani=BAS, sayi=sayi)
+            ornekleme.ornekle(adaylar, olay=_olay(), sayi=sayi)
 
 
 @pytest.mark.parametrize("n,beklenen,eksik", [(9, 9, True), (10, 10, False), (11, 10, False), (25, 10, False)])
 def test_havuz_boyutu_aday_sayisina_gore_ve_aday_sayisi_yazilir(n, beklenen, eksik):
     """§6 rev.11: aday sayisi 10'dan azsa tamami alinir ve sayi yazilir; iadesiz."""
     adaylar = _k1_kur([_bar(i) for i in range(n)])
-    h = ornekleme.ornekle(adaylar, sembol="AAVEUSDT", olay_zamani=BAS)
+    h = ornekleme.ornekle(adaylar, olay=_olay())
     assert len(h) == beklenen and h.aday_sayisi == n and h.eksik is eksik
     assert len(set(h.secilenler)) == len(h.secilenler) and set(h.secilenler) <= set(adaylar.ogeler)
 
 
-@acik("`ornekle` olayin kendi barinin K1 adayi icinde olup olmadigina bakmaz: filtre (k1_adaylari) atlanip "
-      "adaylari_kur ciktisi dogrudan ornekleyiciye verilince olayin KENDI BARI kendi kontrolu olur.")
 def test_ornekle_k1_olayin_kendi_bari_kontrol_adayi_olamaz():
     """§6 K1: 'o hipotezin herhangi bir olayina birincil ufuk mesafesinden yakin olmayan' bar; olayin kendi
     bari mesafe 0'dadir. `Adaylar` 'filtrelendi' bilgisini tasimadigi icin atlanan filtre fark edilmez."""
     barlar = [_bar(i) for i in range(8)]                   # 8 < 10: tamami cekilir
     adaylar = _k1_kur(barlar)                              # k1_adaylari UYGULANMADI
     try:
-        h = ornekleme.ornekle(adaylar, sembol="AAVEUSDT", olay_zamani=barlar[3])
+        h = ornekleme.ornekle(adaylar, olay=_olay(t=barlar[3]))
     except (ValueError, TypeError):
         return
     _acik(f"olay bari kontrol havuzunda: {barlar[3] in h.secilenler}")
 
 
-@acik("`ornekle` olayin kendi sembolunun K2 adaylari icinde olup olmadigina bakmaz (k2_adaylari atlanabilir).")
 def test_ornekle_k2_olayin_kendi_coini_kontrol_adayi_olamaz():
     """§6 K2: 'diger coinlerden' 10 rastgele coin; olayin kendi coini kendi kontrolu olamaz."""
     adaylar = _k2_kur(["AAVEUSDT", "BBBUSDT", "CCCUSDT"], _bar(5))
     try:
-        h = ornekleme.ornekle(adaylar, sembol="AAVEUSDT", olay_zamani=_bar(5))
+        h = ornekleme.ornekle(adaylar, olay=_olay(t=_bar(5)))
     except (ValueError, TypeError):
         return
     _acik(f"olayin kendi coini K2 havuzunda: {'AAVEUSDT' in h.secilenler}")
 
 
-@acik("`ornekle` K2'de olay_zamani'ni adaylarin `bar_zamani` ile karsilastirmaz; tohum baska bir bara gore turetilir.")
 def test_ornekle_k2_olay_zamani_adaylarin_bariyla_ayni_olmali():
     """§6 K2: 'ayni t barinda'. Adaylar t=_bar(5) icin kuruldu, olay _bar(9)'da: havuz o olaya ait degil."""
     adaylar = _k2_kur(["BBBUSDT", "CCCUSDT"], _bar(5))
     try:
-        ornekleme.ornekle(adaylar, sembol="AAVEUSDT", olay_zamani=_bar(9))
+        ornekleme.ornekle(adaylar, olay=_olay(t=_bar(9)))
     except (ValueError, TypeError):
         return
     _acik("K2 havuzu baska bir barin olayi icin cekildi.")
 
 
-@acik("`Adaylar` sembol/donem_no tasimaz; `ornekle(sembol=...)` yalniz tohum girdisidir. B coininin K1 adaylari "
-      "A coininin olayi icin cekilebilir.")
 def test_ornekle_k1_adaylar_olayin_coininden_olmali():
     """§6 K1: 'AYNI coinden' rastgele bar. Adaylar BBBUSDT'den, olay AAVEUSDT'den."""
     adaylar = _k1_kur([_bar(i) for i in range(12)], sembol="BBBUSDT")
     try:
-        ornekleme.ornekle(adaylar, sembol="AAVEUSDT", olay_zamani=BAS)
+        ornekleme.ornekle(adaylar, olay=_olay())
     except (ValueError, TypeError):
         return
     _acik("K1 kontrol havuzu baska bir coinin barlarindan cekildi.")
@@ -373,13 +383,13 @@ def test_ornekle_k1_adaylar_olayin_coininden_olmali():
 
 def test_kontrol_havuzu_olumlu_kontrol_gercek_havuz_olay_sayilarindan_gecer():
     """Kontrol: gercek havuz tutarlidir (sonraki xfail testlerin dayanagi)."""
-    adaylar = _k1_kur([_bar(i) for i in range(30)])
-    h = ornekleme.ornekle(adaylar, sembol="AAVEUSDT", olay_zamani=BAS)
-    ornekleme.olay_sayilari([(h, ornekleme.KontrolHavuzu((), 0))])
+    olay = _olay()
+    k1 = ornekleme.ornekle(_k1_kur([_bar(i) for i in range(30)]), olay=olay)
+    # Cift (K1, K2) olmali ve ayni olaya ait olmali (madde 3c): bos K2 havuzu da GERCEK havuzdur.
+    k2 = ornekleme.ornekle(_k2_kur([], _bar(100)), olay=olay)
+    ornekleme.olay_sayilari([(k1, k2)])
 
 
-@acik("KontrolHavuzu imzali degil: elle kurulan havuz `olay_sayilari`ndan geciyor ve analize giren olay "
-      "sayisini sisirebiliyor (aday esigi 150 / guc esigi 100 oraya bakar).")
 @pytest.mark.parametrize("sahte", [
     ornekleme.KontrolHavuzu(("SAHTE",), 1),
     ornekleme.KontrolHavuzu(tuple(f"S{i}" for i in range(12)), 3),     # secilen > aday sayisi
@@ -388,7 +398,7 @@ def test_kontrol_havuzu_olumlu_kontrol_gercek_havuz_olay_sayilarindan_gecer():
 def test_elle_kurulmus_kontrol_havuzu_olay_sayisini_sisiremez(sahte):
     """§8 madde 2 (rev.13): olay sayisi ANALIZE GIREN olaylarin sayisidir; havuz kapidan gecmis adaylardan
     cekilmis olmali. Burada kapidan hic gecmemis bir havuz bir olayi 'analize girdi' yapar."""
-    bos = ornekleme.KontrolHavuzu((), 0)
+    bos = ornekleme.ornekle(_k2_kur([], _bar(100)), olay=_olay())
     try:
         sayi = ornekleme.olay_sayilari([(sahte, bos)])
     except (TypeError, ValueError):
@@ -396,11 +406,10 @@ def test_elle_kurulmus_kontrol_havuzu_olay_sayisini_sisiremez(sahte):
     _acik(f"sahte havuz kabul edildi: analize_giren={sayi.analize_giren}")
 
 
-@acik("KontrolHavuzu alanlari (tohum, demet) replace ile degistirilebiliyor ve hicbir tuketici fark etmiyor.")
 def test_degistirilmis_kontrol_havuzu_tohumu_olay_sayilarindan_gecmemeli():
     """§8 madde 1: raporlanan tohum/demet cekimi yapan degerdir. `tohum` demetten turemiyorsa havuz sahtedir."""
     adaylar = _k1_kur([_bar(i) for i in range(30)])
-    h = ornekleme.ornekle(adaylar, sembol="AAVEUSDT", olay_zamani=BAS)
+    h = ornekleme.ornekle(adaylar, olay=_olay())
     bozuk = dataclasses.replace(h, tohum=h.tohum + 1)
     try:
         ornekleme.olay_sayilari([(bozuk, bozuk)])
@@ -453,8 +462,6 @@ def test_kapinin_onayi_tek_basina_olay_degildir():
         dizi.olay_dogrula(_onay("olay", TB))
 
 
-@acik("`olay_dogrula` olayin zaman/capa alanlarini pozisyonun sinyal zamani/capasi ile karsilastirmaz; imza "
-      "kendi kendiyle tutarli ama pozisyonla tutarsiz bir Olay gecerli sayilir (k1_adaylari `olay.zaman` kullanir).")
 @pytest.mark.parametrize("zaman,capa", [(TB + 6 * H4, None), (TB, TB - 2 * H4)])
 def test_tutarsiz_olay_zaman_capa_pozisyonla_celisirse_dogrulanamaz(zaman, capa):
     """§5 H1 madde 4 (S-B1): capa/t cifti pozisyonla ayni olmali. `dizi._olay_kur` ile imzali ama tutarsiz Olay."""
@@ -501,13 +508,15 @@ def test_omur_b2_baska_testte_kurulan_onayin_kopyasi_da_gecersiz():
         pozisyon.onay_dogrula(kopya)
 
 
-@acik("Omur siniri yalniz `OnaylanmisPozisyon` nesnesine uygulanir; ondan turetilen `Adaylar` baska bir testte "
-      "serbestce ornekleyiciye girer (D-C2 niyeti dikisin urunlerinin testle sinirli kalmasiydi).")
+@acik("Omur siniri yalniz `OnaylanmisPozisyon` nesnesine uygulanir; ondan turetilen `Adaylar` baska bir "
+      "testte serbestce ornekleyiciye girer (D-C2 niyeti dikisin urunlerinin testle sinirli kalmasiydi). "
+      "Koruma turunda KAPATILMADI: isaret bu turda yanlislikla kaldirilmis ve geri konmustur -- aciklik "
+      "duruyor, yalnizca test baglaminda.")
 def test_omur_c_baska_testte_kurulan_aday_kumesi_ornekleyiciye_girmemeli():
     if _BASKA_TESTTE["adaylar"] is None:
         pytest.skip("kuran test kosmadi")
     try:
-        ornekleme.ornekle(_BASKA_TESTTE["adaylar"], sembol="AAVEUSDT", olay_zamani=BAS)
+        ornekleme.ornekle(_BASKA_TESTTE["adaylar"], olay=_olay())
     except ValueError:
         return
     _acik("baska testte dikisle kurulan onaylardan turemis Adaylar ornekleyiciden gecti.")
@@ -1065,18 +1074,30 @@ def test_sabit_modul_sozlugu_uzerinden_degistirilemez(ad, monkeypatch):
 # =================================================================================================
 
 
-def _havuz(adaylar=None, *, sembol="AAVEUSDT", t=BAS):
-    adaylar = _k1_kur([_bar(i) for i in range(30)]) if adaylar is None else adaylar
-    return ornekleme.ornekle(adaylar, sembol=sembol, olay_zamani=t)
+def _havuz(adaylar=None, *, sembol="AAVEUSDT", t=None):
+    """Madde 3b: olay `ornekle`ye nesne olarak verilir ve adaylarla capraz dogrulanir.
+
+    Olayin hipotezi ve yapilandirmasi ADAYLARDAN turetilir (kimlikten izgaradaki demete), coini ve
+    donemi K1'de adaylarin kendisinden gelir.
+    """
+    adaylar = _k1_kur([_bar(i) for i in range(30)], sembol=sembol) if adaylar is None else adaylar
+    hipotez = adaylar.hipotez
+    y = next(dict(g) for g in sinyal.izgara(hipotez)
+             if sinyal.yapilandirma_kimligi(hipotez, g) == adaylar.yapilandirma)
+    olay = _olay(sembol=adaylar.sembol or sembol, t=t, hipotez=hipotez, yapilandirma=y,
+                 kume=adaylar.kume, donem_no=adaylar.donem_no or 0)
+    return ornekleme.ornekle(adaylar, olay=olay)
 
 
 def test_havuz_tohumu_demetten_turer_ve_yeniden_uretilebilir():
     """§8 madde 1: tohum ve alt tohum turetme demeti. Demetten `tohum_turet` AYNI tohumu verir; SHA256 bagimsiz
     hesapla da ayni; ayni demetten cekim yeniden uretilince ayni barlar cikar."""
     adaylar = _k1_kur([_bar(i) for i in range(30)])
-    h = _havuz(adaylar)
+    olay = _olay()                     # madde 3b: demet OLAYDAN okunur
+    h = ornekleme.ornekle(adaylar, olay=olay)
     kimlik, kume, sembol, zaman = h.alt_tohum_demeti
-    assert (kimlik, kume, sembol, zaman) == (adaylar.yapilandirma, "KESIF", "AAVEUSDT", BAS.isoformat())
+    assert (kimlik, kume, sembol, zaman) == (adaylar.yapilandirma, "KESIF", "AAVEUSDT",
+                                             olay.zaman.isoformat())
     assert h.tohum == ornekleme.tohum_turet(*h.alt_tohum_demeti)
     beklenen = int.from_bytes(hashlib.sha256("|".join((str(config.TOHUM), *h.alt_tohum_demeti)).encode()).digest()[:8],
                               "big")
@@ -1099,8 +1120,10 @@ def test_havuz_tohumu_demetin_her_ekseninde_degisir():
     y1 = dict(sinyal.izgara("H2")[1])
     tohumlar = {
         "temel": _havuz(_k1_kur(barlar)).tohum,
-        "sembol": _havuz(_k1_kur(barlar), sembol="BBBUSDT").tohum,
-        "zaman": _havuz(_k1_kur(barlar), t=BAS + H4).tohum,
+        # Madde 3b: K1 adaylari olayin KENDI coininden olmak zorunda, bu yuzden sembol ekseni iki
+        # ayri aday kumesiyle sinanir.
+        "sembol": _havuz(_k1_kur(barlar, sembol="BBBUSDT"), sembol="BBBUSDT").tohum,
+        "zaman": _havuz(_k1_kur(barlar), t=_bar(101)).tohum,
         "yapilandirma": _havuz(_k1_kur(barlar, y=y1)).tohum,
         "hipotez": _havuz(_k1_kur(barlar, hipotez="H1")).tohum,
     }
@@ -1109,12 +1132,17 @@ def test_havuz_tohumu_demetin_her_ekseninde_degisir():
 
 def test_havuz_tohumu_olay_zamani_saat_diliminden_bagimsiz_naive_reddedilir():
     """CLAUDE.md §5 (S-B4): ayni an +03:00 olarak verilse de ayni tohum/demet; saat dilimsiz damga reddedilir."""
-    adaylar = _k1_kur([_bar(i) for i in range(30)])
-    a = _havuz(adaylar)
-    b = _havuz(adaylar, t=BAS.tz_convert("Europe/Istanbul"))
-    assert a == b and a.alt_tohum_demeti == b.alt_tohum_demeti
+    # Madde 3b'den beri olay zamani `ornekle`ye serbest damga olarak verilemez (olaydan okunur) ve
+    # kapi UTC disi sinyal zamanini zaten reddeder; S-B4'un guvencesi bu yuzden TURETME
+    # fonksiyonunda sinanir.
+    utc = _bar(100)
+    yerel = utc.tz_convert("Europe/Istanbul")
+    assert ornekleme.alt_tohum("H2", Y2, "KESIF", "AAVEUSDT", utc) == ornekleme.alt_tohum(
+        "H2", Y2, "KESIF", "AAVEUSDT", yerel)
+    assert (ornekleme.alt_tohum_demeti("H2", Y2, "KESIF", "AAVEUSDT", utc)
+            == ornekleme.alt_tohum_demeti("H2", Y2, "KESIF", "AAVEUSDT", yerel))
     with pytest.raises(TypeError):
-        _havuz(adaylar, t=pd.Timestamp("2025-03-01"))
+        ornekleme.alt_tohum("H2", Y2, "KESIF", "AAVEUSDT", pd.Timestamp("2025-03-01"))
 
 
 def test_havuz_tohumu_tohum_turet_ayirici_ve_bos_parcayi_reddeder_sinirda_carpismaz():
@@ -1134,17 +1162,13 @@ def test_havuz_tohumu_genel_tohum_alani_turetmede_kullanilan_degerdir():
     assert yeniden == h.tohum
 
 
-@acik("Bos havuzda `KontrolHavuzu((), 0)` doner; `genel_tohum` 0 yazilir (config.TOHUM degil). Sonuc dosyasi bos "
-      "havuzlu olay icin yanlis genel tohum raporlar. Dusuk onem.")
 def test_havuz_tohumu_bos_havuzda_da_genel_tohum_raporlanir():
     """§8 madde 1 (rev.13) + CLAUDE.md §5: 'tohum sonuc dosyasina yazilir'."""
-    h = ornekleme.ornekle(_k1_kur([]), sembol="AAVEUSDT", olay_zamani=BAS)
+    h = ornekleme.ornekle(_k1_kur([]), olay=_olay())
     assert len(h) == 0 and h.aday_sayisi == 0
     assert h.genel_tohum == config.TOHUM
 
 
-@acik("`alt_tohum`/`alt_tohum_demeti` yapilandirma KIMLIGI str verilirse yalniz 'H2:' onekini denetler; izgara "
-      "disi kimlik (H2:phi=9,k=9) kabul edilir (§5: izgarada olmayan demet hata verir).")
 def test_alt_tohum_izgara_disi_kimlik_str_olarak_kabul_edilmemeli():
     try:
         ornekleme.alt_tohum("H2", "H2:phi=9,k=9", "KESIF", "AAVEUSDT", BAS)

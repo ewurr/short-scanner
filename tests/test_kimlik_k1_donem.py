@@ -67,8 +67,13 @@ def test_tek_donem_gecer(donem_no):
 
 
 def test_bos_aday_kumesi_donem_denetiminden_etkilenmez():
-    adaylar = ornekleme.adaylari_kur([], rol="K1")
+    """Bos aday kumesi madde 3d'den beri KIMLIK ARGUMANLARI ister (bulgu K-C5): "aday yok" mesru
+    bir durumdur ve kimligi `(None, None, None)`a dusmemeli."""
+    adaylar = ornekleme.adaylari_kur([], rol="K1", hipotez="H2", yapilandirma=Y2, kume="KESIF",
+                                     sembol="AAVEUSDT", donem_no=0)
     assert len(adaylar) == 0
+    assert (adaylar.hipotez, adaylar.kume, adaylar.sembol, adaylar.donem_no) == ("H2", "KESIF",
+                                                                                 "AAVEUSDT", 0)
 
 
 # --- 3. Ayiklama ve ornekleme zinciri bozulmadi -----------------------------------------------

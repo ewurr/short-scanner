@@ -136,10 +136,14 @@ def test_ayni_demet_ayni_sonucu_verir():
 
 
 def test_farkli_demet_farkli_sonuc_verir():
+    """Demetin sembol ekseni degisince cekim degisir.
+
+    Madde 3b'den beri olayin sembolu `ornekle`ye serbest metin olarak verilemez (K1 adaylari
+    olayin KENDI coininden olmak zorunda), bu yuzden iki demet iki AYRI aday kumesiyle kurulur:
+    ayni barlar, farkli coin."""
     barlar = [T("2025-03-01") + i * H4 for i in range(50)]
-    adaylar = k1_adaylari_kur(barlar)
-    a = ornekle(adaylar, sembol="AAVEUSDT")
-    b = ornekle(adaylar, sembol="BTCUSDT")
+    a = ornekle(k1_adaylari_kur(barlar, sembol="AAVEUSDT"))
+    b = ornekle(k1_adaylari_kur(barlar, sembol="BTCUSDT"))
     assert a.secilenler != b.secilenler
 
 

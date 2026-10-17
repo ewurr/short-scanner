@@ -24,6 +24,7 @@ import pytest
 
 import config
 from data import ornekleme
+from dizi_yardimcisi import tek_olay
 from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur, ornekle
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -32,8 +33,24 @@ TB = T("2025-03-10 04:00")
 
 
 def _havuz(n):
-    """n kontrollu bir havuz (n = 0 ise bos)."""
+    """n kontrollu bir K1 havuzu (n = 0 ise bos)."""
     return ornekle(k1_adaylari_kur([T("2025-03-01") + i * H4 for i in range(n)]))
+
+
+def _cift(k1_n, k2_n, i=0):
+    """Bir OLAYIN (K1, K2) havuz cifti. Madde 3c'den beri `olay_sayilari` ciftin ayni olaya ait
+    oldugunu, rollerin (K1, K2) oldugunu ve her olayin bir kez sayildigini dogrular; bu yuzden her
+    cift kendi olayiyla kurulur ve olaylar farkli barlardadir."""
+    t = TB + i * H4
+    olay = tek_olay(t, sembol="AAVEUSDT")
+    k1 = ornekleme.ornekle(k1_adaylari_kur([T("2025-03-01") + j * H4 for j in range(k1_n)],
+                                           sembol="AAVEUSDT"), olay=olay)
+    k2 = ornekleme.ornekle(k2_adaylari_kur([f"S{j:02d}USDT" for j in range(k2_n)], t=t), olay=olay)
+    return (k1, k2)
+
+
+def _ciftler(boyutlar):
+    return [_cift(a, b, i) for i, (a, b) in enumerate(boyutlar)]
 
 
 # --- 1. Esikler on-kayit degeri --------------------------------------------------------------
@@ -77,8 +94,7 @@ def test_yuklem_en_az_bir_kontrolu_olan_olay():
 
 def test_iki_sayi_yalnizca_yuklemden_uretilir():
     """Olusmus olay sayisi cift sayisi; analize giren sayi yuklemi saglayanlar."""
-    bos, bir, on = _havuz(0), _havuz(1), _havuz(10)
-    ciftler = [(bos, bos), (bir, bos), (bos, on), (on, on), (bos, bos), (bir, bir)]
+    ciftler = _ciftler([(0, 0), (1, 0), (0, 10), (10, 10), (0, 0), (1, 1)])
     sayilar = ornekleme.olay_sayilari(ciftler)
     assert sayilar.olusmus == 6
     assert sayilar.analize_giren == 4
@@ -93,8 +109,7 @@ def test_bos_kume_sifir_sifir():
 def test_hepsi_bos_havuzlu_olaylar_olusmus_sayilir_analize_girmez():
     """On-kayit §8 madde 1 (rev.13): "Analize giren olay sayisi sifir olan bir yapilandirma da
     raporlanir: olay sayilari sifir yazilir ... ve sifir sayilmaz." Iki sayi AYRIDIR."""
-    bos = _havuz(0)
-    sayilar = ornekleme.olay_sayilari([(bos, bos)] * 7)
+    sayilar = ornekleme.olay_sayilari(_ciftler([(0, 0)] * 7))
     assert sayilar.olusmus == 7 and sayilar.analize_giren == 0
 
 
@@ -104,14 +119,12 @@ def test_hepsi_bos_havuzlu_olaylar_olusmus_sayilir_analize_girmez():
 def test_esik_analize_giren_sayiya_uygulanir():
     """Rev.13'un karari: olusmus olay sayisi esigi gecse bile analize giren sayi gecmiyorsa
     yapilandirma aday DEGILDIR."""
-    bos, dolu = _havuz(0), _havuz(2)
-    ciftler = [(dolu, bos)] * 149 + [(bos, bos)] * 10
-    sayilar = ornekleme.olay_sayilari(ciftler)
+    sayilar = ornekleme.olay_sayilari(_ciftler([(2, 0)] * 149 + [(0, 0)] * 10))
     assert sayilar.olusmus == 159 and sayilar.analize_giren == 149
     assert not sayilar.esigi_gecer(config.ADAY_OLAY_ESIGI)       # 149 < 150
     assert sayilar.esigi_gecer(config.ONAY_OLAY_ESIGI)           # 149 >= 100
     # Sinir durumu: tam 150 analize giren olay esigi GECER (olcut ">=").
-    tam = ornekleme.olay_sayilari([(dolu, bos)] * 150 + [(bos, bos)] * 10)
+    tam = ornekleme.olay_sayilari(_ciftler([(2, 0)] * 150 + [(0, 0)] * 10))
     assert tam.esigi_gecer(config.ADAY_OLAY_ESIGI) and tam.olusmus == 160
 
 

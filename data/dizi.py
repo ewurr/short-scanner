@@ -157,6 +157,20 @@ def olay_dogrula(olay) -> None:
     # Gerekce: olayin "hangi pozisyona ait oldugu" kimliginin parcasidir; bozulmus fiyat ya da
     # funding tasiyan bir onay, on-kayit §4'teki tek karar noktasindan gecmis onay degildir.
     pozisyon_modulu.onay_dogrula(olay.pozisyon)
+    # Olayin alanlari TASIDIGI POZISYONLA tutarli olmali (madde 3b). `_olay_kur` ikisini birlikte
+    # kurar, ama `Olay` imzasi `zaman`/`capa` ile pozisyonun kendi alanlarini BAGIMSIZ karistirdigi
+    # icin, iki alani birlikte degistiren bir nesne (ya da `_olay_kur` yerine elle kurulmus bir
+    # imza) ic tutarsiz kalabiliyordu. Tuketiciler iki yoldan birini kullanir -- `k1_adaylari`
+    # `olay.zaman`a, `ornekle` pozisyonun sembolune bakar -- bu yuzden tutarlilik imzanin degil
+    # DOGRULAMANIN parcasidir.
+    if not pencere_modulu.ayni_an(olay.zaman, olay.pozisyon.plan.sinyal_zamani):
+        raise ValueError(f"olayin zamani {olay.zaman}, tasidigi pozisyonun sinyal zamani "
+                         f"{olay.pozisyon.plan.sinyal_zamani} (on-kayit §4 rev.12).")
+    capa, p_capa = olay.capa, olay.pozisyon.capa
+    if (capa is None) != (p_capa is None) or (
+            capa is not None and not pencere_modulu.ayni_an(capa, p_capa)):
+        raise ValueError(f"olayin capasi {capa}, tasidigi pozisyonun capasi {p_capa}. H1'de capa "
+                         "izlemenin ILK pump baridir (on-kayit §5 H1 madde 4).")
 
 
 @dataclass(frozen=True)
