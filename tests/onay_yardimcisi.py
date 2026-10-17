@@ -36,30 +36,35 @@ KILIT_YAPILANDIRMASI = {
 }
 
 
-def kilit_metni(hipotez: str, *, hukum: str = None, gerekce: str = "-", yapilandirma: str = None,
+def kilit_metni(hipotez: str, *, hukum: str = None, gerekce: str = None, yapilandirma: str = None,
                 parametreler: str = None, olusmus: int = 400, analize_giren: int = 380,
-                k2_farki: str = "0.0210", commit: str = "0" * 40,
-                zaman: str = "2026-10-20T12:00:00+00:00", tohum: int = None) -> str:
+                k2_farki: str = "0.0210", ortalama_net_getiri: str = "0.0120",
+                commit: str = "0" * 40, zaman: str = "2026-10-20T12:00:00+00:00",
+                tohum: int = None, atla=()) -> str:
     """On-kayit §8 madde 5'teki alanlari tasiyan bir KILIT.md metni (test fiksturu)."""
     import config
 
     # On-kayit disi bir ad (yalnizca `config.HIPOTEZLER`i monkeypatch'leyen belgeleme testi) icin
     # yer tutucu: kilit kaydinin VARLIGI sinaniyor, icerigi degil.
     varsayilan_y, varsayilan_p = KILIT_YAPILANDIRMASI.get(hipotez, (f"{hipotez}:test", "test"))
+    # Madde 4b-4c: `gerekce` yalnizca "kapandi" hukmunde zorunlu, `ortalama_net_getiri` yalnizca
+    # "secildi" hukmunde. Varsayilan metin ikisini de yazar; `atla=("alan", ...)` bir alani
+    # cikarir (eksik alan denetimlerini sinayan testler icin).
     satirlar = [
         ("hipotez", hipotez),
         ("hukum", split.KILIT_SECILDI if hukum is None else hukum),
-        ("gerekce", gerekce),
+        ("gerekce", "-" if gerekce is None else gerekce),
         ("yapilandirma", varsayilan_y if yapilandirma is None else yapilandirma),
         ("parametreler", varsayilan_p if parametreler is None else parametreler),
         ("olusmus_olay", str(olusmus)),
         ("analize_giren_olay", str(analize_giren)),
         ("k2_farki", k2_farki),
+        ("ortalama_net_getiri", ortalama_net_getiri),
         ("kesif_commit", commit),
         ("kesif_zamani", zaman),
         ("tohum", str(config.TOHUM if tohum is None else tohum)),
     ]
-    govde = "\n".join(f"| {ad} | {deger} |" for ad, deger in satirlar)
+    govde = "\n".join(f"| {ad} | {deger} |" for ad, deger in satirlar if ad not in atla)
     return (f"# KILIT.md — {hipotez} (F2'nin kilitledigi yapilandirma; test)\n\n"
             f"| Alan | Deger |\n|---|---|\n{govde}\n")
 

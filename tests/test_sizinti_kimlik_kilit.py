@@ -582,7 +582,6 @@ def _coz(**alanlar):
     return split.kilit_kaydi_coz(kilit_metni("H2", **alanlar), "H2")
 
 
-@acik("`float()` 'inf'/'1e999'u kabul eder; `not (inf > 0)` False oldugu icin sonsuz K2 farki 'pozitif' sayilir.")
 @pytest.mark.parametrize("deger", ["inf", "+inf", "Infinity", "1e999"])
 def test_kilit_k2_farki_sonsuz_olamaz(deger):
     """§8 madde 4: 'K2 farki > 0' sonlu bir olcumdur; sonsuz deger olculmus fark degildir."""
@@ -593,7 +592,6 @@ def test_kilit_k2_farki_sonsuz_olamaz(deger):
     _acik(f"k2_farki={deger!r} kabul edildi")
 
 
-@acik("ortalama_net_getiri icin de ayni: sonsuz deger 'pozitif' sayiliyor.")
 def test_kilit_ortalama_net_getiri_sonsuz_olamaz():
     metin = kilit_metni("H2") + "| ortalama_net_getiri | inf |\n"
     try:
@@ -631,8 +629,6 @@ def test_kilit_esik_analize_giren_olaya_uygulanir_olusmusa_degil():
     assert _coz(olusmus=400, analize_giren=config.ADAY_OLAY_ESIGI).analize_giren_olay == config.ADAY_OLAY_ESIGI
 
 
-@acik("`_tam` regex'i `\\d` Unicode rakamlarini da eslestirir ve `int()` onlari cevirir: tam genislikli "
-      "'１５０' ya da tohum '２０２６０９１１' kabul edilir.")
 @pytest.mark.parametrize("alan,deger", [("analize_giren", "１５０"), ("tohum", "２０２６０９１１"),
                                         ("olusmus", "４００")])
 def test_kilit_sayilar_yalniz_ascii_rakam_olmali(alan, deger):
@@ -658,12 +654,13 @@ def test_kilit_butun_izgara_kimlikleri_gecer():
     for hipotez in config.HIPOTEZLER:
         for y in sinyal.izgara(hipotez):
             kimlik = sinyal.yapilandirma_kimligi(hipotez, y)
-            kayit = split.kilit_kaydi_coz(kilit_metni(hipotez, yapilandirma=kimlik), hipotez)
+            # Madde 4b: `parametreler` kimlikle AYNI demeti gostermeli.
+            parametreler = " ".join(p.strip() for p in kimlik.split(":", 1)[1].split(","))
+            kayit = split.kilit_kaydi_coz(
+                kilit_metni(hipotez, yapilandirma=kimlik, parametreler=parametreler), hipotez)
             assert kayit.yapilandirma == kimlik
 
 
-@acik("`parametreler` alani yapilandirma kimligiyle tutarlilik acisindan hic denetlenmiyor: kimlik phi=0.0003,k=3 "
-      "iken parametreler 'phi=0.0010 k=12' yazilabiliyor.")
 def test_kilit_parametreler_kimlikle_tutarli_olmali():
     """§8 madde 5: 'yapilandirmanin kimligi ve BUTUN PARAMETRE DEGERLERI' ayni yapilandirmayi anlatmali."""
     try:
@@ -736,6 +733,7 @@ def _h2_kilitli_depo(tmp_path):
     yol = kilit_yaz(depo, "H2")
     git(depo, "add", ".")
     git(depo, "commit", "-q", "-m", "H2 kaydi")
+    git(depo, "push", "-q", "origin", "main")   # madde 4a: kayit itilmis olmali
     split.kilit_oku("H2")                       # kontrol: tek blob gecerli
     return depo, yol
 
@@ -810,9 +808,6 @@ def test_ekleme_kurali_silinmis_dalda_degistirilen_kayit_reflogdan_yakalanir(tmp
         split.kilit_oku("H2")
 
 
-@acik("`_kilit_gecmisini_denetle` `rev-list --all --reflog --objects -- yol` kullanir ama `--full-history` YOK "
-      "(docstring 'butun referanslar ve reflog (`--all --reflog --full-history`)' diyor). Varsayilan gecmis "
-      "sadelestirmesi, 'ours' birlesmesiyle atilan yan dali (reflog suresi dolunca) listelemez.")
 def test_ekleme_kurali_ours_birlesmesiyle_atilan_yan_dal_reflog_temizlenince_gorunmez(tmp_path):
     depo, yol = _h2_kilitli_depo(tmp_path)
     git(depo, "checkout", "-q", "-b", "gecici")

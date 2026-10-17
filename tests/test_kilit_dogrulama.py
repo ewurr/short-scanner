@@ -44,6 +44,11 @@ def _coz(**alanlar):
     return split.kilit_kaydi_coz(kilit_metni("H2", **alanlar), "H2")
 
 
+def _parametreler(kimlik: str) -> str:
+    """Kimlikten (`H2:phi=0.0003,k=3`) `parametreler` alaninin metni (madde 4b: ikisi ayni demet)."""
+    return " ".join(parca.strip() for parca in kimlik.split(":", 1)[1].split(","))
+
+
 # --- 2a. §8 madde 4: K2 farki > 0 --------------------------------------------------------------
 
 
@@ -83,26 +88,45 @@ def test_k2_farki_sifir_olan_kayitla_kosu_acilmaz(bos_kilit, tmp_path):
 
 @pytest.mark.parametrize("deger", ["0.0000", "-0.0100", "0", "-0.5"])
 def test_ortalama_net_getiri_varsa_pozitif_olmali(deger):
-    metin = kilit_metni("H2") + f"| ortalama_net_getiri | {deger} |\n"
     with pytest.raises(split.KilitBozuk, match="ortalama net getiri > 0"):
-        split.kilit_kaydi_coz(metin, "H2")
+        _coz(ortalama_net_getiri=deger)
 
 
 def test_pozitif_ortalama_net_getiri_gecer():
-    metin = kilit_metni("H2") + "| ortalama_net_getiri | 0.0123 |\n"
-    kayit = split.kilit_kaydi_coz(metin, "H2")
-    assert kayit.secildi
+    assert _coz(ortalama_net_getiri="0.0123").secildi
 
 
-def test_ortalama_net_getiri_zorunlu_degil():
-    """On-kayit §8 madde 5'in alan listesinde yok: alan ZORUNLU kilinmaz, varsa denetlenir."""
+def test_ortalama_net_getiri_secildi_hukmunde_zorunlu():
+    """Madde 4b (bulgu K-C7): alan on-kayit §8 madde 5'in LISTESINDE yok, ama madde 4 secimin
+    kosullarindan birini ona baglar ("ortalama net getiri > 0"). Alan yazilmazsa o kosul kod
+    duzeyinde HIC denetlenemez, bu yuzden "secildi" hukmunde zorunludur; "kapandi" hukmunde degil.
+
+    Turun ilk halinde alan tamamen istege bagliydi ve bu, §8 madde 4'un ikinci kosulunun
+    denetimsiz kalmasi demekti."""
     assert "ortalama_net_getiri" not in split.KILIT_ALANLARI
-    assert "ortalama_net_getiri" in split.KILIT_ISTEGE_BAGLI_ALANLAR
-    assert _coz().secildi, "alansiz kayit gecerli"
+    assert "ortalama_net_getiri" in split.KILIT_SECIM_ZORUNLU_ALANLAR
+    with pytest.raises(split.KilitBozuk, match="ortalama_net_getiri"):
+        _coz(atla=("ortalama_net_getiri",))
+    kapandi = split.kilit_kaydi_coz(
+        kilit_metni("H2", atla=("ortalama_net_getiri",), **KAPANDI_ALANLARI), "H2")
+    assert kapandi.secildi is False
+
+
+def test_gerekce_secildi_hukmunde_zorunlu_degil():
+    """Madde 4c (bulgu K-C1): on-kayit §8 madde 5 alani "hukum ... VE KAPANDIYSA gerekcesi" diye
+    sayar; kod onu her hukumde zorunlu tutuyordu.
+
+    Dosya hem hook ile kilitli hem ekleme kurallı oldugu icin, on-kaydin harfine uyup "secildi"
+    hukmunde gerekce yazmayan bir kayit KURTARILAMAZ duruma dusuyordu."""
+    assert "gerekce" not in split.KILIT_ALANLARI
+    assert "gerekce" in split.KILIT_ISTEGE_BAGLI_ALANLAR
+    assert _coz(atla=("gerekce",)).secildi, "gerekcesiz secim kaydi gecerli olmali"
+    with pytest.raises(split.KilitBozuk, match="gerekce"):
+        split.kilit_kaydi_coz(kilit_metni("H2", atla=("gerekce",), **KAPANDI_ALANLARI), "H2")
 
 
 def test_kapandi_hukmunde_ortalama_net_getiri_de_aranmaz():
-    metin = kilit_metni("H2", **KAPANDI_ALANLARI) + "| ortalama_net_getiri | -0.3 |\n"
+    metin = kilit_metni("H2", ortalama_net_getiri="-0.3", **KAPANDI_ALANLARI)
     assert split.kilit_kaydi_coz(metin, "H2").secildi is False
 
 
@@ -185,7 +209,8 @@ def test_izgaradaki_kimlik_gecer(kimlik):
 
     gecerliler = [sinyal.yapilandirma_kimligi("H2", y) for y in sinyal.izgara("H2")]
     assert kimlik in gecerliler, "test kurulumu: kimlik gercekten izgarada"
-    assert _coz(yapilandirma=kimlik).yapilandirma == kimlik
+    # Madde 4b: `parametreler` kimlikle AYNI demeti gostermeli.
+    assert _coz(yapilandirma=kimlik, parametreler=_parametreler(kimlik)).yapilandirma == kimlik
 
 
 def test_butun_izgara_kimlikleri_kabul_edilir():
@@ -193,7 +218,7 @@ def test_butun_izgara_kimlikleri_kabul_edilir():
 
     for y in sinyal.izgara("H2"):
         kimlik = sinyal.yapilandirma_kimligi("H2", y)
-        assert _coz(yapilandirma=kimlik).secildi
+        assert _coz(yapilandirma=kimlik, parametreler=_parametreler(kimlik)).secildi
 
 
 def test_baska_hipotezin_izgara_kimligi_reddedilir():
@@ -222,6 +247,7 @@ def test_gecmiste_degistirilmis_kayit_reddedilir(tmp_path):
     kilit_yaz(depo, "H2")
     git(depo, "add", ".")
     git(depo, "commit", "-q", "-m", "H2 kaydi")
+    git(depo, "push", "-q", "origin", "main")           # madde 4a: kayit ITILMIS olmali
     split.kilit_oku("H2")                               # tek commit: gecerli
 
     kilit_yaz(depo, "H2", yapilandirma="H2:phi=0.0005,k=6", parametreler="phi=0.0005 k=6")
@@ -255,9 +281,11 @@ def test_tek_committe_eklenen_kayit_gecerli(tmp_path):
     kilit_yaz(depo, "H2")
     git(depo, "add", ".")
     git(depo, "commit", "-q", "-m", "H2 kaydi")
+    git(depo, "push", "-q", "origin", "main")           # madde 4a: kayit ITILMIS olmali
     kayit = split.kilit_oku("H2")
     assert kayit.secildi and kayit.hipotez == "H2"
-    # Baska dosyalari degistiren commit'ler kaydi etkilemez.
+    # Baska dosyalari degistiren commit'ler kaydi etkilemez (itilmemis olsalar bile: olcut KAYDIN
+    # icerigidir).
     (depo / "analysis" / "baska.txt").write_text("x\n", encoding="utf-8")
     git(depo, "add", ".")
     git(depo, "commit", "-q", "-m", "ilgisiz degisiklik")
@@ -279,6 +307,7 @@ def test_ayni_icerikle_yeniden_eklenen_kayit_gecerli(tmp_path):
     yol.write_text(metin, encoding="utf-8", newline="")
     git(depo, "add", "-A")
     git(depo, "commit", "-q", "-m", "ayni kayit geri")
+    git(depo, "push", "-q", "origin", "main")           # madde 4a: kayit ITILMIS olmali
     assert split.kilit_oku("H2").secildi
 
 

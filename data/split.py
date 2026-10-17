@@ -39,6 +39,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import os
+import math
 import re
 import subprocess
 import sys
@@ -328,14 +329,21 @@ KILIT_HUKUMLERI = (KILIT_SECILDI, KILIT_KAPANDI)
 # On-kayit §8 madde 5: "Dosya su alanlari tasir: hipotez; hukum ... ve kapandiysa gerekcesi;
 # secildiyse yapilandirmanin kimligi ve butun parametre degerleri; analize giren ve olusmus olay
 # sayilari; K2 farki; kesif kosusunun commit hash'i ve UTC zamani; tohum."
-KILIT_ALANLARI = ("hipotez", "hukum", "gerekce", "yapilandirma", "parametreler", "olusmus_olay",
+KILIT_ALANLARI = ("hipotez", "hukum", "yapilandirma", "parametreler", "olusmus_olay",
                   "analize_giren_olay", "k2_farki", "kesif_commit", "kesif_zamani", "tohum")
 # Hukum "hipotez kapandi" iken yapilandirmaya ait alanlar bos olabilir ("-").
 KILIT_SECIM_ALANLARI = ("yapilandirma", "parametreler", "k2_farki")
-# On-kayit §8 madde 5'in alan listesinde ORTALAMA NET GETIRI yoktur, ama §8 madde 4 secimin
-# kosullarindan biri olarak onu da sayar ("K2 farki > 0" ve "ortalama net getiri > 0"). Alan
-# ZORUNLU kilinmaz (on-kayitin listesi genisletilmez); kayitta varsa denetlenir.
-KILIT_ISTEGE_BAGLI_ALANLAR = ("ortalama_net_getiri",)
+# `gerekce` yalnizca "hipotez kapandi" hukmunde ZORUNLUDUR (madde 4c; bulgu K-C1). On-kayit §8
+# madde 5 alani "hukum ... VE KAPANDIYSA gerekcesi" diye sayar; kod onu her hukumde zorunlu
+# tutuyordu. Dosya hem hook ile kilitli hem ekleme kurallı oldugu icin, on-kaydin harfine uyup
+# "secildi" hukmunde gerekce yazmayan bir kayit KURTARILAMAZ duruma dusuyordu: duzeltmenin tek
+# yolu ya kilidi acip dosyayi degistirmek ya da ekleme kuralini bozan ikinci bir commit yazmakti.
+# `ortalama_net_getiri` ise "secildi" hukmunde ZORUNLUDUR (madde 4b): §8 madde 4 secimin iki
+# kosulundan birini ona baglar ("ortalama net getiri > 0") ve alan yazilmazsa o kosul kod
+# duzeyinde HIC denetlenemez.
+KILIT_ISTEGE_BAGLI_ALANLAR = ("gerekce", "ortalama_net_getiri")
+KILIT_KAPANIS_ALANLARI = ("gerekce",)
+KILIT_SECIM_ZORUNLU_ALANLAR = ("ortalama_net_getiri",)
 
 
 @dataclass(frozen=True)
@@ -391,6 +399,46 @@ def _kilit_yapilandirmasi_dogrula(kimlik: str, hipotez: str) -> str:
             f"Gecerli kimlikler: {gecerliler}. Izgara disi bir kimlik, kosu acildiktan sonra her "
             "pozisyonu reddeder ve onay cifti bos yere yanar (on-kayit §8 madde 5, §9).")
     return kimlik
+
+
+def _kilit_parametrelerini_dogrula(deger: str, kimlik: str, hipotez: str) -> dict[str, float]:
+    """Kayittaki `parametreler` alani, `yapilandirma` KIMLIGIYLE ayni demeti gostermeli (madde 4b).
+
+    On-kayit §8 madde 5: "secildiyse yapilandirmanin kimligi VE BUTUN PARAMETRE DEGERLERI". Alan
+    onceden yalnizca "bos degil" diye denetleniyordu (bulgu K-C7): kod kimligi kullandigi icin
+    kosu dogru koşardı, ama KALICI KAYIT kimlikle celisen parametreler gosterebilirdi -- yani
+    rapor yanlis olurdu ve dosya ekleme kuralina tabi oldugu icin duzeltilemezdi.
+
+    Bicim: `ad=deger` ciftleri, bosluk, virgul ya da noktali virgulle ayrilmis. Karsilastirma
+    SAYISALDIR ("0.0003" ile "0.00030" ayni), ad kumesi tam eslesmeli.
+    """
+    ciftler = [p for p in re.split(r"[\s,;]+", str(deger).strip()) if p]
+    if not ciftler:
+        raise KilitBozuk(f"{hipotez} KILIT.md: `parametreler` bos olamaz (on-kayit §8 madde 5).")
+    okunan: dict[str, float] = {}
+    for cift in ciftler:
+        if "=" not in cift:
+            raise KilitBozuk(f"{hipotez} KILIT.md: `parametreler` `ad=deger` ciftlerinden olusmali; "
+                             f"okunamayan parca {cift!r} (on-kayit §8 madde 5).")
+        ad, ham = cift.split("=", 1)
+        ad = ad.strip().lower()
+        if ad in okunan:
+            raise KilitBozuk(f"{hipotez} KILIT.md: `parametreler` alaninda `{ad}` iki kez yazilmis.")
+        if not re.fullmatch(r"[+-]?\d+(\.\d+)?", ham.strip().replace(",", "."), re.ASCII):
+            raise KilitBozuk(f"{hipotez} KILIT.md: `parametreler` icindeki `{ad}` duz ondalik bir sayi "
+                             f"olmali; verilen {ham!r}.")
+        okunan[ad] = float(ham.strip().replace(",", "."))
+    # Kimlik: `H2:phi=0.0003,k=3`
+    beklenen = {}
+    for parca in kimlik.split(":", 1)[1].split(","):
+        ad, ham = parca.split("=", 1)
+        beklenen[ad.strip().lower()] = float(ham)
+    if set(okunan) != set(beklenen) or any(okunan[a] != beklenen[a] for a in beklenen):
+        raise KilitBozuk(
+            f"{hipotez} KILIT.md: `parametreler` ({okunan}) `yapilandirma` kimligiyle ({kimlik}) ayni "
+            "demeti gostermiyor. On-kayit §8 madde 5 ikisini birlikte ister; kalici kayit kimlikle "
+            "celisen parametre degerleri gosteremez (madde 4b).")
+    return okunan
 
 
 def _kilit_commiti_dogrula(deger: str, hipotez: str) -> str:
@@ -467,7 +515,9 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
         okunuyordu ve isaret hic denetlenmiyordu ("-5" -> -5 kabul ediliyordu).
         """
         ham = str(alanlar[ad]).strip()
-        if not re.fullmatch(r"\d{1,3}(\.\d{3})+|\d+", ham):
+        # `re.ASCII` (madde 4b): Python'da `\d` Unicode rakamlarini da eslestirir, bu yuzden tam
+        # genislikli "１５０" ya da baska bir yazi sisteminin rakami sessizce sayi olarak okunuyordu.
+        if not re.fullmatch(r"\d{1,3}(\.\d{3})+|\d+", ham, re.ASCII):
             raise KilitBozuk(
                 f"{hipotez} KILIT.md: `{ad}` negatif olmayan bir tamsayi olmali (binlik ayirici nokta "
                 f"olabilir: '1.500'); verilen {alanlar[ad]!r}. Ondalikli, isaretli ya da sayi olmayan "
@@ -475,22 +525,45 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
         return int(ham.replace(".", ""))
 
     def _ondalik(ad: str) -> float | None:
+        """Oran alanlari: isaretli DUZ ondalik sayi (madde 4b).
+
+        `float()` tek basina `inf`, `Infinity`, `nan` ve `1e999` (= inf) degerlerini kabul
+        ediyordu; `inf` K2 farki madde 4 denetimini ("> 0") sessizce geciyordu. Bicim bu yuzden
+        regexle sinirlanir: ASCII rakamlar, tek bir ondalik ayirici (`.` ya da `,`), ustel gosterim
+        YOK.
+        """
         if not secildi:
             return None
-        try:
-            return float(str(alanlar[ad]).replace(",", ".").strip())
-        except ValueError:
-            raise KilitBozuk(f"{hipotez} KILIT.md: `{ad}` bir sayi olmali; verilen {alanlar[ad]!r}.") from None
+        ham = str(alanlar[ad]).strip().replace(",", ".")
+        if not re.fullmatch(r"[+-]?\d+(\.\d+)?", ham, re.ASCII):
+            raise KilitBozuk(f"{hipotez} KILIT.md: `{ad}` duz ondalik bir sayi olmali (ör. '0.0123' ya da "
+                             f"'-0.5'); verilen {alanlar[ad]!r}. Ustel gosterim, 'inf'/'nan' ve Unicode "
+                             "rakamlar kabul edilmez (on-kayit §8 madde 4-5).")
+        deger = float(ham)
+        if not math.isfinite(deger):
+            raise KilitBozuk(f"{hipotez} KILIT.md: `{ad}` sonlu bir sayi olmali; verilen {alanlar[ad]!r}.")
+        return deger
 
     if secildi:
         bos = [a for a in KILIT_SECIM_ALANLARI if not alanlar[a].strip() or alanlar[a].strip() in ("-", "—")]
         if bos:
             raise KilitBozuk(f"{hipotez} KILIT.md: hukum '{KILIT_SECILDI}' iken {bos} alan(lari) bos olamaz "
                              "(on-kayit §8 madde 5).")
-        _kilit_yapilandirmasi_dogrula(alanlar["yapilandirma"].strip(), hipotez)
-    elif not alanlar["gerekce"].strip() or alanlar["gerekce"].strip() in ("-", "—"):
-        raise KilitBozuk(f"{hipotez} KILIT.md: hukum '{KILIT_KAPANDI}' iken gerekce yazilmali "
-                         "(on-kayit §8 madde 4: 'kapanma gerekcesi').")
+        kimlik = _kilit_yapilandirmasi_dogrula(alanlar["yapilandirma"].strip(), hipotez)
+        eksik_secim = [a for a in KILIT_SECIM_ZORUNLU_ALANLAR if a not in alanlar]
+        if eksik_secim:
+            raise KilitBozuk(
+                f"{hipotez} KILIT.md: hukum '{KILIT_SECILDI}' iken {eksik_secim} alan(lari) yazilmali: "
+                "on-kayit §8 madde 4 secimin kosullarindan birini ortalama net getiriye baglar ve alan "
+                "yazilmazsa o kosul kod duzeyinde denetlenemez (madde 4b).")
+        _kilit_parametrelerini_dogrula(alanlar["parametreler"], kimlik, hipotez)
+    else:
+        if "gerekce" not in alanlar:
+            raise KilitBozuk(f"{hipotez} KILIT.md: hukum '{KILIT_KAPANDI}' iken `gerekce` alani bulunmali "
+                             "(on-kayit §8 madde 5: 'kapandiysa gerekcesi').")
+        if not alanlar["gerekce"].strip() or alanlar["gerekce"].strip() in ("-", "—"):
+            raise KilitBozuk(f"{hipotez} KILIT.md: hukum '{KILIT_KAPANDI}' iken gerekce yazilmali "
+                             "(on-kayit §8 madde 4: 'kapanma gerekcesi').")
     if secildi:
         # On-kayit §8 madde 4: "Bir yapilandirma secilmisse, o yapilandirma icin su iki kosul
         # kesifte saglanmiyorsa hipotez ONAYA GONDERILMEDEN kapanir (onay verisi harcanmaz):
@@ -525,7 +598,7 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
     if _tam("analize_giren_olay") > _tam("olusmus_olay"):
         raise KilitBozuk(f"{hipotez} KILIT.md: analize giren olay sayisi olusmus olay sayisini asamaz "
                          "(on-kayit §8 madde 2).")
-    return KilitKaydi(hipotez=hipotez, hukum=alanlar["hukum"], gerekce=alanlar["gerekce"],
+    return KilitKaydi(hipotez=hipotez, hukum=alanlar["hukum"], gerekce=alanlar.get("gerekce", ""),
                       yapilandirma=alanlar["yapilandirma"], parametreler=alanlar["parametreler"],
                       olusmus_olay=_tam("olusmus_olay"), analize_giren_olay=_tam("analize_giren_olay"),
                       k2_farki=_ondalik("k2_farki"), kesif_commit=alanlar["kesif_commit"],
@@ -555,21 +628,53 @@ def _kilit_gecmisini_denetle(goreli: str, hipotez: str) -> None:
     commit'ler de gorunur. Dosyayi DEGISTIREN her commit bir ihlaldir; yalnizca eklendigi tek
     commit bulunmalidir.
     """
-    cikti = _git("rev-list", "--all", "--reflog", "--objects", "--", goreli)
-    if cikti is None:
-        raise OnayOrtamiHatasi(f"{goreli} denetlenemedi: git gecmisi okunamadi.")
-    # `rev-list --objects` her nesneyi "<oid> <yol>" satiriyla listeler; yoldaki BLOB kimlikleri
-    # dosyanin gecmisteki ICERIKLERIDIR. Olcut commit SAYISI degil, farkli icerik sayisidir:
-    # `git stash` gibi islemler butun agacin anlik goruntusunu commit'ler ve dosyanin icerigi
-    # degismese de yeni bir commit uretir; ayni blob tekrar gorundugunde ihlal yoktur.
-    bloblar = {satir.split()[0] for satir in cikti.splitlines()
-               if satir.strip().endswith(goreli) and satir.split()}
+    bloblar = _kilit_bloblari("--all", "--reflog", goreli=goreli)
     if len(bloblar) != 1:
         raise KilitBozuk(
             f"{hipotez} KILIT.md git gecmisinde {len(bloblar)} farkli icerikle bulunuyor "
             f"({sorted(bloblar)[:5]}{'...' if len(bloblar) > 5 else ''}). Dosya yalnizca EKLEME "
             "kuralina tabidir: bir hipotezin kaydi yazildiktan sonra degistirilmez (on-kayit §8 "
             "madde 5).")
+    # UZAK DEPO SIMETRISI (madde 4a; bulgu K-C3 ve sizinti 4). Yerel gecmis ve reflog sahibi
+    # tarafindan yeniden yazilabilir: `reset --hard` + `reflog expire --expire=now --all` eski
+    # blob'u yok ettiginde DEGISTIRILMIS bir kayit yine "tek blob" gorunur. `ONAY_KAYDI` ayni
+    # riski `origin/main` gecmisine bakarak kapatir (CLAUDE.md §3.3 tek atis denetimi); kilit
+    # kaydi da onay kosusundan once commit edilip itilmis olmali, bu yuzden ayni denetim burada
+    # da uygulanir. Uzak depoda hic gorunmeyen bir kayit itilmemis demektir.
+    if not _sahte_git():
+        # Uzak izleme referansi yoksa ya da eskiyse once alinir (`ONAY_KAYDI` ile ayni yol).
+        if _git("rev-parse", "--verify", "--quiet", _UZAK_REF) is None:
+            _uzagi_getir()
+        uzak_bloblar = _kilit_bloblari(_UZAK_REF, goreli=goreli)
+        if not uzak_bloblar:
+            raise KilitYok(
+                f"{hipotez} KILIT.md {UZAK_DEPO}/{UZAK_DAL} gecmisinde yok: secim onay kosusundan once "
+                "commit edilip ITILMIS olmali (on-kayit §8 madde 5; CLAUDE.md §3.3 ile ayni olcut).")
+        if uzak_bloblar != bloblar:
+            raise KilitBozuk(
+                f"{hipotez} KILIT.md yerel gecmiste {sorted(bloblar)} iceriklerini, "
+                f"{UZAK_DEPO}/{UZAK_DAL} gecmisinde {sorted(uzak_bloblar)} iceriklerini tasiyor. Kayit "
+                "yazildiktan sonra degistirilmez (on-kayit §8 madde 5); yerel gecmis yeniden "
+                "yazilmis olabilir.")
+
+
+def _kilit_bloblari(*refler: str, goreli: str) -> set[str]:
+    """Verilen referanslarin gecmisinde `goreli` yolunun BLOB kimlikleri (icerikleri).
+
+    Olcut commit SAYISI degil, farkli ICERIK sayisidir: `git stash` gibi islemler butun agacin
+    anlik goruntusunu commit'ler ve dosyanin icerigi degismese de yeni commit uretir; ayni blob
+    tekrar gorundugunde ihlal yoktur.
+
+    `--full-history` (madde 4a; sizinti 4): bu bayrak olmadan `rev-list` yol budamasi yapar ve
+    birlestirmelerin TEK ebeveynini izler, yani yan dalda degistirilip `merge -s ours` ile
+    birlestirilen bir icerik GORUNMEZ. `ONAY_KAYDI` tarafinda (`_uzak_gecmis_kaydi`) bayrak
+    bastan beri vardi; burada belgede yaziliyken komutta yoktu.
+    """
+    cikti = _git("rev-list", *refler, "--full-history", "--objects", "--", goreli)
+    if cikti is None:
+        raise OnayOrtamiHatasi(f"{goreli} denetlenemedi: git gecmisi okunamadi ({' '.join(refler)}).")
+    return {satir.split()[0] for satir in cikti.splitlines()
+            if satir.strip().endswith(goreli) and satir.split()}
 
 
 def kilit_oku(hipotez: str) -> KilitKaydi:
