@@ -3451,6 +3451,37 @@ kural icat etmez (`sinyal._pozitif` ile aynı tutum, Rev.9 D-C5) — bu yüzden 
 gerekmedi. "Ölçülmüş sıfır etki muafiyet değildir" (§14.13). Yan etki: P0 ≤ 0 ile MAE'nin
 (`max(H, P1) / P0 - 1`) sıfıra bölmesi de kapandı.
 
+**Temiz koşu ve kapanış denetimi (madde 8).** `9a1c99e` commit'inde, temiz çalışma ağacında tam
+denetim (`calistir.py --eski-evren`, 678 sembol, hatalı 0) ve `a1_olcumu.py` yeniden koşuldu;
+farklar `karsilastir.py --onceki 9a1c99e` ile listelendi (`karsilastirma_koruma_tam.csv`):
+**80 dosya AYNI, 2 dosya farklı** — `ortam_tam.csv` ve `a1_ortam_tam.csv`, yalnızca `surum`
+sütununda (commit hash'i, koşu zamanları ve çalışma ağacı satırı). Denetim özeti değişmedi: toplam
+4h bar 3.692.573, dönem içi 3.378.942, dolgu 313.626 (156 koşu), kısa sıfır koşusu 0, dönem
+tutarsızlığı 0, funding'siz dönem 3, sıçrama 10, boşluk 105 (10 olay), 60 günden kısa dönem 5.
+Yani bu turun kod değişiklikleri — bar düzeyli ölçütün dönem sınırlarına uygulanması dahil — F1'in
+denetim sayılarının hiçbirini değiştirmedi.
+
+**Kapanış denetiminin bulduğu kendi gerilemelerimiz (düzeltildi).** Metodoloji denetçisi madde 1a'nın
+üç yan etkisini buldu; üçü de bu turda kapatıldı, çünkü hepsi bu turun kendi getirdiği
+gerilemelerdi:
+
+| Bulgu | Neydi | Kapanış |
+|---|---|---|
+| **P-B1 (ağır)** | Eşleştirici `.*` olduğu için **okuma** araçları da hook'a uğruyor ve yol dalı aracın yazıp yazmadığına bakmadığı için `Read`/`Grep` de reddediliyordu. Denetçi bu koşuda **ön-kayıt metnini okuyamadı** ve "ön-kayıttan sapma" başlığını hiç denetleyemedi — oysa CLAUDE.md §5 o denetimi zorunlu kılar ve aynı §5 hook'un görevini "**yazma ve düzenleme** araç çağrılarını reddeder" diye tanımlar | `OKUMA_ARACLARI`: yol dalında muafiyet. Beyaz liste değil — tanınmayan araç yol taşıyorsa yine denetlenir, komut taşıyan her araç (okuma aracı dahil) yine denetlenir |
+| P-C4 | Yalnızca **ilk** komut alanı denetleniyordu; ikinci alandaki yazma geçiyordu. Liste biçimli komut (`argv`) hiç denetlenmiyordu | Bütün komut alanları sırayla; liste parçaları `shlex.quote` ile birleştirilir |
+| P-C5 | Yol döngüsü ilk **bulunan** alanda duruyordu; zararsız bir `path`, aynı girdideki kilitli `filePath`'in denetlenmesini engelliyordu | Döngü ilk **kilitli** alanda durur |
+| P-C2 | Madde 6 ölçütü dönem sınırlarına uyguladı ama `donem_sonu_turleri` içindeki dolgu koşusu araması **maskesiz** kalmıştı: aynı koşu, evren tablosunu kuran yolda dönemi bölerken denetim raporunda "uzun_bosluk" görünebilirdi | Maske iki çağrı yerinden de verilir (`calistir.py`, `a1_olcumu.py`) |
+
+**Kapanış denetiminin düzeltilmeyen bulguları.** Dökümü `prompts/rapor_koruma.md`'de; en önemlisi
+**P-B2**: `ornekle` K1/K2 **eleme adımının yapıldığını** doğrulayamıyor. `Adaylar` "elendi" bilgisini
+taşımadığı için F2 `adaylari_kur` çıktısını doğrudan `ornekle`ye verirse (yani `k1_adaylari` /
+`k2_adaylari` çağrısını atlarsa) olayın 1…17 bar yakınındaki barlar K1 havuzuna, o barda olay üreten
+coinler K2 havuzuna girer; veri katmanı hata vermez ve **ölçülen fark hipotez lehine kayar**. Bugünkü
+tek savunma, `ornekle`nin "olayın kendi barı / kendi coini" denetimidir. F2'nin ilk satırından önce
+karara bağlanmalıdır. Ayrıca P-C1 (dönem kuralının iki ayrı mekanizmada durması), P-C3
+(`olay_dizisi`in `zamanlar` argümanını dönem/küme sınırlarına göre doğrulamaması) ve sızıntı
+testçisinin 33 işaretli açığı (`tests/test_sizinti_koruma.py`, 74 `xfail(strict)`) raporda yazılıdır.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
