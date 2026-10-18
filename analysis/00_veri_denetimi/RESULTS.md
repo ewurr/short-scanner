@@ -3207,6 +3207,12 @@ burada yalnızca anılır.
 | 6 | **Aday yoksa hipotez onaya gönderilmeden kapanır:** dokuz yapılandırma madde 1'e göre raporlanır, kapanma gerekçesi "aday yok" yazılır. Bir yapılandırma seçilmişse K2 farkı > 0 ve ortalama net getiri > 0 koşulları keşifte sağlanmıyorsa hipotez yine kapanır; onay verisi harcanmaz. Seçim/kapanma `analysis/<hipotez>/KILIT.md` ile commit edilir. | §8 madde 3–5 | `split.kilit_oku`, `split.kilit_kaydi_coz`, `split.KILIT_ALANLARI`, `split.HipotezKapandi`: onay koşusu kaydı olmayan ya da hükmü "hipotez kapandı" olan hipotez için **açılmaz** |
 | 7 | **Sağlamlık kontrolünün uygulanması.** Net getirisi kısmi kuyruk ve pencere sonu eşitliği nedeniyle tam doğrulanamayan olayların payı **funding ritmi başına** raporlanır; ana sonuçlar bu olaylar dışlanarak yeniden hesaplanır. Dışlama **kontrol tarafına da** uygulanır (rev.13): kalan olayların havuzlarından aynı nedenlerle doğrulanamayan kontroller de çıkarılır ve **havuzu boşalan olay analize girmez**. Kalan olay ve kontrol sayıları raporlanır; sağlamlık kontrolü ana testin yerini almaz. | §4 "F2 şartı" (rev.9, rev.13) | `funding.funding_tamlik_ayrintisi` (`kuyruk_kismi`, `son_esitlik_affi` sütunları), `pozisyon` ritim sınıflaması, `ornekleme.olay_analize_girer` (tek yüklem: havuzu boşalan olay analize girmez) |
 | 8 | **İkincil ufuklar yalnızca seçilen yapılandırma için** hesaplanır (rev.13): ızgara raporu ve seçim **birincil** ufka dayanır; ikincil ufuklar seçim yapıldıktan sonra, olaylar **ve** kontrolleri için birlikte hesaplanır. İkincil ufuklar yalnızca raporlanır; onay kararları birincil ufka göre verilir. | §4 "Ufuk değerlerinin bağlanması" | `config.BIRINCIL_UFUK` / `config.IKINCIL_UFUKLAR` (tek kaynak); `pozisyon.olay_karari` serbest ufuk kabul etmez ve ikincil ufukta aynı kapıdan geçer |
+| 9 | **Net getiri hesabı F2'de ilk kez bağlanır:** net = brüt + funding − gidiş-dönüş maliyeti. Maliyet sabitleri `config`ten okunur, elle yazılmaz. | §4 (maliyet), CLAUDE.md §3.7 | `config.TEK_YON_MALIYET` / `config.GIDIS_DONUS_MALIYET` tanımlı ama **hiçbir yerde okunmuyor** — getiri kodu yazılmadı (denetçi bulgusu, "ön-kayıtta var kodda yok") |
+| 10 | **Sembol kimliği evren tablosundan gelir; serbest metin kullanılmaz.** Olayın ve kontrollerin sembolü `data/universe.csv` yazımıyla taşınır (örnekleme karşılaştırmaları büyük/küçük harf duyarlıdır). | §3 "Coin bölmesi", §6 K2 | Kapı sembolü evren tablosundan okur, bu yüzden bugünkü üretim yolunda farklı yazım oluşamaz; `ornekleme._olayin_kimligi`'nin `p.sembol in adaylar.ogeler` denetimi harf duyarlıdır (sızıntı bulgusu, erişilebilirliği F2 akışına bağlı) |
+| 11 | **Fiyat tabanı yükleyiciden alınır; elle çerçeve kurulmaz.** F2 akışı 4h serisini `klines`/kapı yolundan geçirir; kendi `DataFrame`ini kurup kapıya vermez. | §4 rev.8 "Fiyat okuma tabanı" | Üretim çerçevesi her zaman `close_time` taşır; `pozisyon._mum_zamanlari`'nın "ardışıklık yalnızca `close_time` yokken" sınırı (madde 7, K-C8) yalnızca elle kurulan çerçevede anlam taşır |
+| 12 | **α eşiği F2/F3 kodunda bağlanırken hangi yazımın kullanıldığı yazılır.** Ön-kayıt §7 `α = 0.05 / 3 = 0.0167` diyor, §9 madde 1-2 `p < 0.0167` diyor; kod `0.05/3` tutuyor (`0.0166667`). İki yazım aynı sayı değildir. | §7, §9 madde 1-2 | **Ölçüldü:** p yalnızca `(r+1)/10001` biçiminde olduğu için `(0.0166667, 0.0167]` aralığında ulaşılabilir p-değeri **yoktur**, yani bugünkü yordamla iki eşik aynı hükmü verir. `config.ALFA_BONFERRONI` şu an hiçbir karar kodunda okunmuyor; karşılaştırma ilk kez F3'te bağlanacak (denetçi bulgusu S-C1) |
+| 13 | **§9'un iki ölçütü için kodda sabit yok:** onay hükmünde K2 farkı **≥ +1.0 yüzde puan** (madde 4) ve "en çok katkı yapan 3 coin" kuralı (madde 5). F3 kodu bunları ön-kayıttan okur ve `config`e tek kaynak olarak koyar. | §9 madde 4-5 | Bugün `config`te karşılığı yok; `ADAY_OLAY_ESIGI`/`ONAY_OLAY_ESIGI` deseninde tanımlanmalı |
+| 14 | **Kontrol havuzları ayıklayıcıdan geçirilir.** Her olay için `adaylari_kur` → `k1_adaylari` / `k2_adaylari` → `ornekle` sırası izlenir; aday kümesi doğrudan örneklemeye verilmez. | §6 K1, K2; §6 rev.13 | **Kod artık zorluyor** (bulgu P-B2, kapanış turu madde 1): `Adaylar.elendi` imzada taşınır ve `ornekle` ayıklanmamış kümeyi reddeder. F2'nin yükümlülüğü sıranın kendisidir |
 
 **Bu listenin sınırı.** Tablo, F2 kodunun yapacaklarının kaydıdır; hiçbiri bu turda koda
 geçirilmedi ve hiçbiri test edilmedi. Veri katmanının sağladığı parçalar sütun 3'te anılmıştır:
@@ -3481,6 +3487,39 @@ tek savunma, `ornekle`nin "olayın kendi barı / kendi coini" denetimidir. F2'ni
 karara bağlanmalıdır. Ayrıca P-C1 (dönem kuralının iki ayrı mekanizmada durması), P-C3
 (`olay_dizisi`in `zamanlar` argümanını dönem/küme sınırlarına göre doğrulamaması) ve sızıntı
 testçisinin 33 işaretli açığı (`tests/test_sizinti_koruma.py`, 74 `xfail(strict)`) raporda yazılıdır.
+
+### §14.34 F1 kapanış hazırlığı: kalan açıkların tasnifi
+
+Bu tur yeni bulgu avlamadı; kalan açıkları tasnif etti. Üç iş yapıldı: (1) **P-B2 kapandı**
+(`Adaylar.elendi` imzada; `ornekle` yalnızca ayıklanmış kümeyi kabul ediyor — §14.31 madde 14),
+(2) geçen turda P-B1 yüzünden yapılamayan **"ön-kayıttan sapma" denetimi tamamlandı**, (3) koruma
+turunun 33 işaretli açığı ile dokuz açık ucu "bugünkü kodla ulaşılabilir mi" sorusuna göre ikiye
+ayrıldı.
+
+**Ön-kayıttan sapma denetimi (tamamlandı).** Denetçi ön-kayıt metnini (413 satır, Sürüm 13 +
+Revizyon Günlüğü 8-13) okuyabildiğini doğruladıktan sonra kalem kalem karşılaştırdı: tarih
+sınırları, kümeler ve bölme, üç ızgara (3×3), bütün pencere uzunlukları, ufuklar, maliyet,
+uygunluk, kontrol sayısı ve olay eşikleri, tohum/tekrar/α, dönem ve veri kuralları, gömülü sayı
+taraması. **Ağır sapma yok: ön-kayıtta yazılı hiçbir sayı, eşik, ızgara değeri, ufuk, tarih ya da
+tanım kodda farklı değil.** Dokuz hafif bulgu (S-C1…S-C9) aşağıdaki F1 listesindedir; ikisinin
+yanıtı ölçümle verildi: α yuvarlaması bugünkü p ızgarasında **hiçbir hükmü değiştiremez**
+(§14.31 madde 12) ve `eligibility` hacim penceresinin t gününü dışlaması ön-kayıt §2'nin ayrı
+başlığıyla **birebir uyuşuyor** (§5 "Pencere sınırları" uygunluk penceresini hiç saymaz; H3'ün
+kendi 30 günlük penceresi t'yi içerir ve kodda da ayrıdır).
+
+**F2 gereksinimi olanlar** §14.31'e madde 9-14 olarak eklendi: net getiri/maliyet bağlanması,
+sembol kimliğinin evren tablosundan gelmesi, fiyat tabanının yükleyiciden alınması, α eşiğinin
+bağlanması, §9'un iki eksik sabiti, kontrol havuzlarının ayıklayıcıdan geçirilmesi.
+
+**F1'de kapanacaklar** (bugünkü kodla, F2 kodu olmadan ulaşılabilenler) kapatma turuna bırakıldı;
+listesi `prompts/rapor_f1_kapanis_hazirligi.md` içindedir. Başlıklar: hook'un PowerShell ve bash
+yazma biçimleri (18 madde) ve `main()`'in bilmediği alan adları; kapının pozitiflik denetiminin
+kapsamadığı üç yol (`kosullar_saglandi`, `gecersizlik_seviyesi`, altnormal fiyat); kilit kaydında
+`"0.150"` yazımı, hata sınıfı ve `update-ref` ile ileri sarılmış uzak referans; `config`'in
+korunmayan ön-kayıt sabitleri (maliyet, hacim eşikleri, ufuk sözlükleri, ızgara eşlemesi); imzaların
+anahtarsız olması; bozuk hücreli barın dolgu koşusu sayılması; `olay_dizisi`in `zamanlar`
+doğrulaması (P-C3); dönem kuralının iki mekanizmada durması (P-C1); ve dokuz hafif sapma bulgusu
+(sabitlerin yeri, bayat alıntılar, ölçüm betiklerindeki ikinci yazımlar).
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
