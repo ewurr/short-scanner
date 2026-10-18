@@ -300,12 +300,16 @@ def _kos() -> None:
                 etki.append((sembol, i, i == len(donemler) - 1, d.bitis, n))
         if not donemler:
             continue
-        mz = hacim = None
+        mz = hacim = hucreler_tam = None
         if len(donemler) > 1:
             mumlar = donem_modulu.toplam_doneme_kes(klines_modulu.ham_mumlari_yukle(sembol, config.BAR_4H),
                                                      "open_time")
             mz, hacim = pd.DatetimeIndex(mumlar["open_time"]), mumlar["quote_volume"]
-        turler = donem_sonu_turleri(donemler, sinif_haritasi.get(sembol), veri_sonu_bari, mz, hacim)
+            # Bar duzeyli olcut burada da (denetci bulgusu P-C2): iki olcumun donem sonu turu
+            # evren tablosunu kuran kuralla ayni kalmali.
+            hucreler_tam = klines_modulu.hucreleri_tam_mi(mumlar)
+        turler = donem_sonu_turleri(donemler, sinif_haritasi.get(sembol), veri_sonu_bari, mz, hacim,
+                                    hucreler_tam)
         for bar in (config.BAR_4H, config.BAR_1D):
             d_satirlari += d_kurali_olc(sembol, donemler, turler, fund, bar)
 

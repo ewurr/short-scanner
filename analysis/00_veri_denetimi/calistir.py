@@ -381,7 +381,8 @@ def delist_tablosu(evren: pd.DataFrame, detaylar: list[dict]) -> pd.DataFrame:
 
 
 def donem_sonu_turleri(donemler, sinif: str | None, veri_sonu_bari: pd.Timestamp,
-                       zamanlar: pd.DatetimeIndex | None = None, hacim=None) -> list[str]:
+                       zamanlar: pd.DatetimeIndex | None = None, hacim=None,
+                       hucreler_tam=None) -> list[str]:
     """Her donemin sonu ne ile bitiyor. Saf.
 
     Son donem: delist sinifi (SETTLING / exchangeInfo disi), veri sonu
@@ -392,11 +393,17 @@ def donem_sonu_turleri(donemler, sinif: str | None, veri_sonu_bari: pd.Timestamp
 
     A1 olcumu (`a1_olcumu.py`) ayni fonksiyonu buradan alir; iki olcumun donem
     sonu turu ayni tanimdan gelir.
+
+    `hucreler_tam` (denetci bulgusu P-C2): bar duzeyli mevcutluk olcutunun maskesi. Madde 6 olcutu
+    donem sinirlarina uyguladi ama BU cagri maskesiz kalmisti, yani ayni dolgu koşusu evren
+    tablosunu kuran yolda donemi bolerken denetim raporunda "uzun_bosluk" gorunebilirdi -- denetim,
+    evreni kuran kurali yanlis raporlardi. Bugun olculen etki sifirdir (bozuk hucre yok).
     """
     turler = []
     dolgular = []
     if len(donemler) > 1:
-        dolgular = donem_modulu.dolgu_kosulari(zamanlar, hacim, config.BAR_4H)
+        dolgular = donem_modulu.dolgu_kosulari(zamanlar, hacim, config.BAR_4H,
+                                               hucreler_tam=hucreler_tam)
     for i, d in enumerate(donemler):
         if i == len(donemler) - 1:
             if sinif == universe_modulu.SETTLING_DURUMU:
@@ -537,7 +544,8 @@ def gunluk_sinir_tablosu(detaylar: list[dict], delist: pd.DataFrame) -> pd.DataF
             continue
         zamanlar = pd.DatetimeIndex(d["_mumlar"]["open_time"])
         turler = donem_sonu_turleri(donemler, sinif.get(d["sembol"]), veri_sonu_bari,
-                                    zamanlar, d["_mumlar"]["quote_volume"])
+                                    zamanlar, d["_mumlar"]["quote_volume"],
+                                    klines_modulu.hucreleri_tam_mi(d["_mumlar"]))
         gunler = pd.DatetimeIndex(d["_gunluk"]["open_time"]) if len(d["_gunluk"]) else pd.DatetimeIndex([], tz="UTC")
         satirlar += gunluk_sinir_satirlari(d["sembol"], zamanlar, gunler, donemler, turler)
     return pd.DataFrame(satirlar, columns=GUNLUK_SINIR_SUTUNLARI)
