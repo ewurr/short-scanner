@@ -194,6 +194,11 @@ _ADAY_GIZLI = object()
 class Adaylar:
     """Kapidan gecmis kontrol adaylari. YALNIZCA `adaylari_kur` ve ayiklayicilari uretir.
 
+    `elendi` alani ornekelemeye girmeye HAK kazandiran asamayi tasir: `adaylari_kur` ciktisi
+    ayiklanmamistir (`False`), `k1_adaylari`/`k2_adaylari` ciktisi ayiklanmistir (`True`) ve
+    `ornekle` yalnizca ikincisini kabul eder (bulgu P-B2). Imza alanlardan yeniden hesaplandigi
+    icin bayragi elle cevirmek (`dataclasses.replace`) ise yaramaz.
+
     `ogeler`: K1'de aday BAR zamanlari, K2'de aday SEMBOLLER. `rol`, `hipotez`, `yapilandirma`
     (kimlik) ve `kume` butun adaylarda aynidir ve ornekelemenin alt tohumuna girer.
     """
@@ -214,6 +219,17 @@ class Adaylar:
     # karsilastirilmiyordu.
     sembol: str | None = None
     donem_no: int | None = None
+    # AYIKLAMA yapildi mi? (bulgu P-B2) `adaylari_kur` ciktisi `False`, `k1_adaylari`/`k2_adaylari`
+    # ciktisi `True`. `ornekle` yalnizca `True` olani kabul eder.
+    #
+    # Bulgu: `Adaylar` "elendi" bilgisini tasimadigi icin `adaylari_kur` ciktisi DOGRUDAN
+    # `ornekle`ye verilebiliyordu (yani `k1_adaylari`/`k2_adaylari` cagrisi atlanabiliyordu). O
+    # durumda K1'de olayin 1..17 bar yakinindaki butun kapidan gecmis barlar, K2'de o barda olay
+    # ureten coinler havuza giriyordu; veri katmani HICBIR hata vermiyordu ve on-kayit §6 K1'in
+    # "birincil ufuk mesafesinden yakin olmayan" ile §6 K2'nin "o anda olay uretmemis" olcutleri
+    # sessizce kalkiyordu. K2 farki §8 madde 3-4'te SECIM olcutudur, yani kayma hukmu degistirir.
+    # Alan imzaya girer: `dataclasses.replace(adaylar, elendi=True)` imza denetiminde duser.
+    elendi: bool = False
     _imza: int = field(default=0, repr=False, compare=False)
 
     def __len__(self) -> int:
@@ -222,7 +238,7 @@ class Adaylar:
 
 def _aday_imzasi(a: Adaylar) -> int:
     return hash((_ADAY_GIZLI, a.rol, a.hipotez, a.yapilandirma, a.kume, a.ogeler, a.bar_zamani,
-                 a.sembol, a.donem_no))
+                 a.sembol, a.donem_no, a.elendi))
 
 
 def aday_dogrula(adaylar) -> Adaylar:
@@ -237,8 +253,9 @@ def aday_dogrula(adaylar) -> Adaylar:
 
 
 def _aday_kur(rol, hipotez, yapilandirma, kume, ogeler, bar_zamani=None, sembol=None,
-              donem_no=None) -> Adaylar:
-    a = Adaylar(rol, hipotez, yapilandirma, kume, tuple(ogeler), bar_zamani, sembol, donem_no)
+              donem_no=None, elendi=False) -> Adaylar:
+    a = Adaylar(rol, hipotez, yapilandirma, kume, tuple(ogeler), bar_zamani, sembol, donem_no,
+                bool(elendi))
     return replace(a, _imza=_aday_imzasi(a))
 
 
@@ -441,7 +458,7 @@ def k1_adaylari(adaylar: Adaylar, olaylar, birincil_ufuk: int, bar: str) -> Aday
     kalan = tuple(t for t in pd.DatetimeIndex(gecerli.ogeler)
                   if k1_uzak_mi(t, zamanlar, birincil_ufuk, bar))
     return _aday_kur(gecerli.rol, gecerli.hipotez, gecerli.yapilandirma, gecerli.kume, kalan,
-                     gecerli.bar_zamani, gecerli.sembol, gecerli.donem_no)
+                     gecerli.bar_zamani, gecerli.sembol, gecerli.donem_no, elendi=True)
 
 
 def k2_adaylari(adaylar: Adaylar, olaylar, *, olay_sembolu: str) -> Adaylar:
@@ -467,7 +484,7 @@ def k2_adaylari(adaylar: Adaylar, olaylar, *, olay_sembolu: str) -> Adaylar:
     ureten = {o.pozisyon.sembol for o in dogrulanmis}
     kalan = tuple(s for s in gecerli.ogeler if s != olay_sembolu and s not in ureten)
     return _aday_kur(gecerli.rol, gecerli.hipotez, gecerli.yapilandirma, gecerli.kume, kalan,
-                     gecerli.bar_zamani, gecerli.sembol, gecerli.donem_no)
+                     gecerli.bar_zamani, gecerli.sembol, gecerli.donem_no, elendi=True)
 
 
 def _olayin_kimligi(adaylar: Adaylar, olay) -> tuple[str, pd.Timestamp]:
@@ -485,6 +502,13 @@ def _olayin_kimligi(adaylar: Adaylar, olay) -> tuple[str, pd.Timestamp]:
     arasinda DEGIL; K2'de olayin bari adaylarin bariyla ayni an ve olayin kendi coini adaylar
     arasinda degil (on-kayit §6 K1, K2).
     """
+    if not adaylar.elendi:
+        raise ValueError(
+            f"ornekleme yalnizca AYIKLANMIS aday kumesinden yapilir (bulgu P-B2): "
+            f"{'k1_adaylari' if adaylar.rol == 'K1' else 'k2_adaylari'} cagrisi atlanmis. On-kayit "
+            "§6 K1 'o hipotezin herhangi bir olayina birincil ufuk mesafesinden yakin olmayan' ve "
+            "§6 K2 'o anda olay uretmemis diger coinlerden' olcutleri ayiklamada uygulanir; "
+            "`adaylari_kur` ciktisi dogrudan ornekelemeye giremez.")
     dizi_modulu.olay_dogrula(olay)
     p = olay.pozisyon
     if (p.hipotez, p.yapilandirma, p.kume) != (adaylar.hipotez, adaylar.yapilandirma, adaylar.kume):
@@ -522,8 +546,9 @@ def ornekle(adaylar: Adaylar, *, olay, sayi: int = None) -> KontrolHavuzu:
     tamami alinir ve sayi sonuc dosyasina yazilir. ... Ornekleme, §7'deki tohumdan (hipotez,
     yapilandirma, kume, sembol, olay zamani) demetiyle turetilen alt tohumla yapilir."
 
-    `adaylar`: `adaylari_kur` / `k1_adaylari` / `k2_adaylari` ciktisi; ham liste kabul edilmez
-    (on-kayit §6 rev.13). `olay`: ornekelemenin yapildigi OLAY (`dizi.Olay`); sembol ve bar zamani
+    `adaylar`: `k1_adaylari` ya da `k2_adaylari` ciktisi -- yani AYIKLAMADAN gecmis kume
+    (`Adaylar.elendi`, bulgu P-B2). Ham liste ve ayiklanmamis `adaylari_kur` ciktisi kabul edilmez
+    (on-kayit §6 rev.13, §6 K1-K2). `olay`: ornekelemenin yapildigi OLAY (`dizi.Olay`); sembol ve bar zamani
     ondan OKUNUR, cagirandan serbest metin olarak alinmaz (bulgu K-C4, madde 3b) ve adaylarla
     capraz dogrulanir (`_olayin_kimligi`). Hipotez, yapilandirma ve kume `adaylar`dan gelir.
     TOHUM CAGIRANDAN ALINMAZ ve `sayi` on-kayit degeridir (denetci bulgusu D-C5); serbest deger

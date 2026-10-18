@@ -32,6 +32,20 @@ H4 = pd.Timedelta(hours=4)
 TB = T("2025-03-10 04:00")
 
 
+def _elenmis(adaylar, olaylar=()):
+    """`ornekle` yalnizca AYIKLANMIS kume kabul eder (bulgu P-B2): gercek ayiklayiciyi cagirir.
+
+    Varsayilan olay kumesi bos: ayiklayici kosar ama hicbir aday dusmez, yani testin sinadigi sey
+    (ornekleme kurallari, kimlik denetimi, imza) degismez. Ayiklamanin KENDISI ayri testlerde
+    sinanir."""
+    if not isinstance(adaylar, ornekleme.Adaylar) or adaylar.elendi:
+        return adaylar          # ham girdi ve imza saldirilari DOGRUDAN `ornekle`ye gider
+    bar = config.HIPOTEZ_IZGARASI[adaylar.hipotez]
+    if adaylar.rol == "K1":
+        return ornekleme.k1_adaylari(adaylar, olaylar, config.BIRINCIL_UFUK[bar], bar)
+    sembol = olaylar[0].pozisyon.sembol if olaylar else "OLAYSEMBOLUYOK"
+    return ornekleme.k2_adaylari(adaylar, olaylar, olay_sembolu=sembol)
+
 def _havuz(n):
     """n kontrollu bir K1 havuzu (n = 0 ise bos)."""
     return ornekle(k1_adaylari_kur([T("2025-03-01") + i * H4 for i in range(n)]))
@@ -43,9 +57,9 @@ def _cift(k1_n, k2_n, i=0):
     cift kendi olayiyla kurulur ve olaylar farkli barlardadir."""
     t = TB + i * H4
     olay = tek_olay(t, sembol="AAVEUSDT")
-    k1 = ornekleme.ornekle(k1_adaylari_kur([T("2025-03-01") + j * H4 for j in range(k1_n)],
-                                           sembol="AAVEUSDT"), olay=olay)
-    k2 = ornekleme.ornekle(k2_adaylari_kur([f"S{j:02d}USDT" for j in range(k2_n)], t=t), olay=olay)
+    k1 = ornekleme.ornekle(_elenmis(k1_adaylari_kur([T("2025-03-01") + j * H4 for j in range(k1_n)],
+                                           sembol="AAVEUSDT")), olay=olay)
+    k2 = ornekleme.ornekle(_elenmis(k2_adaylari_kur([f"S{j:02d}USDT" for j in range(k2_n)], t=t)), olay=olay)
     return (k1, k2)
 
 

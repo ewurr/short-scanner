@@ -39,6 +39,20 @@ TB = T("2025-03-10 04:00")
 Y2 = yapilandirma("H2")
 
 
+def _elenmis(adaylar, olaylar=()):
+    """`ornekle` yalnizca AYIKLANMIS kume kabul eder (bulgu P-B2): gercek ayiklayiciyi cagirir.
+
+    Varsayilan olay kumesi bos: ayiklayici kosar ama hicbir aday dusmez, yani testin sinadigi sey
+    (ornekleme kurallari, kimlik denetimi, imza) degismez. Ayiklamanin KENDISI ayri testlerde
+    sinanir."""
+    if not isinstance(adaylar, ornekleme.Adaylar) or adaylar.elendi:
+        return adaylar          # ham girdi ve imza saldirilari DOGRUDAN `ornekle`ye gider
+    bar = config.HIPOTEZ_IZGARASI[adaylar.hipotez]
+    if adaylar.rol == "K1":
+        return ornekleme.k1_adaylari(adaylar, olaylar, config.BIRINCIL_UFUK[bar], bar)
+    sembol = olaylar[0].pozisyon.sembol if olaylar else "OLAYSEMBOLUYOK"
+    return ornekleme.k2_adaylari(adaylar, olaylar, olay_sembolu=sembol)
+
 def _onay(t=TB, rol="K1", **ek):
     return pozisyon._test_onayi(hipotez="H2", yapilandirma=Y2, t=t, rol=rol, **ek)
 
@@ -58,7 +72,7 @@ def test_ham_liste_aday_degildir(ham):
     with pytest.raises(TypeError, match="adaylari_kur"):
         ornekleme.aday_dogrula(ham)
     with pytest.raises(TypeError):
-        ornekleme.ornekle(ham, olay=_olay())
+        ornekleme.ornekle(_elenmis(ham), olay=_olay())
     with pytest.raises(TypeError):
         ornekleme.k1_adaylari(ham, [], UFUK, config.BAR_4H)
     with pytest.raises(TypeError):
@@ -83,7 +97,7 @@ def test_elle_kurulmus_aday_kumesi_reddedilir():
     with pytest.raises(ValueError, match="elle kurulmus"):
         ornekleme.aday_dogrula(elle)
     with pytest.raises(ValueError):
-        ornekleme.ornekle(elle, olay=_olay())
+        ornekleme.ornekle(_elenmis(elle), olay=_olay())
 
 
 def test_olay_rolundeki_onay_aday_olamaz():
@@ -187,8 +201,8 @@ def test_bos_aday_kumesi_bos_havuz():
 def test_on_kayit_disi_sayi_reddedilir(sayi):
     adaylar = k1_adaylari_kur(BARLAR, sembol="AAAUSDT")
     with pytest.raises(ValueError, match="on-kayit"):
-        ornekleme.ornekle(adaylar, olay=_olay(), sayi=sayi)
-    assert len(ornekleme.ornekle(adaylar, olay=_olay(),
+        ornekleme.ornekle(_elenmis(adaylar), olay=_olay(), sayi=sayi)
+    assert len(ornekleme.ornekle(_elenmis(adaylar), olay=_olay(),
                                  sayi=config.KONTROL_SAYISI)) == config.KONTROL_SAYISI
 
 
@@ -196,9 +210,9 @@ def test_tohum_cagirandan_alinmaz():
     """D-C5: serbest tohum verilemez; `ornekle` demetten turetir."""
     adaylar = k1_adaylari_kur(BARLAR, sembol="AAAUSDT")
     with pytest.raises(TypeError):
-        ornekleme.ornekle(adaylar, tohum=1)
+        ornekleme.ornekle(_elenmis(adaylar), tohum=1)
     with pytest.raises(TypeError):
-        ornekleme.ornekle(adaylar, olay=_olay(), tohum=1)
+        ornekleme.ornekle(_elenmis(adaylar), olay=_olay(), tohum=1)
 
 
 def test_havuz_demetin_her_ogesine_duyarli():

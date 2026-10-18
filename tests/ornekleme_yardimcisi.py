@@ -90,4 +90,14 @@ def ornekle(adaylar: ornekleme.Adaylar, *, sembol: str = None, olay_zamani=None,
         olay = dizi_yardimcisi.tek_olay(t, hipotez=adaylar.hipotez,
                                         yapilandirma=_izgaradan(adaylar.hipotez, adaylar.yapilandirma),
                                         kume=adaylar.kume, sembol=s, donem_no=donem_no)
+    if not adaylar.elendi:
+        # `ornekle` yalnizca AYIKLANMIS kume kabul eder (bulgu P-B2). Ornekleme KURALLARINI
+        # (iadesizlik, 10'dan az aday, alt tohum) sinayan testler ayiklamanin kendisini sinamadigi
+        # icin ayiklama BOS olay kumesiyle cagrilir: gercek ayiklayici kosar, hicbir aday dusmez.
+        # Ayiklamanin kendisi `test_rev11_ornekleme`/`test_kimlik_ornekleme_caprazi` icinde sinanir.
+        bar = config.HIPOTEZ_IZGARASI[adaylar.hipotez]
+        if adaylar.rol == "K1":
+            adaylar = ornekleme.k1_adaylari(adaylar, (), config.BIRINCIL_UFUK[bar], bar)
+        else:
+            adaylar = ornekleme.k2_adaylari(adaylar, (), olay_sembolu=olay.pozisyon.sembol)
     return ornekleme.ornekle(adaylar, olay=olay, **ek)

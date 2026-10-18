@@ -29,14 +29,28 @@ TB = T("2025-03-10 04:00")
 BARLAR = [T("2025-03-01") + i * H4 for i in range(30)]
 
 
+def _elenmis(adaylar, olaylar=()):
+    """`ornekle` yalnizca AYIKLANMIS kume kabul eder (bulgu P-B2): gercek ayiklayiciyi cagirir.
+
+    Varsayilan olay kumesi bos: ayiklayici kosar ama hicbir aday dusmez, yani testin sinadigi sey
+    (ornekleme kurallari, kimlik denetimi, imza) degismez. Ayiklamanin KENDISI ayri testlerde
+    sinanir."""
+    if not isinstance(adaylar, ornekleme.Adaylar) or adaylar.elendi:
+        return adaylar          # ham girdi ve imza saldirilari DOGRUDAN `ornekle`ye gider
+    bar = config.HIPOTEZ_IZGARASI[adaylar.hipotez]
+    if adaylar.rol == "K1":
+        return ornekleme.k1_adaylari(adaylar, olaylar, config.BIRINCIL_UFUK[bar], bar)
+    sembol = olaylar[0].pozisyon.sembol if olaylar else "OLAYSEMBOLUYOK"
+    return ornekleme.k2_adaylari(adaylar, olaylar, olay_sembolu=sembol)
+
 def _cift(i=0, *, k1_n=12, k2_n=12, hipotez="H2", yapilandirmasi=None, kume="KESIF"):
     y = yapilandirmasi if yapilandirmasi is not None else yapilandirma(hipotez)
     t = TB + i * H4
     olay = tek_olay(t, hipotez=hipotez, yapilandirma=y, kume=kume, sembol="AAVEUSDT")
-    k1 = ornekleme.ornekle(k1_adaylari_kur(BARLAR[:k1_n], hipotez=hipotez, yapilandirma=y,
-                                           kume=kume, sembol="AAVEUSDT"), olay=olay)
-    k2 = ornekleme.ornekle(k2_adaylari_kur([f"S{j:02d}USDT" for j in range(k2_n)], t=t,
-                                           hipotez=hipotez, yapilandirma=y, kume=kume), olay=olay)
+    k1 = ornekleme.ornekle(_elenmis(k1_adaylari_kur(BARLAR[:k1_n], hipotez=hipotez, yapilandirma=y,
+                                           kume=kume, sembol="AAVEUSDT")), olay=olay)
+    k2 = ornekleme.ornekle(_elenmis(k2_adaylari_kur([f"S{j:02d}USDT" for j in range(k2_n)], t=t,
+                                           hipotez=hipotez, yapilandirma=y, kume=kume)), olay=olay)
     return k1, k2
 
 

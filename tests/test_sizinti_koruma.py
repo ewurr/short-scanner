@@ -59,6 +59,20 @@ H4 = pd.Timedelta(hours=4)
 K = "analysis/h1/" + "KILIT" + ".md"          # kilitli dosya (adi parcali yazilir)
 
 
+def _elenmis(adaylar, olaylar=()):
+    """`ornekle` yalnizca AYIKLANMIS kume kabul eder (bulgu P-B2): gercek ayiklayiciyi cagirir.
+
+    Varsayilan olay kumesi bos: ayiklayici kosar ama hicbir aday dusmez, yani testin sinadigi sey
+    (ornekleme kurallari, kimlik denetimi, imza) degismez. Ayiklamanin KENDISI ayri testlerde
+    sinanir."""
+    if not isinstance(adaylar, ornekleme.Adaylar) or adaylar.elendi:
+        return adaylar          # ham girdi ve imza saldirilari DOGRUDAN `ornekle`ye gider
+    bar = config.HIPOTEZ_IZGARASI[adaylar.hipotez]
+    if adaylar.rol == "K1":
+        return ornekleme.k1_adaylari(adaylar, olaylar, config.BIRINCIL_UFUK[bar], bar)
+    sembol = olaylar[0].pozisyon.sembol if olaylar else "OLAYSEMBOLUYOK"
+    return ornekleme.k2_adaylari(adaylar, olaylar, olay_sembolu=sembol)
+
 def XF(neden: str):
     """Basarili saldiri: acik kapanana kadar beklenen hata (strict: acik kapanirsa XPASS = FAILED)."""
     return pytest.mark.xfail(strict=True, raises=AssertionError, reason=neden)
@@ -392,8 +406,8 @@ SEMBOLLER = ["AAAUSDT", "BBBUSDT", "CCCUSDT", "DDDUSDT"]
 
 def test_kimlik_olumlu_kontrol():
     """Kurulum dogru: uyumlu olay + K1 ve K2 adaylariyla ornekleme calisir."""
-    k1 = ornekleme.ornekle(k1_adaylari_kur(BARLAR[:10]), olay=tek_olay(TB))
-    k2 = ornekleme.ornekle(k2_adaylari_kur(SEMBOLLER, t=TB), olay=tek_olay(TB, sembol="ZZZUSDT"))
+    k1 = ornekleme.ornekle(_elenmis(k1_adaylari_kur(BARLAR[:10])), olay=tek_olay(TB))
+    k2 = ornekleme.ornekle(_elenmis(k2_adaylari_kur(SEMBOLLER, t=TB)), olay=tek_olay(TB, sembol="ZZZUSDT"))
     assert (k1.rol, k2.rol) == ("K1", "K2")
 
 
@@ -402,44 +416,43 @@ def test_kimlik_k1_olay_sembol_donem_yapilandirma_adaylarla_ayni_olmali(olay_ek)
     """Dayanak: on-kayit §6 K1 ("ayni coin, ayni donem, ayni yapilandirma"); `_olayin_kimligi`."""
     adaylar = k1_adaylari_kur(BARLAR[:10])
     olay = tek_olay(TB, **olay_ek)
-    _reddeder(lambda: ornekleme.ornekle(adaylar, olay=olay), ValueError)
+    _reddeder(lambda: ornekleme.ornekle(_elenmis(adaylar), olay=olay), ValueError)
 
 
 def test_kimlik_k1_olayin_kendi_bari_aday_olamaz():
     """Dayanak: on-kayit §6 K1; olayin kendi bari K1 kontrolu olamaz."""
-    _reddeder(lambda: ornekleme.ornekle(k1_adaylari_kur(BARLAR), olay=tek_olay(TB)), ValueError)
+    _reddeder(lambda: ornekleme.ornekle(_elenmis(k1_adaylari_kur(BARLAR)), olay=tek_olay(TB)), ValueError)
 
 
 def test_kimlik_k2_olay_bari_adaylarin_bariyla_ayni_olmali():
     """Dayanak: on-kayit §6 K2 ("ayni t barinda")."""
-    _reddeder(lambda: ornekleme.ornekle(k2_adaylari_kur(SEMBOLLER, t=TB),
+    _reddeder(lambda: ornekleme.ornekle(_elenmis(k2_adaylari_kur(SEMBOLLER, t=TB)),
                                         olay=tek_olay(TB + H4, sembol="ZZZUSDT")), ValueError)
 
 
 def test_kimlik_k2_olayin_kendi_coini_aday_olamaz():
     """Dayanak: on-kayit §6 K2 ("diger coinlerden")."""
-    _reddeder(lambda: ornekleme.ornekle(k2_adaylari_kur(SEMBOLLER, t=TB),
+    _reddeder(lambda: ornekleme.ornekle(_elenmis(k2_adaylari_kur(SEMBOLLER, t=TB)),
                                         olay=tek_olay(TB, sembol="AAAUSDT")), ValueError)
 
 
 def test_kimlik_k1_ayiklanmamis_adaylar_olaya_yakin_barlar_tasiyabilir():
     """Dayanak: on-kayit §6 K1 ("olaya birincil ufuk mesafesinden yakin olmayan"). `k1_adaylari` ayiklamasi ATLANIRSA:
-    olayin hemen yanindaki barlar (olayin pozisyon penceresi icinde) kontrol olarak cekilebilir."""
+    olayin hemen yanindaki barlar (olayin pozisyon penceresi icinde) kontrol olarak cekilebilirdi.
+
+    BULGU P-B2 KAPANDI (kapanis turu madde 1): `Adaylar` artik `elendi` bayragini imzasinda tasiyor
+    ve `ornekle` yalnizca ayiklanmis kumeyi kabul ediyor. Aday kumesi burada BILEREK sarmalanmadan
+    (ayiklanmadan) veriliyor; isaret kaldirildi, beklenti degismedi."""
     adaylar = k1_adaylari_kur([b for b in BARLAR if b != TB])
     olay = tek_olay(TB)
     _reddeder(lambda: ornekleme.ornekle(adaylar, olay=olay), ValueError)
-
-
-test_kimlik_k1_ayiklanmamis_adaylar_olaya_yakin_barlar_tasiyabilir = XF(
-    "`ornekle` yalnizca olayin KENDI barini kontrol eder; ufuk mesafesindeki komsu barlar atlanan ayiklamayla havuza girer")(
-    test_kimlik_k1_ayiklanmamis_adaylar_olaya_yakin_barlar_tasiyabilir)
 
 
 def test_kimlik_k2_olay_sembolu_buyuk_kucuk_harf_degistirilerek_verilemez():
     """Dayanak: on-kayit §6 K2. Olay coini `aaausdt`, aday `AAAUSDT`: ayni coin, farkli yazim (derinlemesine savunma;
     gercek kapi tablo eslemesiyle zaten tam yazim ister, bu yuzden erisilebilirlik DUSUK)."""
     olay = tek_olay(TB, sembol="aaausdt")
-    _reddeder(lambda: ornekleme.ornekle(k2_adaylari_kur(SEMBOLLER, t=TB), olay=olay), ValueError)
+    _reddeder(lambda: ornekleme.ornekle(_elenmis(k2_adaylari_kur(SEMBOLLER, t=TB)), olay=olay), ValueError)
 
 
 test_kimlik_k2_olay_sembolu_buyuk_kucuk_harf_degistirilerek_verilemez = XF(
@@ -454,10 +467,10 @@ def test_kimlik_bozulmus_adaylar_olay_ve_pozisyon_reddedilir():
     for bozuk_adaylar in (dataclasses.replace(adaylar, ogeler=adaylar.ogeler + ("SAHTEUSDT",)),
                           dataclasses.replace(adaylar, bar_zamani=TB + H4),
                           dataclasses.replace(adaylar, kume="C2")):
-        _reddeder(lambda: ornekleme.ornekle(bozuk_adaylar, olay=olay), ValueError)
-    _reddeder(lambda: ornekleme.ornekle(adaylar, olay=dataclasses.replace(olay, zaman=TB + H4)), ValueError)
+        _reddeder(lambda: ornekleme.ornekle(_elenmis(bozuk_adaylar), olay=olay), ValueError)
+    _reddeder(lambda: ornekleme.ornekle(_elenmis(adaylar), olay=dataclasses.replace(olay, zaman=TB + H4)), ValueError)
     sahte_poz = dataclasses.replace(olay.pozisyon, sembol="AAAUSDT")
-    _reddeder(lambda: ornekleme.ornekle(adaylar, olay=dataclasses.replace(olay, pozisyon=sahte_poz)), ValueError)
+    _reddeder(lambda: ornekleme.ornekle(_elenmis(adaylar), olay=dataclasses.replace(olay, pozisyon=sahte_poz)), ValueError)
 
 
 def _dizi_cagrisi(karar, **kimlik):
@@ -503,8 +516,8 @@ def _cift(i=0, *, k1_n=12, k2_n=12):
     y = yapilandirma("H2")
     t = TB + i * H4
     olay = tek_olay(t, yapilandirma=y)
-    k1 = ornekleme.ornekle(k1_adaylari_kur(BARLAR[:k1_n]), olay=olay)
-    k2 = ornekleme.ornekle(k2_adaylari_kur([f"S{j:02d}USDT" for j in range(k2_n)], t=t), olay=olay)
+    k1 = ornekleme.ornekle(_elenmis(k1_adaylari_kur(BARLAR[:k1_n])), olay=olay)
+    k2 = ornekleme.ornekle(_elenmis(k2_adaylari_kur([f"S{j:02d}USDT" for j in range(k2_n)], t=t)), olay=olay)
     return k1, k2
 
 

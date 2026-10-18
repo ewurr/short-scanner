@@ -60,6 +60,20 @@ from uygunluk_yardimcisi import UYGUN_ONCELIK, esikler
 
 DIZI_KIMLIGI = dict(sembol="TESTONAYUSDT", kume="KESIF", donem_no=0)
 
+def _elenmis(adaylar, olaylar=()):
+    """`ornekle` yalnizca AYIKLANMIS kume kabul eder (bulgu P-B2): gercek ayiklayiciyi cagirir.
+
+    Varsayilan olay kumesi bos: ayiklayici kosar ama hicbir aday dusmez, yani testin sinadigi sey
+    (ornekleme kurallari, kimlik denetimi, imza) degismez. Ayiklamanin KENDISI ayri testlerde
+    sinanir."""
+    if not isinstance(adaylar, ornekleme.Adaylar) or adaylar.elendi:
+        return adaylar          # ham girdi ve imza saldirilari DOGRUDAN `ornekle`ye gider
+    bar = config.HIPOTEZ_IZGARASI[adaylar.hipotez]
+    if adaylar.rol == "K1":
+        return ornekleme.k1_adaylari(adaylar, olaylar, config.BIRINCIL_UFUK[bar], bar)
+    sembol = olaylar[0].pozisyon.sembol if olaylar else "OLAYSEMBOLUYOK"
+    return ornekleme.k2_adaylari(adaylar, olaylar, olay_sembolu=sembol)
+
 def T(s):
     return pd.Timestamp(s, tz="UTC")
 
@@ -1183,10 +1197,10 @@ def test_ornekle_ham_aday_listesi_kabul_edilmez():
     olay = tek_olay(OLAY_T, hipotez="H1", yapilandirma=Y_H1, sembol="AAAUSDT")
     for ham in (ADAYLAR, _SEMBOLLER, tuple(ADAYLAR), []):
         with pytest.raises(TypeError):
-            ornekleme.ornekle(ham, olay=olay)
+            ornekleme.ornekle(_elenmis(ham), olay=olay)
     elle = ornekleme.Adaylar("K1", "H1", "H1:theta=0.2,delta=0.08", "KESIF", tuple(ADAYLAR))
     with pytest.raises(ValueError):
-        ornekleme.ornekle(elle, olay=olay)
+        ornekleme.ornekle(_elenmis(elle), olay=olay)
     with pytest.raises(ValueError, match="rol"):
         ornekleme.adaylari_kur([pozisyon._test_onayi(hipotez="H1", yapilandirma=Y_H1, t=ADAYLAR[0],
                                                      capa=ADAYLAR[0])], rol="K1")
