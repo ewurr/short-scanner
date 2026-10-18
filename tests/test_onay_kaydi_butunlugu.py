@@ -67,18 +67,37 @@ def test_config_onay_kaydi_yeniden_atanamaz(tmp_path):
     config.SPLIT_CSV = config.SPLIT_CSV  # korunmayan adlar etkilenmez
 
 
-def test_config_sozlugunden_degistirilen_yol_yakalanir(tmp_path, kayit):
-    """`vars(config)` korumayi gormez; `split` yolu yukleme aninda sabitledigi icin fark hata verir."""
+def test_config_sozlugunden_degistirilen_yol_artik_okumayi_hic_etkilemiyor(tmp_path, kayit):
+    """`vars(config)` yazimi kayit yolunu DEGISTIREMEZ: `config.ONAY_KAYDI` artik veri
+    tanimlayicisindan okunur (koruma turu madde 5), yani sozluge yazim okumaya hic ulasmaz.
+
+    Testin ilk hali ikinci savunma katmanini sabitliyordu: sozluk yazimi okumayi degistirebiliyor,
+    ama `split` yolu yukleme aninda sabitledigi icin farki `OnayKorumasi` ("tek kaynak") ile
+    yakaliyordu. Madde 5'ten sonra BIRINCI katman tutuyor: fark hic olusmuyor, bu yuzden koşu
+    normal acilir ve kayit GERCEK dosyaya yazilir. Hukum ayni ve daha gucludur: sozluk yolu
+    kaydi baska bir dosyaya yonlendiremez."""
     sozluk = vars(config)
     once = sozluk["ONAY_KAYDI"]
+    sahte = tmp_path / "baska.md"
     try:
-        sozluk["ONAY_KAYDI"] = tmp_path / "baska.md"
-        with pytest.raises(split.OnayKorumasi, match="tek kaynak"):
-            with split.onay_kosusu("H1", "C1"):
-                pytest.fail("kosu acilmamali")
+        sozluk["ONAY_KAYDI"] = sahte
+        assert config.ONAY_KAYDI == once, "okuma veri tanimlayicisindan gelmeli"
+        with split.onay_kosusu("H1", "C1") as tutamak:
+            tutamak.sonuc_bildir("TEST")
     finally:
         sozluk["ONAY_KAYDI"] = once
-    assert not (tmp_path / "baska.md").exists()
+    assert not sahte.exists(), "kayit sahte yola yazilmamali"
+    metin = kayit.read_text(encoding="utf-8")
+    assert "H1" in metin and "C1" in metin and "BITTI" in metin, metin
+
+
+def test_split_yukleme_aninda_sabitlenen_yol_denetimi_yerinde(kayit):
+    """Ikinci katman kaldirilmadi: `split` yolu yukleme aninda sabitler ve farki denetler.
+
+    Madde 5 sozluk yolunu etkisiz kildigi icin fark artik `config` uzerinden uretilemiyor; denetimin
+    kendisi `_kayit_yolu`nun modul sabitiyle karsilastirilmasidir ve yerinde durur."""
+    assert split._KAYIT_YOLU == config.ONAY_KAYDI or split._TEST_AYARI is not None
+    assert "tek kaynak" in split.OnayKorumasi.__doc__
 
 
 @pytest.mark.parametrize("ad", ["_AKTIF_KOSU", "_TEST_AYARI", "_KAYIT_YOLU", "_kayit_yolu", "_git", "_acik_kosu",
