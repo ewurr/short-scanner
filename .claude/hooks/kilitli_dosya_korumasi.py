@@ -836,6 +836,18 @@ KOMUT_ALANLARI = ("command", "cmd", "script", "komut")
 # Hedef yolun bulunabilecegi `tool_input` alanlari.
 YOL_ALANLARI = ("file_path", "notebook_path", "path", "filePath")
 
+# SALT OKUMA araclari: yol alanlari denetlenmez (denetci bulgusu P-B1).
+#
+# Madde 1a'da eslestirici `.*` yapildi, yani artik OKUMA araclari da hook'a ugruyor; yol dali ise
+# aracin yazip yazmadigina bakmadigi icin `Read`/`Grep` cagrilari da reddediliyordu. Sonucu agirdi:
+# metodoloji denetcisi `PREREGISTRATION.md`'yi OKUYAMIYOR, yani "on-kayittan sapma" basligini hic
+# denetleyemiyordu (CLAUDE.md §5 o denetimi zorunlu kilar). CLAUDE.md §5 hook'un gorevini de
+# "yazma ve duzenleme arac cagrilarini reddeder" diye tanimlar: okuma kilidin konusu degildir.
+#
+# Liste BEYAZ LISTE olarak degil, yalnizca YOL dalinda muafiyet olarak kullanilir: taninmayan bir
+# arac yol tasiyorsa yine denetlenir (yazabilir), komut tasiyan her arac yine denetlenir.
+OKUMA_ARACLARI = frozenset({"read", "grep", "glob", "ls", "notebookread", "readfile", "readmanyfiles"})
+
 
 def komut_degerlendir(arac: str | None, komut: str) -> Karar:
     """Arac adina gore lehce secer ve komutu degerlendirir.
@@ -930,25 +942,44 @@ def main() -> int:
     arac_girdi = girdi.get("tool_input") or {}
 
     # Komut tasiyan her arac denetlenir (madde 1a): arac adi yalnizca lehce secer.
-    komut = next((arac_girdi[a] for a in KOMUT_ALANLARI
-                  if isinstance(arac_girdi.get(a), str) and arac_girdi[a]), None)
-    if komut is not None:
-        try:
-            karar = komut_degerlendir(arac, komut)
-        except Exception as hata:  # hook hatasi komutu sessizce gecirmemeli
-            kalip = _ad_geciyor_mu(komut)
-            karar = _red(kalip, f"hook hatasi: {type(hata).__name__}", belirsiz=True) if kalip else IZIN
-        if not karar.izin:
-            bash_reddet(karar)
+    #
+    # BUTUN komut alanlari denetlenir (bulgu P-C4): onceden yalnizca ILK bulunan alan
+    # degerlendiriliyordu, yani iki komut alani tasiyan bir girdide
+    # (`{"command": "echo ok", "script": "rm CLAUDE.md"}`) ikincisi gecip gidiyordu. Liste biciminde
+    # komut tasiyan araclar da (`{"command": ["sed", "-i", ..., "CLAUDE.md"]}`) hic denetlenmiyordu.
+    for alan in KOMUT_ALANLARI:
+        deger = arac_girdi.get(alan)
+        if isinstance(deger, str) and deger:
+            komutlar = [deger]
+        elif isinstance(deger, (list, tuple)) and deger:
+            # Liste komut: parcalar tirnaklanarak tek metne cevrilir (yol parcalari bozulmaz).
+            komutlar = [" ".join(shlex.quote(str(p)) for p in deger)]
+        else:
+            continue
+        for komut in komutlar:
+            try:
+                karar = komut_degerlendir(arac, komut)
+            except Exception as hata:  # hook hatasi komutu sessizce gecirmemeli
+                kalip = _ad_geciyor_mu(komut)
+                karar = _red(kalip, f"hook hatasi: {type(hata).__name__}", belirsiz=True) if kalip else IZIN
+            if not karar.izin:
+                bash_reddet(karar)
+                return 0
+
+    # Salt okuma araclarinin yolu denetlenmez (bulgu P-B1): kilit yazmaya karsidir, okumaya degil.
+    if (arac or "").strip().lower() in OKUMA_ARACLARI:
         return 0
 
+    # Butun yol alanlari denetlenir; dongu ilk BULUNAN alanda degil ilk KILITLI alanda durur
+    # (bulgu P-C5: `path="."` gibi zararsiz bir alan, ayni girdideki `filePath="CLAUDE.md"`in
+    # denetlenmesini engelliyordu).
     for alan in YOL_ALANLARI:
         deger = arac_girdi.get(alan)
         if isinstance(deger, str) and deger:
             kalip = kilitli_mi(deger)
             if kalip:
                 reddet(kalip)
-            break
+                return 0
     return 0
 
 
