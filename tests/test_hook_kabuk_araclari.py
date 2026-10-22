@@ -54,6 +54,8 @@ def test_denetlenen_arac_listesi():
                                    "shell", "run", "code", "snippet", "program", "args", "argv",
                                    "arguments", "input")
     assert hook.KOD_ALANLARI == ("code", "snippet", "program", "script", "scripts")
+    assert hook.ICERIK_ALANLARI == ("content", "new_string", "old_string", "file_text", "text",
+                                    "contents", "new_str", "old_str", "body", "patch", "diff")
     assert hook.YOL_ALANLARI == ("file_path", "notebook_path", "path", "filePath")
 
 

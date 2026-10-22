@@ -839,6 +839,14 @@ KOMUT_ALANLARI = ("command", "cmd", "commands", "script", "scripts", "komut", "s
 # kilitli bir adi anan kod metni TEMKINLI reddedilir (madde 1e).
 KOD_ALANLARI = ("code", "snippet", "program", "script", "scripts")
 
+# ICERIK alanlari: yazilacak DOSYA METNI (`Write`in `content`i, `Edit`in `new_string`i). Bunlar
+# komut degil veridir ve komut olarak degerlendirilmezler (madde 1e). Gerekce: kilit HEDEFE
+# bakar, hedef yolu da ayrica denetlenir (`YOL_ALANLARI`); dosya metnini komut gibi okumak,
+# saldiri bicimlerini BELGELEYEN bir metni (RESULTS "acik noktalar") yazmayi engellerdi, yani
+# kilidi belgelemeye karsi calistirirdi. Metnin kendisi kilitli bir dosyaya yazmaz.
+ICERIK_ALANLARI = ("content", "new_string", "old_string", "file_text", "text", "contents",
+                   "new_str", "old_str", "body", "patch", "diff")
+
 # Hedef yolun bulunabilecegi `tool_input` alanlari.
 YOL_ALANLARI = ("file_path", "notebook_path", "path", "filePath")
 
@@ -971,6 +979,8 @@ def main() -> int:
         if okuma_araci:
             # Salt okuma araclarinin yolu denetlenmez (bulgu P-B1): kilit yazmaya karsidir,
             # okumaya degil. Komut alanlari yukarida arac adina bakilmadan denetlendi.
+            continue
+        if kucuk in ICERIK_ALANLARI:
             continue
         if kucuk in YOL_ALANLARI:
             kalip = kilitli_mi(deger) if isinstance(deger, str) and deger else None

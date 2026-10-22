@@ -137,3 +137,21 @@ def test_girdi_gezicisi_butun_alanlari_uretir():
                for _, alan, deger in hook._girdi_alanlari(girdi)}
     assert ("a", "1") in bulunan and ("c", "2") in bulunan and ("e", "3") in bulunan
     assert ("f", ("sed", "-i", "x")) in bulunan
+
+@pytest.mark.parametrize("alan", hook.ICERIK_ALANLARI)
+def test_icerik_alani_komut_olarak_degerlendirilmez(monkeypatch, capsys, alan):
+    """Dayanak: madde 1e. Dosya METNI komut degil veridir; hedef yol ayrica denetlenir.
+
+    Gerekce: saldiri bicimlerini BELGELEYEN bir metin (RESULTS "acik noktalar" bolumu) komut gibi
+    okunursa yazilamaz, yani kilit belgelemeye karsi calisirdi.
+    """
+    girdi = {"tool_name": "Write",
+             "tool_input": {"file_path": "analysis/00_veri_denetimi/RESULTS.md",
+                            alan: f"Ornek saldiri bicimi: `rm {ANAYASA}` ve `sed -i s/a/b/ {ONKAYIT}`."}}
+    assert _calistir(monkeypatch, capsys, girdi) == "", alan
+
+
+def test_icerik_alani_kilitli_hedefi_kurtarmaz(monkeypatch, capsys):
+    """Dayanak: madde 1e. Icerik muafiyeti HEDEFI serbest birakmaz: kilitli yol yine reddedilir."""
+    girdi = {"tool_name": "Write", "tool_input": {"file_path": ONKAYIT, "content": "zararsiz metin"}}
+    assert '"deny"' in _calistir(monkeypatch, capsys, girdi)
