@@ -661,6 +661,13 @@ def _kilit_gecmisini_denetle(goreli: str, hipotez: str) -> None:
         # gosteriyordu ve tek atis guvencesinin uzak depo simetrisi kalkiyordu. `_uzagi_getir`
         # zorlamali bir refspec kullanir (`+refs/heads/main:...`), yani yerelde elle yazilmis
         # referans gercek uzak degerle degisir; ag yoksa kosu acilmaz (yerel kipe dusulmez).
+        #
+        # Adres denetimi fetch'ten ONCE (parcali tam takimda cikan gerileme): `onay_kosusu`
+        # kilidi `_uzak_adresi_denetle`den once okudugu icin, `origin` baska bir depoya
+        # yonlendirilmisse artik once fetch deniyor ve hata "alinamadi" sinifina dusuyordu --
+        # oysa dogru hata "beklenen depo degil"dir. Ikisi ayri durum: biri agin yokluğu, oteki
+        # kaydin yanlis depoya itilmis olmasi.
+        _uzak_adresi_denetle()
         _uzagi_getir()
         uzak_bloblar = _kilit_bloblari(_UZAK_REF, goreli=goreli)
         if not uzak_bloblar:
