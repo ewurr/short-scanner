@@ -42,6 +42,7 @@ import pytest
 
 import config
 from data import dizi, donem, ornekleme, pencere, pozisyon, sinyal, split
+import dizi_cagri
 from dizi_yardimcisi import _karar_kur, olaylar_kur, tek_olay
 from onay_yardimcisi import gecici_depo, git, kilit_metni, kilit_yaz
 from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur
@@ -472,7 +473,7 @@ def _dizi_cagrisi(karar, **kimlik):
     y = yapilandirma("H2")
     tam = dict(sembol="AAVEUSDT", kume="KESIF", donem_no=0)
     tam.update(kimlik)
-    return dizi.olay_dizisi("H2", y, [TB], config.BAR_4H, birincil_ufuk=config.BIRINCIL_UFUK[config.BAR_4H],
+    return dizi_cagri.cagir("H2", y, [TB], config.BAR_4H, birincil_ufuk=config.BIRINCIL_UFUK[config.BAR_4H],
                             kosul=lambda t, capa: True, karar=karar, **tam)
 
 
@@ -946,10 +947,7 @@ def test_donem_alti_bozuk_bar_silinmis_baristan_farkli_sinifta_olmamali():
     silinmis = donem.listeleme_donemleri(z[tam], h[tam], "4h")
     assert len(maskeli) == len(silinmis), f"maskeli {len(maskeli)} donem, silinmis {len(silinmis)} donem"
 
-
-test_donem_alti_bozuk_bar_silinmis_baristan_farkli_sinifta_olmamali = XF(
-    "6 ardisik bozuk-hucreli bar dolgu kosusu sayilip donemi boler; ayni barlar silinse (24s bosluk) bolmez (yorum farki)")(
-    test_donem_alti_bozuk_bar_silinmis_baristan_farkli_sinifta_olmamali)
+# F1 kapatma turu madde 1d (bulgu 29): kapandi, xfail kaldirildi.
 
 
 def _dort_saatlik(zamanlar, **ek):

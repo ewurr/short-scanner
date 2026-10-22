@@ -20,6 +20,7 @@ import pytest
 
 import config
 from data import dizi, pencere, pozisyon
+import dizi_cagri
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 UFUK = config.BIRINCIL_UFUK[config.BAR_1D]       # 14 gun
@@ -49,7 +50,7 @@ def _kosul(saglanan, hesaplanamaz=()):
 
 
 def _calistir(idxler, kosul, karar=None):
-    return dizi.olay_dizisi("H3", dict(nu=0.50, tau=0.15), GUNLER[list(idxler)], config.BAR_1D,
+    return dizi_cagri.cagir("H3", dict(nu=0.50, tau=0.15), GUNLER[list(idxler)], config.BAR_1D,
                             birincil_ufuk=UFUK, kosul=kosul,
                             karar=karar if karar is not None else _onay, **DIZI_KIMLIGI)
 
@@ -171,7 +172,7 @@ def test_h2_bosluktan_etkilenmez_dizi_kurali_yalnizca_h3te():
     def _h2_onay(t, capa=None):
         return pozisyon._test_onayi(hipotez="H2", yapilandirma=dict(phi=0.0003, k=3), t=t, capa=capa)
 
-    sonuc = dizi.olay_dizisi("H2", dict(phi=0.0003, k=3), barlar[secilen], config.BAR_4H,
+    sonuc = dizi_cagri.cagir("H2", dict(phi=0.0003, k=3), barlar[secilen], config.BAR_4H,
                              birincil_ufuk=config.BIRINCIL_UFUK[config.BAR_4H], kosul=kosul,
                              karar=_h2_onay, **DIZI_KIMLIGI)
     # Bekleme 18 bar: 0'da olay, 19..29 seride yok, 30'da bekleme dolmus -> olay; sonra 49 yok.

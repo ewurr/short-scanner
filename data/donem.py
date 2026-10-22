@@ -74,6 +74,10 @@ def gercek_bar_maskesi(hacim, *, hucreler_tam=None) -> np.ndarray:
     tanimlayabiliyordu, yani sinir SERIDE BULUNMAYAN bir bari gosteriyordu.
 
     Verilmezse yalnizca hacme bakilir (geriye uyumluluk; cagiran cerceveyi tasimayan yollar).
+
+    NOT (madde 1d, bulgu 29): bu maske "gercek islem goren bar"i verir ve dolgu kosusu aramasinda
+    DOGRUDAN kullanilmaz; bozuk hucreli barlar once seriden DUSURULUR (`_hazirla`), cunku on-kayit
+    onlari "mevcut degil" sayar, "sifir hacimli" saymaz.
     """
     degerler = pd.to_numeric(pd.Series(np.asarray(hacim)), errors="coerce").to_numpy(dtype=float)
     gercek = np.nan_to_num(degerler, nan=0.0) > 0
@@ -85,6 +89,23 @@ def gercek_bar_maskesi(hacim, *, hucreler_tam=None) -> np.ndarray:
     return gercek & tam
 
 
+def mevcut_bar_maskesi(hacim, *, hucreler_tam=None) -> np.ndarray:
+    """Barin MEVCUT olup olmadigi (on-kayit §2 rev.11-12), hacminden bagimsiz.
+
+    "Bir barin mevcut sayilmasi icin satirinin bulunmasi yetmez: fiyat ve hacim hucrelerinin
+    tamami sayi olmalidir. Hucrelerinden biri NaN ya da sonlu degilse o bar EKSIKTIR ... Bu,
+    barin mevcutlugunun genel tanimidir: olcut ... her izgarada, her pencerede ve her hesapta
+    gecerlidir."
+    """
+    n = len(np.asarray(hacim))
+    if hucreler_tam is None:
+        return np.ones(n, dtype=bool)
+    tam = np.asarray(hucreler_tam, dtype=bool)
+    if tam.shape != (n,):
+        raise ValueError("hucreler_tam, hacim ile ayni uzunlukta olmali.")
+    return tam
+
+
 def _kosular(sifir: np.ndarray) -> list[tuple[int, int]]:
     """Ardisik True kosularinin [bas, son] indeksleri (son dahil)."""
     degisim = np.flatnonzero(np.diff(np.r_[0, sifir.astype(np.int8), 0]))
@@ -92,11 +113,35 @@ def _kosular(sifir: np.ndarray) -> list[tuple[int, int]]:
 
 
 def _hazirla(zamanlar, hacim, bar: str, hucreler_tam=None):
+    """(zamanlar, gercek bar maskesi, adim); BOZUK HUCRELI barlar seriden DUSURULMUS halde.
+
+    Madde 1d (bulgu 29). Eskiden bozuk hucreli bar `gercek_bar_maskesi` icinde sifir hacimli
+    barla ayni kefeye giriyordu, yani ardisik alti bozuk hucreli bar DOLGU KOSUSU sayilip donemi
+    BOLUYORDU; ayni barlar seriden silinseydi (24 saatlik bosluk, 7 gunden kisa) donem
+    bolunmuyordu. On-kayit iki ayri sey yazar:
+      - §2 rev.11-12: hucresi bozuk bar "EKSIKTIR", yani seride BULUNMAZ -- olcut her hesapta
+        gecerlidir ve donem siniri da bir hesaptir;
+      - §2 rev.7: donemi bolen kosu "6 veya daha fazla ardisik SIFIR HACIMLI bar"dir ve bu barlar
+        "delist edilmis ya da henuz yeniden listelenmemis bir sozlesmenin DOLGU VERISIDIR".
+    Mevcut olmayan bir bar sifir hacimli bir dolgu bari degildir: eksik bardir ve uzun bosluk
+    kuralina tabidir (`AZAMI_EKSIK_BAR_BOSLUGU`). Bu yuzden bozuk barlar once dusurulur; geri
+    kalan seride kosu ve bosluk kurallari oldugu gibi isler.
+
+    Olculdu (on-kayit §2 rev.11): "F1 olcumunde donem ici 4h barlarda boyle bir hucre
+    bulunmamistir", yani bugunku veride hicbir donem siniri degismez. Olcumun sifir cikmasi
+    muafiyet degildir (RESULTS §14.13).
+    """
     indeks = pencere_modulu._zaman_dizisi_dogrula(zamanlar, "listeleme_donemleri")
-    if len(indeks) != len(np.asarray(hacim)):
+    hacim_dizisi = np.asarray(hacim)
+    if len(indeks) != len(hacim_dizisi):
         raise ValueError("zamanlar ve hacim ayni uzunlukta olmali.")
+    mevcut = mevcut_bar_maskesi(hacim_dizisi, hucreler_tam=hucreler_tam)
+    if not mevcut.all():
+        indeks = indeks[mevcut]
+        hacim_dizisi = hacim_dizisi[mevcut]
+        hucreler_tam = None          # kalan barlarin hepsi mevcut
     adim = pencere_modulu.adim(bar)
-    return indeks, gercek_bar_maskesi(hacim, hucreler_tam=hucreler_tam), adim
+    return indeks, gercek_bar_maskesi(hacim_dizisi, hucreler_tam=hucreler_tam), adim
 
 
 def dolgu_kosulari(zamanlar, hacim, bar: str, *, hucreler_tam=None) -> list[DolguKosusu]:

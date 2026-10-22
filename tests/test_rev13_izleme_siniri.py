@@ -25,6 +25,7 @@ import pytest
 
 import config
 from data import dizi, pozisyon
+import dizi_cagri
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -56,7 +57,7 @@ def _kosul(pumplar, teyitler):
 
 
 def _calistir(idxler, kosul):
-    return dizi.olay_dizisi("H1", dict(theta=0.20, delta=0.08), IZGARA[list(idxler)], config.BAR_4H,
+    return dizi_cagri.cagir("H1", dict(theta=0.20, delta=0.08), IZGARA[list(idxler)], config.BAR_4H,
                             birincil_ufuk=UFUK, kosul=kosul, karar=_onay, **DIZI_KIMLIGI)
 
 

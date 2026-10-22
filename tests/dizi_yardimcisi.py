@@ -20,6 +20,7 @@ import pandas as pd
 
 import config
 from data import dizi, pencere, pozisyon, sinyal
+import dizi_cagri
 
 
 def _yap(hipotez, yapilandirma):
@@ -57,7 +58,7 @@ def olaylar_kur(zamanlar, *, hipotez: str = "H2", yapilandirma=None, kume: str =
         olaylar: list[dizi.Olay] = []
         for t in indeks:
             ikili = pd.DatetimeIndex([t - adim, t])
-            sonuc = dizi.olay_dizisi(ad, y, ikili, ortak["bar"],
+            sonuc = dizi_cagri.cagir(ad, y, ikili, ortak["bar"],
                                      birincil_ufuk=ortak["birincil_ufuk"],
                                      kosul=lambda t2, capa, t=t: capa is not None or t2 != t,
                                      karar=karar, **kimlik)
@@ -65,7 +66,7 @@ def olaylar_kur(zamanlar, *, hipotez: str = "H2", yapilandirma=None, kume: str =
             olaylar.append(sonuc.olaylar[0])
         return tuple(olaylar)
 
-    sonuc = dizi.olay_dizisi(ad, y, indeks, ortak["bar"], birincil_ufuk=ortak["birincil_ufuk"],
+    sonuc = dizi_cagri.cagir(ad, y, indeks, ortak["bar"], birincil_ufuk=ortak["birincil_ufuk"],
                              kosul=lambda t, capa: True, karar=karar, **kimlik)
     return sonuc.olaylar
 

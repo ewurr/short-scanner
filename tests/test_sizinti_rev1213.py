@@ -59,6 +59,7 @@ import pytest
 
 import config
 from data import dizi, istatistik, pencere, pozisyon, sinyal, split
+import dizi_cagri
 from kapi_yardimcisi import veri
 from kume_yardimcisi import kume_adi
 from onay_yardimcisi import gecici_depo, gecici_kayit, git, kilit_metni, kilit_yaz, kilitleri_kur, kosu, uzak_depo
@@ -95,18 +96,18 @@ def _h3_onay(t, capa=None, **ek):
 
 def _h2_dizi(karar, idxler, kosul=None, **kimlik):
     """Kimlik madde 3a'dan beri cagridan gelir (bulgu K-B1); varsayilan `_test_onayi` ile ayni."""
-    return dizi.olay_dizisi("H2", Y2, IZ4[list(idxler)], config.BAR_4H, birincil_ufuk=UFUK4,
+    return dizi_cagri.cagir("H2", Y2, IZ4[list(idxler)], config.BAR_4H, birincil_ufuk=UFUK4,
                             kosul=kosul if kosul is not None else (lambda t, capa: True), karar=karar,
                             **{**DIZI_KIMLIGI, **kimlik})
 
 
 def _h1_dizi(idxler, kosul, karar=_h1_onay):
-    return dizi.olay_dizisi("H1", Y1, IZ4[list(idxler)], config.BAR_4H, birincil_ufuk=UFUK4,
+    return dizi_cagri.cagir("H1", Y1, IZ4[list(idxler)], config.BAR_4H, birincil_ufuk=UFUK4,
                             kosul=kosul, karar=karar, **DIZI_KIMLIGI)
 
 
 def _h3_dizi(idxler, kosul, karar=_h3_onay):
-    return dizi.olay_dizisi("H3", Y3, IZ1[list(idxler)], config.BAR_1D, birincil_ufuk=UFUK1,
+    return dizi_cagri.cagir("H3", Y3, IZ1[list(idxler)], config.BAR_1D, birincil_ufuk=UFUK1,
                             kosul=kosul, karar=karar, **DIZI_KIMLIGI)
 
 
@@ -556,7 +557,7 @@ def _dunya(hipotez, tohum):
 
 
 def _kos(d, idx):
-    return dizi.olay_dizisi(d["hipotez"], d["y"], d["iz"][np.asarray(idx, dtype=int)], d["bar"],
+    return dizi_cagri.cagir(d["hipotez"], d["y"], d["iz"][np.asarray(idx, dtype=int)], d["bar"],
                             birincil_ufuk=config.BIRINCIL_UFUK[d["bar"]], kosul=d["kosul"], karar=d["karar"], **DIZI_KIMLIGI)
 
 

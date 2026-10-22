@@ -401,6 +401,42 @@ def _kume_verisi(sembol: str, kume: str, kume_baslangic, kume_bitis) -> tuple[pd
     return mumlar, fr
 
 
+def _karar_verisi(sembol: str, kume: str, *, kume_baslangic, kume_bitis, donem_baslangic,
+                  donem_bitis) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """(4h mumlari, funding, 1d mumlari): kararin ve kosulun verisi TEK yerden gelir (P-C1).
+
+    Bulgu neydi: donem kurali IKI AYRI MEKANIZMADA duruyordu. `sinyal_kosulu` veriyi donem ∩ kume
+    araligina KESIYOR, `olay_karari` ise kume araligini yukleyip donem uyeligini yalnizca pencere
+    YUKLEMLERINE (plan, `donem_ici_*`, `gunluge_cevir`) birakiyordu. Denetci iki yolun bugun
+    esdeger oldugunu dogruladi (tek davranis farki (B, K] araligindaki funding kayitlari, etkisi
+    sifir). Risk sapma degil AYRISMA: biri gevserse DIZI DURUMU (kosulun sonucu) ile KAPININ
+    onayi farkli veriden hesaplanir, oysa on-kayit §4 rev.12 dizi kurallarini ve kapiyi ayni olay
+    kumesinin iki sarti sayar.
+
+    Kesim kurali (on-kayit §2 "Listeleme donemi"): "Donem disindaki hicbir bar (dolgu bari,
+    bosluk sonrasi veri, SETTLED verisi) hicbir hesaba girmez." 4h serisi bu yuzden
+    [max(kume basi, donem basi), min(kume sonu, B)] araligina kesilir ve 1d serisi bu kesilmis
+    seriden turetilir.
+
+    FUNDING kume araligindan kesilir, donemden DEGIL: pozisyonun odemeleri donem bitisi B ile
+    donem kapanisi K = B + 4 saat arasinda da olabilir (on-kayit §4 rev.8 "Funding tamligi"), yani
+    B'de kesmek odemeleri dusururdu. Sinyal penceresi tarafinda bu bir fark yaratmaz: §5 H2'nin
+    penceresi t'den GERIYE uzanir ve `funding.funding_ortalamasi` donem basi sinirini ayrica
+    uygular. Asimetri bu yuzden bilincli ve tek yerde yazilidir.
+
+    Pencere yuklemleri (plan, `donem_ici_4h_maskesi`, `gunluge_cevir`) kaldirilmadi: kesimden
+    sonra ayni hukmu tekrar ederler, yani ikinci bir savunmadir -- ama kurali UYGULAYAN yer
+    burasidir.
+    """
+    mumlar_4h, funding = _kume_verisi(sembol, kume, kume_baslangic, kume_bitis)
+    veri_baslangic = max(pd.Timestamp(kume_baslangic), pd.Timestamp(donem_baslangic))
+    veri_bitis = min(pd.Timestamp(kume_bitis), pd.Timestamp(donem_bitis))
+    mumlar_4h = klines_modulu.donem_kes(mumlar_4h, veri_baslangic, veri_bitis)
+    gunluk_mumlar = klines_modulu.gunluge_cevir(
+        mumlar_4h, donemler=[_DonemSiniri(donem_baslangic, donem_bitis)])
+    return mumlar_4h, funding, gunluk_mumlar
+
+
 def _tam_hucreli_barlar(mumlar: pd.DataFrame) -> pd.DataFrame:
     """Hucresi bozuk barlari seriden DUSURUR: bar duzeyli mevcutluk olcutu (on-kayit §2, rev.12).
 
@@ -606,13 +642,15 @@ def olay_karari(
     eligibility_modulu.esikleri_dogrula(bar, asgari_hacim=asgari_hacim,
                                         asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
     # Veri kapida yuklenir (kapi sertlestirme turu 2, denetci KS D-B1, KS D-B2): cagiran cerceve vermez.
-    mumlar_4h, funding = _kume_verisi(sembol, kume, kume_baslangic, kume_bitis)
-    zamanlar = _mum_zamanlari(mumlar_4h)
+    # Kesim ve 1d turetmesi `_karar_verisi`dedir: donem kurali TEK mekanizmada durur (P-C1) ve
+    # `sinyal_kosulu` ayni fonksiyonu cagirir, yani dizi durumu ile kapinin onayi ayni veriden gelir.
     # 1d serisi tektir ve donem ici 4h barlardan turetilir (on-kayit §2 rev.8 "1 gunluk barlar": "Bu seri
     # tektir: H3'un sinyal pencereleri, butun hipotezlerin uygunluk hacmi ve K1/K2 havuzlarinin 1d barlari
-    # ayni seriden gelir"). Uygunluk ve sinyal bari bu donemin gunlerine bakar; gun donem donem kuruldugu
-    # icin yalnizca bu donemi vermek sembolun butun donemleriyle kurulan seriyle bu donemde aynidir.
-    gunluk_mumlar = klines_modulu.gunluge_cevir(mumlar_4h, donemler=[_DonemSiniri(donem_baslangic, donem_bitis)])
+    # ayni seriden gelir").
+    mumlar_4h, funding, gunluk_mumlar = _karar_verisi(
+        sembol, kume, kume_baslangic=kume_baslangic, kume_bitis=kume_bitis,
+        donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
+    zamanlar = _mum_zamanlari(mumlar_4h)
     gunluk_hacim = _gunluk_hacim(gunluk_mumlar)
 
     plan = pencere_modulu.pozisyon_plani(
@@ -798,12 +836,13 @@ def sinyal_kosulu(t, *, hipotez: str, yapilandirma, capa, kume: str, sembol: str
     # donemler arasi barlari (dolgu barlari, sonraki donemin barlari) icerebiliyordu. Sonucu
     # olay kumesini de etkiler, cunku dizi durumu (H1 izlemesi, H3 dizisi) kosulun sonucuna
     # gore degisir -- kapinin onayina degil (rev.13: "dizi kosullarla tanimlidir").
-    veri_baslangic = max(pd.Timestamp(kume_baslangic), pd.Timestamp(donem_baslangic))
-    veri_bitis = min(pd.Timestamp(kume_bitis), pd.Timestamp(donem_bitis))
-    mumlar_4h, funding = _kume_verisi(sembol, kume, veri_baslangic, veri_bitis)
+    #
+    # Kesim KAPIYLA AYNI fonksiyondan gelir (`_karar_verisi`; P-C1): kural iki ayri mekanizmada
+    # degil tek yerde durur.
+    mumlar_4h, funding, gunluk_mumlar = _karar_verisi(
+        sembol, kume, kume_baslangic=kume_baslangic, kume_bitis=kume_bitis,
+        donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
     _mum_zamanlari(mumlar_4h)
-    gunluk_mumlar = klines_modulu.gunluge_cevir(
-        mumlar_4h, donemler=[_DonemSiniri(donem_baslangic, donem_bitis)])
     sinir = {"kume_baslangic": kume_baslangic, "donem_baslangic": donem_baslangic}
 
     if hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and capa is None:

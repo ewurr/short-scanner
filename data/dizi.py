@@ -261,7 +261,7 @@ def _olay_dogrula(pozisyon, *, hipotez: str, yapilandirma_kimligi: str, t, capa)
 
 
 def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int, kosul, karar,
-                sembol: str, kume: str, donem_no: int) -> DiziSonucu:
+                sembol: str, kume: str, donem_no: int, donem_baslangic, donem_bitis) -> DiziSonucu:
     """Bir (sembol, donem, kume, yapilandirma) dizisinde olaylari sirayla bulur (on-kayit §5 rev.11).
 
     `sembol`, `kume`, `donem_no`: dizinin KIMLIGI; zorunludur (bulgu K-B1). Cagri bu ucluyu
@@ -274,6 +274,19 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
     `zamanlar`: hipotezin izgarasindaki DONEM ICI ve KUME ICI sinyal barlari, artan sirada. Dizi
     kurallari donem ve kume basina isler; bekleme donem sinirini asmaz (on-kayit §5: "yeni
     donemde sifirlanir"), bu yuzden her donem icin ayri cagri yapilir.
+
+    `donem_baslangic`, `donem_bitis`: dizinin donemi (B, yani son 4h barin acilisi); ZORUNLUDUR
+    (P-C3). Her bar hem bu donemin hem de `kume`nin icinde olmali; olmayan bar `DonemDisiSinyal`
+    verir. Bulgu neydi: modul ucluyu (sembol, kume, donem_no) argüman olarak aliyor ama
+    `zamanlar`in o donemin ve kumenin icinde oldugunu DOGRULAMIYORDU. Donem disi bir barda kosul
+    `False` dondugunde kapiya hic gitmez, yani `pozisyon`un kendi donem denetimi devreye girmez --
+    ama bar dizi DURUMUNU degistirir: H1'de `izleme_pump`, H3'te `dizi_suruyor` guncellenir,
+    dolayisiyla "ilk gun" ya da teyit bari KAYABILIR ve olay kumesi degisir. On-kayit §5 rev.12
+    madde (a): "Izleme penceresi donem ve kume icinde kalir; bir olayin dayandigi butun barlar
+    ayni donem ve kumede olmalidir."
+
+    Sinirlarin KAYNAGI F2'nin yukumlulugudur (evren tablosu; RESULTS §14.31): bu modul saf
+    kaldigi icin tabloyu kendisi okumaz, ama aldigi sinirlarla barlari denetler.
 
     `kosul(t, capa)`: o barda hipotezin §5 kosullari saglandi mi? `True` / `False` / `None`
     (deger hesaplanamadi, §2 "Tamlik sarti"). H1'de `capa=None` cagrisi PUMP kosulunu, `capa=p`
@@ -303,6 +316,23 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
     if isinstance(donem_no, bool) or not isinstance(donem_no, int) or donem_no < 0:
         raise TypeError(f"olay_dizisi: `donem_no` negatif olmayan tamsayi olmali; verilen {donem_no!r} "
                         "(on-kayit §2 'Listeleme donemi').")
+    # Donem ve kume sinirlari: butun barlar icinde olmali (P-C3). Kume araligi kume ADINDAN
+    # okunur (cagiran serbest sinir vermez; `pozisyon.kume_sinirlari` ile ayni yol).
+    donem_bas = pencere_modulu.utc_zamani(donem_baslangic, "donem_baslangic")
+    donem_son = pencere_modulu.utc_zamani(donem_bitis, "donem_bitis")
+    if pencere_modulu.sonra(donem_bas, donem_son):
+        raise ValueError(f"olay_dizisi: donem_baslangic ({donem_bas}) donem_bitisten ({donem_son}) sonra "
+                         "olamaz (on-kayit §2 'Listeleme donemi').")
+    kume_bas, kume_son = pozisyon_modulu.kume_sinirlari(kume)
+    for t in indeks:
+        if not pencere_modulu.donem_ici_mi(t, bar, donem_baslangic=donem_bas, donem_bitis=donem_son):
+            raise pencere_modulu.DonemDisiSinyal(
+                f"olay_dizisi: {t} bari [{donem_bas}, {donem_son}] doneminin icinde degil; dizi kurallari "
+                "donem basina isler ve donem disi bar dizi durumunu kaydirirdi (on-kayit §5 rev.12 madde a).")
+        if not (pencere_modulu.ayni_ya_da_sonra(t, kume_bas) and pencere_modulu.ayni_ya_da_once(t, kume_son)):
+            raise pencere_modulu.DonemDisiSinyal(
+                f"olay_dizisi: {t} bari {kume!r} kumesinin ([{kume_bas}, {kume_son}]) icinde degil; kumeler "
+                "arasi veri odunc alinmaz (on-kayit §3).")
     dizi_kimligi = (sembol, kume, donem_no)
     son_olay = None          # bekleme suresinin cikti olay bari
     izleme_pump = None       # H1: yuruyen izlemenin pump bari

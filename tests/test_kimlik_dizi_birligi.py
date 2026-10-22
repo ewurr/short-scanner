@@ -19,6 +19,7 @@ import pytest
 
 import config
 from data import dizi, pozisyon
+import dizi_cagri
 from sinyal_yardimcisi import yapilandirma
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
@@ -35,7 +36,7 @@ def _dizi(karar, idxler, *, hipotez="H2", sembol="TESTONAYUSDT", kume="KESIF", d
     y = Y2 if hipotez == "H2" else Y3
     izgara = IZGARA if hipotez == "H2" else GUNLER
     bar = config.HIPOTEZ_IZGARASI[hipotez]
-    return dizi.olay_dizisi(hipotez, y, izgara[list(idxler)], bar,
+    return dizi_cagri.cagir(hipotez, y, izgara[list(idxler)], bar,
                             birincil_ufuk=config.BIRINCIL_UFUK[bar],
                             kosul=lambda t, capa: True, karar=karar,
                             sembol=sembol, kume=kume, donem_no=donem_no)
@@ -156,7 +157,7 @@ def test_sifir_olayli_cagri_kimligi_gerektirir():
     """Olay uretmeyen cagri da kimlik ister: eksik arguman programlama hatasidir."""
     bar = config.HIPOTEZ_IZGARASI["H2"]
     with pytest.raises(TypeError):
-        dizi.olay_dizisi("H2", Y2, IZGARA[[0]], bar, birincil_ufuk=UFUK4,
+        dizi_cagri.cagir("H2", Y2, IZGARA[[0]], bar, birincil_ufuk=UFUK4,
                          kosul=lambda t, capa: False, karar=lambda t, capa: None)
 
 

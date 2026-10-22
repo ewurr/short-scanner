@@ -50,6 +50,7 @@ import pytest
 
 import config
 from data import dizi, ornekleme, pencere, pozisyon, sinyal
+import dizi_cagri
 from kapi_yardimcisi import veri
 from dizi_yardimcisi import olaylar_kur, olaylar_sembollerde, tek_olay
 from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur
@@ -735,7 +736,7 @@ def _sahte_kapi(hipotez, y=None):
 
 def _calistir(hipotez, grid, idxler, kosul, karar=None, y=None):
     bar = config.HIPOTEZ_IZGARASI[hipotez]
-    return dizi.olay_dizisi(hipotez, y if y is not None else yapilandirma(hipotez), grid[list(idxler)], bar,
+    return dizi_cagri.cagir(hipotez, y if y is not None else yapilandirma(hipotez), grid[list(idxler)], bar,
                             birincil_ufuk=config.BIRINCIL_UFUK[bar], kosul=kosul,
                             karar=karar if karar is not None else _sahte_kapi(hipotez, y), **DIZI_KIMLIGI)
 
@@ -820,24 +821,24 @@ def test_dizi_girdi_dogrulamasi_tzsiz_sirasiz_tekrarli_bos_ve_yanlis_izgara():
     kos = lambda t, capa: True  # noqa: E731
     kar = _sahte_kapi("H2")
     with pytest.raises(TypeError):
-        dizi.olay_dizisi("H2", y, Z_H[:5].tz_localize(None), "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
+        dizi_cagri.cagir("H2", y, Z_H[:5].tz_localize(None), "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
     with pytest.raises(ValueError):
-        dizi.olay_dizisi("H2", y, Z_H[[3, 1, 2]], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
+        dizi_cagri.cagir("H2", y, Z_H[[3, 1, 2]], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
     with pytest.raises(ValueError):
-        dizi.olay_dizisi("H2", y, Z_H[[1, 1, 2]], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
-    assert dizi.olay_dizisi("H2", y, Z_H[:0], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI).olaylar == ()
+        dizi_cagri.cagir("H2", y, Z_H[[1, 1, 2]], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
+    assert dizi_cagri.cagir("H2", y, Z_H[:0], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI).olaylar == ()
     with pytest.raises(ValueError):
-        dizi.olay_dizisi("H2", y, Z_H[:5], "1d", birincil_ufuk=14, kosul=kos, karar=kar, **DIZI_KIMLIGI)
+        dizi_cagri.cagir("H2", y, Z_H[:5], "1d", birincil_ufuk=14, kosul=kos, karar=kar, **DIZI_KIMLIGI)
     with pytest.raises(ValueError):
-        dizi.olay_dizisi("H2", y, Z_H[:5], "4h", birincil_ufuk=42, kosul=kos, karar=kar, **DIZI_KIMLIGI)
+        dizi_cagri.cagir("H2", y, Z_H[:5], "4h", birincil_ufuk=42, kosul=kos, karar=kar, **DIZI_KIMLIGI)
     with pytest.raises(sinyal.YapilandirmaHatasi):
-        dizi.olay_dizisi("H2", {"phi": 0.0004, "k": 3}, Z_H[:5], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
+        dizi_cagri.cagir("H2", {"phi": 0.0004, "k": 3}, Z_H[:5], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
     with pytest.raises(ValueError):
-        dizi.olay_dizisi("h2", y, Z_H[:5], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
+        dizi_cagri.cagir("h2", y, Z_H[:5], "4h", birincil_ufuk=18, kosul=kos, karar=kar, **DIZI_KIMLIGI)
     for kotu in (1, 0, "True", 1.0):
         with pytest.raises(TypeError):
-            dizi.olay_dizisi("H2", y, Z_H[:5], "4h", birincil_ufuk=18, kosul=lambda t, c, k=kotu: k, karar=kar, **DIZI_KIMLIGI)
-    assert dizi.olay_dizisi("H2", y, Z_H[:3], "4h", birincil_ufuk=18, kosul=lambda t, c: np.True_,
+            dizi_cagri.cagir("H2", y, Z_H[:5], "4h", birincil_ufuk=18, kosul=lambda t, c, k=kotu: k, karar=kar, **DIZI_KIMLIGI)
+    assert dizi_cagri.cagir("H2", y, Z_H[:3], "4h", birincil_ufuk=18, kosul=lambda t, c: np.True_,
                             karar=kar, **DIZI_KIMLIGI).olaylar != ()
 
 
@@ -1054,7 +1055,7 @@ def test_h1_entegrasyon_gercek_kapi_ve_kosulla_tek_olay_capa_ilk_pump_ve_yapilan
     sonuclar = {}
     for delta in (0.08, 0.12, 0.16):
         y = yapilandirma("H1", delta=delta)
-        sonuclar[delta] = dizi.olay_dizisi("H1", y, zamanlar, config.BAR_4H, birincil_ufuk=18, kosul=kos(y),
+        sonuclar[delta] = dizi_cagri.cagir("H1", y, zamanlar, config.BAR_4H, birincil_ufuk=18, kosul=kos(y),
                                            karar=kar(y), kume="KESIF",
                                            sembol=dunya["sembol"], donem_no=dunya["donem_no"])
     for delta in (0.08, 0.12):

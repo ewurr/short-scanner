@@ -41,6 +41,7 @@ import pytest
 
 import config
 from data import dizi, pozisyon
+import dizi_cagri
 from sinyal_yardimcisi import yapilandirma
 from tarama_yardimcisi import (DIZI_ATLATMA_DESENI, IZINLI_ALTLAR, OLAY_ROLU_DESENI, ihlaller,
                                olay_rolu_ihlalleri)
@@ -53,7 +54,7 @@ Y2 = yapilandirma("H2")
 DIZI_KIMLIGI = dict(sembol="TESTONAYUSDT", kume="KESIF", donem_no=0)
 
 def _dizi_sonucu():
-    return dizi.olay_dizisi(
+    return dizi_cagri.cagir(
         "H2", Y2, BARLAR[:3], config.BAR_4H, birincil_ufuk=config.BIRINCIL_UFUK[config.BAR_4H],
         kosul=lambda t, capa: True,
         karar=lambda t, capa: pozisyon._test_onayi(hipotez="H2", yapilandirma=Y2, t=t, capa=capa), **DIZI_KIMLIGI)
