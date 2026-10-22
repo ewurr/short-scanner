@@ -3214,6 +3214,25 @@ burada yalnızca anılır.
 | 13 | **§9'un iki ölçütü için kodda sabit yok:** onay hükmünde K2 farkı **≥ +1.0 yüzde puan** (madde 4) ve "en çok katkı yapan 3 coin" kuralı (madde 5). F3 kodu bunları ön-kayıttan okur ve `config`e tek kaynak olarak koyar. | §9 madde 4-5 | Bugün `config`te karşılığı yok; `ADAY_OLAY_ESIGI`/`ONAY_OLAY_ESIGI` deseninde tanımlanmalı |
 | 14 | **Kontrol havuzları ayıklayıcıdan geçirilir.** Her olay için `adaylari_kur` → `k1_adaylari` / `k2_adaylari` → `ornekle` sırası izlenir; aday kümesi doğrudan örneklemeye verilmez. | §6 K1, K2; §6 rev.13 | **Kod artık zorluyor** (bulgu P-B2, kapanış turu madde 1): `Adaylar.elendi` imzada taşınır ve `ornekle` ayıklanmamış kümeyi reddeder. F2'nin yükümlülüğü sıranın kendisidir |
 
+**Listenin güncel hâli (F1 kapatma turu).** Tablo **14 madde**dir: 1–8 Rev.12–13 turunda, 9–14
+F1 kapanış hazırlığı turunda (§14.34) eklendi. Aşağıdaki tablo her maddenin F2 (ya da F3) akışının
+hangi adımında doğrulanacağını yazar; adımlar ön-kayıt §8'in sırasıdır.
+
+| F2 adımı | Adımın işi | Burada doğrulanacak maddeler |
+|---|---|---|
+| **1. Olay üretimi** | Uygunluk → tek karar noktası → dizi kuralları; dönem ve küme başına çağrı | 1 (ızgara yürüyüşü), 10 (sembol kimliği evren tablosundan), 11 (fiyat tabanı yükleyiciden) |
+| **2. Olay ölçüleri** | Brüt getiri, funding, **net getiri**, MAE, geçersizlik seviyesi | 9 (net getiri = brüt + funding − gidiş-dönüş maliyeti; sabitler `config`ten) |
+| **3. Kontrol havuzları ve istatistik** | `adaylari_kur` → ayıklayıcı → `ornekle`; test istatistiği, p-değeri | 14 (havuz sırası), 7 (sağlamlık kontrolü kontrol tarafına da uygulanır) |
+| **4. Izgara raporu** | Dokuz yapılandırmanın hepsi, bütün kalemlerle | 2 (raporlanacak kalemler), 3 (sıfır olaylı yapılandırma) |
+| **5. Seçim ve `KILIT.md`** | Aday eşiği, K2 farkına göre seçim, beraberlik, kapanma, ikincil ufuklar | 4 (seçim), 5 (beraberlik), 6 (aday yok → kapanma), 8 (ikincil ufuklar yalnızca seçilen yapılandırma) |
+| **F3. Onay koşusu ve hüküm** | C1 ve C2 tek atış, §9'un hükümleri | 12 (α eşiğinin bağlanması ve hangi yazımın kullanıldığının yazılması), 13 (§9 madde 4'ün ≥ +1.0 yüzde puan eşiği ve madde 5'in "en çok katkı yapan 3 coin" kuralı) |
+
+Madde 14'ün durumu F1 kapanış turunda değişti: `ornekle` artık ayıklanmamış aday kümesini
+**reddediyor** (bulgu P-B2), yani sıranın atlanması çalışma anında hata verir; F2'nin yükümlülüğü
+sırayı kurmaktır. Madde 10 ve 11 bugünkü üretim yolunda **ulaşılamaz** (kapı sembolü evren
+tablosundan okur, üretim çerçevesi `close_time` taşır): ikisi de F2 akışının bu değişmezleri
+kırmamasına bağlıdır.
+
 **Bu listenin sınırı.** Tablo, F2 kodunun yapacaklarının kaydıdır; hiçbiri bu turda koda
 geçirilmedi ve hiçbiri test edilmedi. Veri katmanının sağladığı parçalar sütun 3'te anılmıştır:
 F2 bu parçaları çağırmak zorundadır, kendi kopyasını yazmamalıdır (ön-kayıt §4 "tek karar
@@ -3520,6 +3539,108 @@ korunmayan ön-kayıt sabitleri (maliyet, hacim eşikleri, ufuk sözlükleri, ı
 anahtarsız olması; bozuk hücreli barın dolgu koşusu sayılması; `olay_dizisi`in `zamanlar`
 doğrulaması (P-C3); dönem kuralının iki mekanizmada durması (P-C1); ve dokuz hafif sapma bulgusu
 (sabitlerin yeri, bayat alıntılar, ölçüm betiklerindeki ikinci yazımlar).
+
+### §14.35 F1 kapatma turu: kapanan maddeler ve kayda geçen açık noktalar
+
+Bu tur, §14.34'te tasnif edilen kırk maddenin **öncelik listesini** kapattı. **Yeni bir ön-kayıt
+kararı çıkmadı:** kapatılan her madde yazılı bir kurala karşı kod boşluğuydu. `events/` ve
+`study/` yine boş kaldı; F2'ye ait hiçbir kod yazılmadı. Kapsama girmeyen her madde aşağıda
+**adıyla** kayda geçmiştir.
+
+#### Kapanan maddeler
+
+| Madde | Ön-kayıt / bulgu | Kod yeri | Test |
+|---|---|---|---|
+| **1a** `config`'in korunmayan ön-kayıt sabitleri (bulgu 25) | CLAUDE.md §3 madde 4 (eşikler sonuçtan önce sabitlenir), §3.7 (maliyet); ön-kayıt §2–§7 | `config._DEGISMEZ_ADLAR` kapsamı "ön-kayıt kaynaklı her sabit"; sözlükler `MappingProxyType`; `config._ON_KAYIT_DISI` | `tests/test_f1_config_kapsami.py` (76 test; kapsam `config.py` **kaynağından** türetilir), `test_sizinti_koruma.py` (12 + 3 `xfail` kaldırıldı) |
+| **1a** zaman toleransı sabitin dışındaydı (S-C2) | §4 rev.8 "Zaman toleransı" | `config.ZAMAN_TOLERANSI`; `pencere.tolerans()` değeri **çağrı anında** okur | `test_f1_config_kapsami.py::test_pencere_ve_klines_on_kayit_sayilarini_configten_okur` |
+| **1a** 1d türetme sayıları iki modülde (S-C3) | §2 "1 günlük barlar", "Bar tipleri" | `config.GUNLUK_BAR_SAYISI`, `config.IZGARA_ADIMI_SAAT`; `pencere.ADIMLAR`, `pencere.GUNUN_SON_4H_BARI`, `klines.GUNLUK_*` türetilir | aynı test |
+| **1a** ileri kayma sınırı parametreden besleniyordu (S-C4) | §4 rev.6, rev.10 "İleri kaymanın üst sınırı" | `pencere.cikis_bari` artık `config.ILERI_KAYMA_SINIRI[bar]` okur | `test_ileri_kayma_siniri.py`, `test_rev10_ufuk_baglama.py` (davranış değişmedi: değerler eşit) |
+| **1a** α'nın iki yazımı (S-C1), bölme yorumu (S-C6), bayat revizyon atıfları (S-C9) | §7, §9; §3 rev.2 | `config.py` yorumları | — (belge) |
+| **1b** `kosullar_saglandi` yalnızca bölenleri denetliyordu (bulgu 19) | §5 H1 madde 3, H3 madde 1–2; `_pozitif` ilkesi | `sinyal.FIYAT_DEGERLERI` + `sinyal._fiyatlari_dogrula`; H1'in pump yolu da aynı denetimden geçer | `test_sizinti_koruma.py::test_fiyat_sinyal_barinin_kapanisi_pozitif_olmali` (4 `xfail` kaldırıldı) |
+| **1b** `gecersizlik_seviyesi` pozitiflik denetlemiyordu (bulgu 20) | §5 H1 madde 5 / H2 madde 4 / H3 madde 4; CLAUDE.md §2 madde 5 | `sinyal.gecersizlik_seviyesi` tabanı `_pozitif`ten geçirir | `test_sizinti_koruma.py::test_gecersizlik_seviyesi_...` (2 `xfail` kaldırıldı) |
+| **1b** altnormal fiyat (bulgu 21) | §4 rev.8 "MAE" | `pozisyon._pozitif_fiyat` ve `sinyal._pozitif` altnormal değeri reddeder; `pozisyon.mae` sonucu `_sonlu`dan geçer | `test_sizinti_koruma.py::test_fiyat_altnormal_deger_reddedilmeli` (1 `xfail` kaldırıldı) |
+| **1c** `"0.150"` binlik ayırıcı sayılıyordu (bulgu 22) | §8 madde 2, madde 5 | `split.kilit_kaydi_coz._tam`: gruplu biçimin ilk grubu sıfırla başlayamaz | `test_sizinti_koruma.py::test_kilit_binlik_...` (1 `xfail`) |
+| **1c** devasa tamsayı çıplak `ValueError` veriyordu (bulgu 23) | §8 madde 5 (hata sınıfı) | aynı fonksiyon: hane sayısı `sys.get_int_max_str_digits()` ile denetlenir → `KilitBozuk` | `test_sizinti_koruma.py::test_kilit_devasa_tamsayi_...` (1 `xfail`) |
+| **1c** elle ileri sarılmış `origin/main` (bulgu 24) | CLAUDE.md §3.3 (tek atış, uzak depo simetrisi); §8 madde 5 | `split._kilit_gecmisini_denetle` referans var olsa da **her zaman** zorlamalı refspec ile fetch eder | `test_sizinti_koruma.py::test_kilit_origin_main_elle_ileri_sarilinca_...` (1 `xfail`) |
+| **1d** bozuk hücreli bar dolgu koşusu sayılıyordu (bulgu 29) | §2 rev.11–12 (bar düzeyli mevcutluk) + §2 rev.7 (dolgu koşusu "sıfır hacimli" barlardır) | `donem.mevcut_bar_maskesi`; `donem._hazirla` bozuk barları seriden **düşürür** | `test_sizinti_koruma.py::test_donem_alti_bozuk_bar_...` (1 `xfail`), `test_donem.py`, `test_kc8_*` |
+| **1d** `olay_dizisi` `zamanlar`'ı doğrulamıyordu (P-C3) | §5 rev.12 madde (a); §3 (kümeler arası veri ödünç alınmaz) | `dizi.olay_dizisi` dönem sınırlarını **zorunlu** alır; her bar dönem **ve** küme içinde olmalı (`DonemDisiSinyal`) | `tests/test_f1_dizi_donem_siniri.py` (11 test); dizi kuralları testleri `tests/dizi_cagri.cagir`den geçer |
+| **1d** dönem kuralı iki mekanizmada (P-C1) | §2 "Listeleme dönemi"; §4 rev.12 (dizi + kapı aynı olay kümesinin iki şartı) | `pozisyon._karar_verisi`: `sinyal_kosulu` ve `olay_karari` **aynı** fonksiyonu çağırır | `test_kb1_donem_kesimi.py`, `test_ks2_kapi_veri.py`, `test_f1k_sinyal_kapisi.py` (davranış değişmedi) |
+| **1e** `main()`'in bilmediği `tool_input` alanları (bulgu 18) | CLAUDE.md §5 "Koruma katmanı" | `.claude/hooks/kilitli_dosya_korumasi.py`: `_girdi_alanlari` girdiyi iç içe gezer; `KOMUT_ALANLARI`, `KOD_ALANLARI`, `ICERIK_ALANLARI`, bilinmeyen alan dalı | `tests/test_hook_bilinmeyen_alanlar.py` (62 test), `test_hook_kabuk_araclari.py::test_denetlenen_arac_listesi`, `test_sizinti_koruma.py::test_main_taninmayan_alanlarla_...` (4 `xfail`) |
+| **1f** ölçüm betiklerindeki ikinci yazımlar (S-C5) | §5 H2 madde 1 (24 saat), §5 "Izgara" | `rev10_hazirlik.py` / `rev10_son.py` `config.H2_FUNDING_PENCERESI_SAAT`'ten, `rev1213_uygulama.py` `config.IZGARA`'dan okur | türetilen değerler eskisiyle birebir aynı (`YAPILANDIRMALAR` çıktısı kontrol edildi) |
+| **1f** `funding.py` docstring'inin bayat alıntısı (S-C7) | §2 "Funding" (rev.3 genel formül) | `data/funding.py` modül ve `sekiz_saate_normallestir` docstring'leri | — (belge) |
+
+Toplam **21 `xfail(strict=True)` işareti kaldırıldı**; hiçbir test beklentisi gevşetilmedi.
+İki testin **mekanizması** değişti ve ikisi de rapora yazılıdır: (a)
+`test_a1_gercek_kod.py::test_birincil_ufuk_configden` artık `config.BIRINCIL_UFUK`'u çalışma
+anında değiştirerek okuma kaynağını kanıtlayamıyor — çünkü madde 1a tam olarak bunu yasakladı;
+kaynağı iki test birlikte gösteriyor (değer eşitliği + betikte 18/14 sayılarının hiç yazılmadığını
+arayan AST taraması). (b) Dizi kurallarını sınayan 57 çağrı `tests/dizi_cagri.cagir` yardımcısından
+geçiyor; yardımcı dönem sınırlarını barların uçlarından türetir, yani her testin varsaydığı
+"bütün barlar aynı dönemin içinde" kurgusunu tek yerde kurar. Sınırların **doğrulanması** ayrı
+dosyada sınanır.
+
+#### Kayda geçen açık noktalar (bu turda kapatılmadı)
+
+**(a) Hook'un yazma biçimleri — uzun kuyruk.** CLAUDE.md §5: "Kilit, dikkatsiz bir düzenlemeye
+karşı korur, kararlı bir atlatmaya karşı değil." Aşağıdaki biçimler bir komutu bilerek parçalamayı
+ya da dolaylı bir araç kurmayı gerektirir; kilidin doktrini bunları kapsamaz. Açık nokta olarak
+kayıtlıdırlar ve F2'yi engellemezler. Durum sütunu **ölçülmüştür**
+(`komut_degerlendir`, bu turun sonunda): "tam yol" = kilitli dosyanın adıyla anıldığı girdi,
+"desen" = `analysis/<hipotez>/KILIT.md` desen girdisi.
+
+| # | Komut biçimi | Tam yol | Desen |
+|---|---|---|---|
+| 1 | PowerShell `[IO.File]::WriteAllText('<yol>','x')` — `(` parçayı böler | açık | açık |
+| 2 | `Set-Content -Path:<yol>` / `-LiteralPath:<yol>` (`-Param:değer`) | açık | açık |
+| 3 | `-Path a.txt,<yol>` ve `@('a','<yol>')` (virgüllü/dizi argüman) | açık | açık |
+| 4 | `Invoke-Expression "Remove-Item <yol>"`, `iex` (tırnaklı komut taranmaz) | açık | açık |
+| 5 | `1 \| ForEach-Object { Remove-Item <yol> }` (blok görülmez) | açık | açık |
+| 6 | `Get-ChildItem … -Filter <ad> \| Remove-Item` (ad önceki parçada) | açık | açık |
+| 7 | Backtick satır devamı ve `CLA``UDE.md` kaçışı | açık | açık |
+| 8 | `Remove-Item <dizin>/KILIT.m*` (dizin + joker) | — | açık |
+| 9 | `Rename-Item … -NewName <ad>` (yalın hedef ad) | **korunuyor** | açık |
+| 10 | `Set-Location <dizin>; Set-Content <ad> x` ve bash karşılığı `cd <dizin> && echo x > <ad>` | açık | açık |
+| 11 | `Set-Content -Path (Join-Path . <ad>)` | açık | açık |
+| 12 | `sort a.txt -o <yol>` (yazma biçimi bilinen komutta) | açık | açık |
+| 13 | `git diff --output=<yol>`, `git config --file <yol>` (okuma listesindeki alt komutlar) | açık | açık |
+| 14 | `printf <yol> \| xargs rm` (boru) | açık | açık |
+| 15 | `cp -t <dizin> /tmp/<ad>` (hedef dizin son argüman değil) | açık | açık |
+| 16 | `rm CLAUD${U}E.md`, `rm CLA\UDE.md` (değişken/kaçış gizlemesi) | açık | açık |
+| 17 | `… > <yol>:akış` (tek iki nokta, NTFS akışı), `ANALYS~1/…` (8.3 kısa ad) | açık | açık |
+| A | `sed -n 'w <yol>' a.txt` | açık | açık |
+| C | `python -c "open('CLA'+'UDE.md','w')"` (parçalı yol) | açık | açık |
+| D | `find . -name <ad> -delete` | **korunuyor** (temkinli) | açık |
+| F | `git -C <dizin> rm <ad>` | **korunuyor** | açık |
+
+Ölçümün iki düzeltmesi: §14.34'te "kayıtlı kasıtlı sınır" diye anılan `awk … > "<yol>"` ve glob
+ile silme (`rm CLAUDE.*`) biçimleri **bugün reddediliyor** (yönlendirme hedefi ve joker eşleştirme
+yakalıyor), yani açık değil. `Rename-Item`, `find -delete` ve `git -C` ise yalnızca **desen**
+girdisinde açık: kilitli dosyanın adıyla anıldığı girdilerde korunuyorlar.
+
+Ortak gerekçe (her satır için geçerlidir): *bu yollar bir komutu bilerek parçalamayı ya da dolaylı
+bir araç kurmayı gerektirir; kilidin doktrini (CLAUDE.md §5) bunları kapsamaz. Açık nokta olarak
+kayıtlıdırlar ve F2'yi engellemezler.*
+
+**(b) `config` korumasının kararlı atlatma yolları.** Üçü de bugünkü kodla ulaşılabilir; üçü de
+**kapatılamaz** sınıftandır, çünkü aynı süreç içinde çalışan kod her zaman bir özel (private) adı
+ya da dunder yolunu çağırabilir.
+
+| # | Yol | Niçin kapatılmadı |
+|---|---|---|
+| 26 | `type.__setattr__(type(config), "__setattr__", …)` / `type.__delattr__(…)` metasınıf korumasını atlar | `type.__setattr__` doğrudan çağrıldığında metasınıfın `__setattr__`'ı devreye girmez; CPython bunu yalnızca heap olmayan tipler için yasaklar ve Python'da bir modül sınıfını heap olmayan tip yapmanın yolu yoktur. Zaten kayıtlı olan `object.__setattr__(config, "__class__", …)` sınırıyla **aynı sınıf** (RESULTS §14.33) |
+| 27 | `type(config).__dict__["TOHUM"].fget.__defaults__ = (1,)` okumayı değiştirir | Okuma değeri bir Python işlevinin içinde tutulmak zorunda; `__defaults__`, `__closure__` ve `__self__` hepsi yazılabilir. Değeri "ulaşılamaz" kılacak bir taşıyıcı yok; yalnızca taşıyıcının **adı** değişir |
+| 28 | İmzalar (`_havuz_imzasi`, `_aday_imzasi`, `_olay_imzasi`, `pozisyon._imza`) anahtarsız özet | Sürece özel rastgele anahtar da kapatmaz: doğrulama ile imzalama **aynı** hesaptır, yani imzayı doğrulayabilen kod onu üretebilir de. Gizli anahtarı kapanışa taşımak yalnızca "modül özniteliği" yolunu "özel işlevi çağır" yoluna indirir; ikincisi de `_test_onayi` ile aynı kasıtlı sınır sınıfındadır |
+
+**(c) Hücre ölçütünün kapsamı (S-C8).** `klines.hucreleri_tam_mi` ölçütü `taker_buy_volume` ve
+`taker_buy_quote_volume` sütunlarını da kapsıyor; ön-kayıt §2 rev.12'nin `count`'u dışlama
+gerekçesi ("hiçbir olay, uygunluk ya da getiri hesabına girmediği için") birebir bu iki sütun için
+de geçerlidir. Bu bir **ölçüm** işidir (kaç bar yalnızca bu iki sütun yüzünden düşüyor?), ve
+ölçümden sonra kapsamın netleştirilmesi bir ön-kayıt kararı olur. Bu turda ölçüm yapılmadı: tur
+"yeni bulgu avlamıyoruz, kalanları kapatıyoruz" kapsamındaydı ve ölçüm yeni bir karar açardı.
+Bugünkü etkisi ihtiyatlı yöndedir (daha fazla bar düşer, daha az olay oluşur).
+
+**(d) §14.34'te kapanmış sayılanlar.** P-B1, P-B2, P-C2, P-C4, P-C5 önceki turlarda kapandı;
+"ön-kayıttan sapma denetimi yapılamadı" maddesi §14.34'te kapandı.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
