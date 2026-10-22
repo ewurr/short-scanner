@@ -690,10 +690,7 @@ def test_kilit_binlik_ayirici_kalibina_uymayan_ondalik_tamsayi_sayilmamali():
     bir deger aday esigini (>= 150) gecirir."""
     _kilit_reddeder(analize_giren="0.150")
 
-
-test_kilit_binlik_ayirici_kalibina_uymayan_ondalik_tamsayi_sayilmamali = XF(
-    "`0.150` regex `\\d{1,3}(\\.\\d{3})+` ile eslesir ve int('0150') = 150 okunur: ondalik gorunumlu deger esigi gecirir")(
-    test_kilit_binlik_ayirici_kalibina_uymayan_ondalik_tamsayi_sayilmamali)
+# F1 kapatma turu madde 1c: kapandi, xfail kaldirildi.
 
 
 def test_kilit_devasa_tamsayi_kilit_bozuk_olarak_reddedilmeli():
@@ -701,10 +698,7 @@ def test_kilit_devasa_tamsayi_kilit_bozuk_olarak_reddedilmeli():
     `int()` sinirina takilir ve ciplak ValueError yukari cikar."""
     _kilit_reddeder(olusmus="9" * 5000)
 
-
-test_kilit_devasa_tamsayi_kilit_bozuk_olarak_reddedilmeli = XF(
-    "5000 haneli sayi `int()` hane sinirindan ValueError verir; KilitBozuk degil (onay kosusunun hata sinifi kacar)")(
-    test_kilit_devasa_tamsayi_kilit_bozuk_olarak_reddedilmeli)
+# F1 kapatma turu madde 1c: kapandi, xfail kaldirildi.
 
 
 def _kilidi_depoda_yaz_ve_commitle(depo, push: bool, **alanlar):
@@ -726,17 +720,15 @@ def test_kilit_ikinci_commitle_degistirilen_kayit_reddedilir(tmp_path):
 
 def test_kilit_origin_main_elle_ileri_sarilinca_itilmemis_kayit_kabul_edilmemeli(tmp_path):
     """Dayanak: madde 6 (uzak depo simetrisi; CLAUDE.md §3.3): kayit commit edilir ama ITILMEZ, sonra
-    `git update-ref refs/remotes/origin/main HEAD` ile yerel izleme referansi ileri sarilir. Referans var oldugu icin
-    `_kilit_gecmisini_denetle` fetch yapmaz ve yerel gecmisi 'uzak' sanar."""
+    `git update-ref refs/remotes/origin/main HEAD` ile yerel izleme referansi ileri sarilir. Madde 1c'den beri
+    `_kilit_gecmisini_denetle` referans var olsa da HER ZAMAN fetch eder, yani elle yazilmis referans gercek
+    uzak degerle degisir ve kayit 'uzakta yok' olur."""
     depo = gecici_depo(tmp_path, kilitler=("H1", "H3"))
     _kilidi_depoda_yaz_ve_commitle(depo, False)
     git(depo, "update-ref", "refs/remotes/origin/main", "HEAD")
     _reddeder(lambda: split.kilit_oku("H2"), split.OnayOrtamiHatasi)
 
-
-test_kilit_origin_main_elle_ileri_sarilinca_itilmemis_kayit_kabul_edilmemeli = XF(
-    "izleme referansi varsa fetch yapilmaz; elle ileri sarilmis `origin/main` itilmemis kaydi 'uzakta' gosterir")(
-    test_kilit_origin_main_elle_ileri_sarilinca_itilmemis_kayit_kabul_edilmemeli)
+# F1 kapatma turu madde 1c: kapandi, xfail kaldirildi.
 
 
 # =====================================================================================================

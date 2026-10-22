@@ -517,12 +517,25 @@ def kilit_kaydi_coz(metin: str, hipotez: str) -> KilitKaydi:
         ham = str(alanlar[ad]).strip()
         # `re.ASCII` (madde 4b): Python'da `\d` Unicode rakamlarini da eslestirir, bu yuzden tam
         # genislikli "１５０" ya da baska bir yazi sisteminin rakami sessizce sayi olarak okunuyordu.
-        if not re.fullmatch(r"\d{1,3}(\.\d{3})+|\d+", ham, re.ASCII):
+        #
+        # F1 kapatma turu madde 1c (bulgu 22): gruplu bicimin ilk grubu SIFIRLA BASLAMAZ. Onceki
+        # desen `\d{1,3}(\.\d{3})+` oldugu icin "0.150" gecerli bir binlik yazim sayiliyor ve 150
+        # OKUNUYORDU; yani ondalik bir sayi (0.150) §8 madde 2'nin 150 olay esigini sessizce
+        # geciriyordu. Sifir tek basina ("0") hala gecerlidir, cunku ikinci dal `\d+`dir.
+        if not re.fullmatch(r"[1-9]\d{0,2}(\.\d{3})+|\d+", ham, re.ASCII):
             raise KilitBozuk(
                 f"{hipotez} KILIT.md: `{ad}` negatif olmayan bir tamsayi olmali (binlik ayirici nokta "
-                f"olabilir: '1.500'); verilen {alanlar[ad]!r}. Ondalikli, isaretli ya da sayi olmayan "
-                "deger kabul edilmez (on-kayit §8 madde 5).")
-        return int(ham.replace(".", ""))
+                f"olabilir: '1.500'); verilen {alanlar[ad]!r}. Ondalikli, isaretli, sifirla baslayan "
+                "gruplu ya da sayi olmayan deger kabul edilmez (on-kayit §8 madde 5).")
+        rakamlar = ham.replace(".", "")
+        # Bulgu 23: cok uzun rakam dizisi `int()` sinirina takiliyor ve CIPLAK `ValueError` veriyordu;
+        # kaydin bozuk oldugunu bildiren tek sinif `KilitBozuk` olmali (cagiran onu yakalar).
+        azami = sys.get_int_max_str_digits()
+        if len(rakamlar) > azami:
+            raise KilitBozuk(
+                f"{hipotez} KILIT.md: `{ad}` {len(rakamlar)} haneli; tamsayi okumasi icin en cok {azami} "
+                f"hane cozulebilir. Alan bir olay sayisi ya da tohumdur (on-kayit §8 madde 5).")
+        return int(rakamlar)
 
     def _ondalik(ad: str) -> float | None:
         """Oran alanlari: isaretli DUZ ondalik sayi (madde 4b).
@@ -642,9 +655,13 @@ def _kilit_gecmisini_denetle(goreli: str, hipotez: str) -> None:
     # kaydi da onay kosusundan once commit edilip itilmis olmali, bu yuzden ayni denetim burada
     # da uygulanir. Uzak depoda hic gorunmeyen bir kayit itilmemis demektir.
     if not _sahte_git():
-        # Uzak izleme referansi yoksa ya da eskiyse once alinir (`ONAY_KAYDI` ile ayni yol).
-        if _git("rev-parse", "--verify", "--quiet", _UZAK_REF) is None:
-            _uzagi_getir()
+        # Uzak izleme referansi HER ZAMAN yenilenir (F1 kapatma turu madde 1c, bulgu 24). Onceki
+        # kod referans varsa fetch yapmiyordu; `git update-ref refs/remotes/origin/main HEAD` ile
+        # yerelde ileri sarilmis bir referans, hic itilmemis bir kilit kaydini "uzak depoda var"
+        # gosteriyordu ve tek atis guvencesinin uzak depo simetrisi kalkiyordu. `_uzagi_getir`
+        # zorlamali bir refspec kullanir (`+refs/heads/main:...`), yani yerelde elle yazilmis
+        # referans gercek uzak degerle degisir; ag yoksa kosu acilmaz (yerel kipe dusulmez).
+        _uzagi_getir()
         uzak_bloblar = _kilit_bloblari(_UZAK_REF, goreli=goreli)
         if not uzak_bloblar:
             raise KilitYok(
