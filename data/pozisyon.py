@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import functools
 import math
+import sys
 from types import MappingProxyType
 from dataclasses import dataclass, field, replace
 
@@ -458,12 +459,23 @@ def _pozitif_fiyat(deger: float, ad: str) -> float:
     gerektirmez (`sinyal._pozitif` ile ayni tutum; Rev.9 D-C5).
 
     P0 ≤ 0 ayrica MAE'yi (`max(H, P1) / P0 - 1`) sifira bolmeye goturuyordu (sizinti bulgusu).
+
+    ALTNORMAL deger de reddedilir (F1 kapatma turu madde 1b, bulgu 21): 1e-320 sonlu ve
+    pozitiftir, ama `max(H, P1) / P0 - 1` orani onunla SONSUZA gider. Esik `sys.float_info.min`
+    (yaklasik 2.2e-308); gercek bir perpetual fiyati bu buyuklugun yanina yaklasmaz (en kucuk
+    tick 1e-8 duzeyindedir), bu yuzden esik hicbir mesru fiyati dislamaz. Bu da bir KURAL degil
+    HATA yoludur.
     """
     _sonlu(deger, ad)
     if deger <= 0:
         raise pencere_modulu.VeriHatasi(
             f"{ad} pozitif bir fiyat olmali; verilen {deger!r}. Sifir ya da negatif fiyat bozuk veridir ve "
             "on-kayitta tanimlanmaz: kapi kural icat etmez, veri denetlenmeli (RESULTS §14.33).")
+    if deger < sys.float_info.min:
+        raise pencere_modulu.VeriHatasi(
+            f"{ad} altnormal bir fiyat ({deger!r}); normal cift duyarlikli en kucuk degerin "
+            f"({sys.float_info.min!r}) altinda. Boyle bir fiyat bozuk veridir ve oranlari sonsuza "
+            "goturur (madde 1b, bulgu 21): veri denetlenmeli.")
     return deger
 
 
@@ -841,4 +853,8 @@ def mae(pozisyon) -> float:
     plan = pozisyon.plan
     mumlar_4h, _ = _kume_verisi(pozisyon.sembol, pozisyon.kume, plan.kume_baslangic, plan.kume_bitis)
     zamanlar = _mum_zamanlari(mumlar_4h)
-    return _mae_tepesi(mumlar_4h, zamanlar, plan, pozisyon.p1) / pozisyon.p0 - 1
+    # Sonuc da sonlu olmali (F1 kapatma turu madde 1b, bulgu 21): girdilerin her biri sonlu ve
+    # POZITIF oldugu halde ALTNORMAL bir P0 (ör. 1e-320) oranı sonsuza goturuyordu ve `mae` sessizce
+    # `inf` donduruyordu. Oran seviyesinde denetlemek tek dogru yer: pozitiflik esigi altnormal
+    # degerleri ayirt etmez.
+    return _sonlu(_mae_tepesi(mumlar_4h, zamanlar, plan, pozisyon.p1) / pozisyon.p0 - 1, "MAE")

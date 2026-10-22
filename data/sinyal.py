@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import itertools
 import math
+import sys
 from types import MappingProxyType
 
 import numpy as np
@@ -496,21 +497,45 @@ def kosullar_saglandi(hipotez, yapilandirma, degerler) -> bool:
         raise ValueError(f"{ad} kosullari hesaplanamayan degerle sinanamaz: {eksik} "
                          "(on-kayit §2 'Tamlik sarti'; once tamlik denetlenir).")
     d = {a: float(degerler[a]) for a in DEGER_ADLARI[ad]}
+    _fiyatlari_dogrula(ad, d)
     if ad == "H1":
-        _pozitif(d["pump_dip"], "pump dibi min(low[p-6..p-1])")
         pump = (d["pump_kapanis"] / d["pump_dip"] - 1 >= float(y["theta"])
                 and d["pump_hacim_6"] >= config.H1_HACIM_CARPANI * d["pump_hacim_medyani_180"])
         teyit = d["kapanis"] <= d["tepe"] * (1 - float(y["delta"])) and d["yuksek"] < d["tepe"]
         return bool(pump and teyit)
     if ad == "H2":
-        _pozitif(d["kapanis_30_once"], "close[t-30]")
         return bool(d["funding_24s"] >= float(y["phi"])
                     and d["kapanis"] / d["kapanis_30_once"] - 1 >= config.H2_YUKSELIS_ESIGI
                     and d["kapanis"] < d["kirilim_dip"])
-    _pozitif(d["kapanis_30_once"], "close[t-30]")
     return bool(d["hacim_medyani_30g"] <= (1 - float(y["nu"])) * d["hacim_medyani_120_31"]
                 and d["kapanis"] < d["sma50"]
                 and d["kapanis"] / d["kapanis_30_once"] - 1 <= -float(y["tau"]))
+
+
+# Hipotez basina FIYAT olan sinyal degerleri (F1 kapatma turu madde 1b, bulgu 19). Geri kalanlar
+# hacim (medyan, toplam) ya da orandir (funding): onlar icin sifir ve negatif deger bir fiyat
+# hatasi degildir ve bu yuklemin kapsaminda yer almaz.
+#
+# Bulgu neydi: `kosullar_saglandi` yalnizca ORANLARIN BOLENLERINI (`pump_dip`, `close[t-30]`)
+# pozitif sayiyordu. Sifir ya da negatif bir `close[t]` hicbir bolene girmedigi icin kapidan
+# geciyor ve §5'teki esikleri EN GUCLU bicimde sagliyordu: H1'in teyidi (`close <= tepe x (1-δ)`)
+# ve H3'un dusus trendi (`close/close[t-30] - 1 <= -τ`) bozuk veriyle "olay" uretiyordu. Pozitiflik
+# bir olay-olusmaz kurali DEGIL, acik bir veri hatasidir (`pozisyon._pozitif_fiyat` ile ayni tutum;
+# on-kayit sifir ya da negatif fiyati tanimlamaz).
+FIYAT_DEGERLERI = {
+    "H1": ("pump_dip", "tepe", "pump_kapanis", "kapanis", "yuksek"),
+    "H2": ("kapanis_30_once", "kirilim_dip", "kapanis"),
+    "H3": ("kapanis_30_once", "sma50", "kapanis"),
+}
+
+# H1'in pump kosulu teyit barindan bagimsiz hesaplanir (`h1_pump_saglandi`); o yolun fiyatlari.
+H1_PUMP_FIYATLARI = ("pump_dip", "pump_kapanis")
+
+
+def _fiyatlari_dogrula(hipotez: str, degerler: dict[str, float]) -> None:
+    """Hipotezin butun FIYAT degerleri sonlu ve pozitif olmali (madde 1b, bulgu 19)."""
+    for a in FIYAT_DEGERLERI[hipotez]:
+        _pozitif(degerler[a], f"{hipotez} sinyal degeri {a}")
 
 
 def _pozitif(deger: float, ad: str) -> float:
@@ -522,6 +547,10 @@ def _pozitif(deger: float, ad: str) -> float:
         raise pencere_modulu.VeriHatasi(
             f"{ad} pozitif bir fiyat olmali; verilen {deger!r}. On-kayit §5'teki oran bu degerle "
             "tanimsiz olurdu ve kapi kural icat etmez: veri denetlenmeli.")
+    # Altnormal deger (madde 1b, bulgu 21): `pozisyon._pozitif_fiyat` ile ayni esik.
+    if deger < sys.float_info.min:
+        raise pencere_modulu.VeriHatasi(
+            f"{ad} altnormal bir fiyat ({deger!r}); §5'teki oran onunla sonsuza gider. Veri denetlenmeli.")
     return deger
 
 
@@ -633,6 +662,10 @@ def gecersizlik_seviyesi(hipotez, t, *, mumlar_4h, gunluk, capa, kume_baslangic,
         taban = yuksek_30_max(gunluk, t, config.BAR_1D, **sinir)
     if not _sonlu(taban):
         return float("nan")
+    # Taban bir FIYAT penceresinin en yuksek degeridir (madde 1b, bulgu 20): butun high'lar sifir
+    # ya da negatifse seviye de sifir ya da negatif cikiyordu ve kapi bunu sessizce kaydediyordu.
+    # Seviye yalnizca F4 icin kayittir ama bozuk veriyle kaydedilen bir stop seviyesi de kayittir.
+    _pozitif(float(taban), f"{ad} gecersizlik seviyesinin tabani")
     return float(taban) * config.GECERSIZLIK_CARPANI
 
 
@@ -668,6 +701,7 @@ def h1_pump_saglandi(yapilandirma, degerler) -> bool | None:
     if any(not _sonlu(degerler[a]) for a in H1_PUMP_ADLARI):
         return None
     d = {a: float(degerler[a]) for a in H1_PUMP_ADLARI}
-    _pozitif(d["pump_dip"], "pump dibi min(low[t-6..t-1])")
+    for a in H1_PUMP_FIYATLARI:                     # madde 1b, bulgu 19
+        _pozitif(d[a], f"H1 pump degeri {a}")
     return bool(d["pump_kapanis"] / d["pump_dip"] - 1 >= float(y["theta"])
                 and d["pump_hacim_6"] >= config.H1_HACIM_CARPANI * d["pump_hacim_medyani_180"])

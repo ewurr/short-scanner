@@ -324,9 +324,7 @@ def test_fiyat_altnormal_deger_reddedilmeli():
     """Dayanak: madde 2b; `P0 > 0` MAE'nin paydasidir. 1e-320 pozitif ve sonlu ama `1.0/1e-320 = inf`: MAE sonsuz."""
     _reddeder(lambda: pozisyon._pozitif_fiyat(1e-320, "P0"), pencere.VeriHatasi)
 
-
-test_fiyat_altnormal_deger_reddedilmeli = XF(
-    "altnormal fiyat (1e-320) kabul edilir; MAE = max(H,P1)/P0-1 sonsuza gider")(test_fiyat_altnormal_deger_reddedilmeli)
+# F1 kapatma turu madde 1b: kapandi, xfail kaldirildi.
 
 
 H1_DEGERLER = {"pump_dip": 1.0, "pump_hacim_6": 1e9, "pump_hacim_medyani_180": 1.0, "tepe": 2.0,
@@ -357,10 +355,7 @@ def test_fiyat_sinyal_barinin_kapanisi_pozitif_olmali(hipotez, degerler, bozuk):
         return
     assert sonuc is False, f"{hipotez}: close[t]={bozuk} bir olay uretti"
 
-
-test_fiyat_sinyal_barinin_kapanisi_pozitif_olmali = XF(
-    "close[t] <= 0 olan bar H1/H3'te OLAY uretir: yalnizca bolenler (_pozitif) denetlenir, kapanis degil")(
-    test_fiyat_sinyal_barinin_kapanisi_pozitif_olmali)
+# F1 kapatma turu madde 1b: kapandi, xfail kaldirildi.
 
 
 def _yuksek_cercevesi(yuksek: float):
@@ -389,10 +384,7 @@ def test_gecersizlik_seviyesi_pozitif_olmayan_tabandan_uretilmemeli(yuksek):
         return
     assert math.isnan(sonuc), f"stop seviyesi {sonuc} (taban high={yuksek})"
 
-
-test_gecersizlik_seviyesi_pozitif_olmayan_tabandan_uretilmemeli = XF(
-    "gecersizlik_seviyesi pozitiflik denetlemez: high<=0 tabani 0.0/negatif stop seviyesi uretir")(
-    test_gecersizlik_seviyesi_pozitif_olmayan_tabandan_uretilmemeli)
+# F1 kapatma turu madde 1b: kapandi, xfail kaldirildi.
 
 
 # =====================================================================================================
