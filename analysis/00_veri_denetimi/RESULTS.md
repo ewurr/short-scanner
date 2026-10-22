@@ -3569,7 +3569,8 @@ kararı çıkmadı:** kapatılan her madde yazılı bir kurala karşı kod boşl
 | **1f** ölçüm betiklerindeki ikinci yazımlar (S-C5) | §5 H2 madde 1 (24 saat), §5 "Izgara" | `rev10_hazirlik.py` / `rev10_son.py` `config.H2_FUNDING_PENCERESI_SAAT`'ten, `rev1213_uygulama.py` `config.IZGARA`'dan okur | türetilen değerler eskisiyle birebir aynı (`YAPILANDIRMALAR` çıktısı kontrol edildi) |
 | **1f** `funding.py` docstring'inin bayat alıntısı (S-C7) | §2 "Funding" (rev.3 genel formül) | `data/funding.py` modül ve `sekiz_saate_normallestir` docstring'leri | — (belge) |
 
-Toplam **21 `xfail(strict=True)` işareti kaldırıldı**; hiçbir test beklentisi gevşetilmedi.
+Toplam **17 `xfail(strict=True)` işareti** (parametrelerle birlikte **32 xfailed test örneği**)
+kaldırıldı; hiçbir test beklentisi gevşetilmedi.
 İki testin **mekanizması** değişti ve ikisi de rapora yazılıdır: (a)
 `test_a1_gercek_kod.py::test_birincil_ufuk_configden` artık `config.BIRINCIL_UFUK`'u çalışma
 anında değiştirerek okuma kaynağını kanıtlayamıyor — çünkü madde 1a tam olarak bunu yasakladı;
@@ -3578,6 +3579,40 @@ arayan AST taraması). (b) Dizi kurallarını sınayan 57 çağrı `tests/dizi_c
 geçiyor; yardımcı dönem sınırlarını barların uçlarından türetir, yani her testin varsaydığı
 "bütün barlar aynı dönemin içinde" kurgusunu tek yerde kurar. Sınırların **doğrulanması** ayrı
 dosyada sınanır.
+
+#### Kapanış kontrolü
+
+**Temiz ağaçta tam denetim** (`e5ae43c`, `calistir.py --eski-evren`, 678 sembol, hatalı 0) ve
+`a1_olcumu.py` yeniden koşuldu. **Denetim özetinin hiçbir sayısı değişmedi:** toplam 4h bar
+3.692.573, dönem içi 3.378.942, dolgu 313.626 (156 koşu), kısa sıfır koşusu 0, dönem tutarsızlığı
+0, delist sınıfları TRADING 522 / SETTLING 128 / exchangeInfo dışı 28, funding'siz dönem 3, sıçrama
+10, boşluk 105 (10 olay), 60 günden kısa dönem 5, çapraz gün 562.700. Bu, madde 1d'nin dönem
+kuralı değişikliğinin (bozuk hücreli bar artık **eksik** sayılıyor, dolgu barı değil) bugünkü
+veride hiçbir dönem sınırını kaydırmadığının ölçülmüş kanıtıdır.
+
+Farklar `karsilastir.py --onceki HEAD --ad karsilastirma_f1_kapatma` ile listelendi:
+**80 dosya aynı, 2 dosya farklı** — `ortam_tam.csv` ve `a1_ortam_tam.csv`; ikisinde de yalnızca
+`surum` sütunu (commit hash'i, koşu zamanları ve A1'in kaydettiği çalışma ağacı satırı).
+
+**`evren_kur` yeniden üretimi:** geçici bir yola yazılan tablo kilitli `data/universe.csv` ile
+**birebir aynı** (112.239 / 112.239 bayt).
+
+**Parçalı tam takım** (154 dosya, dört grup). İlk koşuda **beş kırmızı** çıktı; biri gerçek
+gerileme, dördü madde 1a'nın sertleşmesinin test etkisiydi:
+
+1. `test_onay_kaydi_git.py::test_origin_beklenen_depo_degilse_kosu_acilmaz` (`set-url`,
+   `insteadOf`): madde 1c'nin "her zaman fetch" değişikliği, `onay_kosusu` kilidi uzak adres
+   denetiminden **önce** okuduğu için `origin` başka bir depoya yönlendirildiğinde hata
+   "alınamadı" sınıfına düşüyordu; doğru hata "beklenen depo değil"dir. `_kilit_gecmisini_denetle`
+   artık fetch'ten önce `_uzak_adresi_denetle` çağırıyor (`3e8338f`).
+2. P-12 (`BOLME_TUZU`) ve P-13 (`YENIDEN_ADLANDIRMA`) saldırıları artık savuşturuluyor →
+   `xfail` kaldırıldı; P-13'ün temizleme adımı salt okunur eşlemde `pop` çağırdığı için patlıyordu.
+   `test_config_hipotezler_monkeypatch_belgeleme` saldırının ilk adımının reddedildiğini
+   belgeliyor; `monkeypatch.setattr` kullanılmıyor, çünkü geri alma listesine yazdıktan sonra
+   atamayı deniyor ve teardown'da patlıyor (`e1986db`).
+
+Düzeltmelerden sonraki koşu: grup 00 **993 geçti**, grup 01 **967**, grup 02 **886**, grup 03
+**1326 / 97 xfailed** — toplam **4172 geçti, 97 xfailed, 0 kırmızı**.
 
 #### Kayda geçen açık noktalar (bu turda kapatılmadı)
 
