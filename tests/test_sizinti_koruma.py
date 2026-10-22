@@ -854,13 +854,14 @@ test_config_object_setattr_ile_modul_sinifi_degistirilemez = XF(
     test_config_object_setattr_ile_modul_sinifi_degistirilemez)
 
 
-KORUNMAYAN_SABITLER = ["DOLGU_KOSU_ESIGI_BAR", "AZAMI_EKSIK_BAR_BOSLUGU", "TEK_YON_MALIYET", "GIDIS_DONUS_MALIYET",
-                       "ASGARI_HACIM_4H", "ASGARI_HACIM_1D", "ASGARI_LISTELEME_YASI_GUN", "DONEM_BASI", "DONEM_SONU",
-                       "BOLME_TUZU", "H2_FUNDING_PENCERESI_SAAT", "HIPOTEZ_IZGARASI"]
+# F1 kapatma turu madde 1a: hepsi `_DEGISMEZ_ADLAR` kapsamina alindi, `xfail` kaldirildi. Kapsamin
+# TAM oldugunu `tests/test_f1_config_kapsami.py` denetler (liste elle sayilmaz, kaynaktan turetilir).
+ON_KAYIT_SABITLERI = ["DOLGU_KOSU_ESIGI_BAR", "AZAMI_EKSIK_BAR_BOSLUGU", "TEK_YON_MALIYET", "GIDIS_DONUS_MALIYET",
+                      "ASGARI_HACIM_4H", "ASGARI_HACIM_1D", "ASGARI_LISTELEME_YASI_GUN", "DONEM_BASI", "DONEM_SONU",
+                      "BOLME_TUZU", "H2_FUNDING_PENCERESI_SAAT", "HIPOTEZ_IZGARASI"]
 
 
-@pytest.mark.parametrize("ad", [pytest.param(a, marks=XF(
-    f"{a} on-kayit/CLAUDE.md degeri ama `_DEGISMEZ_ADLAR`da yok: calisma aninda atanabilir") ) for a in KORUNMAYAN_SABITLER])
+@pytest.mark.parametrize("ad", ON_KAYIT_SABITLERI)
 def test_config_on_kayit_sabiti_calisma_aninda_degistirilemez(ad):
     """Dayanak: CLAUDE.md §3 madde 4 (esikler sonuctan once sabitlenir) ve §3.7 (maliyet). Her atama GERI ALINIR."""
     asil = getattr(config, ad)
@@ -877,10 +878,11 @@ def test_config_on_kayit_sabiti_calisma_aninda_degistirilemez(ad):
     assert not degisti, f"config.{ad} yeniden atandi"
 
 
+# Madde 1a: uc sozluk de `MappingProxyType` ile donduruldu, `xfail` kaldirildi.
 @pytest.mark.parametrize("ad,anahtar", [
-    pytest.param("BIRINCIL_UFUK", "4h", marks=XF("duz dict: yerinde yazim ad korumasina takilmaz"), id="birincil-ufuk"),
-    pytest.param("ILERI_KAYMA_SINIRI", "4h", marks=XF("duz dict"), id="ileri-kayma"),
-    pytest.param("IKINCIL_UFUKLAR", "4h", marks=XF("duz dict"), id="ikincil-ufuklar"),
+    pytest.param("BIRINCIL_UFUK", "4h", id="birincil-ufuk"),
+    pytest.param("ILERI_KAYMA_SINIRI", "4h", id="ileri-kayma"),
+    pytest.param("IKINCIL_UFUKLAR", "4h", id="ikincil-ufuklar"),
 ])
 def test_config_sozluk_sabitleri_yerinde_degistirilemez(ad, anahtar):
     """Dayanak: on-kayit §4 "Ufuk degerlerinin baglanmasi" (ufuklar yalnizca on-kayitta tanimli). Yerinde yazim GERI ALINIR."""
@@ -894,8 +896,10 @@ def test_config_sozluk_sabitleri_yerinde_degistirilemez(ad, anahtar):
         except TypeError:
             pass
     finally:
-        sozluk[anahtar] = asil
+        if degisti:
+            sozluk[anahtar] = asil
     assert not degisti, f"config.{ad}[{anahtar!r}] yerinde degistirildi"
+    assert sozluk[anahtar] == asil
 
 
 # =====================================================================================================

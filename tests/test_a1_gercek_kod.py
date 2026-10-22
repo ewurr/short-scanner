@@ -110,12 +110,21 @@ def test_veri_sonu_donemi_kume_olcutuyle_reddedilir():
     assert satir["ret_gerekcesi"] == "kume_siniri"
 
 
-def test_birincil_ufuk_configden(monkeypatch):
+def test_birincil_ufuk_configden():
+    """Temsili plan ufku `config`ten okur.
+
+    F1 kapatma turu madde 1a: `config.BIRINCIL_UFUK` artik dondurulmus (`MappingProxyType`), yani
+    kaynak degeri calisma aninda degistirip "okuma gercekten oradan mi geliyor" diye bakmak artik
+    MUMKUN DEGIL -- korumanin amaci tam olarak budur. Okumanin kaynagini iki test birlikte
+    gosterir: burada degerin config'teki degerle BIREBIR ayni oldugu, asagidaki
+    `test_betikte_gomulu_ufuk_ya_da_sure_yok` ile de betigin govdesinde 18/14 sayilarinin hic
+    yazilmadigi (AST taramasi). Eski bicim `monkeypatch.setitem(config.BIRINCIL_UFUK, ...)` idi.
+    """
     assert config.BIRINCIL_UFUK == {config.BAR_4H: 18, config.BAR_1D: 14}  # on-kayit §4 tablosu
-    assert a1.temsili_plan(DONEM, config.BAR_4H).ufuk == 18
-    monkeypatch.setitem(config.BIRINCIL_UFUK, config.BAR_4H, 1)
-    plan = a1.temsili_plan(DONEM, config.BAR_4H)
-    assert plan.ufuk == 1 and plan.birincil_ufuk == 1 and plan.cikis_turu == "olagan"
+    for bar in (config.BAR_4H, config.BAR_1D):
+        plan = a1.temsili_plan(DONEM if bar == config.BAR_4H else DONEM, bar)
+        assert plan.ufuk == config.BIRINCIL_UFUK[bar]
+        assert plan.birincil_ufuk == config.BIRINCIL_UFUK[bar]
 
 
 def test_temsili_giris_suresi_configden():

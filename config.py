@@ -4,6 +4,9 @@ Buradaki degerler PREREGISTRATION.md'den gelir ve yanina geldigi bolum yazilir.
 Bu dosyadaki bir on-kayit sabitini degistirmek on-kaydi degistirmek demektir; once
 revizyon yazilmadan burasi degistirilemez (CLAUDE.md §3.4).
 
+Yorumlardaki `rev.N` atiflari kuralin BUGUNKU halini degil, onu getiren revizyonu adlandirir;
+yetkili metin her zaman on-kaydin yururlukteki surumudur (bulgu S-C9).
+
 Istisnalar "ON-KAYIT DEGILDIR" diye isaretlidir: dizin ve dosya yollari (ornegin
 `EXCHANGE_INFO_ANLIK`) ve F1 denetim teshis esikleri (`DENETIM_*`). Bunlar hicbir
 olay, uygunluk ya da getiri hesabinin esigi degildir.
@@ -51,14 +54,32 @@ DONEM_SONU = dt.datetime(2026, 8, 31, 23, 59, 59, tzinfo=dt.timezone.utc)
 BAR_4H = "4h"
 BAR_1D = "1d"
 
-# Kapsam netlestirmesi (on-kayit §2, revizyon 2): evren yalnizca
+# Izgara adimlari, saat (on-kayit §2 "Bar tipleri" ve "1 gunluk barlar"). `pencere.ADIMLAR` tek
+# `pd.Timedelta` tanimini buradan kurar; baska bir modul kendi adimini yazmaz (bulgu S-C3).
+IZGARA_ADIMI_SAAT = _types.MappingProxyType({BAR_4H: 4, BAR_1D: 24})
+
+# On-kayit §2 "1 gunluk barlar": "Bir gun, yalnizca o gunun 00:00, 04:00, 08:00, 12:00, 16:00 ve
+# 20:00 UTC acilisli ALTI 4h barinin tamami mevcut ve ayni donemin icindeyse olusur." Gunun son
+# 4h bari bu sayidan turer ((6-1) x 4 saat = 20:00); `klines` ve `pencere` ikisi de buradan okur
+# (bulgu S-C3: sayi iki modulde ayri yaziliydi).
+GUNLUK_BAR_SAYISI = 6
+
+# --- Zaman toleransi (on-kayit §4 rev.8 "Zaman toleransi") -------------------
+#
+# "Projedeki butun zaman karsilastirmalarinda iki an arasindaki fark 1 dakikadan kesin olarak
+# kucukse bu iki an ayni sayilir; tam 1 dakikalik fark ayni an degildir." Tek tanim burasidir;
+# `pencere` butun zaman iliskilerini bu degerden kurar (bulgu S-C2: deger on-kayit sabiti oldugu
+# halde `pencere.py`de, degismezlik korumasinin disinda yaziliydi).
+ZAMAN_TOLERANSI = dt.timedelta(minutes=1)
+
+# Kapsam netlestirmesi (on-kayit §2 "Kapsam", rev.2): evren yalnizca
 # contractType = PERPETUAL olan USDT marjinli sozlesmelerden olusur.
 # TRADIFI_PERPETUAL (hisse senedi, emtia, premarket) kapsam disidir.
 PERPETUAL_TIPI = "PERPETUAL"
 TRADIFI_TIPI = "TRADIFI_PERPETUAL"
 ENDEKS_TIPI = "INDEX"
 
-# Haric tutma listesi (on-kayit §2, revizyon 2). Kesin ve aciktir; duzenli ifade
+# Haric tutma listesi (on-kayit §2 "Haric tutma", rev.2). Kesin ve aciktir; duzenli ifade
 # kullanilmaz, cunku BUSDT (BU) ve TUSDT (Threshold) stablecoin degildir.
 HARIC_ENDEKSLER: frozenset[str] = frozenset(
     {"BTCDOMUSDT", "DEFIUSDT", "ALLUSDT", "BLUEBIRDUSDT", "DOTECOUSDT", "FOOTBALLUSDT"}
@@ -66,16 +87,18 @@ HARIC_ENDEKSLER: frozenset[str] = frozenset(
 HARIC_STABLECOIN: frozenset[str] = frozenset({"USDCUSDT"})
 HARIC_SEMBOLLER: frozenset[str] = HARIC_ENDEKSLER | HARIC_STABLECOIN
 
-# On-kayit §2 revizyon 2 stablecoin tanimi "bagini koruyan token" oldugu icin
+# On-kayit §2 (rev.2) stablecoin tanimi "bagini koruyan token" oldugu icin
 # asagidakiler evrende KALIR. Liste yalnizca belge amaclidir.
 EVRENDE_KALAN_STABLECOIN_BENZERI: frozenset[str] = frozenset(
     {"FRAXUSDT", "USTCUSDT", "STBLUSDT", "STABLEUSDT"}
 )
 
-# Kabul edilen yeniden adlandirma zincirleri (on-kayit §3, revizyon 2).
+# Kabul edilen yeniden adlandirma zincirleri (on-kayit §3 "Veri bolmesi", rev.2).
 # {yeni_sembol: eski_sembol}; varlik anahtari zincirin en eski uyesidir.
 # KEEPUSDT/NUUSDT -> TUSDT birlesme oldugu icin zincir SAYILMAZ.
-YENIDEN_ADLANDIRMA: dict[str, str] = {
+# Dondurulmustur (F1 kapatma turu madde 1a): zincir bolmeyi belirler, yerinde bir yazim
+# `varlik_anahtari`ni ve dolayisiyla A/B grubunu sessizce kaydirirdi.
+YENIDEN_ADLANDIRMA = _types.MappingProxyType({
     "AAVEUSDT": "LENDUSDT",
     "1000BTTCUSDT": "BTTUSDT",
     "RENDERUSDT": "RNDRUSDT",
@@ -85,9 +108,9 @@ YENIDEN_ADLANDIRMA: dict[str, str] = {
     "1000LUNCUSDT": "LUNAUSDT",
     "VICUSDT": "TOMOUSDT",
     "DODOXUSDT": "DODOUSDT",
-}
+})
 
-# --- Listeleme donemi (on-kayit §2, revizyon 2) ------------------------------
+# --- Listeleme donemi (on-kayit §2 "Listeleme donemi"; yurutlukteki metin rev.7) --------
 
 # On-kayit §2 rev.7 "Listeleme donemi": bu kadar ya da daha fazla ardisik sifir
 # hacimli bar (bir gun) dolgu kosusudur ve donemi boler.
@@ -102,7 +125,7 @@ AZAMI_EKSIK_BAR_BOSLUGU = dt.timedelta(days=7)
 # hicbir kurala girmez (karantina kurali kaldirildi).
 SETTLED_SONEKI = "SETTLED"
 
-# --- Veri butunlugu kontrolu (on-kayit §2, revizyon 2) -----------------------
+# --- Veri butunlugu kontrolu (on-kayit §2 "Veri butunlugu kontrolu", rev.2) --------------
 
 # |open[t] / close[t-1] - 1| bu esigi asan barlar denetim raporunda listelenir.
 BUTUNLUK_ACILIS_ESIGI = 0.30
@@ -147,23 +170,24 @@ DENETIM_ILK_GECIKME_SAAT = 8
 # ve olcum betikleri buradan okur. Degerler izgara adimi cinsinden (4h: bar, 1d: gun).
 
 # Hipotezlerin izgarasi (on-kayit §2 "Bar tipleri"; §4-§5: H1, H2 4 saatlik; H3 1 gunluk).
-HIPOTEZ_IZGARASI = {"H1": BAR_4H, "H2": BAR_4H, "H3": BAR_1D}
+HIPOTEZ_IZGARASI = _types.MappingProxyType({"H1": BAR_4H, "H2": BAR_4H, "H3": BAR_1D})
 # Hipotez adlari (on-kayit §5: H1, H2, H3). Onay kosusu ve karar noktasi yalnizca bu sabitleri kabul eder;
 # "h2", "H2_b" gibi varyasyonlar reddedilir (kapi sertlestirme turu 3, denetci KS2 D-B1).
 HIPOTEZLER = tuple(HIPOTEZ_IZGARASI)
 
 # Birincil ufuk (on-kayit §4 tablo): H1, H2 18 bar (3 gun); H3 14 gun. Onay kararlari buna gore.
-BIRINCIL_UFUK = {BAR_4H: 18, BAR_1D: 14}
+BIRINCIL_UFUK = _types.MappingProxyType({BAR_4H: 18, BAR_1D: 14})
 
 # Ikincil ufuklar, yalnizca rapor (on-kayit §4 tablo): H1, H2 6 ve 42 bar; H3 7 ve 30 gun.
-IKINCIL_UFUKLAR = {BAR_4H: (6, 42), BAR_1D: (7, 30)}
+IKINCIL_UFUKLAR = _types.MappingProxyType({BAR_4H: (6, 42), BAR_1D: (7, 30)})
 
 # Ileri kaymanin ust siniri (on-kayit §4 rev.6 "Ileri kaymanin ust siniri"; rev.10): H1, H2 18 bar,
 # H3 14 gun. Degerce birincil ufka esittir ama on-kayitta ayri bir kural olarak yazilidir.
-ILERI_KAYMA_SINIRI = {BAR_4H: 18, BAR_1D: 14}
+ILERI_KAYMA_SINIRI = _types.MappingProxyType({BAR_4H: 18, BAR_1D: 14})
 
 # Izgara basina butun gecerli ufuklar (birincil + ikincil), artan sirada.
-UFUKLAR = {bar: tuple(sorted((BIRINCIL_UFUK[bar], *IKINCIL_UFUKLAR[bar]))) for bar in BIRINCIL_UFUK}
+UFUKLAR = _types.MappingProxyType(
+    {bar: tuple(sorted((BIRINCIL_UFUK[bar], *IKINCIL_UFUKLAR[bar]))) for bar in BIRINCIL_UFUK})
 
 # H2'nin funding ortalamasi penceresi, saat (on-kayit §5 H2 madde 1: "t anina kadarki son 24 saatteki
 # funding oranlarinin ortalamasi"; §4 "Funding sinyal penceresinin tamligi": "24 saat geriye uzanir").
@@ -256,7 +280,10 @@ ASGARI_HACIM_1D = 2_000_000.0
 
 # --- Veri bolmesi (on-kayit §3) ----------------------------------------------
 
-# SHA256("short-lab-v1:" + SEMBOL); ozetin tamsayi degeri cift ise A, tek ise B.
+# SHA256("short-lab-v1:" + VARLIK ANAHTARI); ozetin tamsayi degeri cift ise A, tek ise B.
+# Varlik anahtari, yeniden adlandirma zincirinin EN ESKI uyesidir (on-kayit §3 rev.2):
+# `split.varlik_anahtari` once zinciri cozer, sonra ozeti alir. Yorum rev.2'den beri "SEMBOL"
+# diyordu (bulgu S-C6); kod bastan beri varlik anahtarini kullaniyor.
 BOLME_TUZU = "short-lab-v1:"
 
 KESIF_BASI = dt.datetime(2020, 1, 1, tzinfo=dt.timezone.utc)
@@ -283,7 +310,13 @@ GIDIS_DONUS_MALIYET = 0.0020  # %0.20
 
 TOHUM = 20260911
 PERMUTASYON_TEKRAR = 10_000
-ALFA_BONFERRONI = 0.05 / 3  # uc hipotez icin Bonferroni = 0.0167
+# Uc hipotez icin Bonferroni duzeltmesi. On-kayit §7 esigi `0.05/3 = 0.0167` diye, §9 hukmu
+# `p < 0.0167` diye yazar; kod BOLMEYI tasir (0.0166667) ve F3 karsilastirmasi bu degerden
+# okunacaktir (bulgu S-C1). Iki yazim arasinda ulasilabilir p-degeri YOKTUR: p her zaman
+# (r+1)/10001 bicimindedir ve (0.0166667, 0.0167] araligi icin r+1 tamsayisi yoktur
+# (166.68 < r+1 <= 166.97). Yani yuvarlama hicbir hukmu degistiremez; esigin KARARA baglanmasi
+# F3 isidir (RESULTS §14.31 madde 12).
+ALFA_BONFERRONI = 0.05 / 3
 
 # --- Calisma aninda degistirilemeyen adlar ------------------------------------
 #
@@ -309,9 +342,31 @@ class SabitDegistirilemez(AttributeError):
 
 # Onay kaydi ikinci tur (denetci OK D-B2): kume sabitleri ve modul sinifi da. `config.ONAY_KUMELERI = ()` C1'i
 # onaysiz acardi; kume tarihlerinin "duyarlilik icin" degistirilmesi kazayla da olabilirdi.
+#
+# F1 KAPATMA TURU MADDE 1a (bulgu 25). Kapsam artik "on-kayit kaynakli her sabit"tir: eskiden
+# yalnizca §5, §7 ve kume sabitleri korunuyordu, bu yuzden maliyet (§4), uygunluk esikleri (§2),
+# donem sinirlari (§2), bolme tuzu (§3), funding penceresi (§5) ve hipotez izgarasi (§2) calisma
+# aninda yeniden atanabiliyordu; bir atama butun alt tohumlari, uygunluk suzgecini ve hukumleri
+# sessizce kaydirirdi. Kapsamin TAM oldugu `tests/test_f1_config_kapsami.py` ile denetlenir: test
+# adlari elle saymaz, `config.py`nin kaynagindan turetir ve her acik sabitin ya burada ya da
+# `_ON_KAYIT_DISI`nda oldugunu arar. Sozluk sabitleri ayrica `MappingProxyType` ile dondurulmustur
+# (ad korumasi yerinde yazimi engellemez).
 _DEGISMEZ_ADLAR = frozenset({
     "ONAY_KAYDI", "_DEGISMEZ_ADLAR", "UZAK_DEPO_ADRESI",
     "KESIF_BASI", "KESIF_SONU", "C2_BASI", "C2_SONU", "KUMELER", "ONAY_KUMELERI",
+    # On-kayit §2: piyasa, evren, bar tipleri, 1d turetmesi, listeleme donemi, veri butunlugu.
+    "TEMINAT_SONEKI", "DONEM_BASI", "DONEM_SONU", "BAR_4H", "BAR_1D", "IZGARA_ADIMI_SAAT",
+    "GUNLUK_BAR_SAYISI", "PERPETUAL_TIPI", "TRADIFI_TIPI", "ENDEKS_TIPI", "HARIC_ENDEKSLER",
+    "HARIC_STABLECOIN", "HARIC_SEMBOLLER", "EVRENDE_KALAN_STABLECOIN_BENZERI", "YENIDEN_ADLANDIRMA",
+    "DOLGU_KOSU_ESIGI_BAR", "AZAMI_EKSIK_BAR_BOSLUGU", "SETTLED_SONEKI", "BUTUNLUK_ACILIS_ESIGI",
+    # On-kayit §2 uygunluk esikleri ve §3 bolme tuzu.
+    "ASGARI_LISTELEME_YASI_GUN", "HACIM_PENCERESI_GUN", "ASGARI_HACIM_4H", "ASGARI_HACIM_1D",
+    "BOLME_TUZU",
+    # On-kayit §2, §4: hipotez izgarasi, ufuklar, ileri kayma siniri, funding penceresi, zaman
+    # toleransi, maliyet.
+    "HIPOTEZ_IZGARASI", "HIPOTEZLER", "BIRINCIL_UFUK", "IKINCIL_UFUKLAR", "ILERI_KAYMA_SINIRI",
+    "UFUKLAR", "H2_FUNDING_PENCERESI_SAAT", "ZAMAN_TOLERANSI", "NORMAL_FUNDING_ARALIGI_SAAT",
+    "TEK_YON_MALIYET", "GIDIS_DONUS_MALIYET",
     # Rev.11 madde 2: izgara parametreleri ve pencere sinirlari. θ, δ, φ, k, ν, τ ya da bir
     # pencere uzunlugunu calisma aninda degistirmek on-kaydi degistirmektir (on-kayit §5 rev.11).
     "IZGARA", "H1_DIP_BAR", "H1_HACIM_TOPLAM_BAR", "H1_HACIM_MEDYAN_BAR", "H1_HACIM_CARPANI",
@@ -327,6 +382,17 @@ _DEGISMEZ_ADLAR = frozenset({
     # 20260911, tekrar 10.000.
     "TOHUM", "PERMUTASYON_TEKRAR", "ALFA_BONFERRONI",
     "__class__",
+})
+
+# ON-KAYIT DEGILDIR: yollar, uzak depo adresi, F1 denetim teshis esikleri ve korumanin kendi
+# adlari. Bu kume `_DEGISMEZ_ADLAR` ile birlikte `config.py`deki butun acik sabitleri BOLER:
+# ikisinde de olmayan ya da ikisinde de olan bir ad `tests/test_f1_config_kapsami.py`yi kirar,
+# yani yeni bir sabit siniflandirilmadan eklenemez (madde 1a).
+_ON_KAYIT_DISI = frozenset({
+    "KOK", "VERI_DIZINI", "ONBELLEK_DIZINI", "ANALIZ_DIZINI", "SPLIT_CSV", "UNIVERSE_CSV",
+    "EXCHANGE_INFO_ANLIK", "DENETIM_UZUN_BOSLUK_BAR", "DENETIM_CAPRAZ_TOLERANS",
+    "DENETIM_BORSA_GENELI_ORANI", "DENETIM_KISA_DONEM_GUN", "DENETIM_TEMSILI_GIRIS_SURE",
+    "DENETIM_ILK_GECIKME_SAAT",
 })
 
 

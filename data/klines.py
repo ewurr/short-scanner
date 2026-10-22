@@ -18,11 +18,13 @@ import pandas as pd
 
 import config
 from data import binance_vision as bv
+from data import pencere as pencere_modulu
 
-# Bir UTC gunu tam olmasi icin gereken 4h bar sayisi.
-GUNLUK_BAR_SAYISI = 6
-# 1d gununu olusturan 4h barlarin izgara adimi (00:00, 04:00, ..., 20:00 UTC).
-GUNLUK_IZGARA_ADIMI = pd.Timedelta(hours=4)
+# Bir UTC gunu tam olmasi icin gereken 4h bar sayisi ve o gunun izgara adimi (00:00, 04:00, ...,
+# 20:00 UTC). Ikisi de on-kayit sabitidir ve `config`ten TURETILIR (F1 kapatma turu madde 1a,
+# bulgu S-C3: ayni sayilar burada ve `pencere`de ayri yaziliydi, ikisi de korumanin disindaydi).
+GUNLUK_BAR_SAYISI = config.GUNLUK_BAR_SAYISI
+GUNLUK_IZGARA_ADIMI = pencere_modulu.adim(config.BAR_4H)
 
 SAYISAL_SUTUNLAR = [
     "open",

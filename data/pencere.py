@@ -29,18 +29,20 @@ Bu modul tamamen saftir: ag veya disk kullanmaz.
 
 from __future__ import annotations
 
+import functools as _functools
 from dataclasses import dataclass, field, replace
+import types as _types
 
 import numpy as np
 import pandas as pd
 
 import config
 
-# Bar tipine gore izgara adimi.
-ADIMLAR = {
-    config.BAR_4H: pd.Timedelta(hours=4),
-    config.BAR_1D: pd.Timedelta(days=1),
-}
+# Bar tipine gore izgara adimi; sayilar on-kayit sabitidir ve `config.IZGARA_ADIMI_SAAT`ten
+# TURETILIR (F1 kapatma turu madde 1a, bulgu S-C3: adim degerleri bu modulde ve `klines`te ayri
+# yaziliydi, ikisi de degismezlik korumasinin disindaydi).
+ADIMLAR = _types.MappingProxyType(
+    {bar: pd.Timedelta(hours=saat) for bar, saat in config.IZGARA_ADIMI_SAAT.items()})
 
 # --- Zaman toleransi (on-kayit §4 rev.8 "Zaman toleransi") --------------------
 #
@@ -51,9 +53,22 @@ ADIMLAR = {
 # yalnizca bunlari kullanir. Bar acilislari 4h izgarasinda tam hizalidir
 # (on-kayit §2 rev.8 "1 gunluk barlar", RESULTS §14.11); bar-bar karsilastirmasi
 # icin tam esitlik ile `ayni_an` ayni sonucu verir.
-ZAMAN_TOLERANSI = pd.Timedelta(minutes=1)
+# Deger `config.ZAMAN_TOLERANSI`dir (F1 kapatma turu madde 1a, bulgu S-C2): on-kayit sabiti artik
+# korunan tek yerde yazilidir ve asagidaki butun iliskiler onu CAGRI ANINDA okur (`tolerans`), yani
+# bu moduldeki bir ada yazmak karsilastirmalari degistirmez. Iki ad geriye uyumluluk icin durur.
+ZAMAN_TOLERANSI = pd.Timedelta(config.ZAMAN_TOLERANSI)
 # Eski ad; ayni sabit.
 ODEME_TOLERANSI = ZAMAN_TOLERANSI
+
+
+@_functools.lru_cache(maxsize=4)
+def _tolerans_pd(deger) -> pd.Timedelta:
+    return pd.Timedelta(deger)
+
+
+def tolerans() -> pd.Timedelta:
+    """Zaman toleransi (on-kayit §4 rev.8), her cagrida `config`ten okunur."""
+    return _tolerans_pd(config.ZAMAN_TOLERANSI)
 
 
 # --- Donem bitisi (B), donem kapanisi (K), donem uyeligi (on-kayit §2 rev.8) ------
@@ -99,8 +114,9 @@ def donem_ici_4h_maskesi(zamanlar, *, donem_baslangic, donem_bitis):
                   & np.asarray(ayni_ya_da_once(zamanlar, donem_bitis), dtype=bool))
 
 
-# 1d barin son 4h barinin acilisi gun acilisindan 20 saat sonradir (on-kayit §2 rev.8).
-GUNUN_SON_4H_BARI = pd.Timedelta(hours=20)
+# 1d barin son 4h barinin acilisi gun acilisindan 20 saat sonradir (on-kayit §2 rev.8). Sayi
+# gunun bar sayisindan TURETILIR ((6-1) x 4 saat); ikinci bir yazim degildir (bulgu S-C3).
+GUNUN_SON_4H_BARI = (config.GUNLUK_BAR_SAYISI - 1) * ADIMLAR[config.BAR_4H]
 
 
 def _sonuc(deger):
@@ -112,40 +128,40 @@ def _sonuc(deger):
 
 def ayni_an(a, b):
     """a ile b ayni an mi: `|a - b| < 1 dk` (kesin kucuk)."""
-    return _sonuc(abs(a - b) < ZAMAN_TOLERANSI)
+    return _sonuc(abs(a - b) < tolerans())
 
 
 def sonra(a, b):
     """a, b'den SONRA mi (ayni an degil): `a - b >= 1 dk`."""
-    return _sonuc((a - b) >= ZAMAN_TOLERANSI)
+    return _sonuc((a - b) >= tolerans())
 
 
 def once(a, b):
     """a, b'den ONCE mi (ayni an degil): `b - a >= 1 dk`."""
-    return _sonuc((b - a) >= ZAMAN_TOLERANSI)
+    return _sonuc((b - a) >= tolerans())
 
 
 def ayni_ya_da_once(a, b):
     """a, b ile ayni an ya da ondan once mi (`not sonra(a, b)`)."""
-    return _sonuc((a - b) < ZAMAN_TOLERANSI)
+    return _sonuc((a - b) < tolerans())
 
 
 def ayni_ya_da_sonra(a, b):
     """a, b ile ayni an ya da ondan sonra mi (`not once(a, b)`)."""
-    return _sonuc((b - a) < ZAMAN_TOLERANSI)
+    return _sonuc((b - a) < tolerans())
 
 
 def ayni_an_sonu(x):
     """x ile ayni sayilan anlarin ust kenari (HARIC): `an < ayni_an_sonu(x)` <=>
     `ayni_ya_da_once(an, x)`; `an >= ayni_an_sonu(x)` <=> `sonra(an, x)`.
     Siralanmis dizilerde `searchsorted` icin tek kenar tanimi."""
-    return x + ZAMAN_TOLERANSI
+    return x + tolerans()
 
 
 def ayni_an_basi(x):
     """x ile ayni sayilan anlarin alt kenari (HARIC): `an > ayni_an_basi(x)` <=>
     `ayni_ya_da_sonra(an, x)`; `an <= ayni_an_basi(x)` <=> `once(an, x)`."""
-    return x - ZAMAN_TOLERANSI
+    return x - tolerans()
 
 
 def adim(bar: str) -> pd.Timedelta:
@@ -838,11 +854,16 @@ def cikis_bari(
     if _cikis_odemesi_kume_disinda(ilk, kume_son):
         raise KumeSiniriHatasi(
             f"Ileri kaymali cikis {ilk} kume sonunu ({kume_son}) asiyor (on-kayit §4 rev.8: olay olusmaz).")
-    sinir = hedef_acilis + int(birincil_ufuk) * adim(bar)
+    # Ileri kayma sinirini `config.ILERI_KAYMA_SINIRI` verir, `birincil_ufuk` parametresi DEGIL
+    # (F1 kapatma turu madde 1a, bulgu S-C4). On-kayit §4 rev.6 "Ileri kaymanin ust siniri" ayri
+    # bir kuraldir ve rev.10 "yalnizca bu on-kayitta tanimlidir" der; degerce birincil ufka esit
+    # olmasi tesadufi degil ama parametreden beslenmek kurali cagirana baglardi.
+    kayma_siniri = config.ILERI_KAYMA_SINIRI[bar]
+    sinir = hedef_acilis + int(kayma_siniri) * adim(bar)
     if sonra(ilk, sinir):
         raise IleriKaymaSiniriHatasi(
             f"Hedef bar {hedef_acilis} eksik ve sonraki mevcut bar {ilk} ileri kayma sinirindan "
-            f"({birincil_ufuk} x {adim(bar)}) uzak (on-kayit §4 rev.8: olay olusmaz).")
+            f"({kayma_siniri} x {adim(bar)}) uzak (on-kayit §4 rev.8: olay olusmaz).")
     return _kume_icinde(CikisSonucu(_sira(ilk), ilk, "open", ilk, "ileri_kayma", hedef, ilk - hedef_acilis))
 
 
