@@ -433,8 +433,7 @@ def test_bolme_dogrulama_bagimliliklari_atanarak_b_coini_kesife_sokulamaz(ad, tm
     assert izinli is False, "B grubundan BTCUSDT KESIF kumesine sizdi"
 
 
-@pytest.mark.xfail(reason="P-12: `config.BOLME_TUZU` degistirilebilir; yeni tuzla uretilen tablo dogrulamadan "
-                          "gecer ve B'den bir coin A olur", **_BASARILI)
+# F1 kapatma turu madde 1a: `BOLME_TUZU` korunan adlara girdi, xfail kaldirildi.
 def test_config_bolme_tuzu_degistirilerek_bolme_yeniden_dagitilamaz(tmp_path, monkeypatch):
     """Kural: CLAUDE.md §3.2 / on-kayit §3 (bolme tuzu `short-lab-v1:` sabit). Saldiri: `config.BOLME_TUZU`
     baska bir degere atanir (korunan adlarda yok), BTCUSDT'yi A yapan bir tuz aranir, sahte tablo o tuzla
@@ -454,8 +453,7 @@ def test_config_bolme_tuzu_degistirilerek_bolme_yeniden_dagitilamaz(tmp_path, mo
     assert izinli is False, "tuz degistirilerek B grubundan BTCUSDT KESIF kumesine sokuldu"
 
 
-@pytest.mark.xfail(reason="P-13: `config.YENIDEN_ADLANDIRMA` sozlugu yerinde degistirilebilir; sahte zincir + "
-                          "sahte tablo BTCUSDT'yi A grubuna tasir", **_BASARILI)
+# F1 kapatma turu madde 1a: sozluk `MappingProxyType` ile donduruldu, xfail kaldirildi.
 def test_config_yeniden_adlandirma_sozlugu_degistirilerek_bolme_kaydirilamaz(tmp_path, monkeypatch):
     """Kural: on-kayit §3 rev.2 (dokuz kabul edilmis zincir); CLAUDE.md §3.2. Saldiri:
     `config.YENIDEN_ADLANDIRMA["BTCUSDT"] = "ASSETX"` (A grubuna dusen bir anahtar), sahte tablo
@@ -476,7 +474,10 @@ def test_config_yeniden_adlandirma_sozlugu_degistirilerek_bolme_kaydirilamaz(tmp
         except (TypeError, config.SabitDegistirilemez, split.BolmeTutarsizligi):
             return
     finally:
-        zincir.pop(B_SEMBOLU, None)
+        # Salt okunur eslemde `pop` yoktur; degistirilememis olmasi testin bekledigi sonuctur
+        # (F1 kapatma turu madde 1a: sozluk donduruldu). Testin MEKANIZMASI degisti, hukmu degil.
+        if hasattr(zincir, "pop"):
+            zincir.pop(B_SEMBOLU, None)
     assert izinli is False, "yeniden adlandirma sozlugu degistirilerek BTCUSDT KESIF'e sokuldu"
 
 

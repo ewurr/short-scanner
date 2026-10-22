@@ -181,15 +181,24 @@ def test_config_hipotezler_monkeypatch_belgeleme(gecici_kayit, monkeypatch):
     Testin HUKMU degisti ve bu bir SERTLESME: `config.HIPOTEZLER`i monkeypatch'lemek artik tek
     basina da, kilit kaydiyla birlikte de yetmiyor. Sahte adla kosu acabilmek icin ayrica
     `sinyal.PARAMETRELER` / `config.IZGARA` gibi on-kayit sabitlerinin de degistirilmesi gerekir;
-    o noktada mudahale artik "atlatma" degil, kodun yeniden yazilmasidir."""
-    monkeypatch.setattr(config, "HIPOTEZLER", config.HIPOTEZLER + ("SAHTE_HIPOTEZ",))
-    with pytest.raises(split.KilitYok):           # kilit kaydi olmadan acilmaz (rev.13)
+    o noktada mudahale artik "atlatma" degil, kodun yeniden yazilmasidir.
+
+    F1 KAPATMA TURU MADDE 1a ILE UCUNCU KEZ DEGISTI: `HIPOTEZLER` (ve bagli oldugu
+    `HIPOTEZ_IZGARASI`) artik `_DEGISMEZ_ADLAR` kapsamindadir, yani saldirinin ILK adimi --
+    sabiti calisma aninda degistirmek -- `SabitDegistirilemez` ile reddediliyor. Belgelenen
+    davranis bu: monkeypatch'in kendisi artik mumkun degil. Sonraki adimlarin (kilit kaydi,
+    izgara kimligi) savunmasi yerinde duruyor ve kendi testlerinde sinaniyor; burada bilinmeyen
+    bir hipotez adiyla kosu acilamadigi dogrudan dogrulanir."""
+    # `monkeypatch.setattr` KULLANILMAZ: eski degeri geri alma listesine yazdiktan sonra atamayi
+    # yapar, atama reddedilince de teardown'da geri almayi dener ve orada patlar. Dogrudan atama
+    # zaten hicbir sey degistirmiyor, geri alinacak bir sey de yok.
+    with pytest.raises(config.SabitDegistirilemez):
+        setattr(config, "HIPOTEZLER", config.HIPOTEZLER + ("SAHTE_HIPOTEZ",))
+    assert "SAHTE_HIPOTEZ" not in config.HIPOTEZLER
+    # Sabit degismedigi icin bilinmeyen ad en basta reddedilir (`split._hipotez_dogrula`).
+    with pytest.raises(ValueError):
         with kosu("SAHTE_HIPOTEZ", "C1"):
-            pytest.fail("kilit kaydi olmadan kosu acilmamali")
-    kilit_yaz(split._test_ayari().kilit_koku, "SAHTE_HIPOTEZ")
-    with pytest.raises(split.KilitBozuk):         # izgarasi olmayan ad (madde 2c)
-        with kosu("SAHTE_HIPOTEZ", "C1"):
-            pytest.fail("izgarasi olmayan ad icin kosu acilmamali")
+            pytest.fail("bilinmeyen hipotez adiyla kosu acilmamali")
     assert split.aktif_onay_kosusu() is None
 
 
