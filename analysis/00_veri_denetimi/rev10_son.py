@@ -52,7 +52,9 @@ from rev10_hazirlik import _etiket  # noqa: E402
 P = pencere_modulu
 F = funding_modulu
 KUME = "KESIF"
-PENCERE = pd.Timedelta(hours=24)
+# On-kayit §5 H2 madde 1'in penceresi; sayi gercek koddan okunur (bulgu S-C5: betikte
+# ikinci kez yaziliydi).
+PENCERE = pd.Timedelta(hours=config.H2_FUNDING_PENCERESI_SAAT)
 CIKTI = {ad: BU_DIZIN / f"rev10_son_{ad}_tam.csv" for ad in ("h2", "gevseklik", "tam", "ortam")}
 OLCULER = ("kendi", "kucuk", "kucuk_giris")
 

@@ -67,9 +67,15 @@ KUME = "KESIF"
 # H2'nin k parametresine bagli degisir (kirilim dip penceresinin uzunlugu) ve en uzun pencere en
 # cok bar duser. En muhafazakar olcum icin k'nin en buyugu alinir; H1 ve H3'un capasiz
 # pencereleri yapilandirmadan bagimsizdir.
-YAPILANDIRMALAR = {"H1": {"theta": 0.20, "delta": 0.08},
-                   "H2": {"phi": 0.0003, "k": 12},
-                   "H3": {"nu": 0.50, "tau": 0.15}}
+# Degerler IZGARADAN turetilir, elle yazilmaz (bulgu S-C5): ızgara on-kayitta tanimlidir ve
+# betikte ikinci kez yazilmasi iki metnin ayrismasina yol acar. Kural: her parametrenin en kucuk
+# degeri; H2'nin k'si en BUYUK (en uzun kirilim penceresi, en muhafazakar olcum).
+def _olcum_yapilandirmasi(hipotez: str) -> dict:
+    izgara = config.IZGARA[hipotez]
+    return {ad: (max(degerler) if ad == "k" else min(degerler)) for ad, degerler in izgara.items()}
+
+
+YAPILANDIRMALAR = {h: _olcum_yapilandirmasi(h) for h in config.HIPOTEZLER}
 
 
 def _donem_ici(zamanlar, d, bar: str):

@@ -61,8 +61,10 @@ from rev9_uygulama import _ayrinti, _bos_seri, _planlar  # noqa: E402
 
 P = pencere_modulu
 F = funding_modulu
-TOL = P.ZAMAN_TOLERANSI
-PENCERE = pd.Timedelta(hours=24)
+TOL = P.tolerans()
+# On-kayit §5 H2 madde 1'in penceresi; sayi gercek koddan okunur (bulgu S-C5: betikte
+# ikinci kez yaziliydi).
+PENCERE = pd.Timedelta(hours=config.H2_FUNDING_PENCERESI_SAAT)
 CIKTI = {ad: BU_DIZIN / f"rev10_{ad}_tam.csv" for ad in ("h2_pencere", "gevseklik", "aralik", "ortam")}
 
 

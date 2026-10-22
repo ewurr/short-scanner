@@ -5,10 +5,16 @@ Odeme araligi tahmin edilmez; dosyada acikca yazilidir (F1 §1 denemesiyle
 dogrulandi: BTCUSDT ve 1000PEPEUSDT 8 saat, WIFUSDT/ORDIUSDT/MYXUSDT/AVNTUSDT
 4 saat).
 
-On-kayit §2: "4 saatlik veya 1 saatlik odeme araligina gecmis sozlesmelerde oran,
-karsilastirma icin 8 saate normallestirilir; getiri hesabinda ise gercek odemeler
-kullanilir." Bu yuzden `oran` (gercek odeme) ve `oran_8h` (karsilastirma) iki ayri
-sutun olarak tutulur; gercek odeme sutunu hicbir zaman olceklenmez.
+On-kayit §2 "Funding" (rev.3'te genel formule baglandi; alinti yururlukteki metindendir):
+"8 saat disinda bir odeme araligi (1, 2, 4 saat veya baska) kullanan sozlesmelerde oran,
+karsilastirma icin 8 saate normallestirilir; getiri hesabinda ise gercek odemeler kullanilir.
+Normallestirme genel formulle tanimlanir: `oran x 8 / aralik`; yukarida sayilan araliklar
+ORNEKTIR, sinirlayici degildir." Bu yuzden `oran` (gercek odeme) ve `oran_8h` (karsilastirma)
+iki ayri sutun olarak tutulur; gercek odeme sutunu hicbir zaman olceklenmez.
+
+(Bulgu S-C7: bu docstring rev.3'ten onceki cumleyi -- "4 saatlik veya 1 saatlik odeme araligina
+gecmis sozlesmelerde" -- alintiliyordu, yani kod genel formulu uygularken belge iki araligi
+sayiyordu.)
 """
 
 from __future__ import annotations
@@ -46,9 +52,10 @@ def _ay_cercevesi(govde: bytes) -> pd.DataFrame:
 
 
 def sekiz_saate_normallestir(oran: pd.Series, aralik_saat: pd.Series) -> pd.Series:
-    """Gercek odeme oranini 8 saatlik esdegerine cevirir (on-kayit §2).
+    """Gercek odeme oranini 8 saatlik esdegerine cevirir (on-kayit §2 "Funding").
 
-    4 saatlik aralikta oran x2, 1 saatlik aralikta x8, 8 saatlikte degismez.
+    Genel formul: `oran x 8 / aralik`. Ornekler: 4 saatlik aralikta oran x2, 1 saatlikte x8,
+    8 saatlikte degismez; formul sayilan araliklarla SINIRLI DEGILDIR (rev.3).
     Saf fonksiyon.
     """
     carpan = config.NORMAL_FUNDING_ARALIGI_SAAT / pd.to_numeric(aralik_saat, errors="coerce")
