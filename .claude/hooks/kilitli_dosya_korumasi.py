@@ -831,7 +831,13 @@ KABUK_ARACLARI = {
 }
 
 # Komutun bulunabilecegi `tool_input` alanlari.
-KOMUT_ALANLARI = ("command", "cmd", "script", "komut")
+KOMUT_ALANLARI = ("command", "cmd", "commands", "script", "scripts", "komut", "shell", "run",
+                  "code", "snippet", "program", "args", "argv", "arguments", "input")
+
+# KOD alanlari: bir kabuk komutu degil, calistirilacak PROGRAM metni tasirlar (`code`, `snippet`).
+# Kabuk ayristirmasi bunlari siniflandiramaz (`open("X","w")` bir yonlendirme degildir), bu yuzden
+# kilitli bir adi anan kod metni TEMKINLI reddedilir (madde 1e).
+KOD_ALANLARI = ("code", "snippet", "program", "script", "scripts")
 
 # Hedef yolun bulunabilecegi `tool_input` alanlari.
 YOL_ALANLARI = ("file_path", "notebook_path", "path", "filePath")
@@ -947,40 +953,104 @@ def main() -> int:
     # degerlendiriliyordu, yani iki komut alani tasiyan bir girdide
     # (`{"command": "echo ok", "script": "rm CLAUDE.md"}`) ikincisi gecip gidiyordu. Liste biciminde
     # komut tasiyan araclar da (`{"command": ["sed", "-i", ..., "CLAUDE.md"]}`) hic denetlenmiyordu.
-    for alan in KOMUT_ALANLARI:
-        deger = arac_girdi.get(alan)
-        if isinstance(deger, str) and deger:
-            komutlar = [deger]
-        elif isinstance(deger, (list, tuple)) and deger:
-            # Liste komut: parcalar tirnaklanarak tek metne cevrilir (yol parcalari bozulmaz).
-            komutlar = [" ".join(shlex.quote(str(p)) for p in deger)]
-        else:
-            continue
-        for komut in komutlar:
-            try:
-                karar = komut_degerlendir(arac, komut)
-            except Exception as hata:  # hook hatasi komutu sessizce gecirmemeli
-                kalip = _ad_geciyor_mu(komut)
-                karar = _red(kalip, f"hook hatasi: {type(hata).__name__}", belirsiz=True) if kalip else IZIN
-            if not karar.izin:
-                bash_reddet(karar)
+    okuma_araci = (arac or "").strip().lower() in OKUMA_ARACLARI
+
+    # Girdinin TAMAMI gezilir (madde 1e): alanlar ic ice sozluk ve listelerde de olabilir ve
+    # `main()` artik "bilmedigi" bir alani sessizce gecmez.
+    #
+    # Bulgu neydi: komut ve yol alanlari SABIT listelerdi, bu yuzden `destination`, `new_path`,
+    # `code` ya da `commands` gibi bir alanda gelen kilitli yol ya da komut hicbir listede
+    # bulunmadigi icin FAIL-OPEN geciyordu. Denetlenmeyen bir GIRIS, denetlenmemis bir komut
+    # biciminden farklidir: PowerShell boşlugu gibi kanal duzeyinde bir aciklik.
+    for yol_adi, alan, deger in _girdi_alanlari(arac_girdi):
+        kucuk = (alan or "").lower()
+        if kucuk in KOMUT_ALANLARI:
+            if not _komut_dali(arac, deger, kod_alani=kucuk in KOD_ALANLARI):
                 return 0
-
-    # Salt okuma araclarinin yolu denetlenmez (bulgu P-B1): kilit yazmaya karsidir, okumaya degil.
-    if (arac or "").strip().lower() in OKUMA_ARACLARI:
-        return 0
-
-    # Butun yol alanlari denetlenir; dongu ilk BULUNAN alanda degil ilk KILITLI alanda durur
-    # (bulgu P-C5: `path="."` gibi zararsiz bir alan, ayni girdideki `filePath="CLAUDE.md"`in
-    # denetlenmesini engelliyordu).
-    for alan in YOL_ALANLARI:
-        deger = arac_girdi.get(alan)
-        if isinstance(deger, str) and deger:
-            kalip = kilitli_mi(deger)
+            continue
+        if okuma_araci:
+            # Salt okuma araclarinin yolu denetlenmez (bulgu P-B1): kilit yazmaya karsidir,
+            # okumaya degil. Komut alanlari yukarida arac adina bakilmadan denetlendi.
+            continue
+        if kucuk in YOL_ALANLARI:
+            kalip = kilitli_mi(deger) if isinstance(deger, str) and deger else None
             if kalip:
                 reddet(kalip)
                 return 0
+            continue
+        # BILINMEYEN alan (madde 1e). Iki olcut:
+        #   1. deger TEK BASINA kilitli bir yolsa: bir hedef yol alanidir (`destination`,
+        #      `new_path`, `target`), reddedilir;
+        #   2. deger bir komut olarak KESIN red veriyorsa (temkinli degil) reddedilir.
+        # Yalnizca TEMKINLI red veren bilinmeyen alan gecirilir: `description` gibi serbest metin
+        # alanlari kilitli bir dosyanin adini anmakla yazma niyeti tasimaz ve yanlis pozitif
+        # uretirdi (`command` alani ayrica ve tam olarak denetlenmistir).
+        if isinstance(deger, str) and deger:
+            kalip = kilitli_mi(deger.strip().strip('"\''))
+            if kalip:
+                reddet(kalip)
+                return 0
+        if not _komut_dali(arac, deger, yalnizca_kesin=True):
+            return 0
     return 0
+
+
+def _girdi_alanlari(deger, yol: str = ""):
+    """`tool_input` icindeki butun (yol, alan adi, deger) uclulerini ic ice gezerek uretir."""
+    if isinstance(deger, dict):
+        for ad, ic in deger.items():
+            alt = f"{yol}.{ad}" if yol else str(ad)
+            if isinstance(ic, (dict, list, tuple)) and not _metin_listesi(ic):
+                yield from _girdi_alanlari(ic, alt)
+            else:
+                yield alt, str(ad), ic
+    elif isinstance(deger, (list, tuple)):
+        for i, ic in enumerate(deger):
+            yield from _girdi_alanlari(ic, f"{yol}[{i}]")
+
+
+def _metin_listesi(deger) -> bool:
+    """Liste komut biciminde mi (`["sed", "-i", ...]`): butun ogeleri metin ya da sayi."""
+    return (isinstance(deger, (list, tuple)) and bool(deger)
+            and all(isinstance(p, (str, int, float)) for p in deger))
+
+
+def _komut_metinleri(deger) -> list[str]:
+    """Degerin icinde komut olarak degerlendirilecek metin(ler).
+
+    Liste iki bicimde gelebilir ve IKISI de denetlenir (madde 1e):
+      - argv parcalari (`["sed", "-i", "...", "X"]`): tirnaklanarak tek metne cevrilir,
+      - tam komut listesi (`["rm X", "echo y"]`): her oge kendi basina bir komuttur. Yalnizca
+        birlestirilmis bicime bakmak yetmiyordu: `shlex.quote` butun komutu tek bir tokene
+        cevirdigi icin `["rm X"]` hicbir yazma bicimine benzemiyordu.
+    """
+    if isinstance(deger, str) and deger:
+        return [deger]
+    if _metin_listesi(deger):
+        metinler = [" ".join(shlex.quote(str(p)) for p in deger)]
+        metinler += [p for p in deger if isinstance(p, str) and p]
+        return metinler
+    return []
+
+
+def _komut_dali(arac: str | None, deger, *, kod_alani: bool = False, yalnizca_kesin: bool = False) -> bool:
+    """Komut metnini degerlendirir. Reddedildiyse cevabi yazar ve False doner."""
+    for komut in _komut_metinleri(deger):
+        try:
+            karar = komut_degerlendir(arac, komut)
+        except Exception as hata:  # hook hatasi komutu sessizce gecirmemeli
+            kalip = _ad_geciyor_mu(komut)
+            karar = _red(kalip, f"hook hatasi: {type(hata).__name__}", belirsiz=True) if kalip else IZIN
+        if karar.izin and kod_alani:
+            kalip = _ad_geciyor_mu(komut)
+            if kalip:
+                karar = _red(kalip, "kod alani kilitli dosyanin adini aniyor; program metni kabuk "
+                                    "kurallariyla siniflandirilamaz", belirsiz=True)
+        if karar.izin or (yalnizca_kesin and karar.belirsiz):
+            continue
+        bash_reddet(karar)
+        return False
+    return True
 
 
 if __name__ == "__main__":

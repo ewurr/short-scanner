@@ -47,7 +47,13 @@ def test_denetlenen_arac_listesi():
         "bash": "bash", "shell": "bash", "sh": "bash", "zsh": "bash",
         "powershell": "powershell", "pwsh": "powershell", "powershellcore": "powershell",
     }
-    assert hook.KOMUT_ALANLARI == ("command", "cmd", "script", "komut")
+    # F1 kapatma turu madde 1e: liste genisletildi ve BILINMEYEN alanlar da denetlenir
+    # (`tests/test_hook_bilinmeyen_alanlar.py`). Hangi alanlarin hangi dalda denetlendigi burada
+    # yazilidir; liste degisirse bu test fark eder.
+    assert hook.KOMUT_ALANLARI == ("command", "cmd", "commands", "script", "scripts", "komut",
+                                   "shell", "run", "code", "snippet", "program", "args", "argv",
+                                   "arguments", "input")
+    assert hook.KOD_ALANLARI == ("code", "snippet", "program", "script", "scripts")
     assert hook.YOL_ALANLARI == ("file_path", "notebook_path", "path", "filePath")
 
 

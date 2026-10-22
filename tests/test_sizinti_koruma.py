@@ -224,21 +224,24 @@ def test_bash_bilinen_yazma_yollari_reddedilir(komut):
     _hook_reddeder("Bash", komut)
 
 
+# F1 kapatma turu madde 1e: dordu de kapandi (bilinmeyen alanlar da denetlenir), xfail kaldirildi.
 MAIN_ACIKLAR = [
     pytest.param("mcp__fs__move_file", {"source": "x.md", "destination": "CLAUDE.md"},
-                 marks=XF("`destination` YOL_ALANLARI'nda yok: tasima araci kilitli dosyanin uzerine yazar"), id="destination"),
+                 id="destination"),
     pytest.param("mcp__fs__rename", {"old_path": "x.md", "new_path": "CLAUDE.md"},
-                 marks=XF("`new_path` YOL_ALANLARI'nda yok"), id="new_path"),
+                 id="new_path"),
     pytest.param("python_exec", {"code": "open('CLAUDE.md','w').write('x')"},
-                 marks=XF("`code` alani KOMUT_ALANLARI'nda yok: kod calistiran arac denetlenmez"), id="code-alani"),
+                 id="code-alani"),
     pytest.param("YeniKabuk", {"commands": ["rm CLAUDE.md"]},
-                 marks=XF("`commands` (cogul) alani KOMUT_ALANLARI'nda yok"), id="commands-alani"),
+                 id="commands-alani"),
 ]
 
 
 @pytest.mark.parametrize("arac,girdi", MAIN_ACIKLAR)
 def test_main_taninmayan_alanlarla_yazma_reddedilmeli(monkeypatch, capsys, arac, girdi):
-    """Dayanak: madde 1 (bilinmeyen kabuk kanali); hook yalniz 4 komut + 4 yol alanina bakar (fail-open)."""
+    """Dayanak: madde 1 (bilinmeyen kabuk kanali). Madde 1e'den beri `main()` girdinin tamamini gezer:
+    bilinmeyen bir alanda gelen kilitli yol ya da komut da reddedilir (eskiden 4 komut + 4 yol alani,
+    gerisi fail-open)."""
     cikti = _main(monkeypatch, capsys, {"tool_name": arac, "tool_input": girdi})
     assert '"deny"' in cikti, f"izin verildi: {girdi}"
 
