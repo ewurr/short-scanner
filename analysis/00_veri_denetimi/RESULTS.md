@@ -3739,6 +3739,34 @@ Bash'in kararları korunduğu için `git commit --amend`, `git push --force` ve 
 
 **Testler.** Parçalı tam takım (155 dosya, dört grup): **4298 geçti, 97 xfailed, 0 kırmızı**, XPASS yok. Önceki takıma göre fark yeni dosyanın 126 testidir; xfail sayısı değişmedi.
 
+### §14.39 Hook: blok ve alt ifade içindeki komutlar (2026-10-31)
+
+**Ne bulundu.** Komut bir bloğun, alt ifadenin ya da atamanın sağ tarafının içinde yazıldığında hook onu görmüyordu, çünkü parçanın komut tokeni `{`, `then`, `do` ya da `=` oluyordu. Açık iki yönlüydü: `if ($?) { git reset --hard }` geçiyor, `if ($?) { git log -- <kilitli> }` temkinli reddediliyordu. İlk kez §14.38 turunun ek ölçümünde görüldü; §14.38'in "Kalan açık" paragrafındaki yol bu turda kapandı.
+
+**Düzeltme.** Parça blok sınırlarından bölünür, her komutun başından kontrol sözcükleri ve atamanın solu atılır, kalan komut düz komutların fonksiyonundan geçer; git için `_git_karari` kullanılır. `$(...)` ve Bash ters tırnak ikamesinin içi de aynı değerlendirmeden geçer. Tek tırnak içi ve tek tırnaklı here-string düz metindir. Kapanmamış `{ }` bloğu açılmaz, kapanmamış tırnak ya da ikame de bugünkü davranışı korur. Komutlar çalıştırılmadı; ölçümler hook'un saf fonksiyonlarıyla yapıldı.
+
+**Öncesi ve sonrası.** 34 satırlık tablonun 24'ünde karar önce düz komutun kararından farklıydı; sonra 4'ünde farklı kaldı ve bu 4 satır bilinçli olarak daha sıkıdır. Tablo `tests/test_hook_blok_ici.py` içindedir; `<K>` iki kilitli dosyayla açılmıştır ve beklenen karar düz komutun ölçümünden üretilir.
+
+Bilinçli istisna: `if ($?) { Get-Content <K> }` ve `if true; then cat <K>; fi` temkinli RED kalır. "Beklenen = düz komutun kararı" kuralı burada izin der, ama gevşeme sınırı daha sıkı olduğu için o uygulanır. Kilitli dosyayı okuma ihtiyacı `Read` aracıyla karşılanıyor; git dışı RED→izin gevşemesi daha geniş bir inceleme ister.
+
+**RED'den izne dönen kararlar.** Tabloda 6 satır: `if ($?) { git log -- <K> }`, `$x = git log -- <K>` ve `if true; then git log -- <K>; fi`, her biri iki kilitli dosyayla. Geniş karşılaştırmada 620 komut, hepsi git salt okuma (karşılaştırma tabanı: eski ve yeni hook, iki kabuk, 21 yazım biçimi, 59.556 karşılaştırma). Sınıflandırma desenle yapıldı. Kesin red hiç düşmez. `git add`, `git commit`, `git config` ve `--output` taşıyan git komutu blok içinde gevşemez.
+
+**izin→RED denetimi.** Aynı tabanda 2039 izin→RED dönüşü oldu. Her dönüşün iç komutları çıkarılıp düz kararı alındı: **2039 tutarlı** (en az bir iç komutun düz hâli RED), **0 uyumsuz**. Tutarlı sınıfın başında `rm` (396), `echo` yönlendirmesi (147), `git stash` (141), `git reset` (139), `git checkout` (100) gelir. Bu denetim taban kümeyle sınırlıdır. Gündelik iş akışının 9 komutu (`if ($?) { git commit ... }`, `foreach` içinde pytest, `$r = python ...`, `ForEach-Object { $_.Name }` vb.) iki kabukta da izin alır ve testle sabitlenmiştir.
+
+**Bash kararlarının değiştiği yerler.** Yalnızca blok, alt ifade ve atama biçimleri: `{ git reset --hard; }`, `if true; then git reset --hard; fi`, `for i in 1; do git clean -fd; done`, `while false; do git stash; done`, `` x=`git reset --hard` ``, `echo "$(git clean -fd)"` izinden RED'e; `if true; then git log -- <K>; fi` RED'den izne. Düz komutlarda değişiklik yoktur: §14.38'in 53 komutluk tablosu, gerekçesiyle birlikte Bash kararları dahil, aynen geçer.
+
+**§14.35 (a) satır 5 kapandı; xfail 97 → 96.** `1 | ForEach-Object { Remove-Item <yol> }` artık reddedilir ve `test_ps_diger_yazma_yollari_reddedilmeli[foreach-object]` işaretleyicisi kaldırıldı. §14.35 bu yolu "doktrinin kapsamadığı" sınıfta kaydetmişti. Ama blok gövdesindeki düz bir yazma komutu, Claude Code'un bu ortamda sık ürettiği bir kalıptır. Bu yüzden kazara hasar sınıfındadır ve blok açma onu doğrudan kapatır. §14.35'in metnine dokunulmadı.
+
+**`GIT_KAYIT`.** `GIT_OKUMA` içinde salt okuma olmayan alt komutlar da vardır (`add`, `commit`, `branch`, `tag`, `remote`, `config`, `fetch`, `push`). Gevşeme sınırı bunları ayırmak için `GIT_SALT_OKUMA = GIT_OKUMA - GIT_KAYIT` kullanır. Tek kaynaktan türetilir, çünkü ikinci bir git listesi kayabilirdi; sınıflandırma listesi değildir. Kapsam ilişkisi testle sabitlenmiştir.
+
+**Kapsam dışı (ölçüldü, değişmedi).** İki kabukta geçenler: `Start-Process git reset --hard`, `Start-Process git -ArgumentList "reset --hard"`, `Invoke-Expression "git reset --hard"`, `iex "git reset --hard"`, `cmd /c git reset --hard`, `bash -c "git reset --hard"`, `. git reset --hard`, `` g`it reset --hard ``. `Start-Process git log -- <K>` temkinli reddedilir. `sudo git reset --hard` PowerShell'de geçer, Bash'te reddedilir. Bu biçimler blok içinde de düz hâlinin kararını alır; bu yüzden `if ($?) { sudo git reset --hard }` Bash'te izinden RED'e döndü, PowerShell'de geçer.
+
+**xfail okuması.** 97 xfail gerekçesinin tamamı okundu. PowerShell-git açığı kayıtlı değildi; §14.38'deki ifade o açık için doğrulandı. Blok açığı git dışı biçimiyle kayıtlıydı; kayıt: `[foreach-object]` ve §14.35 (a) satır 5. §14.38 bunu anmamıştı.
+
+**Geçmiş.** Bu tarihten önce blok içinden yıkıcı bir komutun çalışıp çalışmadığı bilinemez.
+
+**Testler.** Parçalı tam takım (156 dosya, dört grup): **4377 geçti, 96 xfailed, 0 başarısız, 0 XPASS**. Önceki takıma göre fark yeni dosyanın 78 testi ve xfail'den çıkan 1 testtir.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
