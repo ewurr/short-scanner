@@ -155,8 +155,8 @@ PS_ACIKLAR = [
     pytest.param("YeniKabuk", 'Invoke-Expression "Remove-Item CLAUDE.md"',
                  marks=XF("ayni; bash lehcesinin temkinli reddi PowerShell'in IZNIyle dusurulur"), id="iex-bilinmeyen-arac"),
     pytest.param("PowerShell", f"iex 'Set-Content {K} x'", marks=XF("`iex` takma adi ayni delik"), id="iex-takma"),
-    pytest.param("PowerShell", "1 | ForEach-Object { Remove-Item CLAUDE.md }",
-                 marks=XF("`ForEach-Object` salt okuma listesinde: betik blogundaki yazma gorulmez"), id="foreach-object"),
+    # Blok acma turu: saldiri savusturuldu, xfail kaldirildi (RESULTS §14.39).
+    pytest.param("PowerShell", "1 | ForEach-Object { Remove-Item CLAUDE.md }", id="foreach-object"),
     pytest.param("PowerShell", "Get-ChildItem analysis -Recurse -Filter KILIT.md | Remove-Item",
                  marks=XF("boruyla beslenen silme: `Remove-Item` argumansiz, ad onceki parcada"), id="boru-ile-silme"),
     pytest.param("PowerShell", "Set-Content `\nCLAUDE.md x",

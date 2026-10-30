@@ -32,8 +32,9 @@ Calisma bicimi:
 Bilinen sinirlar (bilincli):
   - Kilitli dosyayi ADIYLA anmadan yazan bir betik (`python yama.py`)
     yakalanamaz; komut metninde iz yoktur.
-  - Cift tirnak icindeki komut ikamesi (`echo "$(sed -i ... X)"`) yalnizca
-    kilitli ad geciyorsa temkinli reddedilir.
+  - Blok, alt ifade, atama ve komut ikamesinin ici duz komut gibi degerlendirilir
+    (RESULTS §14.39). Dolayli cagrilar (`Start-Process`, `iex`, `cmd /c`, `bash -c`)
+    kapsam disidir.
 
 Girdi : stdin uzerinden JSON (tool_name, tool_input)
 Cikti : izin veriyorsa sessiz cikis; engelliyorsa PreToolUse deny JSON'u.
@@ -653,6 +654,160 @@ def _parca_degerlendir(parca: list[str]) -> Karar:
     return IZIN
 
 
+# --- Blok, alt ifade ve atama (RESULTS §14.39) ---------------------------------
+
+# Parcanin basinda gelip asil komutu degistirmeyen kontrol sozcukleri. `for`/`foreach` yok: onlarin
+# arkasindaki `f in <ad>` komut degildir, kilitli ad anilirsa temkinli red korunur.
+KONTROL_SOZCUKLERI = frozenset(
+    {"if", "elif", "elseif", "else", "then", "do", "while", "until", "try", "catch", "finally", "!"}
+)
+
+# GIT_OKUMA'nin dosya ya da kayit degistirebilen uyeleri. Temkinli reddin dusurulmesi yalnizca kalan
+# salt okuma alt komutlarinda serbesttir (gevseme siniri); siniflandirma listesi degildir.
+GIT_KAYIT = frozenset({"add", "commit", "branch", "tag", "remote", "config", "fetch", "push"})
+GIT_SALT_OKUMA = GIT_OKUMA - GIT_KAYIT
+
+_ATAMA_SOLU = r"(?:\[[^\]]+\])*\$[\w:.]+"
+_ATAMA = re.compile(_ATAMA_SOLU)
+_BITISIK_ATAMA = re.compile(_ATAMA_SOLU + r"\+?=(.+)")
+
+
+def _blok_isareti(token: str) -> tuple[bool, str, bool]:
+    """Token bir blok acip kapatiyor mu? Doner: (aciyor, govde, kapatiyor).
+
+    Boslukluysa tirnakli metindir. `{}`, `${x}`, `HEAD@{1}` gibi dengeli yazimlar blok degildir.
+    """
+    acik_sayi, kapali_sayi = token.count("{"), token.count("}")
+    if " " in token or acik_sayi == kapali_sayi:
+        return False, token, False
+    on = re.match(r"[%?@]?\{", token) if acik_sayi > kapali_sayi else None
+    govde = token[on.end():] if on else token
+    kapatiyor = kapali_sayi > acik_sayi and govde.endswith("}")
+    return bool(on), govde[:-1] if kapatiyor else govde, kapatiyor
+
+
+def _bloklar_dengeli(tokenlar: list[str]) -> bool:
+    """Komutun butun bloklari kapaniyor mu? Kapanmayan blok acilmaz, bugunku davranis korunur."""
+    derinlik = 0
+    for token in tokenlar:
+        aciyor, _, kapatiyor = _blok_isareti(token)
+        derinlik += int(aciyor) - int(kapatiyor)
+        if derinlik < 0:
+            return False
+    return derinlik == 0
+
+
+def _basi_temizle(parca: list[str]) -> list[str]:
+    """Kontrol sozcuklerini ve atamanin sol tarafini atar; geriye asil komut kalir."""
+    kalan = list(parca)
+    while kalan:
+        if kalan[0].lower() in KONTROL_SOZCUKLERI:
+            kalan = kalan[1:]
+        elif len(kalan) > 1 and kalan[1] in ("=", "+=") and _ATAMA.fullmatch(kalan[0]):
+            kalan = kalan[2:]
+        elif (bitisik := _BITISIK_ATAMA.fullmatch(kalan[0])):
+            kalan = [bitisik.group(1), *kalan[1:]]
+        else:
+            break
+    return kalan
+
+
+def _ic_komutlar(parca: list[str], blok_ac: bool) -> list[list[str]]:
+    """Parcayi blok sinirlarindan boler ve her komutun basini temizler."""
+    alt_parcalar: list[list[str]] = [[]]
+    for token in parca:
+        aciyor, govde, kapatiyor = _blok_isareti(token) if blok_ac else (False, token, False)
+        if aciyor:
+            alt_parcalar.append([])
+        if govde:
+            alt_parcalar[-1].append(govde)
+        if kapatiyor:
+            alt_parcalar.append([])
+    return [temiz for alt in alt_parcalar if (temiz := _basi_temizle(alt))]
+
+
+def _git_salt_okuma_mi(parca: list[str]) -> bool:
+    argumanlar, _ = _yonlendirmeleri_ayir(parca)
+    if not argumanlar:
+        return False
+    komut = argumanlar[0].replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if komut not in ("git", "git.exe") or any(t.startswith("--output") for t in argumanlar):
+        return False
+    return _git_alt_komutu(argumanlar)[0] in GIT_SALT_OKUMA
+
+
+def _parca_ac_degerlendir(parca: list[str], tek, blok_ac: bool) -> Karar:
+    """Parcanin icindeki komutlari duz komutlarin gectigi `tek` degerlendirmesinden gecirir.
+
+    Gevseme siniri: parcanin butunu temkinli red aliyorsa bu red yalnizca kilitli ad GIT SALT OKUMA
+    komutunun icinde anildiginda duser (`if ($?) { git log -- <ad> }`). Kesin red hic dusmez;
+    `{ <ad> }` ya da `{ Get-Content <ad> }` gibi git disi anmalar temkinli reddini korur.
+    """
+    ic = _ic_komutlar(parca, blok_ac)
+    if ic == [parca]:
+        return tek(parca)
+    for komut in ic:
+        karar = tek(komut)
+        if not karar.izin:
+            return karar
+    butun = tek(parca)
+    if butun.izin or not butun.belirsiz:
+        return butun
+    if all(_git_salt_okuma_mi(k) or not _ad_geciyor_mu(" ".join(k)) for k in ic):
+        return IZIN
+    return butun
+
+
+def _ikameler(metin: str, ters_tirnak: bool) -> list[str]:
+    """Metindeki `$(...)` ve (Bash'te) ters tirnak ikamelerinin icini dondurur.
+
+    Tek tirnak ici metindir, atlanir; cift tirnak ici genisler, taranir. Kapanmayan ikame atlanir.
+    """
+    kacis = "\\" if ters_tirnak else "`"
+    ikameler: list[str] = []
+    tek_tirnakta = cift_tirnakta = False
+    i = 0
+    while i < len(metin):
+        c = metin[i]
+        if tek_tirnakta:
+            tek_tirnakta = c != "'"
+        elif c == kacis and (cift_tirnakta or not ters_tirnak):
+            i += 1
+        elif c == "'" and not cift_tirnakta:
+            tek_tirnakta = True
+        elif c == '"':
+            cift_tirnakta = not cift_tirnakta
+        elif metin.startswith("$(", i):
+            derinlik, j = 1, i + 2
+            while j < len(metin) and derinlik:
+                derinlik += {"(": 1, ")": -1}.get(metin[j], 0)
+                j += 1
+            if derinlik == 0:
+                ikameler.append(metin[i + 2:j - 1])
+                i = j - 1
+        elif c == "`" and ters_tirnak:
+            j = metin.find("`", i + 1)
+            if j != -1:
+                ikameler.append(metin[i + 1:j])
+                i = j
+        i += 1
+    return ikameler
+
+
+def _tokenlari_degerlendir(tokenlar: list[str], metin: str, tek, butun, ters_tirnak: bool) -> Karar:
+    """Iki lehcenin ortak akisi: parcalar, sonra tirnak icinde kalabilen ikameler."""
+    blok_ac = _bloklar_dengeli(tokenlar)
+    for parca in parcalara_bol(tokenlar):
+        karar = _parca_ac_degerlendir(parca, tek, blok_ac)
+        if not karar.izin:
+            return karar
+    for ikame in _ikameler(metin, ters_tirnak):
+        karar = butun(ikame)
+        if not karar.izin:
+            return karar
+    return IZIN
+
+
 def bash_degerlendir(komut: str) -> Karar:
     """Bir Bash komutunun kilitli dosyalara yazma niyeti tasiyip tasimadigini soyler.
 
@@ -675,11 +830,7 @@ def bash_degerlendir(komut: str) -> Karar:
             return _red(kalip, "komut ayristirilamadi (kapanmamis tirnak)", belirsiz=True)
         return IZIN
 
-    for parca in parcalara_bol(tokenlar):
-        karar = _parca_degerlendir(parca)
-        if not karar.izin:
-            return karar
-    return IZIN
+    return _tokenlari_degerlendir(tokenlar, govdesiz, _parca_degerlendir, bash_degerlendir, True)
 
 
 # --- PowerShell --------------------------------------------------------------
@@ -823,11 +974,9 @@ def powershell_degerlendir(komut: str) -> Karar:
             return _red(kalip, "komut ayristirilamadi (kapanmamis tirnak)", belirsiz=True)
         return IZIN
 
-    for parca in parcalara_bol(tokenlar):
-        karar = _ps_parca_degerlendir(parca)
-        if not karar.izin:
-            return karar
-    return IZIN
+    # Tek tirnakli here-string duz metindir, ikame taramasina girmez.
+    metin = re.sub(r"@'.*?'@", "", komut, flags=re.DOTALL)
+    return _tokenlari_degerlendir(tokenlar, metin, _ps_parca_degerlendir, powershell_degerlendir, False)
 
 
 # --- Arac adindan lehceye ----------------------------------------------------
