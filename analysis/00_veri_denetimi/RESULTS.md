@@ -3677,6 +3677,27 @@ Bugünkü etkisi ihtiyatlı yöndedir (daha fazla bar düşer, daha az olay olu�
 **(d) §14.34'te kapanmış sayılanlar.** P-B1, P-B2, P-C2, P-C4, P-C5 önceki turlarda kapandı;
 "ön-kayıttan sapma denetimi yapılamadı" maddesi §14.34'te kapandı.
 
+### §14.36 feature_lab ile kesişim ve H2 ön-kaydının dondurulması (2026-10-30)
+
+**Ne oldu.** 2026-10-27 ile 2026-10-30 arasında ayrı bir depoda (`feature_lab`; yalnızca yerel bir depodur, uzak deposu yoktur; 2026-10-30 itibarıyla dal `master`, HEAD f8b0ec5) ön-kayıtlı bir feature testi yapıldı. Bu projenin A/B grup ayrımı orada uygulanmadı; evren bütün USDT perpetual sözleşmeleriydi.
+
+- Keşif aşaması, 2022-01 → 2024-06: test edilen feature aileleri funding seviyesi (72 saat), funding ivmesi, açık pozisyon değişimi, perp primi, top trader long/short ayrışması ve listeleme yaşı. Funding seviyesi ve ivmesi beklenen yönde ve anlamlı çıktı (yüksek funding'li coinler sonraki 1–7 günde geride kaldı); etki küçüktü (günlük kesitsel rank IC −0,01 ile −0,03 arası; taban: aynı günün kesiti, kaynak: feature_lab keşif raporu). Açık pozisyon değişimi ve perp primi benzer tabloyu verdi. Top trader ayrışması beklenen yönün tersine çıktı.
+- Doğrulama aşaması, 2024-07 → 2026-06: yalnızca listeleme yaşı feature'ları hesaplandı. Yeni listelenen perp'lerin geride kalması tekrarlandı; ancak short tarafın ödediği funding bu dönemde kazancı yok etti. Funding seviyesi ve ivmesi bu aşamada hesaplanmadı.
+
+**Bu projenin kuralları açısından anlamı.**
+
+1. Keşif aşaması: B grubu × 2022-01 → 2024-06 C1'in içindedir. H2'nin mekanizması kalabalık long pozisyonların çözülmesidir; funding seviyesi, açık pozisyon değişimi ve perp primi bu mekanizmanın doğrudan göstergeleridir. Dolayısıyla §3'ün "C1 ve C2 verisine keşif sırasında hiçbir biçimde bakılmaz" kuralının kapsadığı veriye, başka bir proje içinde, H2'nin mekanizmasıyla ilgili sorularla bakılmıştır. Bu, Revizyon 8'de kayda geçen A1 denetim sınırı aşımıyla aynı sınıftandır. Ölçülen şey H2'nin kendisi değildir: H2 funding'e ek olarak önceki yükselişi ve yapı kırılımını şart koşar ve olay tabanlıdır; feature_lab testi kesitsel ve günlüktür.
+2. Doğrulama aşaması iki pencereyle örtüşür: B grubu × 2024-07 → 2025-08 (C1) ve A+B × 2025-09 → 2026-06 (C2). Bu aşamada yalnızca listeleme yaşı hesaplandı. Listeleme yaşı bu projenin hiçbir hipotezinin mekanizması değildir; H3 120 günlük geçmiş gerektirdiği için yeni listelenen coinler H3 olayı üretemez. Ancak bu aşamada C1 ve C2 dönemlerinde yeni listelenen coinler için short tarafın funding maliyeti hakkında bilgi edinilmiştir. Bu bilgi §9'un net getiri şartıyla ilgilidir; hiçbir hipotezin tanımına ya da seçimine girmez.
+3. H1 ve H3 hiçbir yerde test edilmemiştir.
+
+**Zaman kaydı.** H2'nin tanımı, ızgarası ve seçim kuralı ile F2'nin bütün seçim noktaları Revizyon 13'te (2026-10-10) yazılmıştır, yani feature_lab'dan önce. Ancak Revizyon 12 ve 13'ü içeren commit'ler uzak depoya 2026-10-30'da itilmiştir. İtilen aralık `ec9b1a6..10065e7`'dir; bu aralıkta `PREREGISTRATION.md`'yi değiştiren commit'ler ve yerel tarihleri şunlardır: `d93ce4c` (Revizyon 12, 2026-10-10 12:21 +0300), `90a3cbb` (Revizyon 13, 2026-10-10 14:52 +0300), `d69e085` (Revizyon 13'te ifade düzeltmesi; commit mesajına göre izleme maddesinde cümle sırası, 2026-10-11 21:30 +0300). Bu liste araştırma tarafının terminalinde alınmıştır, çünkü depodaki koruma kancası bu salt okuma komutunu reddetti. Git'teki commit tarihleri yerel kayıttır ve dışarıdan doğrulanamaz; dolayısıyla bu iki revizyonun dış zaman damgası feature_lab'dan sonradır. feature_lab'ın da uzak deposu yoktur; onun 2026-10-27 → 2026-10-30 tarihleri de yalnızca yerel kayıttır. Dolayısıyla iki proje arasındaki sıralama yalnızca yerel commit tarihlerine ve araştırma tarafının beyanına dayanır. İki revizyonun metni 2026-10-10'da araştırma tarafının claude.ai çalışma sohbetinde de yazılmıştır; bu kayıt depoda değildir ve üçüncü kişilerce doğrulanabilir değildir. Revizyon 12 ve 13'ün hiçbir maddesi funding'in, açık pozisyonun ya da perp priminin yönüne veya büyüklüğüne dayanmaz.
+
+**Bu tarihten sonra geçerli kurallar.**
+1. H2'nin ön-kaydında değişiklik yapılmaz. Bir değişiklik zorunlu olursa feature_lab bilgisi gerekçesiyle birlikte açıkça yazılır.
+2. F2 ve F3'te ön-kaydın mekanik olarak belirlemediği her uygulama seçiminin gerekçesi kayda geçer. feature_lab sonuçları hiçbir seçimin gerekçesi olarak kullanılmaz.
+3. F3'te H2'nin sonucu raporlanırken bu bölüm anılır. Herhangi bir hipotezin C1 veya C2 net getirisi raporlanırken yukarıdaki 2. madde (funding maliyeti bilgisi) anılır.
+4. H1–H3 dışında bir hipotez bu projeye eklenmez; feature_lab'da ortaya çıkan fikirler (ör. top trader long/short ayrışmasının ters yönü) orada ayrı bir ön-kayıtla test edilir.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
@@ -4147,24 +4168,3 @@ Bugünkü etkisi ihtiyatlı yöndedir (daha fazla bar düşer, daha az olay olu�
   `e616e61` (önbellek yardımcılarında onay verisi izni, `--full-history`, itme denemesi, `origin` denetimi).
   **Güncellenen mevcut testler:** §14.27 "Testler". Silinen test yok. xfail'den çıkan: Q önbellek (8), `ours` (2),
   origin (4). Yeni: `test_onay_verisi_izni`.
-
-### 14.36 feature_lab ile kesişim ve H2 ön-kaydının dondurulması (2026-10-30)
-
-**Ne oldu.** 2026-10-27 ile 2026-10-30 arasında ayrı bir depoda (`feature_lab`, GitHub `ewurr/feature_lab` değilse depo adı: [DOLDURULAMADI: `git -C D:\Projeler\feature_lab remote -v` çıktısı boş, yerel depoda tanımlı uzak yok; GitHub adı doğrulanamadı], kayıt anındaki HEAD: f8b0ec5, uzakla durumu: `## master`, izlenen uzak dal yok, uzakla eşitlik belirlenemez; `?? prompts/` izlenmeyen dizin) ön-kayıtlı bir feature testi yapıldı. Bu projenin A/B grup ayrımı orada uygulanmadı; evren bütün USDT perpetual sözleşmeleriydi.
-
-- Keşif aşaması, 2022-01 → 2024-06: test edilen feature aileleri funding seviyesi (72 saat), funding ivmesi, açık pozisyon değişimi, perp primi, top trader long/short ayrışması ve listeleme yaşı. Funding seviyesi ve ivmesi beklenen yönde ve anlamlı çıktı (yüksek funding'li coinler sonraki 1–7 günde geride kaldı); etki küçüktü (günlük kesitsel rank IC −0,01 ile −0,03 arası; taban: aynı günün kesiti, kaynak: feature_lab keşif raporu). Açık pozisyon değişimi ve perp primi benzer tabloyu verdi. Top trader ayrışması beklenen yönün tersine çıktı.
-- Doğrulama aşaması, 2024-07 → 2026-06: yalnızca listeleme yaşı feature'ları hesaplandı. Yeni listelenen perp'lerin geride kalması tekrarlandı; ancak short tarafın ödediği funding bu dönemde kazancı yok etti. Funding seviyesi ve ivmesi bu aşamada hesaplanmadı.
-
-**Bu projenin kuralları açısından anlamı.**
-
-1. Keşif aşaması: B grubu × 2022-01 → 2024-06 C1'in içindedir. H2'nin mekanizması kalabalık long pozisyonların çözülmesidir; funding seviyesi, açık pozisyon değişimi ve perp primi bu mekanizmanın doğrudan göstergeleridir. Dolayısıyla §3'ün "C1 ve C2 verisine keşif sırasında hiçbir biçimde bakılmaz" kuralının kapsadığı veriye, başka bir proje içinde, H2'nin mekanizmasıyla ilgili sorularla bakılmıştır. Bu, Revizyon 8'de kayda geçen A1 denetim sınırı aşımıyla aynı sınıftandır. Ölçülen şey H2'nin kendisi değildir: H2 funding'e ek olarak önceki yükselişi ve yapı kırılımını şart koşar ve olay tabanlıdır; feature_lab testi kesitsel ve günlüktür.
-2. Doğrulama aşaması iki pencereyle örtüşür: B grubu × 2024-07 → 2025-08 (C1) ve A+B × 2025-09 → 2026-06 (C2). Bu aşamada yalnızca listeleme yaşı hesaplandı. Listeleme yaşı bu projenin hiçbir hipotezinin mekanizması değildir; H3 120 günlük geçmiş gerektirdiği için yeni listelenen coinler H3 olayı üretemez. Ancak bu aşamada C1 ve C2 dönemlerinde yeni listelenen coinler için short tarafın funding maliyeti hakkında bilgi edinilmiştir. Bu bilgi §9'un net getiri şartıyla ilgilidir; hiçbir hipotezin tanımına ya da seçimine girmez.
-3. H1 ve H3 hiçbir yerde test edilmemiştir.
-
-**Zaman kaydı.** H2'nin tanımı, ızgarası ve seçim kuralı ile F2'nin bütün seçim noktaları Revizyon 13'te (2026-10-10) yazılmıştır, yani feature_lab'dan önce. Ancak Revizyon 12 ve 13'ü içeren commit'ler uzak depoya 2026-10-30'da itilmiştir (itilen aralık `ec9b1a6..10065e7`; bu aralıkta `PREREGISTRATION.md`'yi değiştiren commit'ler: [DOLDURULAMADI: `git log` komutu koruma hook'u tarafından "sınıfı belirlenemedi" gerekçesiyle temkinli reddedildi; hook atlatılmadı]). Git'teki commit tarihleri yerel kayıttır ve dışarıdan doğrulanamaz; dolayısıyla bu iki revizyonun dış zaman damgası feature_lab'dan sonradır. İki revizyonun metni 2026-10-10'da araştırma tarafının claude.ai çalışma sohbetinde de yazılmıştır; bu kayıt depoda değildir ve üçüncü kişilerce doğrulanabilir değildir. Revizyon 12 ve 13'ün hiçbir maddesi funding'in, açık pozisyonun ya da perp priminin yönüne veya büyüklüğüne dayanmaz.
-
-**Bu tarihten sonra geçerli kurallar.**
-1. H2'nin ön-kaydında değişiklik yapılmaz. Bir değişiklik zorunlu olursa feature_lab bilgisi gerekçesiyle birlikte açıkça yazılır.
-2. F2 ve F3'te ön-kaydın mekanik olarak belirlemediği her uygulama seçiminin gerekçesi kayda geçer. feature_lab sonuçları hiçbir seçimin gerekçesi olarak kullanılmaz.
-3. F3'te H2'nin sonucu raporlanırken bu bölüm anılır. Herhangi bir hipotezin C1 veya C2 net getirisi raporlanırken yukarıdaki 2. madde (funding maliyeti bilgisi) anılır.
-4. H1–H3 dışında bir hipotez bu projeye eklenmez; feature_lab'da ortaya çıkan fikirler (ör. top trader long/short ayrışmasının ters yönü) orada ayrı bir ön-kayıtla test edilir.
