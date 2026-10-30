@@ -3698,6 +3698,16 @@ Bugünkü etkisi ihtiyatlı yöndedir (daha fazla bar düşer, daha az olay olu�
 3. F3'te H2'nin sonucu raporlanırken bu bölüm anılır. Herhangi bir hipotezin C1 veya C2 net getirisi raporlanırken yukarıdaki 2. madde (funding maliyeti bilgisi) anılır.
 4. H1–H3 dışında bir hipotez bu projeye eklenmez; feature_lab'da ortaya çıkan fikirler (ör. top trader long/short ayrışmasının ters yönü) orada ayrı bir ön-kayıtla test edilir.
 
+### §14.37 Depo görünürlüğü ve `main` koruması (2026-10-30)
+
+**Ne yapıldı.** `ewurr/short-scanner` deposu 2026-10-30'da public yapıldı. Amaç, tek atış denetiminin dayandığı `origin/main` geçmişinin yeniden yazılamaması ve dışarıdan görülebilmesidir. Depo private iken `main` için kurulan ruleset GitHub Free planında uygulanmıyordu; GitHub arayüzü bunu açıkça bildirdi.
+
+**Public yapılmadan önceki denetim.** Bütün dallardaki bütün commit'lerin değişikliklerinde API anahtarı, gizli anahtar, şifre, `BINANCE_` ve `Bearer` kalıpları arandı: eşleşme 0. Takip edilen dosyalarda `.env`, `.pem`, `.key`, kimlik bilgisi ya da gizli bilgi adlı dosya arandı: eşleşme 0. Takip edilen dosya sayısı 356; parquet verisi depoda değildir.
+
+**Koruma.** Ruleset `26207345`, hedef: varsayılan dal (`main`), bypass listesi boş. Kurallar: silme engeli (`deletion`) ve force push engeli (`non_fast_forward`). 2026-10-30'da `https://api.github.com/repos/ewurr/short-scanner/rules/branches/main` adresine giriş yapılmadan yapılan istek bu iki kuralı döndürdü; isteğin giriş yapılmadan yanıtlanması deponun public olduğunu da doğrular.
+
+**Sınır.** Bu tarihten önce `main` için force push koruması yoktu. `ec9b1a6` (2026-10-10) ve öncesindeki uzak geçmiş bu süre boyunca teknik olarak yeniden yazılabilirdi; yeniden yazıldığına dair bir iz yoktur, ama bu dışarıdan kanıtlanamaz. Koruma, CLAUDE.md §5'teki doktrinle aynı düzeydedir: kazara geçmiş yeniden yazımını engeller; depo sahibi ruleset'i kaldırabilir. Bu işlem GitHub'da iz bırakır.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
