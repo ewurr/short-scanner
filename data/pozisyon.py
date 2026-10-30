@@ -71,6 +71,7 @@ import config
 from data import eligibility as eligibility_modulu
 from data import funding as funding_modulu
 from data import klines as klines_modulu
+from data import kume_bellegi
 from data import pencere as pencere_modulu
 from data import sinyal as sinyal_modulu
 from data import split as split_modulu
@@ -382,7 +383,20 @@ def _veri_yukle(sembol: str, kume: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     return mumlar, fr
 
 
+def _erisim_denetimi(kume: str):
+    """Bellek onbelleginin her okunusunda calisan denetim (on-kayit §3 rev.13; `data.kume_bellegi`)."""
+    return lambda: split_modulu.onay_erisimi_denetle(kume, kume in config.ONAY_KUMELERI)
+
+
 def _kume_verisi(sembol: str, kume: str, kume_baslangic, kume_bitis) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """`_veri_yukle` ciktisi, kume araligina kesilmis. Bellek onbelleginden gecer: `mae` ve
+    `funding.pozisyon_fundingi` de ayni yolu kullanir, ayri bir yukleme yolu yoktur."""
+    return kume_bellegi.getir(
+        ("kume", sembol, kume, kume_baslangic, kume_bitis), _erisim_denetimi(kume),
+        lambda: _kume_verisi_yukle(sembol, kume, kume_baslangic, kume_bitis))
+
+
+def _kume_verisi_yukle(sembol: str, kume: str, kume_baslangic, kume_bitis) -> tuple[pd.DataFrame, pd.DataFrame]:
     """`_veri_yukle` ciktisi, kapida kume araligina yeniden kesilmis (ikinci savunma; yukleyici zaten keser)."""
     mumlar, fr = _veri_yukle(sembol, kume)
     if not isinstance(mumlar, pd.DataFrame) or not isinstance(fr, pd.DataFrame):
@@ -427,7 +441,18 @@ def _karar_verisi(sembol: str, kume: str, *, kume_baslangic, kume_bitis, donem_b
     Pencere yuklemleri (plan, `donem_ici_4h_maskesi`, `gunluge_cevir`) kaldirilmadi: kesimden
     sonra ayni hukmu tekrar ederler, yani ikinci bir savunmadir -- ama kurali UYGULAYAN yer
     burasidir.
+
+    Sonuc (sembol, kume, donem) basina bir kez hesaplanir (`data.kume_bellegi`); erisim denetimi
+    her cagrida calisir.
     """
+    return kume_bellegi.getir(
+        ("karar", sembol, kume, kume_baslangic, kume_bitis, donem_baslangic, donem_bitis),
+        _erisim_denetimi(kume),
+        lambda: _karar_verisi_kur(sembol, kume, kume_baslangic, kume_bitis, donem_baslangic, donem_bitis))
+
+
+def _karar_verisi_kur(sembol: str, kume: str, kume_baslangic, kume_bitis, donem_baslangic,
+                      donem_bitis) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     mumlar_4h, funding = _kume_verisi(sembol, kume, kume_baslangic, kume_bitis)
     veri_baslangic = max(pd.Timestamp(kume_baslangic), pd.Timestamp(donem_baslangic))
     veri_bitis = min(pd.Timestamp(kume_bitis), pd.Timestamp(donem_bitis))

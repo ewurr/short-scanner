@@ -54,7 +54,7 @@ from typing import Mapping
 import pandas as pd
 
 import config
-from data import klines, pencere
+from data import klines, kume_bellegi, pencere
 from data.pencere import KumeSiniriHatasi  # noqa: F401  (disari acik ad)
 
 
@@ -1445,6 +1445,9 @@ def onay_kosusu(hipotez: str, kume: str):
         raise uzak_hatasi
 
     tutamak = OnayKosusu(kosu)
+    # Acilis ve kapanis bellekteki kopyalari gecersiz kilar (on-kayit §3 rev.13). Isabetteki denetim
+    # (`onay_erisimi_denetle`) bundan bagimsiz calisir.
+    kume_bellegi.temizle()
     _AKTIF_KOSU = kosu
     hata: BaseException | None = None
     try:
@@ -1455,6 +1458,7 @@ def onay_kosusu(hipotez: str, kume: str):
     finally:
         _AKTIF_KOSU = None
         tutamak._acik = False
+        kume_bellegi.temizle()
         if hata is not None:
             # Sonuc bildirildikten sonra gelen hata: kayda hem hata hem sonuc (onay kaydi ikinci tur, OK D-C1).
             # `sonuc=` son alandir (`not_alanlari`).
@@ -1477,6 +1481,30 @@ def _bos_mum_cercevesi() -> pd.DataFrame:
     return pd.DataFrame(columns=[s for s in bv.MUM_SUTUNLARI if s != "ignore"])
 
 
+def onay_erisimi_denetle(kume: str, onay: bool) -> None:
+    """Kume kapisinin onay adimlari (`kume_erisimi` 1-3). Bellek onbelleginin her okunusunda da calisir
+    (`data.kume_bellegi`; on-kayit §3 rev.13): tek kaynak burasidir. Bolme tablosu burada okunmaz, cunku grup
+    denetimi karar noktasinda zaten yapilir (`pozisyon.grup_dogrula`) ve her barda tablo okumak gerekmez."""
+    if kume not in config.KUMELER:
+        raise ValueError(f"Bilinmeyen kume: {kume!r}. Gecerli degerler: {config.KUMELER}")
+    if not isinstance(onay, bool):
+        raise OnayGerekli(
+            f"onay yalnizca True ya da False olabilir; {onay!r} ({type(onay).__name__}) reddedildi."
+        )
+    if kume in config.ONAY_KUMELERI:
+        if onay is not True:
+            raise OnayGerekli(
+                f"{kume} bir onay kumesidir ve tek atistir. Erisim icin onay=True ve "
+                f"acik bir onay kosusu gerekir (CLAUDE.md §3.3)."
+            )
+        aktif = aktif_onay_kosusu()  # kayit dosyasinda dogrulanir (KS3 D-B1)
+        if aktif is None or aktif[1] != kume:
+            raise OnayGerekli(
+                f"{kume} verisine yalnizca `with split.onay_kosusu(hipotez, {kume!r}):` blogu "
+                f"icinde erisilir. Acik kosu: {aktif}."
+            )
+
+
 def kume_erisimi(
     sembol: str,
     kume: str,
@@ -1497,24 +1525,7 @@ def kume_erisimi(
     Kayit sembol basina degil, `onay_kosusu` acilirken kosu basina yazilir.
     Doner: (sembol kumenin grubunda mi, kume baslangici, kume sonu).
     """
-    if kume not in config.KUMELER:
-        raise ValueError(f"Bilinmeyen kume: {kume!r}. Gecerli degerler: {config.KUMELER}")
-    if not isinstance(onay, bool):
-        raise OnayGerekli(
-            f"onay yalnizca True ya da False olabilir; {onay!r} ({type(onay).__name__}) reddedildi."
-        )
-    if kume in config.ONAY_KUMELERI:
-        if onay is not True:
-            raise OnayGerekli(
-                f"{kume} bir onay kumesidir ve tek atistir. Erisim icin onay=True ve "
-                f"acik bir onay kosusu gerekir (CLAUDE.md §3.3)."
-            )
-        aktif = aktif_onay_kosusu()  # kayit dosyasinda dogrulanir (KS3 D-B1)
-        if aktif is None or aktif[1] != kume:
-            raise OnayGerekli(
-                f"{kume} verisine yalnizca `with split.onay_kosusu(hipotez, {kume!r}):` blogu "
-                f"icinde erisilir. Acik kosu: {aktif}."
-            )
+    onay_erisimi_denetle(kume, onay)
 
     gruplar, _, _ = kume_tanimi(kume)
     bas, son = kume_araligi(kume)
@@ -1573,7 +1584,7 @@ _KORUNAN_ADLAR = frozenset({
     "_kayit_yolu", "_kaydi_oku", "_kayit_kilidi", "_onay_kaydet", "_bitis_yaz", "_acik_kosu",
     "kayda_satir_ekle", "not_alanlari", "kayit_satirlari", "kayittaki_kosular", "_hipotez_dogrula",
     "_onay_kumesi_dogrula", "_sonuc_dogrula", "aktif_onay_kosusu", "onay_baglami_dogrula", "onay_kosusu",
-    "kume_erisimi",
+    "kume_erisimi", "onay_erisimi_denetle",
     # Onay kaydi ikinci tur: bolme ve kume tanimi (OK D-B2, sizinti O), git'e bagli kayit (OK D-B1), sinif.
     "split_oku", "kume_tanimi", "kume_araligi",
     "_depo", "_sahte_git", "_kayit_goreli", "_head_kaydi", "_gecmis_kaydi", "_kayit_commitli_denetle",

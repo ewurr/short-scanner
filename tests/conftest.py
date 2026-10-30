@@ -45,6 +45,14 @@ def ag_kapali(monkeypatch, request):
 
 
 @pytest.fixture(autouse=True)
+def bellek_temiz():
+    """Bellek onbellegi testler arasinda sizmaz (RESULTS §14.40)."""
+    from data import kume_bellegi
+
+    kume_bellegi.temizle()
+
+
+@pytest.fixture(autouse=True)
 def sentetik_donem_kayitlari(monkeypatch):
     """Tek karar noktasi donem sinirlarini evren tablosundan okur (kapi sertlestirme turu). Sentetik seri
     kullanan testlerin donemleri `kapi_yardimcisi.donem` ile kaydedilir; burada gercek kayitlara eklenir."""

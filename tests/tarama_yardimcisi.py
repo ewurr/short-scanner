@@ -96,7 +96,7 @@ TURETILMIS_SERI_DESENI = (
 # kararli bir atlatmayi (ör. `setattr` ile parcalanmis ad) yakalamaz.
 # Kapi sertlestirme turu 2: kapinin veri yolu (`_veri_yukle`, `_kume_verisi`) ve sentetik veri kaydi da.
 KAYIT_DESENI = (r"\b_kayitlar\b|\bkapi_yardimcisi\b|\bSENTETIK_(DONEMLER|GRUPLAR|VERI)\b"
-                r"|\b_veri_yukle\b|\b_kume_verisi\b")
+                r"|\b_veri_yukle\b|\b_kume_verisi(_yukle)?\b|\b_karar_verisi(_kur)?\b")
 
 # Onay kaydini atlatma yollari (onay kaydi ve kosu butunlugu turu, denetci KS3 D-B1). Analiz kodu onay kosusunun
 # durumuna, test kaydina, kayit yazicilarina ya da modul sozluklerine erisemez; kayit dosyasinin adini da anmaz
@@ -134,6 +134,9 @@ ONBELLEK_DESENI = (
     # Kapanis (denetci OK4 D-B1): izin alt sureclere ortam degiskeniyle tasinir; degiskenin adi ve devralma
     # yardimcilari da desende (analiz kodu izni bir alt surec baslatarak da acamaz).
     r"|\bSHORT_LAB_ONAY_VERISI_IZNI\b|\b_IZIN_ORTAM_ADI\b|\b_DEVRALINAN_IZIN\b|\b_izni_devral\b"
+    # RESULTS §14.40: bellek onbellegi ve dondurulmus liste. Analiz kodu kopyaya ve ay adlarina dogrudan erisemez.
+    r"|\bkume_bellegi\b|\b_BELLEK\b|\b_erisim_denetimi\b|\bs3_liste\b|\b_donuk_(liste|anahtarlar)\b|\b_DONUK_BELLEK\b"
+    r"|\bdonuk_liste_yolu\b|\blisteyi_dondur\b|\bagsiz_okuma\b"
 )
 ONBELLEK_UZANTILARI = (".py", ".ipynb", ".pyw")
 

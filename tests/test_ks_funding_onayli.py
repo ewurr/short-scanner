@@ -68,6 +68,9 @@ def test_baska_funding_serisi_reddedilir():
 
         mumlar, _ = SENTETIK_VERI[p.sembol]
         SENTETIK_VERI[p.sembol] = (mumlar, FUND.assign(oran=2e-4))
+        from data import kume_bellegi
+
+        kume_bellegi.temizle()  # RESULTS §14.40: veri yeniden yuklenince degisiklik gorulur; iddia ayni
         funding.pozisyon_fundingi(p)
 
 
