@@ -80,16 +80,25 @@ def mumlari_yukle(
     kayda hicbir sey yazmadan PermissionError; sembol kumenin grubunda degilse
     bos cerceve doner; veri kume tarih araligina kesilir. Analiz ve olay kodu
     mumlara yalnizca bu yoldan erisir.
+
+    Aga cikmaz (on-kayit §3 rev.13): liste dondurulmus dosyadan okunur, eksik ay indirilmez
+    (`bv.agsiz_okuma`). Istisna `yenile=True`: guncelleme aracidir ve aga cikar.
     """
     from data import split as split_modulu  # split bu modulu import eder; dongu onlenir
 
-    return split_modulu.yukle(
-        sembol,
-        bar,
-        kume,
-        onay=onay,
-        mum_yukleyici=lambda s, b: ham_mumlari_yukle(s, b, yenile=yenile),
-    )
+    def yukle() -> pd.DataFrame:
+        return split_modulu.yukle(
+            sembol,
+            bar,
+            kume,
+            onay=onay,
+            mum_yukleyici=lambda s, b: ham_mumlari_yukle(s, b, yenile=yenile),
+        )
+
+    if yenile:
+        return yukle()
+    with bv.agsiz_okuma():
+        return yukle()
 
 
 def ham_mumlari_yukle(sembol: str, bar: str = config.BAR_4H, yenile: bool = False) -> pd.DataFrame:

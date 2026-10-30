@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import os
 import re
 import threading
@@ -155,6 +156,79 @@ class onay_verisi_izni:  # noqa: N801  (baglam yoneticisi; `with bv.onay_verisi_
 _izni_devral()  # import aninda: bu surec bir izin baglami icinde baslatildiysa izin devralinir
 
 
+# --- 0b) Agsiz okuma ve dondurulmus liste (on-kayit §3 rev.13 "Koşuların ağ erişimi") -----------
+#
+# "F2 ve F3 koşuları ağa çıkmaz: veri koşudan önce indirilir ve koşu dondurulmuş yerel önbellekten okur."
+# Ayrim: kapi, kosul ve analiz yolu (`klines.mumlari_yukle`, `funding.funding_yukle`) `agsiz_okuma` baglaminda
+# calisir. Baglam icinde `_iste` HTTP istegi yapmaz (`AgsizOkumaIhlali`), yani eksik ay da indirilmez, liste
+# fonksiyonlari dondurulmus listeyi okur ve liste yoksa `DonukListeYok` verir; sessizce aga dusulmez. Indirme ve
+# guncelleme araclari (`yenile=True`, `ham_*`, evren kurulumu, F1 denetimi) baglam disindadir ve aga cikar.
+#
+# Liste yalnizca dosya adi tasir, ama adlar C1/C2 aylarini gosterir (kuru okuma §6.5 risk 3). Baglam disindaki
+# bugunku listeleme izin aramaz (olculdu, RESULTS §14.40); dondurulmus listenin okunmasi ise her anahtarda onay
+# verisi iznini ister (`_anahtar_denetle`) ve `split.yukle` / `funding_yukle` bunu kapidan gectikten sonra acar.
+#
+# Adlar analiz kodunda taramayla yasaktir (`tests/tarama_yardimcisi.ONBELLEK_DESENI`).
+
+
+class AgsizOkumaIhlali(RuntimeError):
+    """Agsiz okuma baglaminda HTTP istegi denendi: eksik ay ya da liste; veri kosudan once indirilmeli."""
+
+
+class DonukListeYok(RuntimeError):
+    """Dondurulmus S3 listesi yok ya da istenen sembolu tasimiyor; sessizce aga dusulmez."""
+
+
+_LISTE_ALT_YOLU = ("s3_liste", "liste.json")
+_DONUK_BELLEK: dict = {}  # dosya kimligi -> cozulmus liste
+
+
+class agsiz_okuma:  # noqa: N801  (baglam yoneticisi)
+    """Bu is parcaciginda HTTP istegi yapilmaz, listeler dondurulmus dosyadan okunur."""
+
+    def __enter__(self):
+        _YEREL.agsiz = getattr(_YEREL, "agsiz", 0) + 1
+        return self
+
+    def __exit__(self, *_):
+        _YEREL.agsiz -= 1
+        return False
+
+
+def _agsiz_mi() -> bool:
+    return getattr(_YEREL, "agsiz", 0) > 0
+
+
+def donuk_liste_yolu() -> Path:
+    return Path(config.ONBELLEK_DIZINI).joinpath(*_LISTE_ALT_YOLU)
+
+
+def _donuk_liste() -> dict:
+    yol = donuk_liste_yolu()
+    try:
+        bilgi = yol.stat()
+    except FileNotFoundError:
+        raise DonukListeYok(f"Dondurulmus S3 listesi yok: {yol}. Once `python -m data.binance_vision "
+                            "listeyi-dondur` calistirilmali (on-kayit §3 rev.13).") from None
+    kimlik = (str(yol), bilgi.st_mtime_ns, bilgi.st_size)
+    if _DONUK_BELLEK.get("kimlik") != kimlik:
+        _DONUK_BELLEK.update(kimlik=kimlik, veri=json.loads(yol.read_text(encoding="utf-8")))
+    return _DONUK_BELLEK["veri"]
+
+
+def _donuk_anahtarlar(tur: str, *yol: str) -> list[str]:
+    """Dondurulmus listeden anahtarlar; her anahtarda onay verisi izni aranir (`OnayVerisiKorumasi`)."""
+    dugum = _donuk_liste()[tur]
+    try:
+        for parca in yol:
+            dugum = dugum[parca]
+    except KeyError:
+        raise DonukListeYok(f"Dondurulmus listede {tur} {yol} yok: {donuk_liste_yolu()}.") from None
+    for anahtar in dugum:
+        _anahtar_denetle(anahtar)
+    return list(dugum)
+
+
 def onay_verisi_mi(sembol: str, ay: str) -> bool:
     """(sembol, ay) onay verisi mi: ay C2 doneminde (`config.C2_BASI` ve sonrasi) ya da sembol B grubunda (on-kayit
     §3 bolme kurali, varlik anahtariyla). Ay ayristirilamazsa True (kapali yon). Saf."""
@@ -220,8 +294,11 @@ def _iste(url: str, deneme: int = 5, bekleme: float = 2.0) -> requests.Response:
     """Ustel geri cekilmeli GET.
 
     data.binance.vision yogun istekte baglantiyi kapatiyor (RemoteDisconnected),
-    bu yuzden yeniden deneme zorunlu. 404 yeniden denenmez.
+    bu yuzden yeniden deneme zorunlu. 404 yeniden denenmez. Agsiz okuma baglaminda istek yapilmaz.
     """
+    if _agsiz_mi():
+        raise AgsizOkumaIhlali(f"Agsiz okuma baglaminda ag istegi denendi: {url}. Veri kosudan once indirilmeli "
+                               "(on-kayit §3 rev.13).")
     son_hata: Exception | None = None
     for i in range(deneme):
         try:
@@ -269,15 +346,52 @@ def tum_sembol_dizinleri() -> list[str]:
 
 
 def mum_dosyalari(sembol: str, bar: str) -> list[str]:
-    """Bir sembol/bar icin aylik zip anahtarlari, ay sirasinda."""
+    """Bir sembol/bar icin aylik zip anahtarlari, ay sirasinda. Agsiz okuma baglaminda dondurulmus listeden."""
+    if _agsiz_mi():
+        return _donuk_anahtarlar("mum", sembol, bar)
     _, anahtarlar = _listele(f"{MUM_ONEKI}/{sembol}/{bar}/", ayirici="")
     return sorted(a for a in anahtarlar if a.endswith(".zip"))
 
 
 def funding_dosyalari(sembol: str) -> list[str]:
-    """Bir sembol icin aylik funding zip anahtarlari, ay sirasinda."""
+    """Bir sembol icin aylik funding zip anahtarlari, ay sirasinda. Agsiz okuma baglaminda dondurulmus listeden."""
+    if _agsiz_mi():
+        return _donuk_anahtarlar("funding", sembol)
     _, anahtarlar = _listele(f"{FUNDING_ONEKI}/{sembol}/", ayirici="")
     return sorted(a for a in anahtarlar if a.endswith(".zip"))
+
+
+def listeyi_dondur(uzerine_yaz: bool = False) -> dict:
+    """Evrendeki butun sembollerin 4h mum ve funding dosya adlarini diske dondurur; ag kullanan tek liste yolu.
+
+    Yalnizca dosya adlari yazilir (boyut, tarih, ETag yok), cikti sirali ve deterministiktir. Dosya varsa
+    `uzerine_yaz=True` olmadan degistirilmez: dondurulmus liste sessizce yenilenmez. Doner: yol, sembol sayisi,
+    dosya sayisi, SHA256 ve listede olup yerel parquet'i bulunmayan dosya sayisi."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from data import universe
+
+    yol = donuk_liste_yolu()
+    if yol.exists() and not uzerine_yaz:
+        raise FileExistsError(f"{yol} zaten var; dondurulmus liste sessizce yenilenmez.")
+    semboller = sorted(set(universe.evren_yukle()["sembol"]))
+    with ThreadPoolExecutor(max_workers=8) as havuz:
+        mum = list(havuz.map(lambda s: mum_dosyalari(s, config.BAR_4H), semboller))
+        funding = list(havuz.map(funding_dosyalari, semboller))
+    icerik = {"mum": {s: {config.BAR_4H: m} for s, m in zip(semboller, mum)},
+              "funding": dict(zip(semboller, funding))}
+    govde = json.dumps(icerik, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("ascii")
+    yol.parent.mkdir(parents=True, exist_ok=True)
+    gecici = yol.with_suffix(f".{os.getpid()}.tmp")
+    gecici.write_bytes(govde)
+    gecici.replace(yol)
+    onbellek = Path(config.ONBELLEK_DIZINI)
+    eksik = sum(not (onbellek / "klines" / s / config.BAR_4H / f"{dosya_ayi(a)}.parquet").exists()
+                for s, m in zip(semboller, mum) for a in m)
+    eksik += sum(not (onbellek / "funding" / s / f"{dosya_ayi(a)}.parquet").exists()
+                 for s, f in zip(semboller, funding) for a in f)
+    return {"yol": str(yol), "sembol_sayisi": len(semboller), "dosya_sayisi": sum(map(len, mum)) + sum(map(len, funding)),
+            "sha256": hashlib.sha256(govde).hexdigest(), "yerelde_eksik_dosya": eksik}
 
 
 def dosya_ayi(anahtar: str) -> str:
@@ -368,3 +482,23 @@ def ay_araligi(bas: str, son: str) -> Iterable[str]:
     while su_an <= bitis:
         yield str(su_an)
         su_an += 1
+
+
+def _ana(argumanlar: list[str]) -> int:
+    if argumanlar[:1] != ["listeyi-dondur"] or set(argumanlar[1:]) - {"--uzerine-yaz"}:
+        print("Kullanim: python -m data.binance_vision listeyi-dondur [--uzerine-yaz]")
+        return 2
+    sonuc = listeyi_dondur(uzerine_yaz="--uzerine-yaz" in argumanlar)
+    for ad, deger in sonuc.items():
+        print(f"{ad}: {deger}")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    # `-m` ile modul `__main__` adiyla yuklenir; `universe` ayni modulu `data.binance_vision` adiyla alir. Durum
+    # (izin sayaci, is parcacigi yereli) tek kopyada kalsin diye is o kopyada yapilir.
+    from data import binance_vision as _modul
+
+    sys.exit(_modul._ana(sys.argv[1:]))

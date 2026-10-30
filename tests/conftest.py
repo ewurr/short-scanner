@@ -11,10 +11,31 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
+def pytest_addoption(parser):
+    parser.addoption("--ag", action="store_true", default=False,
+                     help="`@pytest.mark.ag` testlerini de kosar; bu testler aga cikar.")
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "ag: aga cikar; yalnizca `--ag` ile kosulur, varsayilan `pytest -q` agsizdir.")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--ag"):
+        return
+    atla = pytest.mark.skip(reason="aga cikar; `--ag` ile kosulur")
+    for oge in items:
+        if oge.get_closest_marker("ag"):
+            oge.add_marker(atla)
+
+
 @pytest.fixture(autouse=True)
-def ag_kapali(monkeypatch):
-    """Testler sirasinda her HTTP cagrisini hata firlatacak sekilde kapatir."""
+def ag_kapali(monkeypatch, request):
+    """Testler sirasinda her HTTP cagrisini hata firlatacak sekilde kapatir (`ag` isaretli testler haric)."""
     import requests
+
+    if request.node.get_closest_marker("ag"):
+        return
 
     def yasak(*_args, **_kwargs):
         raise AssertionError("Testler aga cikamaz (CLAUDE.md §5).")

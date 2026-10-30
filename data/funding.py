@@ -95,8 +95,13 @@ def funding_yukle(
     if not (evren["sembol"] == sembol).any():
         raise KeyError(f"{sembol} universe.csv icinde yok.")
     # Kapidan gecildi; ham okuma (butun aylar) onay verisi izniyle, ardindan kume araligina kesilir.
+    # Aga cikmaz (on-kayit §3 rev.13; `bv.agsiz_okuma`). Istisna `yenile=True`: guncelleme aracidir.
     with bv.onay_verisi_izni(f"funding.funding_yukle({sembol}, {kume})"):
-        tum = ham_funding_yukle(sembol, yenile=yenile)
+        if yenile:
+            tum = ham_funding_yukle(sembol, yenile=True)
+        else:
+            with bv.agsiz_okuma():
+                tum = ham_funding_yukle(sembol, yenile=False)
     if tum.empty:
         return tum
     tum = donem_sonrasi_kayitlari_at(tum, universe.sembol_donemleri(evren, sembol), config.BAR_4H)
