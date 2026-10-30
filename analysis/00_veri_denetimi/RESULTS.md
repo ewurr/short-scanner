@@ -3708,6 +3708,37 @@ Bugünkü etkisi ihtiyatlı yöndedir (daha fazla bar düşer, daha az olay olu�
 
 **Sınır.** Bu tarihten önce `main` için force push koruması yoktu. `ec9b1a6` (2026-10-10) ve öncesindeki uzak geçmiş bu süre boyunca teknik olarak yeniden yazılabilirdi; yeniden yazıldığına dair bir iz yoktur, ama bu dışarıdan kanıtlanamaz. Koruma, CLAUDE.md §5'teki doktrinle aynı düzeydedir: kazara geçmiş yeniden yazımını engeller; depo sahibi ruleset'i kaldırabilir. Ruleset'in kaldırılmasının ya da bir force push'un üçüncü kişilerce görülebilir bir iz bırakıp bırakmadığı doğrulanmamıştır; onay koşusunun dış kanıtı F3 planında ayrıca ele alınır.
 
+### §14.38 Hook: PowerShell'de git komutlarının sınıflandırılması (2026-10-30)
+
+**Ne bulundu.** Hook'un PowerShell yolunda git için dal yoktu ve açık iki yönlüydü: kilitli dosyayı anan salt okuma komutu temkinli reddediliyor (`git log -- <kilitli>`), kilitli dosyayı anmayan yıkıcı komut geçiyordu (`git reset --hard`, `git checkout .`, `git clean -fd`). Bash'te bu komutların kararı tersiydi. İlk kez §14.36 düzeltme turunda, sınıflandırma fonksiyonları doğrudan çağrılarak görüldü. §14.35'te ve 97 xfail arasında bu açık kayıtlı değildi; §14.35'in git satırları (13 ve F) başka yollardır.
+
+**Düzeltme.** Git sınıflandırması kabuktan bağımsız `_git_karari` fonksiyonuna taşındı; iki yol da onu çağırır. Hiçbir yıkıcı komut çalıştırılmadı. Ölçüm, komutların hook'a metin olarak verilmesiyle yapıldı.
+
+**Öncesi ve sonrası.** Taban, tur yönergesinin komut tablosunun 53 komutudur (`<K>` iki kilitli dosyayla açılmış hâliyle; `tests/test_hook_powershell_git.py`).
+
+| | Önce | Sonra |
+|---|---|---|
+| PowerShell kararı Bash'ten farklı | 31 / 53 | 0 / 53 |
+| Bash reddediyor, PowerShell geçiriyor | 17 | 0 |
+| Bash geçiriyor, PowerShell reddediyor | 14 | 0 |
+| Bash'in tam kararı (gerekçe dahil) değişen | — | 0 / 53 |
+
+Bash'in kararları korunduğu için `git commit --amend`, `git push --force` ve `git add <kilitli>` iki kabukta da geçer. Bunlar çalışma ağacındaki kilitli dosyanın içeriğini değiştirmez; uzak depodaki force push §14.37'deki ruleset'e bağlıdır.
+
+**PowerShell'e özgü yazımlar.** `& git reset --hard`, `git.exe reset --hard` ve `& "git" clean -fd` önce geçiyordu, şimdi reddediliyor.
+
+**Eşdeğerliğin bedeli.** `git diff --output=<kilitli>` ve `git config --file <kilitli> a.b c` PowerShell'de önce temkinli reddediliyordu, şimdi Bash gibi geçiyor. İkisi dosyaya yazar. §14.35 (a) satır 13'te açık olarak kayıtlıdır ve Bash referans olduğu için kapatılmadı. Bu turda PowerShell yönünde gevşeyen tek yazma yolu ölçülen komutlar içinde budur; ölçülmeyen başka okuma listesi seçenekleri için aynı sonuç geçerli olabilir.
+
+**Kapsam dışı, değişmedi (ölçüldü).** PowerShell'de geçenler: `Start-Process git reset --hard`, `Invoke-Expression "git reset --hard"`, `iex "git reset --hard"`, `cmd /c git reset --hard`, `. git reset --hard`, `sudo git reset --hard` (Bash reddeder), `` g`it reset --hard ``. Kilitli dosyayı anan `Start-Process git log -- <kilitli>` temkinli reddedilir. Burada `git commit -m` için here-string gövdesinde kilitli ad geçerse PowerShell reddeder, Bash'in heredoc karşılığı geçer; bu git sınıfı değil here-string kuralıdır.
+
+**Kalan açık (iki kabukta aynı).** Blok içindeki git komutu görülmez: `if ($?) { git reset --hard }` ve `git status | ForEach-Object { git reset --hard }` iki kabukta da geçer, çünkü parçanın ilk tokeni `{`'dir. Bash referans olduğu için bu turda değişmedi. Bu ortamda `if ($?) { ... }` sık yazılan bir kalıptır, yani bu yol "bilerek parçalama" sayılamaz.
+
+**CLAUDE.md §5.** "Hook `Bash` çağrılarını da denetler" cümlesi PowerShell'i anmıyor; yanlış değil ama eksiktir. Kilit açılmadı, metin değiştirilmedi.
+
+**Geçmiş.** Bu tarihten önce PowerShell üzerinden yıkıcı bir git komutunun çalışıp çalışmadığı bilinemez. Kanıt yoksa iddia da yoktur.
+
+**Testler.** Parçalı tam takım (155 dosya, dört grup): **4298 geçti, 97 xfailed, 0 kırmızı**, XPASS yok. Önceki takıma göre fark yeni dosyanın 126 testidir; xfail sayısı değişmedi.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
