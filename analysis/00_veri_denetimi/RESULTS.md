@@ -3706,7 +3706,7 @@ Bugünkü etkisi ihtiyatlı yöndedir (daha fazla bar düşer, daha az olay olu�
 
 **Koruma.** Ruleset `26207345`, hedef: varsayılan dal (`main`), bypass listesi boş. Kurallar: silme engeli (`deletion`) ve force push engeli (`non_fast_forward`). 2026-10-30'da `https://api.github.com/repos/ewurr/short-scanner/rules/branches/main` adresine giriş yapılmadan yapılan istek bu iki kuralı döndürdü; isteğin giriş yapılmadan yanıtlanması deponun public olduğunu da doğrular.
 
-**Sınır.** Bu tarihten önce `main` için force push koruması yoktu. `ec9b1a6` (2026-10-10) ve öncesindeki uzak geçmiş bu süre boyunca teknik olarak yeniden yazılabilirdi; yeniden yazıldığına dair bir iz yoktur, ama bu dışarıdan kanıtlanamaz. Koruma, CLAUDE.md §5'teki doktrinle aynı düzeydedir: kazara geçmiş yeniden yazımını engeller; depo sahibi ruleset'i kaldırabilir. Bu işlem GitHub'da iz bırakır.
+**Sınır.** Bu tarihten önce `main` için force push koruması yoktu. `ec9b1a6` (2026-10-10) ve öncesindeki uzak geçmiş bu süre boyunca teknik olarak yeniden yazılabilirdi; yeniden yazıldığına dair bir iz yoktur, ama bu dışarıdan kanıtlanamaz. Koruma, CLAUDE.md §5'teki doktrinle aynı düzeydedir: kazara geçmiş yeniden yazımını engeller; depo sahibi ruleset'i kaldırabilir. Ruleset'in kaldırılmasının ya da bir force push'un üçüncü kişilerce görülebilir bir iz bırakıp bırakmadığı doğrulanmamıştır; onay koşusunun dış kanıtı F3 planında ayrıca ele alınır.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
