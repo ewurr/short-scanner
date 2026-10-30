@@ -24,7 +24,7 @@ Calisma bicimi:
     ve bunlarin takma adlari (`sc`, `ri`, `del`, `mv`, `cp` ...) reddedilir;
     salt okuma cmdlet'leri (`Get-Content`, `Select-String`, `Get-ChildItem`,
     `Test-Path` ...) gecer. Taninmayan cmdlet kilitli dosyayi aniyorsa temkinli
-    reddedilir.
+    reddedilir. Git komutlari Bash ile ayni fonksiyondan (`_git_karari`) gecer.
   - Calisan Python kodunu ETKILEMEZ. `data/split.py` icindeki `onay_kaydet`
     ONAY_KAYDI.md'ye yazmaya devam eder; o bir arac cagrisi degil.
   - `SHORT_LAB_KILIT_ACIK=1` ayarliysa her seye izin verir.
@@ -543,6 +543,44 @@ def _red(kalip: str | None, neden: str, belirsiz: bool = False) -> Karar:
     return Karar(izin=False, kalip=kalip, neden=neden, belirsiz=belirsiz)
 
 
+def _git_karari(argumanlar: list[str]) -> Karar:
+    """Bir git komutunu siniflandirir; kabuktan bagimsizdir (RESULTS §14.38).
+
+    Girdi ayristirilmis argumanlardir (`["git", "reset", "--hard"]`). Bash ve PowerShell yollari
+    ayni fonksiyonu cagirir: git siniflari tek yerde durur, iki lehcenin karari ayrisamaz.
+    """
+    anilan = _ad_geciyor_mu(" ".join(argumanlar[1:]))
+    alt, alt_arg = _git_alt_komutu(argumanlar)
+    if alt is None:
+        return IZIN
+    if alt in GIT_AGAC_YAZMA:
+        konum = _konumsallar(alt_arg)
+        dal_olustur = (
+            (alt == "checkout" and any(t in ("-b", "-B") for t in alt_arg) and len(konum) == 1)
+            or (alt == "switch" and any(t in ("-c", "-C") for t in alt_arg) and len(konum) == 1)
+        )
+        if alt == "stash" and konum[:1] in (["list"], ["show"]):
+            return IZIN
+        if dal_olustur:
+            return IZIN
+        return _red(
+            anilan or KILITLI[0],
+            f"`git {alt}` calisma agacini degistirir ve kilitli dosyalara dokunabilir",
+        )
+    if alt == "reset":
+        if any(t in ("--hard", "--merge", "--keep") for t in alt_arg):
+            return _red(anilan or KILITLI[0], f"`git reset {' '.join(alt_arg)}` calisma agacini degistirir")
+        return IZIN
+    if alt in GIT_DOSYA_YAZMA:
+        kalip = _kapsayan(_konumsallar(alt_arg))
+        return _red(kalip, f"`git {alt}` kilitli dosyayi tasiyor/siliyor") if kalip else IZIN
+    if alt in GIT_OKUMA:
+        return IZIN
+    if anilan:
+        return _red(anilan, f"`git {alt}` sinifi belirlenemedi", belirsiz=True)
+    return IZIN
+
+
 def _parca_degerlendir(parca: list[str]) -> Karar:
     """Tek bir komut parcasini degerlendirir."""
     argumanlar, hedefler = _yonlendirmeleri_ayir(parca)
@@ -566,35 +604,7 @@ def _parca_degerlendir(parca: list[str]) -> Karar:
     ikameli = any(("$(" in t or "`" in t) and _ad_geciyor_mu(t) for t in geri)
 
     if komut == "git":
-        alt, alt_arg = _git_alt_komutu(argumanlar)
-        if alt is None:
-            return IZIN
-        if alt in GIT_AGAC_YAZMA:
-            konum = _konumsallar(alt_arg)
-            dal_olustur = (
-                (alt == "checkout" and any(t in ("-b", "-B") for t in alt_arg) and len(konum) == 1)
-                or (alt == "switch" and any(t in ("-c", "-C") for t in alt_arg) and len(konum) == 1)
-            )
-            if alt == "stash" and konum[:1] in (["list"], ["show"]):
-                return IZIN
-            if dal_olustur:
-                return IZIN
-            return _red(
-                anilan or KILITLI[0],
-                f"`git {alt}` calisma agacini degistirir ve kilitli dosyalara dokunabilir",
-            )
-        if alt == "reset":
-            if any(t in ("--hard", "--merge", "--keep") for t in alt_arg):
-                return _red(anilan or KILITLI[0], f"`git reset {' '.join(alt_arg)}` calisma agacini degistirir")
-            return IZIN
-        if alt in GIT_DOSYA_YAZMA:
-            kalip = _kapsayan(_konumsallar(alt_arg))
-            return _red(kalip, f"`git {alt}` kilitli dosyayi tasiyor/siliyor") if kalip else IZIN
-        if alt in GIT_OKUMA:
-            return IZIN
-        if anilan:
-            return _red(anilan, f"`git {alt}` sinifi belirlenemedi", belirsiz=True)
-        return IZIN
+        return _git_karari(argumanlar)
 
     if komut == "sed":
         yerinde = any(
@@ -766,6 +776,11 @@ def _ps_parca_degerlendir(parca: list[str]) -> Karar:
     cmdlet = _ps_cmdlet(argumanlar[0])
     geri = argumanlar[1:]
     anilan = _ad_geciyor_mu(" ".join(geri))
+
+    # Git karari Bash ile aynidir (RESULTS §14.38). `& git` buraya yalin `git` olarak gelir, cunku
+    # `&` ayiricidir. `i > 0` dolayli cagridir (`Start-Process git ...`): kapsam disi, eski davranis.
+    if cmdlet == "git" and i == 0:
+        return _git_karari(argumanlar)
 
     if cmdlet in PS_YAZMA:
         kalip = _kapsayan(geri)
