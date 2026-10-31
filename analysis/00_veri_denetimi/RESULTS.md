@@ -3807,6 +3807,108 @@ Ardışık 200 bar (`sinyal_kosulu` H2 + `olay_karari` K1): 20,46 s toplam, bar 
 
 **Bir sonraki tur için ölçülmüş girdi (ms/bar, sonra).** H1 değerleri 27,56, H2 24,43, H3 10,37; kapının geri kalanı 35,90 (plan 0,60, funding tamlığı 16,62, funding toplamı 18,68).
 
+### §14.41 Dondurma manifesti ve koşu düzeyinde ağ yasağı (2026-10-31)
+
+**D-B2 (§14.40) kapandı: iki katmanlı manifest.** Depo public olduğu için onay dosyalarının yolu ve boyu depoya girmez; önceki yönergenin her dosya için yol, boy, SHA256 tasarımı bu yüzden değişti, çünkü o tasarım S-6'nın kod yolunda koruduğu bilgiyi git'te açardı.
+
+| Parça | Nerede | İçerik | Kim okur |
+|---|---|---|---|
+| Keşif satırları (A grubu, C2 öncesi) | `data/onbellek_manifest.csv` | yol, boy, SHA256 | herkes |
+| `liste.json` satırı | aynı dosya | yalnızca SHA256; boy bilerek boş | herkes |
+| Onay özeti (B grubu bütün aylar, A grubu C2 ayları) | aynı dosya, tek satır | dosya sayısı, birleşik SHA256 | herkes |
+| Onay ayrıntı listesi | `cache/manifest/onay_ayrintisi.tsv`, git'e girmez | yol, boy, SHA256 | yalnızca `onay_verisi_izni` ile |
+
+Birleşik SHA256, ayrıntı listesinin kanonik metninin özetidir: yola göre sıralı `yol<TAB>boy<TAB>sha256` satırları, UTF-8, LF. Kapsam `_ONBELLEK_TURLERI` (`klines`, `funding`, `klines_birincil_1d`) ve `liste.json`'dur; `klines_settled` hiçbir hesaba girmediği için dışındadır. `.gitattributes` manifesti LF'e sabitler. Modül `data/onbellek_manifest.py`.
+
+**Kuruluş kaydı.** 2026-10-31, `064451c`.
+
+| Alan | Değer |
+|---|---|
+| Keşif satırı | 19.947 |
+| Keşif toplam bayt | 235.038.469 |
+| Onay dosyası | 44.556 |
+| Birleşik SHA256 | `7611f6f2fe138a3f518ba7f879d697aef1eb6a8bcb6fbac1647125413f227f24` |
+| `liste.json` SHA256 | `438cee9a2e142965531db5174a92899cd8efadd59410311a012b91ccd0b5e182` |
+| Manifest dosyası SHA256 | `8de2bb354e0b852856960b43463eaf24598b487fdec8a55d384ee9a307e15eec` |
+| Kurulum süresi | 50,09 s |
+| `katman="kesif"` süresi | 22,27 s |
+| `katman="tam"` süresi | 50,14 s |
+
+Süreler tek ölçümdür, kurulumdan hemen sonra alındı.
+
+**Onay katmanının F1'de kurulması.** Onay baytları `onay_verisi_izni` ile, yalnızca `hashlib` üzerinden ham okundu, parquet olarak açılmadı. Dayanak: ön-kayıt satır 123 "keşif sırasında" der ve F1 keşif değildir; CLAUDE.md §3.1 kapsama denetimini serbest bırakır. `manifest-dogrula --katman tam` da F1'de bir kez koşuldu ve geçti. Kurulumdan sonra onay katmanı yalnızca açık bir onay koşusu içinde yeniden kurulabilir (`OnayKatmaniKilitli`). Manifest git geçmişindeyse dosyaları silmek ilk kurulum sayılmaz.
+
+**Doğrulama.** `kesif` keşif satırlarını ve `liste.json`'u denetler; onay dosyasını açmaz, boyuna bakmaz, adından eler. `tam` ek olarak onay izni ister, ayrıntı listesinin özetini depodakiyle karşılaştırır, sonra her onay dosyasını denetler. Uyuşmazlıkta dosyayı adıyla söyler, boy ve özet yazmaz. Onay koşusu açılışı `tam` çağırır, BASLADI satırından önce: uyuşmazlıkta çift harcanmaz.
+
+**Bulgu: "keşif sırasında hiçbir onay baytı okunmaz" kapı yolunda karşılanmıyor (denetçi D-B1, açık).** `split.yukle` ve `funding.funding_yukle` KESIF yüklemesinde bütün ayları izinle okur, sonra keser. Yani A grubunun C2 ayı parquet'leri açılır, ayrıntı listesi okunur ve bellekte tutulur; 1d türetmesi de C2 dahil seride çalışır. B sembolü dosya açmadan boş döner. Davranış bu turdan önce de vardı, ama bu tur ayrıntı listesi bağımlılığını ekledi. Değer çağırana dönmez. Yönerge gereği bu dosyalar için üyelik ve boy denetimi aynı izin içinde ayrıntı listesinden yapılır, liste süreçte ilk okunduğunda özetle karşılaştırılır; hata mesajı adı yazmaz. `test_kesif_yuklemesi_c2_ayi_dosyasini_da_ham_okur_ve_ayrinti_listesine_bakar` bu davranışı belgeler, düzeltmede ters yazılır. **F2 kodundan önce kapanır:** KESIF kapısı küme aralığı dışındaki ayları dosya açmadan elemelidir.
+
+**Bulgu: ay adı gizliliğinin sınırı (denetçi hükmü, doğrulandı).** Manifest onay yolu ve boyu taşımaz. Ama kilitli `data/universe.csv` zaten `origin/main`'dedir: sembol başına `ilk_ay`, `son_ay`, dosya sayıları ve dönem bar sayıları, B grubu ve C2 dahil. 849 satırda C2 ayı geçer. Yani depodan onay ay adı okunabilir; bu, manifestten değil F1'in evren tablosundandır. Manifestin katkısı ayrıntılı dosya boyunu ve özetini depo dışında tutmaktır.
+
+**D-B1 (§14.40) kapandı.** `bv.kosu_agsiz` süreç düzeyindedir, alt süreçlere taşınır. `split.onay_kosusu` ve `split.kesif_kosusu` açar. Git adımları `subprocess` ile çalışır ve kapsam dışıdır; bu §14.40'taki okumanın uygulamasıdır ve F3'ten önce ön-kayıt revizyonuyla yazılacaktır (denetçi D-C8).
+
+**F2 girişi: `split.kesif_kosusu()`.** Açılış: `kesif` doğrulaması, bellek ve donuk liste temizliği, ağ yasağı. Kapanış: yasak kalkar, önbellekler yine temizlenir, hata olsa da. Açık onay koşusu içinde açılmaz. Taramada izinlidir, diğer `bv` yolları yasak kalır.
+
+**Kapananlar.** S-13, S-6, S-7, S-9, S-10, S-11, R3b, D-C1, D-C3, D-C4, D-B1, D-B2. xfail 115 → 103; 12 işaret kaldırıldı (S-13 için 6 durum). Sızıntı testçisinin dosyası eklenince 133.
+
+**S-12 açık.** `kesif_kosusu` içinde `birincil_gunluk_indir` artık `KosuAgYasagi` verir (testli). Ama S-12 testi bağlam açmadan çağırır ve bağlam dışında yol yine ağa çıkar; işaret yerinde kaldı.
+
+**İzinsiz liste hatası.** `_donuk_liste` ve `_donuk_anahtarlar` izinsiz okumada anahtarı mesaja yazıyordu; S-6'nın koruduğu ay adını hatadan veriyordu. Mesaj ad yazmayacak biçimde değişti.
+
+**F2 gereksinimleri.** Koşucu `split.kesif_kosusu` içinde çalışır. F2'de paralellik süreçle yapılır (§14.40).
+
+**Bilinen sınırlar.**
+
+| Sınır | Manifest ne yakalar | Ne yakalamaz |
+|---|---|---|
+| Doğrudan `requests` (R3a) | Sonuç önbelleğe yazılırsa sonraki okuma ya da doğrulama | İstek ve bellekte kullanılan yanıt |
+| Ara süreç ya da ortamı temizlenmiş süreç (M-10) | Bu süreçte kapı yolu ağsızdır ve boyu denetler; önbelleğe yazdığını bir sonraki doğrulama görür | Yasak devralınmaz, `yenile=True` ve ham yollar açılır |
+| Doğrudan `onbellege_yaz` | Yeni dosya okunmaz; boyu değişen dosya okunmaz; bir sonraki açılışta SHA256 tutmaz | Koşu içinde aynı boyda değişiklik (M-1); onay dosyasında SHA256 yalnızca sonraki `tam`da bakılır |
+
+Ayrıca kapı dışından `pd.read_parquet` çalışma anında engellenmez, yalnızca taranır; ayrıntı listesi yerelde düz metindir. Pytest içinde test kendi manifestini kurmadıysa denetim kapalıdır.
+
+**Parçalı takım aracı.** `tools/parcali_takim.py`: `tests/test_*.py` ada göre sıralanır, round-robin ile 4 gruba bölünür, her grup sırayla ayrı süreçte koşulur. Özetsiz grup, başarısız ya da XPASS varsa çıkış sıfırdan farklıdır.
+
+**Testler.** Parçalı tam takım `f10b34b` (164 dosya): **4636 geçti, 103 xfailed, 0 başarısız, 0 XPASS, 1 atlandı.** Sızıntı testçisinin dosyası sonrası `c988913` (165 dosya): **4677 geçti, 133 xfailed, 0 başarısız, 0 XPASS, 3 atlandı.** Fark yeni dosyanın 41 geçen, 30 xfail ve 2 atlanan testidir.
+
+**Ajan bulguları: hepsi açık, bu turda düzeltilmedi.**
+
+*Metodoloji denetçisi.*
+
+| Kod | Özet |
+|---|---|
+| D-B1 | KESIF yüklemesi onay baytı okur, ayrıntı listesi ve `liste.json` bellekte kalır (yukarıda) |
+| D-B2 | `kesif_kosusu` manifesti commit'e bağlamaz: temiz ağaç istemez, koşucuya özet vermez |
+| D-C1 | `kesif_kosusu` zorunlu değil; açmayan F2 betiği çalışır |
+| D-C2 | `manifest-dogrula --katman tam` komutunun faz kapısı yok; F2'de de onay baytı okur |
+| D-C3 | Ağ yasağı yalnızca veri katmanını kapsar; `requests`, `urllib` taranmaz; ara süreç devralmaz |
+| D-C4 | Doğrulama koşu sonrasını sabitlemez; okumada yalnızca boy bakılır |
+| D-C5 | Yeniden üretim fiziksel önbelleğe bağlı; parquet yazıcı sürümü; ayrıntı listesi kaybı için kural yok |
+| D-C6 | §14.41 yoktu; bu bölümle kapandı |
+| D-C7 | F3'te süreç paralelliği kapıyla çelişir: `_AKTIF_KOSU` süreçlere geçmez |
+| D-C8 | Git istisnası ve iki katmanlı "dondurulmuş" tanımı ön-kayıtta yok; F3'ü bloklar |
+| D-K1 ile D-K8 | Pytest boşluğu; `tam`'ın tek atıştan önce koşması; başarısız açılışta temizlik yok; `onay_katmani=True` koşu içinde aklayabilir; keşif içinde onay koşusu reddedilmez; grup iki kaynaktan; belge dili; CLAUDE.md §7 ve kilit listesi eski |
+
+Denetçinin hükmü: F1'de kurulum okuması sağlam ama dar, istisna kodda süresizdir (D-C2). Depodaki manifestte B sembolü, C2 ayı ve onay boyu yok (Grep ile doğrulandı). Eşik, ızgara, ufuk, maliyet ve kontrol tanımı değişmedi.
+
+*Sızıntı testçisi* (`tests/test_sizinti_manifest.py`, 30 xfail).
+
+| Kod | Saldırı | Tür |
+|---|---|---|
+| M-1, M-2 | Koşu açıldıktan sonra aynı boyda bayt değişikliği; `liste.json`'dan ay silme, veri sessizce eksilir | Sıradan, sızıntı değil |
+| M-3, M-15, M-16 | `bv.onbellekten_oku`'ya dizin yolu ya da `\\?\` önekli yol: onay verisi izinsiz okunur | Veri yolu, ama taramayla yasak ad ister |
+| M-4 | Açık koşuda değişmiş onay dosyasını `onay_katmani=True` ile aklamak | Kasıtlı |
+| M-5, M-6, M-7 | Tam genişlikli kimlik, `.ipynb` parçalama, UTF-7 ile taramadan kaçmak | Kasıtlı |
+| M-8, M-9 | `yenile=False or flag`; `yenile`'yi konumsal geçirmek | M-9 sıradan; çalışma anında yasak yakalar |
+| M-10 | Ara süreç zinciri, ortam silme | Ara süreç sıradan olabilir |
+| M-11 | `PYTEST_CURRENT_TEST` taklidiyle denetimi kapatmak | Kasıtlı |
+| M-12 | Eşleşmemiş `kosu_agsiz.__exit__` yasağı kaldırır | Kasıtlı |
+| M-13 | Başka iş parçacığındaki izinle onay verisi okumak (S-8 ile aynı sınıf) | Veri yolu, yasak ad ister |
+| M-14 | Onay dosyasına sabit bağlantı: keşif satırına boy ve özet yazılır | Kasıtlı, dosya sistemi yazımı ister |
+
+M-15 ve M-16 ajanın işaretsiz bıraktığı iki testte çıktı; işaretleri koşum sonrası eklendi. Yeni test dosyası dışında mevcut dosyaya dokunmadı (`git diff --stat` ile doğrulandı).
+
+**Push durumu.** Yönergenin 4.4 dur koşulu "depodan onay ay adı okunabiliyorsa push yapma" diyor. `data/universe.csv` bunu harfiyen sağladığı için push yapılmadı; karar araştırma tarafındadır.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
