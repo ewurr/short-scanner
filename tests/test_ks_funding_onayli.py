@@ -70,7 +70,7 @@ def test_baska_funding_serisi_reddedilir():
         SENTETIK_VERI[p.sembol] = (mumlar, FUND.assign(oran=2e-4))
         from data import kume_bellegi
 
-        kume_bellegi.temizle()  # RESULTS §14.40: veri yeniden yuklenince degisiklik gorulur; iddia ayni
+        kume_bellegi.temizle()  # RESULTS §14.40: savunma yalniz bellek dustukten sonra calisir; isabette gorulmez
         funding.pozisyon_fundingi(p)
 
 

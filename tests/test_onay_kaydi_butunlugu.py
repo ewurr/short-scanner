@@ -372,6 +372,6 @@ def test_pozisyon_fundingi_seri_farki_veri_hatasi(monkeypatch):
     monkeypatch.setitem(SENTETIK_VERI, p.sembol, (mumlar, FUND.assign(oran=2e-4)))
     from data import kume_bellegi
 
-    kume_bellegi.temizle()  # RESULTS §14.40: veri yeniden yuklenince degisiklik gorulur; iddia ayni
+    kume_bellegi.temizle()  # RESULTS §14.40: savunma yalniz bellek dustukten sonra calisir; isabette gorulmez
     with pytest.raises(pencere.VeriHatasi, match="ayni degil"):
         funding.pozisyon_fundingi(p)

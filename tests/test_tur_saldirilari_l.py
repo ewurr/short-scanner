@@ -278,6 +278,6 @@ def test_pozisyon_fundingi_nan_toplami_sessizce_kabul_etmez():
     SENTETIK_VERI[p.sembol] = (SENTETIK_VERI[p.sembol][0], bozuk)
     from data import kume_bellegi
 
-    kume_bellegi.temizle()  # RESULTS §14.40: veri yeniden yuklenince degisiklik gorulur; iddia ayni
+    kume_bellegi.temizle()  # RESULTS §14.40: savunma yalniz bellek dustukten sonra calisir; isabette gorulmez
     with pytest.raises(ValueError, match="ayni degil"):
         funding.pozisyon_fundingi(p)

@@ -600,9 +600,13 @@ def pozisyon_fundingi(pozisyon) -> float:
     YALNIZCA `pozisyon.olay_karari`nin urettigi `OnaylanmisPozisyon`u kabul eder (kapi sertlestirme
     turu, denetci F1K2 D-B3): kapidan gecmemis bir plan (`pencere.pozisyon_plani` ciktisi) TypeError
     verir. Funding kayitlarini cagirandan ALMAZ (kapi sertlestirme turu 2): onayli pozisyonun kimligiyle
-    (sembol, kume) kararla ayni yoldan kendisi yukler, toplami `_plan_fundingi` ile yeniden hesaplar ve
-    kararin `funding_toplami` degeriyle ayni olmasini ister; degilse veri karardan sonra degismistir
-    (ValueError).
+    (sembol, kume) kararla ayni yoldan (`pozisyon._kume_verisi`, bellek onbellegi dahil) kendisi alir, toplami
+    `_plan_fundingi` ile yeniden hesaplar ve kararin `funding_toplami` degeriyle ayni olmasini ister; degilse
+    veri karardan sonra degismistir (ValueError).
+
+    Savunmanin siniri (RESULTS §14.40; denetci D-C3): bellek isabetinde kayit yeniden okunmaz, bu yuzden veri
+    degisikligi ancak girdi bellekten dustukten sonra gorulur (LRU, `kume_bellegi.temizle`, onay kosusunun acilisi
+    ya da kapanisi). Girdi bellekteyken yapilan degisiklik burada YAKALANMAZ.
     """
     from data import pozisyon as pozisyon_modulu
 

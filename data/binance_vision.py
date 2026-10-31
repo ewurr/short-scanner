@@ -18,6 +18,7 @@ Dogrulanmis varsayimlar (F1 §1 denemeleri, 2026-09-11):
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import io
 import json
@@ -268,7 +269,8 @@ def donuk_liste_yolu() -> Path:
     return Path(config.ONBELLEK_DIZINI).joinpath(*_LISTE_ALT_YOLU)
 
 
-def _donuk_liste() -> dict:
+def _donuk_oku() -> dict:
+    """Dondurulmus listenin ortak, izinsiz okunan nesnesi: yalnizca `_donuk_liste` ve `_donuk_anahtarlar` icindir."""
     yol = donuk_liste_yolu()
     try:
         bilgi = yol.stat()
@@ -281,9 +283,32 @@ def _donuk_liste() -> dict:
     return _DONUK_BELLEK["veri"]
 
 
+def donuk_bellek_temizle() -> None:
+    """`split.onay_kosusu` acilis ve kapanista cagirir (on-kayit §3 rev.13; denetci D-C1)."""
+    _DONUK_BELLEK.clear()
+
+
+def _donuk_gez(dugum):
+    """Dondurulmus liste agacindaki butun anahtarlar."""
+    if isinstance(dugum, dict):
+        for alt in dugum.values():
+            yield from _donuk_gez(alt)
+    else:
+        yield from dugum
+
+
+def _donuk_liste() -> dict:
+    """Listenin tamami, kopya olarak; her anahtarda onay verisi izni aranir (`_donuk_anahtarlar` ile ayni kural;
+    sizinti S-6). Kopya oldugu icin cagiranin degisikligi sonraki okumalara gecmez (sizinti S-7)."""
+    icerik = _donuk_oku()
+    for anahtar in _donuk_gez(icerik):
+        _anahtar_denetle(anahtar)
+    return copy.deepcopy(icerik)
+
+
 def _donuk_anahtarlar(tur: str, *yol: str) -> list[str]:
     """Dondurulmus listeden anahtarlar; her anahtarda onay verisi izni aranir (`OnayVerisiKorumasi`)."""
-    dugum = _donuk_liste()[tur]
+    dugum = _donuk_oku()[tur]
     try:
         for parca in yol:
             dugum = dugum[parca]

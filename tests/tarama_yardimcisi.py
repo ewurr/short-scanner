@@ -137,6 +137,14 @@ ONBELLEK_DESENI = (
     # RESULTS §14.40: bellek onbellegi ve dondurulmus liste. Analiz kodu kopyaya ve ay adlarina dogrudan erisemez.
     r"|\bkume_bellegi\b|\b_BELLEK\b|\b_erisim_denetimi\b|\bs3_liste\b|\b_donuk_(liste|anahtarlar)\b|\b_DONUK_BELLEK\b"
     r"|\bdonuk_liste_yolu\b|\blisteyi_dondur\b|\bagsiz_okuma\b"
+    # RESULTS §14.41 (sizinti S-13): takma ad uzerinden `binance_vision` erisimi (`klines.bv.*`, `funding.bv.*`,
+    # `from data.klines import bv`), aga cikan yollar ve guncelleme bayragi. `yenile` degeri `False` disinda her sey
+    # yakalanir (anahtar sozcuk ya da eslem anahtari). Sinir: `bv` baska bir ada atanip kaynak metinde hic anilmazsa
+    # (`getattr(klines, "b" + "v")`) yakalanmaz. Ag yasagi calisma aninda da zorlanir (`bv.kosu_agsiz`).
+    r"|\bbv\b|\bmum_dosyalari\b|\bfunding_dosyalari\b|\btum_sembol_dizinleri\b|\b_listele\b|\b_iste\b|\bay_indir\b"
+    r"|\bbirincil_gunluk_indir\b|\byenile\b[\"']?\s*[=:]\s*(?!False\b)|\bmanifest_kur\b"
+    r"|\b_donuk_(oku|gez)\b|\bdonuk_bellek_temizle\b|\b_KOSU_AGSIZ\b|\bSHORT_LAB_KOSU_AGSIZ\b|\b_AG_YASAGI_ORTAM_ADI\b"
+    r"|\b_ag_yasagini_devral\b"
 )
 ONBELLEK_UZANTILARI = (".py", ".ipynb", ".pyw")
 

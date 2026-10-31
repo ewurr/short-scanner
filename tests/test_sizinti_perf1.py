@@ -456,9 +456,7 @@ def test_lru_es_zamanli_kullanimda_bozulmaz_ve_sinirda_kalir(monkeypatch):
 # =================================================================================================
 
 
-@_acik("S-6: `bv._donuk_liste()` onay verisi izni aramaz; B grubu ve C2 ay adlarinin tamamini dondurur "
-       "(izin denetimi yalniz `_donuk_anahtarlar`da). Gercek onay sizintisi DEGIL (yalniz dosya adlari): "
-       "`_donuk_liste` adi analiz kodunda taramayla yasakli (`ONBELLEK_DESENI`), kasitli atlatma.")
+# S-6 kapandi: `_donuk_liste` her anahtarda onay verisi izni arar (RESULTS §14.41); xfail isareti kaldirildi.
 def test_donuk_liste_dogrudan_izinsiz_okunamamali(gecici_onbellek):
     """On-kayit §3 satir 123/125 + `binance_vision` basligi: dondurulmus listenin okunmasi onay verisi iznini ister."""
     b = _b_sembolu()
@@ -471,9 +469,7 @@ def test_donuk_liste_dogrudan_izinsiz_okunamamali(gecici_onbellek):
     raise AssertionError("izin aranmadan B grubu ve C2 ay adlari dondu")
 
 
-@_acik("S-7: `_donuk_liste()` dosyadan cozulmus ORTAK sozlugu doner; cagiranin degisikligi (ornegin sembol "
-       "girdisini silmek) `_DONUK_BELLEK`e gecer ve dosya degismedigi surece sonraki butun okumalari bozar. "
-       "Gercek onay sizintisi DEGIL: yalniz kendini zehirleyen ozel ad (taramayla yasakli); veri sizdirmaz.")
+# S-7 kapandi: `_donuk_liste` kopya doner (RESULTS §14.41); xfail isareti kaldirildi.
 def test_donuk_liste_donen_nesnenin_degistirilmesi_sonraki_okumalari_etkilememeli(gecici_onbellek):
     """CLAUDE.md §5 'saf/yan etkisiz' ruhu: dondurulmus liste okumasi paylasilan degisebilir nesne vermemeli."""
     _liste_yaz({A_SEMBOL: ["2021-01", "2021-02"]}, {A_SEMBOL: ["2021-01"]})
@@ -693,14 +689,9 @@ _ACIK_TARAMA = [
 ]
 
 
-@pytest.mark.parametrize("metin", [
-    pytest.param(m, marks=_acik(
-        "S-13: Analiz kodunun ag/liste yollari tarama desenleriyle yakalanmiyor: `klines.bv.mum_dosyalari` "
-        "(`binance_vision` adi gecmeden `klines.bv` takma adiyla, canli listeleme izin aramaz; "
-        "`mum_dosyalari`/`_listele`/`tum_sembol_dizinleri` hicbir desende yok), `yenile=True` ve kapili "
-        "`birincil_gunluk_indir`. On-kayit §3 satir 125 icin tarama savunmasi eksik. Gercek onay sizintisi: "
-        "canli liste C1/C2 ay adlarini izinsiz verir (yalniz adlar); veri sizmaz."))
-    for m in _ACIK_TARAMA])
+# S-13 kapandi: `ONBELLEK_DESENI` takma adi, aga cikan yollari ve `yenile`yi yakalar (RESULTS §14.41); xfail isaretleri
+# kaldirildi (6 durum).
+@pytest.mark.parametrize("metin", _ACIK_TARAMA)
 def test_aga_cikan_yollar_analiz_kodunda_taramayla_yakalanmali(tmp_path, metin):
     """On-kayit §3 satir 125 + CLAUDE.md §5: F2/F3 analiz kodu aga cikan bir yola erisirse tarama bunu yakalamali."""
     assert _bilinen_desenler_yakalar_mi(tmp_path, metin), "hicbir bilinen tarama deseni bu yolu yakalamadi"

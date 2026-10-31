@@ -1450,6 +1450,7 @@ def onay_kosusu(hipotez: str, kume: str):
     # Acilis ve kapanis bellekteki kopyalari gecersiz kilar (on-kayit §3 rev.13). Isabetteki denetim
     # (`onay_erisimi_denetle`) bundan bagimsiz calisir.
     kume_bellegi.temizle()
+    bv.donuk_bellek_temizle()
     # F3 kosusu aga cikmaz (on-kayit §3 rev.13). Yasak veri kaynaklarini kapsar: kaydin `git fetch` ve `git push`
     # adimlari `subprocess` ile calisir, veri katmanindan gecmez ve sonuca girdi saglamaz (RESULTS §14.40, §14.41).
     ag_yasagi = bv.kosu_agsiz()
@@ -1465,6 +1466,7 @@ def onay_kosusu(hipotez: str, kume: str):
         _AKTIF_KOSU = None
         tutamak._acik = False
         kume_bellegi.temizle()
+        bv.donuk_bellek_temizle()
         ag_yasagi.__exit__(None, None, None)
         if hata is not None:
             # Sonuc bildirildikten sonra gelen hata: kayda hem hata hem sonuc (onay kaydi ikinci tur, OK D-C1).
@@ -1491,7 +1493,11 @@ def _bos_mum_cercevesi() -> pd.DataFrame:
 def onay_erisimi_denetle(kume: str, onay: bool) -> None:
     """Kume kapisinin onay adimlari (`kume_erisimi` 1-3). Bellek onbelleginin her okunusunda da calisir
     (`data.kume_bellegi`; on-kayit §3 rev.13): tek kaynak burasidir. Bolme tablosu burada okunmaz, cunku grup
-    denetimi karar noktasinda zaten yapilir (`pozisyon.grup_dogrula`) ve her barda tablo okumak gerekmez."""
+    denetimi karar noktasinda zaten yapilir (`pozisyon.grup_dogrula`) ve her barda tablo okumak gerekmez.
+
+    `pozisyon.mae` ve `funding.pozisyon_fundingi` karar noktasindan gecmez, dolayisiyla `grup_dogrula`yi da
+    cagirmaz: onayli pozisyonu (`onay_dogrula`, `onay_baglami_dogrula`) denetler ve veriyi ayni bellek yolundan
+    (`pozisyon._kume_verisi`) alir, yani bu denetimden her okunusta gecer (denetci D-C4)."""
     if kume not in config.KUMELER:
         raise ValueError(f"Bilinmeyen kume: {kume!r}. Gecerli degerler: {config.KUMELER}")
     if not isinstance(onay, bool):
