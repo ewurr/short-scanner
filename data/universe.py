@@ -146,6 +146,7 @@ def exchange_info_anlik_kaydet(yol=None) -> Path:
     hedef = config.EXCHANGE_INFO_ANLIK if yol is None else Path(yol)
     if hedef.exists():
         raise FileExistsError(f"{hedef} zaten var. exchangeInfo goruntusu bir kez alinir.")
+    bv.ag_yasagi_denetle("exchange_info_anlik_kaydet")
     cevap = requests.get(EXCHANGE_INFO, timeout=60)
     cevap.raise_for_status()
     goruntu = exchange_info_anlik_goruntu(cevap.text, pd.Timestamp.now(tz="UTC"))

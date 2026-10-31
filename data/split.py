@@ -1444,10 +1444,16 @@ def onay_kosusu(hipotez: str, kume: str):
     if uzak_hatasi is not None:
         raise uzak_hatasi
 
+    from data import binance_vision as bv
+
     tutamak = OnayKosusu(kosu)
     # Acilis ve kapanis bellekteki kopyalari gecersiz kilar (on-kayit §3 rev.13). Isabetteki denetim
     # (`onay_erisimi_denetle`) bundan bagimsiz calisir.
     kume_bellegi.temizle()
+    # F3 kosusu aga cikmaz (on-kayit §3 rev.13). Yasak veri kaynaklarini kapsar: kaydin `git fetch` ve `git push`
+    # adimlari `subprocess` ile calisir, veri katmanindan gecmez ve sonuca girdi saglamaz (RESULTS §14.40, §14.41).
+    ag_yasagi = bv.kosu_agsiz()
+    ag_yasagi.__enter__()
     _AKTIF_KOSU = kosu
     hata: BaseException | None = None
     try:
@@ -1459,6 +1465,7 @@ def onay_kosusu(hipotez: str, kume: str):
         _AKTIF_KOSU = None
         tutamak._acik = False
         kume_bellegi.temizle()
+        ag_yasagi.__exit__(None, None, None)
         if hata is not None:
             # Sonuc bildirildikten sonra gelen hata: kayda hem hata hem sonuc (onay kaydi ikinci tur, OK D-C1).
             # `sonuc=` son alandir (`not_alanlari`).

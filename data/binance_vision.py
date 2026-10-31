@@ -199,6 +199,71 @@ def _agsiz_mi() -> bool:
     return getattr(_YEREL, "agsiz", 0) > 0
 
 
+# --- 0c) Kosu duzeyinde ag yasagi (RESULTS §14.41, denetci D-B1) ---------------------------------
+#
+# `agsiz_okuma` yalnizca kapi yolundaki is parcacigini baglar; `yenile=True`, `birincil_gunluk_indir`, `ay_indir` ve
+# dogrudan listeleme bir kosu icinde yine aga cikabiliyordu. `kosu_agsiz` SURECE aittir: acikken bu katmanin aga cikan
+# her yolu, hangi is parcacigindan cagrilirsa cagrilsin `KosuAgYasagi` verir. Iki koruma ust uste calisir: kapi yolu
+# `agsiz_okuma` icinde dondurulmus listeyi okumaya devam eder, koruma disindaki yol hata verir, dondurulmus listeye
+# sessizce dusmez.
+#
+# Paralellik F2 ve F3'te surecle yapilir (RESULTS §14.40). Yasak bu yuzden `_izni_devral` ile ayni yontemle alt sureclere
+# de tasinir: baglam icinde baslatilan surec yasagi import aninda devralir, pid denetimi bayat degiskeni eler.
+#
+# Kapsam (RESULTS §14.40 "ag yasaginin kapsami"): yasak veri kaynaklarini kapsar. `split.onay_kosusu`nun `git fetch` ve
+# `git push` adimlari `subprocess` ile calisir, bu katmandan gecmez ve bu durumdan etkilenmez; sonuca girdi saglamazlar.
+_AG_YASAGI_ORTAM_ADI = "SHORT_LAB_KOSU_AGSIZ"
+_KOSU_AGSIZ = {"sayac": 0, "devralinan": False}
+
+
+class KosuAgYasagi(AgsizOkumaIhlali):
+    """Ag yasakli bir kosu acikken veri katmaninin aga cikan bir yolu cagrildi."""
+
+
+def _ag_yasagini_devral() -> None:
+    """Import aninda bir kez: ust surec `kosu_agsiz` icinde bu sureci baslattiysa yasak devralinir. Yan etkili."""
+    deger = os.environ.get(_AG_YASAGI_ORTAM_ADI)
+    if not deger or deger != str(os.getppid()):  # yok, bayat ya da elle ayarlanmis degisken
+        return
+    _KOSU_AGSIZ["devralinan"] = True
+    os.environ[_AG_YASAGI_ORTAM_ADI] = str(os.getpid())  # torun surecler de devralsin
+
+
+class kosu_agsiz:  # noqa: N801  (baglam yoneticisi)
+    """Bu surecte, baglam boyunca, veri katmani aga cikmaz. Ic ice acilabilir."""
+
+    def __init__(self):
+        self._onceki_ortam = None
+
+    def __enter__(self):
+        with _IZIN_KILIDI:
+            _KOSU_AGSIZ["sayac"] += 1
+            if _KOSU_AGSIZ["sayac"] == 1:
+                self._onceki_ortam = os.environ.get(_AG_YASAGI_ORTAM_ADI)
+                os.environ[_AG_YASAGI_ORTAM_ADI] = str(os.getpid())
+        return self
+
+    def __exit__(self, *_):
+        with _IZIN_KILIDI:
+            _KOSU_AGSIZ["sayac"] -= 1
+            if _KOSU_AGSIZ["sayac"] == 0:
+                if self._onceki_ortam is None:
+                    os.environ.pop(_AG_YASAGI_ORTAM_ADI, None)
+                else:
+                    os.environ[_AG_YASAGI_ORTAM_ADI] = self._onceki_ortam
+        return False
+
+
+_ag_yasagini_devral()  # import aninda: bu surec ag yasakli bir kosu icinde baslatildiysa yasak devralinir
+
+
+def ag_yasagi_denetle(yer: str) -> None:
+    """Ag yasakli bir kosu aciksa `KosuAgYasagi`. Aga cikan her yol istekten once cagirir."""
+    if _KOSU_AGSIZ["sayac"] > 0 or _KOSU_AGSIZ["devralinan"]:
+        raise KosuAgYasagi(f"Ag yasakli kosu icinde aga cikan yol cagrildi: {yer}. Veri kosudan once indirilmeli "
+                           "(on-kayit §3 rev.13).")
+
+
 def donuk_liste_yolu() -> Path:
     return Path(config.ONBELLEK_DIZINI).joinpath(*_LISTE_ALT_YOLU)
 
@@ -294,8 +359,10 @@ def _iste(url: str, deneme: int = 5, bekleme: float = 2.0) -> requests.Response:
     """Ustel geri cekilmeli GET.
 
     data.binance.vision yogun istekte baglantiyi kapatiyor (RemoteDisconnected),
-    bu yuzden yeniden deneme zorunlu. 404 yeniden denenmez. Agsiz okuma baglaminda istek yapilmaz.
+    bu yuzden yeniden deneme zorunlu. 404 yeniden denenmez. Agsiz okuma baglaminda ve ag yasakli kosuda istek
+    yapilmaz.
     """
+    ag_yasagi_denetle(url)
     if _agsiz_mi():
         raise AgsizOkumaIhlali(f"Agsiz okuma baglaminda ag istegi denendi: {url}. Veri kosudan once indirilmeli "
                                "(on-kayit §3 rev.13).")
@@ -321,6 +388,7 @@ def _iste(url: str, deneme: int = 5, bekleme: float = 2.0) -> requests.Response:
 
 def _listele(onek: str, ayirici: str) -> tuple[list[str], list[str]]:
     """Bir onek altindaki alt dizinleri ve dosya anahtarlarini sayfalamayla toplar."""
+    ag_yasagi_denetle(f"_listele({onek})")
     jeton: str | None = None
     alt_dizinler: list[str] = []
     anahtarlar: list[str] = []
@@ -341,6 +409,7 @@ def _listele(onek: str, ayirici: str) -> tuple[list[str], list[str]]:
 
 def tum_sembol_dizinleri() -> list[str]:
     """Bucket'ta mum dizini bulunan tum sembol adlari (delist olanlar dahil)."""
+    ag_yasagi_denetle("tum_sembol_dizinleri")
     alt_dizinler, _ = _listele(f"{MUM_ONEKI}/", ayirici="/")
     return sorted(p.rstrip("/").rsplit("/", 1)[-1] for p in alt_dizinler)
 
@@ -349,6 +418,7 @@ def mum_dosyalari(sembol: str, bar: str) -> list[str]:
     """Bir sembol/bar icin aylik zip anahtarlari, ay sirasinda. Agsiz okuma baglaminda dondurulmus listeden."""
     if _agsiz_mi():
         return _donuk_anahtarlar("mum", sembol, bar)
+    ag_yasagi_denetle(f"mum_dosyalari({sembol}, {bar})")
     _, anahtarlar = _listele(f"{MUM_ONEKI}/{sembol}/{bar}/", ayirici="")
     return sorted(a for a in anahtarlar if a.endswith(".zip"))
 
@@ -357,6 +427,7 @@ def funding_dosyalari(sembol: str) -> list[str]:
     """Bir sembol icin aylik funding zip anahtarlari, ay sirasinda. Agsiz okuma baglaminda dondurulmus listeden."""
     if _agsiz_mi():
         return _donuk_anahtarlar("funding", sembol)
+    ag_yasagi_denetle(f"funding_dosyalari({sembol})")
     _, anahtarlar = _listele(f"{FUNDING_ONEKI}/{sembol}/", ayirici="")
     return sorted(a for a in anahtarlar if a.endswith(".zip"))
 
@@ -371,6 +442,7 @@ def listeyi_dondur(uzerine_yaz: bool = False) -> dict:
 
     from data import universe
 
+    ag_yasagi_denetle("listeyi_dondur")
     yol = donuk_liste_yolu()
     if yol.exists() and not uzerine_yaz:
         raise FileExistsError(f"{yol} zaten var; dondurulmus liste sessizce yenilenmez.")

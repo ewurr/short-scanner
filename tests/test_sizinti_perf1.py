@@ -625,11 +625,7 @@ def _yenile_ortami(monkeypatch, gecici_onbellek, tmp_path):
     return cagri
 
 
-@_acik("S-9: `klines.mumlari_yukle(..., yenile=True)` acik bir onay kosusu ICINDE de bucket listesini canli "
-       "ceker (`bv._listele`, ag). `yenile` kamuya acik parametredir ve taramada yasakli degildir. On-kayit §3 "
-       "satir 125 'F3 kosulari aga cikmaz' ihlali. Onay VERISI sizdirmaz (sonuc yine kume araligina kesilir); "
-       "canli listeyle C1/C2 ay adlari ve borsanin anlik durumu kosuya girer. Gercek onay sizintisi: ay "
-       "adlari acisindan dusuk; AG kurali acisindan evet.")
+# S-9 kapandi: onay kosusu ag yasagini acar (`bv.kosu_agsiz`, RESULTS §14.41); xfail isareti kaldirildi.
 def test_onay_kosusu_icinde_mumlari_yukle_yenile_aga_cikmamali(monkeypatch, gecici_onbellek, tmp_path):
     """On-kayit §3 satir 125: onay kosusu icinde `yenile=True` reddedilmeli ya da yok sayilmali."""
     cagri = _yenile_ortami(monkeypatch, gecici_onbellek, tmp_path)
@@ -640,9 +636,7 @@ def test_onay_kosusu_icinde_mumlari_yukle_yenile_aga_cikmamali(monkeypatch, geci
     assert cagri == [], f"onay kosusu icinde ag listesi cagrildi: {cagri}"
 
 
-@_acik("S-10: `funding.funding_yukle(..., yenile=True)` onay kosusu icinde `ham_funding_yukle(yenile=True)` "
-       "yolunu acar ve `bv._listele` ile aga cikar (S-9 ile ayni neden). Gercek onay sizintisi: ag kurali "
-       "acisindan evet, veri acisindan hayir.")
+# S-10 kapandi: onay kosusu ag yasagini acar (`bv.kosu_agsiz`, RESULTS §14.41); xfail isareti kaldirildi.
 def test_onay_kosusu_icinde_funding_yukle_yenile_aga_cikmamali(monkeypatch, gecici_onbellek, tmp_path):
     """On-kayit §3 satir 125: onay kosusu icinde funding `yenile=True` aga cikmamali."""
     cagri = _yenile_ortami(monkeypatch, gecici_onbellek, tmp_path)
@@ -653,10 +647,7 @@ def test_onay_kosusu_icinde_funding_yukle_yenile_aga_cikmamali(monkeypatch, geci
     assert cagri == [], f"onay kosusu icinde ag listesi cagrildi: {cagri}"
 
 
-@_acik("S-11: `klines.birincil_gunluk_indir` `agsiz_okuma` icinde calismaz (`mumlari_yukle`/`funding_yukle`'den "
-       "farkli); onay kosusu icinde canli bucket listesini cagirir. Taramada yalniz `ham_birincil_gunluk_indir` "
-       "yasakli, kapili `birincil_gunluk_indir` serbest. On-kayit §3 satir 125 ihlali; veri kume araligina "
-       "kesilir. Gercek onay sizintisi: ag kurali acisindan evet, veri acisindan hayir.")
+# S-11 kapandi: onay kosusu ag yasagini acar (`bv.kosu_agsiz`, RESULTS §14.41); xfail isareti kaldirildi.
 def test_onay_kosusu_icinde_birincil_gunluk_indir_aga_cikmamali(monkeypatch, gecici_onbellek, tmp_path):
     """On-kayit §3 satir 125: kapili 1d indirici de onay kosusunda aga cikmamali."""
     cagri = _yenile_ortami(monkeypatch, gecici_onbellek, tmp_path)
