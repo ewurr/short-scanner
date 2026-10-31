@@ -115,7 +115,7 @@ def test_analiz_kodunda_dogrudan_vision_istegi_taramaya_takilir(tmp_path):
     assert _tara(tmp_path, metin, ONBELLEK_DESENI) or ihlaller(HAM_ERISIM_DESENI, kok=tmp_path)
 
 
-@pytest.mark.xfail(strict=True, raises=_BEKLENEN, reason="R3b: `bv._iste(...)` taranmiyor (desende `_iste` yok)")
+# R3b kapandi (RESULTS §14.41): S-13 ile ayni acik; `\bbv\b` ve `\b_iste\b` desende.
 def test_analiz_kodunda_bv_iste_cagrisi_taramaya_takilir(tmp_path):
     """SALDIRI: analiz kodu `bv._iste(url)` ile agi dogrudan cagirir (`bv` takma adi `binance_` onekini tasimaz).
     GUVENLI: ONBELLEK_DESENI ya da HAM_ERISIM_DESENI yakalar."""
