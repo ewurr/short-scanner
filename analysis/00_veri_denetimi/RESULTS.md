@@ -3767,6 +3767,46 @@ Bilinçli istisna: `if ($?) { Get-Content <K> }` ve `if true; then cat <K>; fi` 
 
 **Testler.** Parçalı tam takım (156 dosya, dört grup): **4377 geçti, 96 xfailed, 0 başarısız, 0 XPASS**. Önceki takıma göre fark yeni dosyanın 78 testi ve xfail'den çıkan 1 testtir.
 
+### §14.40 Performans 1: ağsız liste önbelleği ve bellek önbelleği (2026-10-31)
+
+**Kurallar ve karşılanmaları.** Ön-kayıt §3 rev.13 ve CLAUDE.md §5: bellekteki her kopya için erişim denetimi her okunuşta (`kume_bellegi.getir`, isabet dahil, aramadan önce; `split.onay_erisimi_denetle`), anahtar küme adını içerir, onay koşusunun açılışı ve kapanışı kopyaları geçersiz kılar (`split.onay_kosusu`), kesilmiş veri diske yazılmaz (`_ONBELLEK_TURLERI` aynı), F2 ve F3 ağa çıkmaz (kapı yolunda `bv.agsiz_okuma`).
+
+**Ölçüm.** Girdi: SOLUSDT, KESIF, dönem 0, t = 2022-06-01 00:00 UTC, ızgaranın ilk yapılandırması. Yalnızca süre ve sayı.
+
+| Çağrı | Önce: ilk (s) | Önce: sonraki (s) | Sonra: ilk (s) | Sonra: sonraki (ms) | HTTP önce | HTTP sonra |
+|---|---|---|---|---|---|---|
+| olay_karari olay H2 | 4,49 | 1,56 | 1,19 | 31,37 | 2 | 0 |
+| olay_karari K1 H2 | 1,59 | 1,63 | 1,03 | 68,28 | 2 | 0 |
+| olay_karari K2 H2 | 1,64 | 1,64 | 0,99 | 67,16 | 2 | 0 |
+| olay_karari olay H3 | 1,56 | 1,58 | 0,99 | 16,18 | 2 | 0 |
+| olay_karari K1 H3 | 1,72 | 1,78 | 0,97 | 14,56 | 2 | 0 |
+| olay_karari K2 H3 | 1,80 | 1,63 | 0,94 | 14,27 | 2 | 0 |
+| sinyal_kosulu H1 pump | 1,75 | 1,72 | 0,98 | 30,21 | 2 | 0 |
+| sinyal_kosulu H2 | 1,83 | 2,06 | 0,98 | 29,12 | 2 | 0 |
+| sinyal_kosulu H3 | 1,69 | 1,67 | 0,93 | 13,14 | 2 | 0 |
+
+Ardışık 200 bar (`sinyal_kosulu` H2 + `olay_karari` K1): 20,46 s toplam, bar başına 102,28 ms, 0 HTTP.
+
+**Yeni toplam kestirim.** Taban: `f2_kuru_okuma.md` §6.3 çağrı sayıları (1.114.776 ve 185.796 çağrı, 27 yapılandırma, K2 500 olay × 89 sembol), yükleme 27 × 342 sembol-dönem × 2 geçiş. Önce yaklaşık 908 gün; sonra koşul 7,1 + K1 16,1 + yükleme 0,2 gün, K2 isabetle 0,9 gün ya da her çağrı ıskalamayla 13,8 gün; toplam 24,4 ile 37,3 gün arası. LRU sınırı 8 iken K2 geçişinde ıskalama satırı gerçeğe yakındır. Tek çekirdek, tek ölçüm.
+
+**Dondurulmuş liste.** SHA256 `438cee9a2e142965531db5174a92899cd8efadd59410311a012b91ccd0b5e182`, 864 sembol, 43.268 dosya, yerelde eksik 0, dondurma 2026-10-30 22:12 UTC. Liste izinsiz okunursa `OnayVerisiKorumasi` verir. Bugünkü canlı liste izin aramaz (ölçüldü) ve kapı dışındaki araçlar için öyle kaldı.
+
+**LRU sınırı.** 8 girdi. Sembol başına en çok 2 dönem ve iki katman (küme, karar) ile tek sembolün yürüyüşü en çok 3 girdi ister.
+
+**Eşitlik testinin kapsamı.** SOLUSDT ve XRPUSDT, H1, H2, H3; olay, K1, K2 ve `sinyal_kosulu`; dönem başı ve sonu dahil beş bar. Boş bellek ile isabet karşılaştırılır; `2e4ea2f` koduyla karşılaştırılmadı.
+
+**Davranış farkı.** `pozisyon_fundingi`nin "ayni degil" savunması artık yalnızca bellek düştükten sonra çalışır; üç mevcut test buna göre güncellendi.
+
+**Testler.** Parçalı tam takım (`48d3507`, 158 dosya): 4435 geçti, 96 xfailed, 0 başarısız, 0 XPASS, 1 atlandı (`--ag`). Sızıntı testçisinin dosyası commit edildikten sonra (`802b30f`, 159 dosya, dört grup: 1172 geçti ve 1 atlandı; 1008 geçti; 928 geçti; 1352 geçti ve 115 xfailed): **4460 geçti, 115 xfailed, 0 başarısız, 0 XPASS, 1 atlandı** (`--ag`). Fark yeni dosyanın 25 geçen ve 19 xfail testidir.
+
+**Ajan bulguları.** Metodoloji denetçisi: D-A yok; D-B1 (satır 125 yan yollarda zorunlu değil), D-B2 ("dondurulmuş" sabitlenmiyor), D-C1 ile D-C7, hepsi açık. Sızıntı testçisi (`tests/test_sizinti_perf1.py`): S-1 ile S-14, 19 xfail, hepsi açık; S-8 ve S-13 koşullu sızıntı, S-6 ad düzeyi. Bu bulgularla push edildi: tur yeni bir veri sızıntısı açmadı. S-8 gerçek bir veri yoludur, ama önceden vardır (R1 ile aynı sınıf) ve taramayla yasaklı adlar artı eşzamanlı iş parçacığı ister. S-13 ve S-6 yalnızca ay adı verir. **F2 gereksinimi:** F2 ve F3'te paralellik iş parçacığıyla değil süreçle yapılır, çünkü onay izni süreç genelidir ve iş parçacıkları onu paylaşır (S-8, R1). S-13'ün tarama boşluğu ve D-B1 F2 kodundan önce kapanır. Sızıntı testçisinin dosyası commit edildi; xfail 96 → 115.
+
+**Açık karar: ağ yasağının kapsamı.** Ön-kayıt §3 rev.13 "F2 ve F3 koşuları ağa çıkmaz" der. CLAUDE.md §3.3'teki onay koşusu ise `origin/main`'i alır ve her kayıt satırını uzak depoya iter. Araştırma tarafının okuması: yasak veri kaynaklarını kapsar, yani Binance ve her türlü piyasa verisi. Tek atış kaydı için depo uzak sunucusuyla yapılan git işlemleri sonuca girdi sağlamaz, bu yüzden yasağın dışındadır. Bu ayrım yazılı değildir. F3'ten önce ön-kayıt revizyonuyla yazılacaktır.
+
+**Açık karar: "dondurulmuş" tanımı (D-B2).** Bugünkü kod ağı engelliyor, ama donmuşluğu kanıtlamıyor. Bir sonraki turda şunlar yapılacak: önbellekteki her parquet için SHA256 manifesti (depoya girer, özeti RESULTS'a yazılır); koşu açılışında manifest doğrulaması (uyuşmazsa koşu açılmaz); koşunun yalnızca manifestteki dosyaları okuması; `--uzerine-yaz` için açık işaret ve kayıt.
+
+**Bir sonraki tur için ölçülmüş girdi (ms/bar, sonra).** H1 değerleri 27,56, H2 24,43, H3 10,37; kapının geri kalanı 35,90 (plan 0,60, funding tamlığı 16,62, funding toplamı 18,68).
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
