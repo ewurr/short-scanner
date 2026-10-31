@@ -1487,6 +1487,37 @@ def onay_kosusu(hipotez: str, kume: str):
             _bitis_yaz(kosu, "BITTI", f"sonuc={tutamak.sonuc}")
 
 
+# --- Kesif kosusu --------------------------------------------------------------
+
+
+@contextmanager
+def kesif_kosusu():
+    """F2 kosucusunun giris noktasi (on-kayit §3 rev.13: "F2 ve F3 koşuları ağa çıkmaz"; RESULTS §14.41).
+
+        with split.kesif_kosusu():
+            ...
+
+    `bv` analiz kodunda taramayla yasak oldugu icin kosucu ag yasagini ancak bu baglamla acar. Acilista kesif katmani
+    dogrulanir (hicbir onay dosyasi acilmaz), bellek ve donuk liste kopyalari duser, surec duzeyinde ag yasagi acilir.
+    Kapanista yasak kalkar, kopyalar yine duser. Tek atis ve kayit yoktur: kesif serbesttir (CLAUDE.md §3.3). Acik bir
+    onay kosusu icinde acilmaz."""
+    from data import binance_vision as bv
+    from data import onbellek_manifest
+
+    if _AKTIF_KOSU is not None:
+        raise RuntimeError(f"Acik onay kosusu icinde kesif kosusu acilamaz: {_AKTIF_KOSU}.")
+    if onbellek_manifest.denetim_etkin():
+        onbellek_manifest.manifest_dogrula(katman="kesif")
+    kume_bellegi.temizle()
+    bv.donuk_bellek_temizle()
+    try:
+        with bv.kosu_agsiz():
+            yield
+    finally:
+        kume_bellegi.temizle()
+        bv.donuk_bellek_temizle()
+
+
 # --- Kume kapisi -------------------------------------------------------------
 
 
@@ -1602,7 +1633,7 @@ _KORUNAN_ADLAR = frozenset({
     "_git", "_kosu_ortami", "ortam_karari", "_pytest_testi", "_test_kaydi_ayarla", "_test_ayari",
     "_kayit_yolu", "_kaydi_oku", "_kayit_kilidi", "_onay_kaydet", "_bitis_yaz", "_acik_kosu",
     "kayda_satir_ekle", "not_alanlari", "kayit_satirlari", "kayittaki_kosular", "_hipotez_dogrula",
-    "_onay_kumesi_dogrula", "_sonuc_dogrula", "aktif_onay_kosusu", "onay_baglami_dogrula", "onay_kosusu",
+    "_onay_kumesi_dogrula", "_sonuc_dogrula", "aktif_onay_kosusu", "onay_baglami_dogrula", "onay_kosusu", "kesif_kosusu",
     "kume_erisimi", "onay_erisimi_denetle",
     # Onay kaydi ikinci tur: bolme ve kume tanimi (OK D-B2, sizinti O), git'e bagli kayit (OK D-B1), sinif.
     "split_oku", "kume_tanimi", "kume_araligi",
