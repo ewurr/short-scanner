@@ -157,6 +157,11 @@ class onay_verisi_izni:  # noqa: N801  (baglam yoneticisi; `with bv.onay_verisi_
 _izni_devral()  # import aninda: bu surec bir izin baglami icinde baslatildiysa izin devralinir
 
 
+def onay_izni_var() -> bool:
+    """Bu surecte onay verisi izni acik mi (baglam ya da devralma)."""
+    return _IZIN["sayac"] > 0 or _DEVRALINAN_IZIN["var"]
+
+
 # --- 0b) Agsiz okuma ve dondurulmus liste (on-kayit §3 rev.13 "Koşuların ağ erişimi") -----------
 #
 # "F2 ve F3 koşuları ağa çıkmaz: veri koşudan önce indirilir ve koşu dondurulmuş yerel önbellekten okur."
@@ -258,9 +263,13 @@ class kosu_agsiz:  # noqa: N801  (baglam yoneticisi)
 _ag_yasagini_devral()  # import aninda: bu surec ag yasakli bir kosu icinde baslatildiysa yasak devralinir
 
 
+def _ag_yasak_mi() -> bool:
+    return _KOSU_AGSIZ["sayac"] > 0 or _KOSU_AGSIZ["devralinan"]
+
+
 def ag_yasagi_denetle(yer: str) -> None:
     """Ag yasakli bir kosu aciksa `KosuAgYasagi`. Aga cikan her yol istekten once cagirir."""
-    if _KOSU_AGSIZ["sayac"] > 0 or _KOSU_AGSIZ["devralinan"]:
+    if _ag_yasak_mi():
         raise KosuAgYasagi(f"Ag yasakli kosu icinde aga cikan yol cagrildi: {yer}. Veri kosudan once indirilmeli "
                            "(on-kayit §3 rev.13).")
 
@@ -284,8 +293,12 @@ def _donuk_oku() -> dict:
 
 
 def donuk_bellek_temizle() -> None:
-    """`split.onay_kosusu` acilis ve kapanista cagirir (on-kayit §3 rev.13; denetci D-C1)."""
+    """`split.onay_kosusu` ve `split.kesif_kosusu` acilis ve kapanista cagirir (on-kayit §3 rev.13; denetci D-C1).
+    Manifest ve onay ayrinti listesinin kopyalari da duser."""
+    from data import onbellek_manifest
+
     _DONUK_BELLEK.clear()
+    onbellek_manifest.bellek_temizle()
 
 
 def _donuk_gez(dugum):
@@ -297,12 +310,20 @@ def _donuk_gez(dugum):
         yield from dugum
 
 
+def _donuk_anahtar_denetle(anahtarlar) -> None:
+    """Izinsiz okumada onay verisi anahtari varsa hata; mesaj anahtari yazmaz, ay adi hatadan da cikmaz (RESULTS §14.41)."""
+    try:
+        for anahtar in anahtarlar:
+            _anahtar_denetle(anahtar)
+    except OnayVerisiKorumasi:
+        raise OnayVerisiKorumasi("Dondurulmus listede onay verisi anahtari var; izinsiz okunamaz (ad yazilmaz).") from None
+
+
 def _donuk_liste() -> dict:
     """Listenin tamami, kopya olarak; her anahtarda onay verisi izni aranir (`_donuk_anahtarlar` ile ayni kural;
     sizinti S-6). Kopya oldugu icin cagiranin degisikligi sonraki okumalara gecmez (sizinti S-7)."""
     icerik = _donuk_oku()
-    for anahtar in _donuk_gez(icerik):
-        _anahtar_denetle(anahtar)
+    _donuk_anahtar_denetle(_donuk_gez(icerik))
     return copy.deepcopy(icerik)
 
 
@@ -314,8 +335,7 @@ def _donuk_anahtarlar(tur: str, *yol: str) -> list[str]:
             dugum = dugum[parca]
     except KeyError:
         raise DonukListeYok(f"Dondurulmus listede {tur} {yol} yok: {donuk_liste_yolu()}.") from None
-    for anahtar in dugum:
-        _anahtar_denetle(anahtar)
+    _donuk_anahtar_denetle(dugum)
     return list(dugum)
 
 
@@ -461,7 +481,8 @@ def listeyi_dondur(uzerine_yaz: bool = False) -> dict:
     """Evrendeki butun sembollerin 4h mum ve funding dosya adlarini diske dondurur; ag kullanan tek liste yolu.
 
     Yalnizca dosya adlari yazilir (boyut, tarih, ETag yok), cikti sirali ve deterministiktir. Dosya varsa
-    `uzerine_yaz=True` olmadan degistirilmez: dondurulmus liste sessizce yenilenmez. Doner: yol, sembol sayisi,
+    `uzerine_yaz=True` olmadan degistirilmez: dondurulmus liste sessizce yenilenmez. SHA256'si manifestte durur, yani
+    yenileme git gecmisinde gorunur ve manifest yenilenene kadar dogrulama hata verir. Doner: yol, sembol sayisi,
     dosya sayisi, SHA256 ve listede olup yerel parquet'i bulunmayan dosya sayisi."""
     from concurrent.futures import ThreadPoolExecutor
 
@@ -555,8 +576,13 @@ def onbellek_yolu(*parcalar: str) -> Path:
 
 
 def onbellekten_oku(yol: Path) -> pd.DataFrame | None:
-    """Onbellek dosyasini okur. Onay verisi izin disinda okunamaz (`OnayVerisiKorumasi`)."""
+    """Onbellek dosyasini okur. Onay verisi izin disinda okunamaz (`OnayVerisiKorumasi`). Agsiz yolda ve ag yasakli
+    kosuda dosya manifestte olmali ve boyu tutmali (`onbellek_manifest.okuma_denetle`; RESULTS §14.41)."""
     _onbellek_yolu_denetle(yol)
+    if _agsiz_mi() or _ag_yasak_mi():
+        from data import onbellek_manifest
+
+        onbellek_manifest.okuma_denetle(yol)
     if yol.exists():
         return pd.read_parquet(yol)
     return None

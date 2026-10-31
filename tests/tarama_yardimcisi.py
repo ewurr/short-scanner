@@ -142,9 +142,12 @@ ONBELLEK_DESENI = (
     # yakalanir (anahtar sozcuk ya da eslem anahtari). Sinir: `bv` baska bir ada atanip kaynak metinde hic anilmazsa
     # (`getattr(klines, "b" + "v")`) yakalanmaz. Ag yasagi calisma aninda da zorlanir (`bv.kosu_agsiz`).
     r"|\bbv\b|\bmum_dosyalari\b|\bfunding_dosyalari\b|\btum_sembol_dizinleri\b|\b_listele\b|\b_iste\b|\bay_indir\b"
-    r"|\bbirincil_gunluk_indir\b|\byenile\b[\"']?\s*[=:]\s*(?!False\b)|\bmanifest_kur\b"
+    r"|\bbirincil_gunluk_indir\b|\byenile\b[\"']?\s*[=:]\s*(?!False\b)"
     r"|\b_donuk_(oku|gez)\b|\bdonuk_bellek_temizle\b|\b_KOSU_AGSIZ\b|\bSHORT_LAB_KOSU_AGSIZ\b|\b_AG_YASAGI_ORTAM_ADI\b"
     r"|\b_ag_yasagini_devral\b"
+    # RESULTS §14.41 (D-B2): manifest araclari ve onay ayrinti listesi. Veri yolu `split.kesif_kosusu` desende YOKTUR:
+    # F2 koşucusunun tek girisi odur.
+    r"|\bonbellek_manifest\b|\bmanifest_(kur|dogrula)\b|\bokuma_denetle\b|\bonay_ayrinti\w*"
 )
 ONBELLEK_UZANTILARI = (".py", ".ipynb", ".pyw")
 

@@ -1427,6 +1427,14 @@ def onay_kosusu(hipotez: str, kume: str):
     _uzak_adresi_denetle()
     _uzagi_getir()
     _itilmemis_denetle()
+    from data import binance_vision as bv
+    from data import onbellek_manifest
+
+    # Dondurma kaydi tam dogrulanir (on-kayit §3 rev.13; RESULTS §14.41). Kayda satir yazilmadan once: uyusmazlikta kosu
+    # acilmaz, cift harcanmaz. Onay baytlari yalnizca `hashlib` ile okunur.
+    if onbellek_manifest.denetim_etkin():
+        with bv.onay_verisi_izni(f"split.onay_kosusu acilisi ({hipotez}, {kume})"):
+            onbellek_manifest.manifest_dogrula(katman="tam")
     kosu = _Kosu(hipotez, kume, uuid.uuid4().hex[:12], ortam.commit, ortam.betik, _iso_zaman(), os.getpid(),
                  kilit)
     with _kayit_kilidi():
@@ -1443,8 +1451,6 @@ def onay_kosusu(hipotez: str, kume: str):
         uzak_hatasi = _it_ya_da_kaydet(kosu, "BASLADI")
     if uzak_hatasi is not None:
         raise uzak_hatasi
-
-    from data import binance_vision as bv
 
     tutamak = OnayKosusu(kosu)
     # Acilis ve kapanis bellekteki kopyalari gecersiz kilar (on-kayit §3 rev.13). Isabetteki denetim
