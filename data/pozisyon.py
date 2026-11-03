@@ -658,6 +658,8 @@ def olay_karari(
     # Onay baglami (kapi sertlestirme turu 3, denetci KS2 D-B1): C1/C2 pozisyonu yalnizca ayni (hipotez, kume)
     # ciftinin acik onay kosusunda; acik kosu varken baska pozisyon yok. Uyusmazlik `split.OnayUyusmazligi`.
     split_modulu.onay_baglami_dogrula(hipotez, kume, yapilandirma_kimligi)
+    # KESIF karar noktasi acik bir kesif kosusu ister (RESULTS §14.42, denetci D-C1).
+    split_modulu.kesif_baglami_dogrula(kume)
     # Donem sinirlari da cagirandan alinmaz; commit edilmis evren tablosundan sembol ve donem numarasiyla
     # okunur (kapi sertlestirme turu, denetci F1K2 D-B2; on-kayit §2 "Listeleme donemi", "Evren tablosunun
     # sabitlenmesi": "analiz bu dosyadan okur"). Sembolun grubu kumeye ait olmali (on-kayit §3 "Coin bolmesi").
@@ -853,6 +855,7 @@ def sinyal_kosulu(t, *, hipotez: str, yapilandirma, capa, kume: str, sembol: str
     zaman = _utc_sinyal_zamani(t)
     kume_baslangic, kume_bitis = kume_sinirlari(kume)
     split_modulu.onay_baglami_dogrula(hipotez, kume, sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli))
+    split_modulu.kesif_baglami_dogrula(kume)  # RESULTS §14.42, denetci D-C1
     donem_baslangic, donem_bitis, _ = donem_kaydi(sembol, donem_no)
     grup_dogrula(sembol, kume)
     # Veri kume araligina VE DONEME kesilir (bulgu K-B1; on-kayit §2 "Listeleme donemi": "Donem

@@ -1529,6 +1529,71 @@ class KesifKaydi:
         return f"KesifKaydi({self.alanlar()})"
 
 
+# Kesif baglami (RESULTS §14.42, denetci D-C1): KESIF karar noktasi (`pozisyon.olay_karari`, `pozisyon.sinyal_kosulu`)
+# yalnizca acik bir kesif kosusu icinde calisir. Durum surece aittir ve `bv.kosu_agsiz` ile ayni yontemle alt sureclere
+# tasinir (F2'de paralellik surecle yapilir; §14.40): baglam icinde baslatilan surec import aninda devralir, pid denetimi
+# bayat ya da elle ayarlanmis degiskeni eler. Kural pytest icinde manifest denetimiyle ayni istisnaya tabidir: yalnizca
+# testin kendi manifestini kurdugu testte uygulanir (`onbellek_manifest.denetim_etkin`; M-11 bu istisnayi atlatir).
+_KESIF_ORTAM_ADI = "SHORT_LAB_KESIF_KOSUSU"
+_KESIF_DURUMU = {"sayac": 0, "devralinan": False}
+
+
+class KesifBaglamiYok(PermissionError):
+    """KESIF karar noktasi acik bir `kesif_kosusu` disinda cagrildi (RESULTS §14.42, denetci D-C1)."""
+
+
+def _kesif_baglamini_devral() -> None:
+    """Import aninda bir kez: ust surec bir kesif kosusu icinde bu sureci baslattiysa baglam devralinir. Yan etkili."""
+    deger = os.environ.get(_KESIF_ORTAM_ADI)
+    if not deger or deger != str(os.getppid()):
+        return
+    _KESIF_DURUMU["devralinan"] = True
+    os.environ[_KESIF_ORTAM_ADI] = str(os.getpid())
+
+
+class _kesif_baglami:  # noqa: N801  (yalnizca `kesif_kosusu` acar)
+    def __init__(self):
+        self._onceki = None
+
+    def __enter__(self):
+        _KESIF_DURUMU["sayac"] += 1
+        if _KESIF_DURUMU["sayac"] == 1:
+            self._onceki = os.environ.get(_KESIF_ORTAM_ADI)
+            os.environ[_KESIF_ORTAM_ADI] = str(os.getpid())
+        return self
+
+    def __exit__(self, *_):
+        _KESIF_DURUMU["sayac"] -= 1
+        if _KESIF_DURUMU["sayac"] == 0:
+            if self._onceki is None:
+                os.environ.pop(_KESIF_ORTAM_ADI, None)
+            else:
+                os.environ[_KESIF_ORTAM_ADI] = self._onceki
+        return False
+
+
+_kesif_baglamini_devral()
+
+
+def kesif_kosusu_acik() -> bool:
+    """Bu surecte acik (ya da devralinmis) bir kesif kosusu var mi."""
+    return _KESIF_DURUMU["sayac"] > 0 or _KESIF_DURUMU["devralinan"]
+
+
+def kesif_baglami_dogrula(kume) -> None:
+    """KESIF karar noktasi acik bir kesif kosusu ister; yoksa `KesifBaglamiYok`. C1/C2 icin kural `onay_baglami_dogrula`
+    dadir. pytest icinde yalnizca manifest denetimi etkin testte uygulanir (yukaridaki not)."""
+    if kume != "KESIF":
+        return
+    from data import onbellek_manifest
+
+    if not onbellek_manifest.denetim_etkin():
+        return
+    if not kesif_kosusu_acik():
+        raise KesifBaglamiYok("KESIF karar noktasi (olay_karari, sinyal_kosulu) yalnizca `with split.kesif_kosusu():` "
+                              "icinde cagrilir (RESULTS §14.42, denetci D-C1).")
+
+
 def _kesif_git_denetimi() -> bool:
     """Commit bagi bu ortamda denetlenir mi: pytest disinda her zaman, pytest icinde yalnizca gercek git test deposunda."""
     if _pytest_testi() is None:
@@ -1609,7 +1674,7 @@ def kesif_kosusu():
     bv.donuk_bellek_temizle()
     hata: BaseException | None = None
     try:
-        with bv.kosu_agsiz():
+        with bv.kosu_agsiz(), _kesif_baglami():
             yield kayit
     except BaseException as yakalanan:
         hata = yakalanan
@@ -1780,6 +1845,9 @@ _KORUNAN_ADLAR = frozenset({
     # Kesif kosusunun commit bagi (RESULTS §14.42, D-B2).
     "KesifKaydi", "kesif_bagi_denetle", "_kesif_git_denetimi", "_kesif_bagli_dosyalar", "_kesif_kaydi_kur",
     "_kesif_kapanisi_denetle", "_dosya_sha256",
+    # Kesif baglami (RESULTS §14.42, D-C1).
+    "_KESIF_DURUMU", "_KESIF_ORTAM_ADI", "_kesif_baglami", "kesif_kosusu_acik", "kesif_baglami_dogrula",
+    "KesifBaglamiYok",
     "kume_erisimi", "onay_erisimi_denetle",
     # Onay kaydi ikinci tur: bolme ve kume tanimi (OK D-B2, sizinti O), git'e bagli kayit (OK D-B1), sinif.
     "split_oku", "kume_tanimi", "kume_araligi",
