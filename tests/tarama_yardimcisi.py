@@ -148,6 +148,14 @@ ONBELLEK_DESENI = (
     # RESULTS §14.41 (D-B2): manifest araclari ve onay ayrinti listesi. Veri yolu `split.kesif_kosusu` desende YOKTUR:
     # F2 koşucusunun tek girisi odur.
     r"|\bonbellek_manifest\b|\bmanifest_(kur|dogrula)\b|\bokuma_denetle\b|\bonay_ayrinti\w*"
+    # RESULTS §14.42 (denetci D-C3, sizinti R3a): dogrudan ag erisimi. Analiz kodu `requests`, `urllib`, `socket`,
+    # `http.client`, `aiohttp` (ve `httpx`) ice aktaramaz (.ipynb kaynak metni dahil), `http://` ya da `https://` adres
+    # metni yazamaz. `config.py` ve veri katmani (`data/`) disarida kalir: depo taramasi config.py'yi ayrica muaf tutar,
+    # `data/` `IZINLI_ALTLAR`dadir. Sinir: `importlib.import_module("requests")` / `__import__` gibi metinle ice aktarma
+    # ve adi parcalayarak kurulan adres (`"ht" + "tp://"`) yakalanmaz (metin kurali paket surumu kaydi gibi mesru
+    # satirlarda yanlis alarm verirdi); calisma aninda ag yasagi (`kosu_agsiz`) yalnizca veri katmanini korur.
+    r"|(?m:(?:^|[\"';])[ \t]*(?:import|from)[ \t]+[\w., \t]*\b(?:requests|urllib\d?|socket|aiohttp|httpx|http)\b(?!\w))"
+    r"|(?i:\bhttps?://)"
 )
 ONBELLEK_UZANTILARI = (".py", ".ipynb", ".pyw")
 

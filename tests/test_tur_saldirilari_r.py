@@ -107,7 +107,6 @@ def _tara(tmp_path, metin, desen):
     return ihlaller(desen, kok=tmp_path)
 
 
-@pytest.mark.xfail(strict=True, raises=_BEKLENEN, reason="R3a: dogrudan requests.get(data.binance.vision) taranmiyor")
 def test_analiz_kodunda_dogrudan_vision_istegi_taramaya_takilir(tmp_path):
     """SALDIRI: analiz kodu `requests.get("https://data.binance.vision/...")` ile kapiyi atlar. GUVENLI: ONBELLEK_DESENI
     ya da HAM_ERISIM_DESENI yakalar (CLAUDE.md §3.3)."""
@@ -123,7 +122,6 @@ def test_analiz_kodunda_bv_iste_cagrisi_taramaya_takilir(tmp_path):
     assert _tara(tmp_path, metin, ONBELLEK_DESENI) or ihlaller(HAM_ERISIM_DESENI, kok=tmp_path)
 
 
-@pytest.mark.xfail(strict=True, raises=_BEKLENEN, reason="R3c: fapi.binance.com metni taranmiyor")
 def test_analiz_kodunda_fapi_adresi_taramaya_takilir(tmp_path):
     """SALDIRI: analiz kodu `fapi.binance.com` uzerinden canli/tarihsel veriyi kapi disi ceker. GUVENLI: desen yakalar."""
     metin = 'URL = "https://fapi.binance.com/fapi/v1/klines"\n'
@@ -145,21 +143,42 @@ def test_ipynb_icindeki_vars_split_varsayilan_taramayla_yakalanir(tmp_path):
 # degismedi; dosyadaki uzlasima gore basarili saldiri olarak isaretlendi (denetci OK4 D-C3 ile ayni bulgu).
 @pytest.mark.xfail(strict=True, raises=(AssertionError, pytest.fail.Exception),
                    reason="R5: split.yukle(mum_yukleyici=...) verilen fonksiyonu izinle calistirir; B verisi doner")
-def test_kume_kapisindan_gecen_yukle_b_onbellegini_mum_yukleyiciyle_okutamaz(onbellek):
-    """SALDIRI: `split.yukle(A, "4h", "KESIF", mum_yukleyici=...)` ozel yukleyicisi izin icinde B sembolunun
-    onbellegini `bv.onbellekten_oku` ile okur. GUVENLI: `OnayVerisiKorumasi` ya da bos cerceve (B verisi donmez)."""
+def test_kume_kapisindan_gecen_yukle_b_onbellegini_mum_yukleyiciyle_okutamaz(onbellek, tmp_path):
+    """SALDIRI: `split.yukle(..., mum_yukleyici=...)` ozel yukleyicisi kapinin actigi izin icinde, acik kosunun
+    kumesine ait olmayan onay verisini `bv.onbellekten_oku` ile okur. Kurulum (RESULTS §14.42): izni acan yukleyici
+    acik bir onay kosusundaki C1 yuklemesidir (KESIF yuklemesi artik izin acmaz, D-B1); C1 kosusunda B sembolunun
+    C2 ayi dosyasi okunmaya calisilir. GUVENLI: `OnayVerisiKorumasi` (okuma reddedilir)."""
+    from onay_yardimcisi import gecici_kayit, kosu
+
+    c2_yolu = onbellek / "klines" / B_SEMBOLU / "4h" / "2025-09.parquet"
+    c2_yolu.parent.mkdir(parents=True, exist_ok=True)
+    sahte_4h("2025-09-01", 12).to_parquet(c2_yolu, index=False)
+    okunan = []
+
+    def yukleyici(_s, _b):
+        try:
+            okunan.append(bv.onbellekten_oku(c2_yolu))
+        except bv.OnayVerisiKorumasi:
+            pass
+        return sahte_4h("2021-01-01", 6)
+
+    gecici_kayit(tmp_path / "ONAY_KAYDI.md")
+    with kosu("H2", "C1"):
+        split.yukle(B_SEMBOLU, "4h", "C1", onay=True, mum_yukleyici=yukleyici)
+    assert not okunan, "C1 kosusunda ozel yukleyici kapinin izniyle C2 verisini okudu"
+
+
+def test_kesif_yuklemesi_izin_acmaz_mum_yukleyici_b_okuyamaz(onbellek):
+    """RESULTS §14.42 (D-B1'in sonucu): `split.yukle(A, "4h", "KESIF", mum_yukleyici=...)` artik izin acmaz; ozel
+    yukleyici B sembolunun onbellegini okuyamaz (`OnayVerisiKorumasi`). R5'in KESIF varyanti boylece kapandi."""
     _b_dosyasi(onbellek)
     yol = onbellek / "klines" / B_SEMBOLU / "4h" / "2021-01.parquet"
 
     def yukleyici(_s, _b):
         return bv.onbellekten_oku(yol)
 
-    try:
-        sonuc = split.yukle(_a_sembolu(), "4h", "KESIF", mum_yukleyici=yukleyici)
-    except bv.OnayVerisiKorumasi:
-        return
-    if isinstance(sonuc, pd.DataFrame):
-        assert sonuc.empty, f"B grubu verisi KESIF cagrisindan dondu: {len(sonuc)} satir"
+    with pytest.raises(bv.OnayVerisiKorumasi):
+        split.yukle(_a_sembolu(), "4h", "KESIF", mum_yukleyici=yukleyici)
 
 
 @pytest.mark.xfail(strict=True, raises=_BEKLENEN,
