@@ -146,24 +146,20 @@ def _okumayi_dene(yol) -> str:
 # --- M-1: ayni boyda bayt degisikligi ----------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="M-1: okuma_denetle yalnizca boya bakar; kosu acildiktan sonra ayni boyda degisen kesif "
-                          "dosyasi okunur (SHA256 yalnizca acilista)")
 def test_kosu_icinde_ayni_boyda_bayt_degisikligi_kesif_dosyasinda_yakalanir(onbellek, monkeypatch):
     """On-kayit §3 rev.13: "koşu dondurulmuş yerel önbellekten okur". Dondurma SHA256 ile kanitlanir; kosu acildiktan
     sonra ayni boyda degistirilen kesif dosyasi okuma aninda reddedilmelidir."""
     mf.manifest_kur()
     hedef = _kesif_yolu(onbellek)
-    with split.kesif_kosusu():
-        _bayt_cevir(hedef)
-        okunan = _okuma_kaydi(monkeypatch)
-        _okumayi_dene(hedef)
-        assert not okunan, "ayni boyda bozulmus kesif dosyasi kosu icinde parquet olarak acildi"
+    # Kapanis kesif katmanini yeniden dogrular ve bozulmayi ayrica yakalar (RESULTS §14.42, D-B2).
+    with pytest.raises(split.KesifBagiHatasi):
+        with split.kesif_kosusu():
+            _bayt_cevir(hedef)
+            okunan = _okuma_kaydi(monkeypatch)
+            _okumayi_dene(hedef)
+            assert not okunan, "ayni boyda bozulmus kesif dosyasi kosu icinde parquet olarak acildi"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="M-1: okuma_denetle yalnizca boya bakar; onay kosusu icinde ayni boyda degisen onay "
-                          "dosyasi okunur (SHA256 yalnizca acilista)")
 def test_onay_kosusu_icinde_ayni_boyda_bayt_degisikligi_onay_dosyasinda_yakalanir(onbellek, monkeypatch, tmp_path):
     """On-kayit §3 rev.13 ve CLAUDE.md §3.3: onay kosusunun baktigi veri, acilista dogrulanan veridir. Kosu icinde ayni
     boyda degistirilen C2 dosyasi okuma aninda reddedilmelidir."""
@@ -258,11 +254,7 @@ def _yol_bicimleri(kok: Path, hedef: Path) -> dict:
     return bicimler
 
 
-BICIMLER = ["nokta_nokta", "tek_nokta", "buyuk_kucuk_harf", "sonda_nokta", "gorece",
-            pytest.param("uzun_yol_oneki", marks=pytest.mark.xfail(
-                strict=True, raises=AssertionError,
-                reason="M-15: `\\\\?\\` onekli yol `relative_to` ile onbellek disi sayilir, denetimsiz okunur (RESULTS §14.41)")),
-            "ntfs_akisi"]
+BICIMLER = ["nokta_nokta", "tek_nokta", "buyuk_kucuk_harf", "sonda_nokta", "gorece", "uzun_yol_oneki", "ntfs_akisi"]
 
 
 @pytest.mark.parametrize("hedef_adi", ["a_c2_ayi", "b_grubu"])
@@ -279,9 +271,6 @@ def test_yol_hileleriyle_onay_verisi_izinsiz_okunamaz(onbellek, monkeypatch, bic
     assert not okunan, f"{bicim} bicimiyle onay dosyasi izinsiz parquet olarak acildi"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="M-3: _onbellek_yolu_denetle yalnizca len(parcalar) >= 3 yollari denetler; dizin yolu "
-                          "(klines, klines/<SEMBOL>) denetimsiz pd.read_parquet'e gider ve butun alt agaci okur")
 @pytest.mark.parametrize("dizin", ["tur_dizini", "b_sembol_dizini", "a_sembol_dizini"])
 def test_dizin_yoluyla_onay_verisi_izinsiz_okunamaz(onbellek, monkeypatch, dizin):
     """CLAUDE.md §3.3: onay verisi izin disinda okunamaz. Dosya yerine dizin verilirse `pd.read_parquet` dizindeki
@@ -293,9 +282,6 @@ def test_dizin_yoluyla_onay_verisi_izinsiz_okunamaz(onbellek, monkeypatch, dizin
     assert not okunan, "dizin yolu denetimsiz parquet okumasina gitti"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="M-16: `klines/<A>/4h` dizininde son parca ay diye ayristirilir, onay sayilmaz; dizin C2 aylariyla "
-                          "birlikte denetimsiz okunur (RESULTS §14.41)")
 def test_sembol_ve_bar_dizini_izinsiz_okunamaz(onbellek, monkeypatch):
     """CLAUDE.md §3.3: `klines/<SEMBOL>/<bar>` dizin yolu da onay verisi izni ister (ay yerine `4h` ayristirilamaz,
     kapali yon)."""

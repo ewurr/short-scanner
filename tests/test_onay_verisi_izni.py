@@ -71,10 +71,12 @@ def test_onbellekten_oku_onay_verisini_izin_disinda_okumaz(onbellek, parcalar):
         bv.onbellekten_oku(yol)
 
 
-def test_onbellekten_oku_kesif_verisini_ve_onbellek_disini_okur(onbellek, tmp_path):
+def test_onbellekten_oku_kesif_verisini_okur_onbellek_disini_reddeder(onbellek, tmp_path):
+    """RESULTS §14.42 (M-3, M-15, M-16): onbellek kokunun disina cozulen yol artik reddedilir (§14.41'de okunurdu)."""
     assert bv.onbellekten_oku(_yaz(onbellek, "klines", _a_sembolu(), "4h", "2025-08.parquet")) is not None
     assert bv.onbellekten_oku(_yaz(onbellek, "evren.parquet")) is not None  # evren onbellegi: onay verisi degil
-    assert bv.onbellekten_oku(_yaz(tmp_path, "baska", "x.parquet")) is not None
+    with pytest.raises(bv.OnbellekYoluHatasi):
+        bv.onbellekten_oku(_yaz(tmp_path, "baska", "x.parquet"))
 
 
 def test_ham_yukleyici_onay_verisini_izin_disinda_okumaz(onbellek, monkeypatch):

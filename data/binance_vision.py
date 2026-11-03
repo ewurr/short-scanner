@@ -300,6 +300,7 @@ def donuk_bellek_temizle() -> None:
 
     _DONUK_BELLEK.clear()
     onbellek_manifest.bellek_temizle()
+    dogrulanmis_bellek_temizle()
 
 
 def _donuk_gez(dugum):
@@ -393,6 +394,10 @@ def onay_verisi_mi(sembol: str, ay: str) -> bool:
     §3 bolme kurali, varlik anahtariyla). Ay ayristirilamazsa True (kapali yon). Saf."""
     from data import split  # split bu katmani dolayli import eder; dongu onlenir
 
+    # Bos metin `pd.Period` ile NaT olur ve karsilastirmalar False doner; ay bu yuzden once bicimle denetlenir (RESULTS
+    # §14.42: `onay_verisi_mi(A, "")` eskiden False donuyordu).
+    if not isinstance(ay, str) or not _AY_DESENI.fullmatch(ay):
+        return True
     try:
         donem = pd.Period(ay, freq="M")
     except (ValueError, TypeError):
@@ -425,19 +430,47 @@ def _anahtar_denetle(anahtar: str) -> None:
     _onay_verisi_denetle(parcalar[5], ay.group(0), f"zip_indir({anahtar})")
 
 
-def _onbellek_yolu_denetle(yol: Path) -> None:
-    """Onbellek yolundan (tur, sembol, ay) cikarir ve denetler. `klines_settled` her zaman onay verisi sayilir (yalnizca
-    denetim). Onbellek disi ya da tanimsiz turdeki yollar (ör. evren onbellegi) denetlenmez."""
+class OnbellekYoluHatasi(OnayVerisiKorumasi):
+    """`onbellekten_oku`ya onbellek kokunun disina cozulen, dizin olan ya da `\\\\?\\` / `\\\\.\\` onekli bir yol verildi
+    (RESULTS §14.42; sizinti M-3, M-15, M-16)."""
+
+
+_AYGIT_ONEKLERI = ("\\\\?\\", "\\\\.\\", "//?/", "//./", "\\??\\")
+
+
+def _onbellek_yolu_normallestir(yol) -> tuple[Path, tuple[str, ...]]:
+    """Yolu okumadan once normallestirir ve onbellek kokune gore denetler: (cozulmus mutlak yol, kok altindaki parcalar).
+    Aygit onekli yol (`\\\\?\\`, `\\\\.\\`), kok disina cozulen yol, kokun kendisi ve dizin `OnbellekYoluHatasi` verir."""
+    ham = os.fspath(yol)
+    if not isinstance(ham, str) or ham.startswith(_AYGIT_ONEKLERI):
+        raise OnbellekYoluHatasi(f"onbellekten_oku: aygit onekli ya da metin olmayan yol reddedildi: {ham!r}")
+    kok = Path(config.ONBELLEK_DIZINI).resolve()
+    tam = Path(os.path.abspath(ham)).resolve()
     try:
-        parcalar = Path(yol).resolve().relative_to(Path(config.ONBELLEK_DIZINI).resolve()).parts
+        parcalar = tam.relative_to(kok).parts
     except ValueError:
-        return
+        raise OnbellekYoluHatasi(f"onbellekten_oku: yol onbellek kokunun ({kok}) disina cozuluyor: {ham!r}") from None
+    if not parcalar or tam.is_dir():
+        raise OnbellekYoluHatasi(f"onbellekten_oku: dizin okunamaz, yalnizca tek bir dosya: {ham!r}")
+    return tam, parcalar
+
+
+def _onbellek_yolu_denetle(yol: Path, parcalar: tuple[str, ...] | None = None) -> None:
+    """Onbellek yolundan (tur, sembol, ay) cikarir ve denetler. `klines_settled` her zaman onay verisi sayilir (yalnizca
+    denetim). Tanimli turde `<tur>/<SEMBOL>/.../<ay>.parquet` bicimine uymayan yol onay sayilir (kapali yon; M-16).
+    Tanimsiz turdeki yollar (ör. evren onbellegi) denetlenmez. `parcalar` normallestirilmis yoldan gelir."""
+    if parcalar is None:
+        try:
+            parcalar = Path(yol).resolve().relative_to(Path(config.ONBELLEK_DIZINI).resolve()).parts
+        except ValueError:
+            return
     if not parcalar:
         return
     if parcalar[0] == "klines_settled":
         _onay_verisi_denetle("", "", f"onbellekten_oku({yol})")
-    elif parcalar[0] in _ONBELLEK_TURLERI and len(parcalar) >= 3:
-        _onay_verisi_denetle(parcalar[1], Path(parcalar[-1]).stem, f"onbellekten_oku({yol})")
+    elif parcalar[0] in _ONBELLEK_TURLERI:
+        ay = Path(parcalar[-1]).stem if len(parcalar) >= 3 and parcalar[-1].endswith(".parquet") else ""
+        _onay_verisi_denetle(parcalar[1] if len(parcalar) >= 2 else "", ay, f"onbellekten_oku({yol})")
 
 
 def _oturum() -> requests.Session:
@@ -628,20 +661,64 @@ def onbellek_yolu(*parcalar: str) -> Path:
     return yol
 
 
-def onbellekten_oku(yol: Path) -> pd.DataFrame | None:
-    """Onbellek dosyasini okur. Onay verisi izin disinda okunamaz (`OnayVerisiKorumasi`). Agsiz yolda ve ag yasakli
-    kosuda dosya manifestte olmali ve boyu tutmali (`onbellek_manifest.okuma_denetle`; RESULTS §14.41)."""
-    _onbellek_yolu_denetle(yol)
-    if _agsiz_mi() or _ag_yasak_mi():
-        from data import onbellek_manifest
+# Dogrulanmis okuma bellegi (RESULTS §14.42, denetci D-C4, sizinti M-1). Agsiz yolda ve ag yasakli kosuda bir dosya bu
+# surecte ILK kez okunurken baytlari bir kez okunur, SHA256'si manifestle (onay dosyasinda ayrinti listesiyle)
+# karsilastirilir ve cerceve AYNI baytlardan kurulur. Cerceve bellekte tutulur; sonraki okumalarda boy denetlenir ve
+# bellekteki kopyanin kopyasi doner, yani ilk okumadan sonra diskte yapilan degisiklik sonuca girmez. Erisim denetimi
+# (`_onbellek_yolu_denetle`, izin) her okunusta bellege bakmadan once calisir. Kosu acilisi ve kapanisi bellegi
+# temizler (`donuk_bellek_temizle`).
+_DOGRULANMIS: dict = {}
+_DOGRULANMIS_KILIDI = threading.Lock()
 
-        onbellek_manifest.okuma_denetle(yol)
-    if yol.exists():
-        return pd.read_parquet(yol)
-    return None
+
+def onbellekten_oku(yol: Path) -> pd.DataFrame | None:
+    """Onbellek dosyasini okur. Yol okumadan once normallestirilir ve onbellek kokune gore denetlenir: kok disi, dizin ve
+    aygit onekli yol `OnbellekYoluHatasi` (RESULTS §14.42). Onay verisi izin disinda okunamaz (`OnayVerisiKorumasi`).
+    Agsiz yolda ve ag yasakli kosuda dosya manifestte olmali ve boyu tutmali (`onbellek_manifest.okuma_denetle`); ilk
+    okumada SHA256 da tutmali (yukaridaki not)."""
+    tam, parcalar = _onbellek_yolu_normallestir(yol)
+    _onbellek_yolu_denetle(yol, parcalar)
+    if not (_agsiz_mi() or _ag_yasak_mi()):
+        return pd.read_parquet(tam) if tam.exists() else None
+    from data import onbellek_manifest
+
+    satir = onbellek_manifest.okuma_denetle(tam)
+    if satir is None:  # denetim kapali (yalnizca pytest) ya da tanimsiz tur
+        return pd.read_parquet(tam) if tam.exists() else None
+    anahtar = (str(Path(config.ONBELLEK_DIZINI).resolve()), "/".join(parcalar), satir)
+    with _DOGRULANMIS_KILIDI:
+        bellekte = _DOGRULANMIS.get(anahtar)
+    if bellekte is not None:
+        return bellekte.copy()
+    govde = tam.read_bytes()
+    if len(govde) != satir[0] or hashlib.sha256(govde).hexdigest() != satir[1]:
+        if onbellek_manifest._onay_dosyasi_mi("/".join(parcalar)):
+            raise onbellek_manifest.ManifestUyusmazligi(
+                "Okunmak istenen bir onay dosyasinin SHA256'si ayrinti listesiyle tutmuyor; dosya okunmadi. Ad burada "
+                "yazilmaz; `tam` dogrulamasi adiyla soyler (RESULTS §14.42).")
+        raise onbellek_manifest.ManifestUyusmazligi(
+            f"{'/'.join(parcalar)} SHA256'si manifestle tutmuyor; dosya okunmadi (RESULTS §14.42, sizinti M-1).")
+    cerceve = pd.read_parquet(io.BytesIO(govde))
+    with _DOGRULANMIS_KILIDI:
+        _DOGRULANMIS[anahtar] = cerceve
+    return cerceve.copy()
+
+
+def dogrulanmis_bellek_temizle() -> None:
+    with _DOGRULANMIS_KILIDI:
+        _DOGRULANMIS.clear()
+
+
+class KosuYazmaYasagi(KosuAgYasagi):
+    """Ag yasakli bir kosu acikken onbellege yazilmak istendi (RESULTS §14.42, denetci D-C4)."""
 
 
 def onbellege_yaz(cerceve: pd.DataFrame, yol: Path) -> None:
+    """Parquet onbellegine atomik yazar. Ag yasakli kosu acikken reddeder (`KosuYazmaYasagi`): kosu dondurulmus
+    onbellekten okur, onbellegi degistiremez (RESULTS §14.42, D-C4)."""
+    if _ag_yasak_mi():
+        raise KosuYazmaYasagi(f"Ag yasakli kosu icinde onbellege yazilamaz: {yol}. Kosu dondurulmus onbellekten okur "
+                              "(on-kayit §3 rev.13; RESULTS §14.42).")
     yol.parent.mkdir(parents=True, exist_ok=True)
     # Gecici ad benzersizdir: sinirli eszamanlilikta ayni yolu iki parcacik
     # yazmaya kalkarsa birbirinin yarim dosyasini gormemeli.

@@ -9,6 +9,8 @@ import zipfile
 import pandas as pd
 import pytest
 
+import config
+
 from data import binance_vision as bv
 
 
@@ -76,7 +78,9 @@ def test_checksum_uyusmazligi_hata_verir(monkeypatch):
     assert bv.zip_indir("a/b.zip") == govde
 
 
-def test_onbellek_yaz_oku_dongusu(tmp_path):
+def test_onbellek_yaz_oku_dongusu(tmp_path, monkeypatch):
+    # Okuma yalnizca onbellek kokunun altinda (RESULTS §14.42); kok gecici dizine yonlendirilir.
+    monkeypatch.setattr(config, "ONBELLEK_DIZINI", tmp_path)
     yol = tmp_path / "alt" / "x.parquet"
     cerceve = pd.DataFrame({"a": [1, 2, 3]})
 

@@ -367,17 +367,18 @@ def manifest_dogrula(*, katman: str) -> dict:
             "onay_dosya": manifest.onay_sayisi, "sure_sn": round(time.perf_counter() - bas, 2)}
 
 
-def okuma_denetle(yol: Path) -> None:
-    """Agsiz yolda parquet okunmadan once: dosya kayitta olmali, boyu tutmali. Onay dosyasi icin mesaj adi yazmaz, cunku
-    bu yol KESIF yuklemesinde de calisir (RESULTS §14.41); adi `tam` dogrulamasi soyler."""
+def okuma_denetle(yol: Path) -> tuple[int, str] | None:
+    """Agsiz yolda parquet okunmadan once: dosya kayitta olmali, boyu tutmali. Kayittaki (boy, SHA256) satirini doner;
+    denetim kapaliysa ya da yol tanimsiz turdeyse None. SHA256'yi cagiran (`bv.onbellekten_oku`) ilk okumada ayni
+    baytlarla karsilastirir (RESULTS §14.42, D-C4). Onay dosyasi icin mesaj adi yazmaz; adi `tam` dogrulamasi soyler."""
     if not denetim_etkin():
-        return
+        return None
     try:
         parcalar = Path(yol).resolve().relative_to(Path(config.ONBELLEK_DIZINI).resolve()).parts
     except ValueError:
-        return
+        return None
     if not parcalar or parcalar[0] not in bv._ONBELLEK_TURLERI:
-        return
+        return None
     goreli = "/".join(parcalar)
     manifest = _manifest()
     onay = _onay_dosyasi_mi(goreli)
@@ -387,7 +388,7 @@ def okuma_denetle(yol: Path) -> None:
     except FileNotFoundError:
         boy = None
     if satir is not None and boy == satir[0]:
-        return
+        return satir
     if onay:
         raise ManifestUyusmazligi("Okunmak istenen bir onay dosyasi ayrinti listesinde yok ya da boyu tutmuyor; dosya "
                                   "okunmadi. Ad burada yazilmaz; `tam` dogrulamasi adiyla soyler.")
