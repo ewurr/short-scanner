@@ -236,6 +236,8 @@ def test_kosu_icinde_yonlendirilen_dizindeki_manifestsiz_dosya_okunamaz(onbellek
         okunan = _okuma_kaydi(monkeypatch)
         assert _okumayi_dene(ekstra) == "reddedildi"
         assert not okunan
+        # Kapanis kesif katmanini yeniden dogrular (RESULTS §14.42, D-B2); kok kapanistan once eski haline doner.
+        monkeypatch.setattr(config, "ONBELLEK_DIZINI", onbellek)
 
 
 def _yol_bicimleri(kok: Path, hedef: Path) -> dict:

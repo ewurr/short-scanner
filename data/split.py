@@ -1488,34 +1488,163 @@ def onay_kosusu(hipotez: str, kume: str):
 
 
 # --- Kesif kosusu --------------------------------------------------------------
+#
+# Commit bagi (RESULTS §14.42, denetci D-B2). Kesif kosusu acilirken manifest, bolme tablosu ve evren tablosunun calisma
+# agacindaki hali HEAD'dekiyle ayni olmali: kosunun kullandigi dondurma kaydi ve bolme bir commit'e baglanir. Acilista
+# manifestin SHA256'si sabitlenir; kapanista manifest yeniden ozetlenir ve kesif katmani yeniden dogrulanir. Kosucuya bir
+# kayit nesnesi (`KesifKaydi`) verilir; F2 kosucusu onu sonuc dosyalarina yazar (F2 gereksinimi, §14.42). Resmi F2
+# kosusunun temiz agac ve `origin/main` esitligi istemesi de F2 gereksinimidir: burada zorlanmaz, kayda yazilir.
+#
+# Test kipi: pytest icinde commit bagi yalnizca test gercek bir git deposu kurduysa (`_test_kaydi_ayarla(depo=...)`)
+# denetlenir; sahte git kipinde ve test ayari yokken atlanir (`_sahte_git` ile ayni yaklasim). pytest disinda her zaman.
+
+
+class KesifBagiHatasi(OnayOrtamiHatasi):
+    """Kesif kosusu commit'e baglanamadi: manifest, split.csv ya da universe.csv HEAD'dekiyle ayni degil, izlenmiyor ya
+    da git okunamadi; ya da kapanista manifest acilistakiyle ayni degil / kesif katmani artik dogrulanmiyor."""
+
+
+class KesifKaydi:
+    """Kesif kosusunun kaydi. Alanlar salt okunur; `kapanis_utc` kosu kapaninca dolar. F2 kosucusu bunu sonuc dosyalarina
+    yazar (`alanlar()`)."""
+
+    __slots__ = ("_head", "_manifest", "_temiz", "_origin", "_acilis", "_kapanis")
+
+    def __init__(self, head, manifest_sha256, agac_temiz, origin_esit, acilis_utc):
+        self._head, self._manifest, self._temiz = head, manifest_sha256, agac_temiz
+        self._origin, self._acilis, self._kapanis = origin_esit, acilis_utc, None
+
+    head_commit = property(lambda self: self._head)
+    manifest_sha256 = property(lambda self: self._manifest)
+    agac_temiz = property(lambda self: self._temiz)
+    origin_main_esit = property(lambda self: self._origin)
+    acilis_utc = property(lambda self: self._acilis)
+    kapanis_utc = property(lambda self: self._kapanis)
+
+    def alanlar(self) -> dict:
+        return {"head_commit": self._head, "manifest_sha256": self._manifest, "agac_temiz": self._temiz,
+                "origin_main_esit": self._origin, "acilis_utc": self._acilis, "kapanis_utc": self._kapanis}
+
+    def __repr__(self) -> str:
+        return f"KesifKaydi({self.alanlar()})"
+
+
+def _kesif_git_denetimi() -> bool:
+    """Commit bagi bu ortamda denetlenir mi: pytest disinda her zaman, pytest icinde yalnizca gercek git test deposunda."""
+    if _pytest_testi() is None:
+        return True
+    test = _test_ayari()
+    return test is not None and test.depo is not None
+
+
+def _kesif_bagli_dosyalar() -> list[Path]:
+    from data import onbellek_manifest
+
+    return [onbellek_manifest._etkin_yol(), Path(config.SPLIT_CSV), Path(config.UNIVERSE_CSV)]
+
+
+def kesif_bagi_denetle() -> None:
+    """Manifest, split.csv ve universe.csv git'te izlenmeli ve calisma agacindaki halleri HEAD'dekiyle ayni olmali; degilse
+    `KesifBagiHatasi`. Git okunamazsa da hata (kapali yon)."""
+    depo = _depo().resolve()
+    for yol in _kesif_bagli_dosyalar():
+        if yol is None:
+            raise KesifBagiHatasi("Kesif kosusu manifest olmadan commit'e baglanamaz.")
+        try:
+            goreli = Path(yol).resolve().relative_to(depo).as_posix()
+        except ValueError:
+            raise KesifBagiHatasi(f"{yol} git deposunun ({depo}) icinde degil; kesif kosusu commit'e baglanamaz.") from None
+        if _git("ls-files", "--error-unmatch", "--", goreli) is None:
+            raise KesifBagiHatasi(f"{goreli} git'te izlenmiyor; kesif kosusu commit'e baglanamaz (RESULTS §14.42).")
+        if _git("diff", "--quiet", "HEAD", "--", goreli) is None:
+            raise KesifBagiHatasi(f"{goreli} calisma agacinda HEAD'dekinden farkli ya da git okunamadi; kesif kosusu "
+                                  "acilmaz. Once commit edin (RESULTS §14.42, denetci D-B2).")
+
+
+def _dosya_sha256(yol) -> str | None:
+    try:
+        return hashlib.sha256(Path(yol).read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def _kesif_kaydi_kur(manifest_sha256: str | None) -> KesifKaydi:
+    head = _git("rev-parse", "HEAD")
+    head = head.strip() if head is not None and re.fullmatch(r"[0-9a-f]{40}", head.strip()) else None
+    durum = _git("status", "--porcelain")
+    temiz = None if durum is None else not [s for s in durum.splitlines() if s.strip()]
+    uzak = _git("rev-parse", "--verify", "--quiet", _UZAK_REF)
+    origin = None if head is None or uzak is None else uzak.strip() == head
+    return KesifKaydi(head, manifest_sha256, temiz, origin, _iso_zaman())
 
 
 @contextmanager
 def kesif_kosusu():
-    """F2 kosucusunun giris noktasi (on-kayit §3 rev.13: "F2 ve F3 koşuları ağa çıkmaz"; RESULTS §14.41).
+    """F2 kosucusunun giris noktasi (on-kayit §3 rev.13: "F2 ve F3 koşuları ağa çıkmaz"; RESULTS §14.41, §14.42).
 
-        with split.kesif_kosusu():
+        with split.kesif_kosusu() as kayit:
             ...
+            sonuc_dosyasina_yaz(kayit.alanlar())
 
-    `bv` analiz kodunda taramayla yasak oldugu icin kosucu ag yasagini ancak bu baglamla acar. Acilista kesif katmani
-    dogrulanir (hicbir onay dosyasi acilmaz), bellek ve donuk liste kopyalari duser, surec duzeyinde ag yasagi acilir.
-    Kapanista yasak kalkar, kopyalar yine duser. Tek atis ve kayit yoktur: kesif serbesttir (CLAUDE.md §3.3). Acik bir
-    onay kosusu icinde acilmaz."""
+    `bv` analiz kodunda taramayla yasak oldugu icin kosucu ag yasagini ancak bu baglamla acar. Acilista commit bagi
+    denetlenir (`kesif_bagi_denetle`), kesif katmani dogrulanir (hicbir onay dosyasi acilmaz), manifestin SHA256'si
+    sabitlenir, bellek ve donuk liste kopyalari duser, surec duzeyinde ag yasagi acilir. Kapanista yasak kalkar, kopyalar
+    duser, manifest yeniden ozetlenir ve kesif katmani yeniden dogrulanir; uyusmazlik `KesifBagiHatasi`. Tek atis ve onay
+    kaydi yoktur: kesif serbesttir (CLAUDE.md §3.3). Acik bir onay kosusu icinde acilmaz."""
     from data import binance_vision as bv
     from data import onbellek_manifest
 
     if _AKTIF_KOSU is not None:
         raise RuntimeError(f"Acik onay kosusu icinde kesif kosusu acilamaz: {_AKTIF_KOSU}.")
-    if onbellek_manifest.denetim_etkin():
+    denetim = onbellek_manifest.denetim_etkin()
+    if denetim and _kesif_git_denetimi():
+        kesif_bagi_denetle()
+    manifest_ozeti = _dosya_sha256(onbellek_manifest._etkin_yol()) if denetim else None
+    if denetim:
         onbellek_manifest.manifest_dogrula(katman="kesif")
+        if _dosya_sha256(onbellek_manifest._etkin_yol()) != manifest_ozeti:
+            raise KesifBagiHatasi("Manifest kesif kosusu acilirken degisti; kosu acilmadi.")
+    kayit = _kesif_kaydi_kur(manifest_ozeti)
     kume_bellegi.temizle()
     bv.donuk_bellek_temizle()
+    hata: BaseException | None = None
     try:
         with bv.kosu_agsiz():
-            yield
+            yield kayit
+    except BaseException as yakalanan:
+        hata = yakalanan
+        raise
     finally:
-        kume_bellegi.temizle()
-        bv.donuk_bellek_temizle()
+        kayit._kapanis = _iso_zaman()
+        try:
+            if denetim:
+                _kesif_kapanisi_denetle(manifest_ozeti, onbellek_manifest, hata)
+        finally:
+            kume_bellegi.temizle()
+            bv.donuk_bellek_temizle()
+
+
+def _kesif_kapanisi_denetle(manifest_ozeti: str | None, onbellek_manifest, hata: BaseException | None) -> None:
+    """Kapanista manifest acilistakiyle ayni olmali ve kesif katmani hala dogrulanmali; degilse `KesifBagiHatasi`.
+
+    Blok zaten hatayla bittiyse o hata ayni turuyle yukari cikar (turu gizlenmez) ve kapanis uyusmazligi ona not olarak
+    eklenir: kosu hatayla bittigi icin sonucu zaten yoktur; uyusmazlik yine acikca yazilir."""
+    sorun = None
+    if _dosya_sha256(onbellek_manifest._etkin_yol()) != manifest_ozeti:
+        sorun = ("Kesif kosusu kapanisi: manifest dosyasi kosu sirasinda degisti (SHA256 acilistakiyle ayni degil). "
+                 "Kosunun sonuclari bu manifeste baglanamaz (RESULTS §14.42).")
+    else:
+        try:
+            onbellek_manifest.manifest_dogrula(katman="kesif")
+        except onbellek_manifest.ManifestHatasi as dogrulama:
+            sorun = ("Kesif kosusu kapanisi: kesif katmani artik manifestle dogrulanmiyor; onbellek kosu sirasinda "
+                     f"degisti. Kosunun sonuclari bu manifeste baglanamaz (RESULTS §14.42). Ayrinti: {dogrulama}")
+    if sorun is None:
+        return
+    if hata is not None:
+        hata.add_note(sorun)
+        return
+    raise KesifBagiHatasi(sorun)
 
 
 # --- Kume kapisi -------------------------------------------------------------
@@ -1648,6 +1777,9 @@ _KORUNAN_ADLAR = frozenset({
     "_kayit_yolu", "_kaydi_oku", "_kayit_kilidi", "_onay_kaydet", "_bitis_yaz", "_acik_kosu",
     "kayda_satir_ekle", "not_alanlari", "kayit_satirlari", "kayittaki_kosular", "_hipotez_dogrula",
     "_onay_kumesi_dogrula", "_sonuc_dogrula", "aktif_onay_kosusu", "onay_baglami_dogrula", "onay_kosusu", "kesif_kosusu",
+    # Kesif kosusunun commit bagi (RESULTS §14.42, D-B2).
+    "KesifKaydi", "kesif_bagi_denetle", "_kesif_git_denetimi", "_kesif_bagli_dosyalar", "_kesif_kaydi_kur",
+    "_kesif_kapanisi_denetle", "_dosya_sha256",
     "kume_erisimi", "onay_erisimi_denetle",
     # Onay kaydi ikinci tur: bolme ve kume tanimi (OK D-B2, sizinti O), git'e bagli kayit (OK D-B1), sinif.
     "split_oku", "kume_tanimi", "kume_araligi",

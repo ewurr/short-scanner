@@ -135,7 +135,7 @@ def test_acilista_kesif_dogrulanir_tam_cagrilmaz(ortam, monkeypatch):
     monkeypatch.setattr(mf, "_onay_sorunlari", lambda *_: pytest.fail("onay katmani denetlendi"))
     with split.kesif_kosusu():
         assert katmanlar == ["kesif"]
-    assert katmanlar == ["kesif"]
+    assert katmanlar == ["kesif", "kesif"]  # kapanista yeniden dogrulama (RESULTS §14.42, D-B2); `tam` hic cagrilmaz
 
 
 def test_kesif_hata_verince_kosu_acilmaz(ortam):
