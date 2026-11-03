@@ -10,7 +10,7 @@ bir kayit varsa, D-B1'den sonra o kayit KESIF'ten sessizce duser. Olcum C2 dosya
        aylar; donem ici = `pencere.donem_ici_4h_maskesi`, KESIF = acilis zamani kume araliginda).
      - funding: `rev9_ritim_kayit_tam.csv`, `kume == "KESIF"` satirlarinin `kayit` toplami (`rev9_ritim.py`;
        `funding.ham_funding_yukle`, butun aylar; donem ici = [donem basi, B] toleransla; kume = odeme zamani).
-   Ikinci funding kaniti: donemi KESIF sonunu asan sembolde son KESIF funding kaydi + araligi = C2 basi olmali.
+   Ikinci funding kaniti: donemi KESIF sonunu iceren sembolde son KESIF funding kaydi + araligi = C2 basi olmali.
 2. `dosya_ayi`: KESIF dosyalarinin (manifestin `kesif` satirlari: A grubu, C2 oncesi) her kaydi dosyanin ayinda mi?
    Ters yon. Onay dosyasi listede yoktur, acilmaz.
 
@@ -97,8 +97,10 @@ def kesif_olcumu() -> tuple[pd.DataFrame, dict]:
             satir = sembol_say(s, donemler[s])
             satir["ref_4h"] = int(ref4.get(s, 0))
             satir["ref_funding"] = int(reff.get(s, 0))
-            asan = max(d.bitis for d in donemler[s]) > kesif_sonu
-            satir["donem_kesif_sonunu_asar"] = bool(asan)
+            # Ikinci kanit yalnizca KESIF sonunu ICEREN donemde anlamlidir (donemi C2de baslayan sembolun KESIF
+            # funding kaydi yoktur).
+            asan = any(pd.Timestamp(d.baslangic) <= kesif_sonu < pd.Timestamp(d.bitis) for d in donemler[s])
+            satir["donem_kesif_sonunu_icerir"] = bool(asan)
             if asan and satir["son_funding"]:
                 sonraki = pd.Timestamp(satir["son_funding"]) + pd.Timedelta(hours=satir["son_funding_aralik_saat"])
                 satir["son_funding_sonraki_c2_basi"] = bool(abs(sonraki - c2_basi) <= P.ODEME_TOLERANSI)
@@ -109,7 +111,7 @@ def kesif_olcumu() -> tuple[pd.DataFrame, dict]:
     cerceve["fark_4h"] = cerceve["yeni_4h"] - cerceve["ref_4h"]
     cerceve["fark_funding"] = cerceve["yeni_funding"] - cerceve["ref_funding"]
     sutunlar = ["sembol", "ref_4h", "yeni_4h", "fark_4h", "ref_funding", "yeni_funding", "fark_funding", "ilk_bar",
-                "son_bar", "son_funding", "son_funding_aralik_saat", "donem_kesif_sonunu_asar",
+                "son_bar", "son_funding", "son_funding_aralik_saat", "donem_kesif_sonunu_icerir",
                 "son_funding_sonraki_c2_basi"]
     return cerceve[sutunlar], kayit.alanlar()
 
@@ -126,7 +128,7 @@ def dosya_ayi_olcumu() -> pd.DataFrame:
         ay = pd.Period(Path(goreli).stem, freq="M")
         sutun = "odeme_zamani" if tur == "funding" else "open_time"
         z = pd.DatetimeIndex(pd.read_parquet(kok / goreli, columns=[sutun])[sutun])
-        disari = int((z.tz_convert("UTC").to_period("M") != ay).sum()) if len(z) else 0
+        disari = int((z.tz_convert("UTC").tz_localize(None).to_period("M") != ay).sum()) if len(z) else 0
         o = ozet.setdefault(tur, {"tur": tur, "dosya": 0, "kayit": 0, "ay_disi_kayit": 0, "ay_disi_dosya": 0})
         o["dosya"] += 1
         o["kayit"] += len(z)
@@ -148,12 +150,12 @@ def main(argv: list[str] | None = None) -> None:
         dosya = dosya_ayi_olcumu()
         csv_yaz(dosya, CIKTI_DOSYA)
         csv_yaz(pd.DataFrame([kayit]), CIKTI_KAYIT)
-        asan = sembol[sembol["donem_kesif_sonunu_asar"]]
+        asan = sembol[sembol["donem_kesif_sonunu_icerir"]]
         print(f"A sembolu {len(sembol)} | 4h fark!=0 {int((sembol['fark_4h'] != 0).sum())} | funding fark!=0 "
               f"{int((sembol['fark_funding'] != 0).sum())} | ref 4h {int(sembol['ref_4h'].sum())} yeni 4h "
               f"{int(sembol['yeni_4h'].sum())} | ref funding {int(sembol['ref_funding'].sum())} yeni funding "
               f"{int(sembol['yeni_funding'].sum())}")
-        print(f"donemi KESIF sonunu asan {len(asan)} | son funding + aralik = C2 basi: "
+        print(f"donemi KESIF sonunu iceren {len(asan)} | son funding + aralik = C2 basi: "
               f"{int((asan['son_funding_sonraki_c2_basi'] == True).sum())}")  # noqa: E712
         print(dosya.to_string(index=False))
         print(f"ay disi kayitli dosya: {dosya.attrs['aykirilar'][:10]} | sure {time.perf_counter() - bas:.1f} s")
