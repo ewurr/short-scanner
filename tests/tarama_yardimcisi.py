@@ -159,6 +159,13 @@ ONBELLEK_DESENI = (
     # satirlarda yanlis alarm verirdi); calisma aninda ag yasagi (`kosu_agsiz`) yalnizca veri katmanini korur.
     r"|(?m:(?:^|[\"';])[ \t]*(?:import|from)[ \t]+[\w., \t]*\b(?:requests|urllib\d?|socket|aiohttp|httpx|http)\b(?!\w))"
     r"|(?i:\bhttps?://)"
+    # RESULTS §14.43 (denetci D-K6): `ftplib`, `smtplib` ice aktarimi; asyncio/socket ag acilislari; kabuk araciyla
+    # (`subprocess`, `os.system`, `os.popen`) ayni dosyada gecen `curl`, `wget`, `Invoke-WebRequest`, `iwr`. Sinir:
+    # takma adla cagrilan ag acilisi (`f = getattr(asyncio, "open_" + "connection")`) yakalanmaz.
+    r"|(?m:(?:^|[\"';])[ \t]*(?:import|from)[ \t]+[\w., \t]*\b(?:ftplib|smtplib)\b(?!\w))"
+    r"|\b(?:open_connection|create_connection|open_unix_connection|create_datagram_endpoint)\s*\("
+    r"|(?s:\b(?:subprocess|os\s*\.\s*(?:system|popen))\b.*(?i:\b(?:curl|wget|invoke-webrequest|iwr)\b)"
+    r"|(?i:\b(?:curl|wget|invoke-webrequest|iwr)\b).*\b(?:subprocess|os\s*\.\s*(?:system|popen))\b)"
 )
 ONBELLEK_UZANTILARI = (".py", ".ipynb", ".pyw")
 

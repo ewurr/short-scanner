@@ -64,3 +64,32 @@ def test_mevcut_analiz_kodu_ag_desenine_takilmaz_f1_betikleri_dahil():
     assert ag_deseni.startswith("(?m:")
     bulunan = ihlaller(ag_deseni, izinli_altlar=("data", "tests", ".claude"), uzantilar=ONBELLEK_UZANTILARI)
     assert [y for y in bulunan if y.split("/")[0] in ("analysis", "events", "study")] == []
+
+
+# --- RESULTS §14.43 (denetci D-K6) -----------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("metin", [
+    "import ftplib\n",
+    "from smtplib import SMTP\n",
+    "r, w = await asyncio.open_connection(host, 443)\n",
+    "await loop.create_connection(Protokol, host, 443)\n",
+    "import subprocess\nsubprocess.run(['curl', '-O', adres])\n",
+    "subprocess.check_call('wget ' + adres, shell=True)\n",
+    "import subprocess\nsubprocess.run(['powershell', '-c', 'Invoke-WebRequest ' + adres])\n",
+    "import subprocess\nsubprocess.run(['powershell', '-c', 'iwr ' + adres])\n",
+    "os.system('curl ' + adres)\n",
+    "os.popen('WGET ' + adres)\n",
+])
+def test_ek_ag_yollari_yakalanir(tmp_path, metin):
+    assert _tara(tmp_path, metin) == ["study/k.py"]
+
+
+@pytest.mark.parametrize("metin", [
+    "import subprocess\nsubprocess.run(['git', 'status'])\n",
+    "# curl ile indirme yapilmaz\n",
+    "baglanti_sayisi = 3\n",
+    "def create_connection_ozeti():\n    pass\n",
+])
+def test_ek_ag_desenleri_mesru_metni_yakalamaz(tmp_path, metin):
+    assert _tara(tmp_path, metin) == []
