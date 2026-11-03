@@ -116,6 +116,9 @@ ONAY_ATLATMA_DESENI = (
     # Rev.13 (S-B1): `pozisyon._test_onayi` imzali bir onay kurar (yalnizca pytest icinde). Analiz
     # kodu onu anamaz; gercek onay yalnizca `pozisyon.olay_karari`dan gelir.
     r"|\b_test_onayi\b"
+    # RESULTS §14.43 (denetci D-C1): kesif baglaminin durumu, acici ve alt surec degiskeni. Analiz kodu baglami yalnizca
+    # `split.kesif_kosusu` ile acar (o ad izinli; `kesif_baglami_dogrula` ve `kesif_kosusu_acik` alt cizgisiz, desende yok).
+    r"|\b_KESIF_DURUMU\b|\b_kesif_baglami\b|\bSHORT_LAB_KESIF_KOSUSU\b|\b_KESIF_ORTAM_ADI\b|\b_kesif_baglamini_devral\b"
 )
 
 # Onbellege dogrudan erisim (onay kaydi kapanis turu; §14.25 tablo satir 1, kazayla olabilir): C1/C2 verisi

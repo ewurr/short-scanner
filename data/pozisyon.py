@@ -917,6 +917,7 @@ def mae(pozisyon) -> float:
     onay_dogrula(pozisyon)
     split_modulu.onay_baglami_dogrula(pozisyon.hipotez, pozisyon.kume,
                                       pozisyon.yapilandirma)  # kapi sertlestirme turu 3
+    split_modulu.kesif_baglami_dogrula(pozisyon.kume)  # karar noktasiyla ayni veri (RESULTS §14.43, denetci D-C1)
     plan = pozisyon.plan
     mumlar_4h, _ = _kume_verisi(pozisyon.sembol, pozisyon.kume, plan.kume_baslangic, plan.kume_bitis)
     zamanlar = _mum_zamanlari(mumlar_4h)

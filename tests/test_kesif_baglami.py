@@ -147,3 +147,61 @@ def test_elle_ayarlanmis_degisken_baglam_acmaz():
 def test_kesif_baglami_adlari_modul_disindan_degistirilemez(ad):
     with pytest.raises(split.OnayKorumasi):
         setattr(split, ad, lambda *a, **k: True)
+
+
+# --- RESULTS §14.43 (D-C1): mae ve pozisyon_fundingi -----------------------------------------------------------------
+
+
+def _onayli(kimlik):
+    return pozisyon._test_onayi(hipotez="H2", yapilandirma=sinyal.izgara("H2")[0], t=T, rol="olay", **kimlik)
+
+
+def _mae(p):
+    return pozisyon.mae(p)
+
+
+def _fund(p):
+    from data import funding
+
+    return funding.pozisyon_fundingi(p)
+
+
+@pytest.mark.parametrize("cagri", [_mae, _fund])
+def test_mae_ve_pozisyon_fundingi_kosu_disinda_reddedilir(manifestli, cagri):
+    p = _onayli(_sentetik())
+    with pytest.raises(split.KesifBaglamiYok):
+        cagri(p)
+
+
+@pytest.mark.parametrize("cagri", [_mae, _fund])
+def test_mae_ve_pozisyon_fundingi_kosu_icinde_baglam_denetiminden_gecer(manifestli, cagri):
+    p = _onayli(_sentetik())
+    with split.kesif_kosusu():
+        assert _sonuc(lambda: cagri(p)) == "gecti"
+
+
+# --- RESULTS §14.43 (D-C1): yasak adlar --------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("metin", [
+    "from data import split\nsplit._KESIF_DURUMU['sayac'] += 1\n",
+    "split._kesif_baglami().__enter__()\n",
+    "os.environ['SHORT_LAB_KESIF_KOSUSU'] = str(os.getpid())\n",
+    "os.environ[split._KESIF_ORTAM_ADI] = '1'\n",
+    "split._kesif_baglamini_devral()\n",
+])
+def test_kesif_baglami_yasak_adlari_taramaya_takilir(tmp_path, metin):
+    from tarama_yardimcisi import ONAY_ATLATMA_DESENI, ihlaller
+
+    (tmp_path / "study").mkdir()
+    (tmp_path / "study" / "k.py").write_text(metin, encoding="utf-8")
+    assert ihlaller(ONAY_ATLATMA_DESENI, kok=tmp_path) == ["study/k.py"]
+
+
+def test_kesif_kosusu_ve_dogrulama_adlari_taramada_izinli(tmp_path):
+    from tarama_yardimcisi import ONAY_ATLATMA_DESENI, ihlaller
+
+    (tmp_path / "study").mkdir()
+    (tmp_path / "study" / "k.py").write_text(
+        "with split.kesif_kosusu() as kayit:\n    assert split.kesif_kosusu_acik()\n", encoding="utf-8")
+    assert ihlaller(ONAY_ATLATMA_DESENI, kok=tmp_path) == []

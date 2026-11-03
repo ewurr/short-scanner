@@ -621,6 +621,7 @@ def pozisyon_fundingi(pozisyon) -> float:
     from data import split as split_modulu
 
     split_modulu.onay_baglami_dogrula(pozisyon.hipotez, pozisyon.kume)  # kapi sertlestirme turu 3
+    split_modulu.kesif_baglami_dogrula(pozisyon.kume)  # karar noktasiyla ayni veri (RESULTS §14.43, denetci D-C1)
     plan = pozisyon.plan
     _, funding = pozisyon_modulu._kume_verisi(pozisyon.sembol, pozisyon.kume, plan.kume_baslangic, plan.kume_bitis)
     toplam = _plan_fundingi(funding, plan)
