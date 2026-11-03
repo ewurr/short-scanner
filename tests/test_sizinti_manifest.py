@@ -425,12 +425,20 @@ def test_hostile_katman_nesnesi_izin_kapisini_atlatamaz(onbellek):
     raise AssertionError("sahte katman nesnesi izinsiz 'tam' dogrulamasini calistirdi")
 
 
-def test_komut_satiri_ciktisi_onay_ay_adi_ve_b_sembolu_sizdirmaz(onbellek, capsys):
-    """Ozet: manifest araclari yalnizca sayi ve ozet dondurur/yazar; C2 ayi adi ve B sembolu ciktida gecmez."""
+def test_komut_satiri_ciktisi_onay_ay_adi_ve_b_sembolu_sizdirmaz(onbellek, capsys, tmp_path):
+    """Ozet: manifest araclari yalnizca sayi ve ozet dondurur/yazar; C2 ayi adi ve B sembolu ciktida gecmez. `tam`
+    yalnizca acik onay kosusunda calisir (RESULTS §14.42, D-C2); bu yuzden kosu icinde cagrilir."""
     mf.manifest_kur()
+    gecici_kayit(tmp_path / "ONAY_KAYDI.md")
     for argumanlar in (["manifest-dogrula", "--katman", "kesif"], ["manifest-dogrula", "--katman", "tam"]):
-        assert mf._ana(argumanlar) == 0
-        cikti = capsys.readouterr().out
+        if argumanlar[-1] == "tam":
+            with kosu("H2", "C1"):
+                capsys.readouterr()
+                assert mf._ana(argumanlar) == 0
+                cikti = capsys.readouterr().out
+        else:
+            assert mf._ana(argumanlar) == 0
+            cikti = capsys.readouterr().out
         assert C2_AYI not in cikti and _b_sembolu() not in cikti
         assert {satir.split(":")[0] for satir in cikti.splitlines()} <= {"katman", "kesif_satir", "kesif_bayt",
                                                                         "onay_dosya", "sure_sn"}

@@ -401,7 +401,14 @@ def _ana(argumanlar: list[str]) -> int:
     elif argumanlar[:2] == ["manifest-dogrula", "--katman"] and argumanlar[2:] == ["kesif"]:
         sonuc = manifest_dogrula(katman="kesif")
     elif argumanlar[:2] == ["manifest-dogrula", "--katman"] and argumanlar[2:] == ["tam"]:
-        with bv.onay_verisi_izni("onbellek_manifest komut satiri"):  # F1 denetimi sinifinda; yalnizca ozet okur
+        # Faz kapisi (RESULTS §14.42, denetci D-C2): `tam` yalnizca acik bir onay kosusu icinde calisir. F1'deki kurulum
+        # dogrulamasi yapildi (§14.41); komut satiri ayri bir surec oldugu icin pratikte her zaman reddedilir.
+        from data import split
+
+        if split.aktif_onay_kosusu() is None:
+            raise OnayKatmaniKilitli("`manifest-dogrula --katman tam` yalnizca acik bir onay kosusu icinde calisir "
+                                     "(RESULTS §14.42, denetci D-C2). Onay kosusu acilisi `tam`i kendisi cagirir.")
+        with bv.onay_verisi_izni("onbellek_manifest komut satiri (acik onay kosusu)"):
             sonuc = manifest_dogrula(katman="tam")
     else:
         print("Kullanim: python -m data.onbellek_manifest manifest-kur [--uzerine-yaz] | "
