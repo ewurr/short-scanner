@@ -3909,6 +3909,92 @@ M-15 ve M-16 ajanın işaretsiz bıraktığı iki testte çıktı; işaretleri k
 
 **Push durumu.** Yönergenin 4.4 dur koşulu "depodan onay ay adı okunabiliyorsa push yapma" diyor. `data/universe.csv` bunu harfiyen sağladığı için push yapılmadı; karar araştırma tarafındadır.
 
+### §14.42 F2 öncesi bloklayıcılar (2026-11-03)
+
+Önceki turun dokuz commit'i araştırma tarafının onayıyla bu turun başında itildi (`877bb1f..c2849b3`). Gerekçe: §14.41'deki ay adı sızıntısı `universe.csv`'den gelir, o turdan değil. Getiri, sinyal değeri ya da olay sayısı hesaplanmadı; `events/` ve `study/` boş; kilitli dosyalara dokunulmadı.
+
+**D-B1 kapandı: yükleyiciler küme aralığı dışındaki ayları dosya açmadan eler** (`bb72481`).
+- `bv.ay_araligi_sinirlari(bas, son)`: başlangıç ay başı 00:00:00 UTC, bitiş bir ayın son saniyesi olmalı; değilse `AySiniriHatasi`, yuvarlama yok. Üç küme sınırı (2020-01-01, 2025-09-01, 2026-09-01) buna uyar (testli).
+- `bv.aylara_gore_ele`: dosya adındaki aya göre eler; ayı ayrıştırılamayan ad elenmez, izin denetimi onu onay sayar (kapalı yön). Dondurulmuş listede eleme izin denetiminden **önce** yapılır.
+- `split.yukle`, `funding.funding_yukle`, `klines.birincil_gunluk_indir` kümenin aralığını ham yükleyiciye `aralik=` olarak verir. Onay verisi izni yalnızca C1/C2'de açılır; **KESIF yüklemesi izinsizdir**, yani elemeyi atlatan bir yol `OnayVerisiKorumasi`na takılır. C1 ve C2 de aralık dışındaki ayı açmaz (ör. C2 sonrası 2026-09; testli).
+- 1d türetmesi yalnızca aralıktaki 4h serisinden yapılır.
+- Eski test ters yazıldı: `test_kesif_yuklemesi_hicbir_onay_dosyasini_acmaz_ve_ayrinti_listesini_okumaz` (yorumlayıcı açma kancası ile sayılır, ayrıntı listesi okuması engellenir, onay dosyası bozukken de aynı sonuç).
+- **Eşitlik** (`tests/test_ay_elemesi.py`, gerçek önbellek, değerler yazdırılmaz): 1INCHUSDT, ALGOUSDT, ANKRUSDT (dönemi KESIF sınırını aşar), AKROUSDT, ALPACAUSDT (KESIF içinde biter). Eski yol (bütün aylar izinle, sonra kesim) ile yeni yol KESIF aralığında 4h, 1d ve funding çerçevelerinde birebir aynı.
+- **Ölçüm** (20 A sembolü, dönemi KESIF'i aşan; 4h + funding + 1d; tek ölçüm): önce 4207 parquet açıldı, 779'u C2 ayı, 77,95 s; sonra 3428 açıldı, 0 C2 ayı, 33,54 s.
+
+**D-B2 kapandı: keşif koşusu commit'e bağlıdır** (`67b544a`).
+- Açılışta `data/onbellek_manifest.csv`, `data/split.csv`, `data/universe.csv` git'te izlenmeli ve çalışma ağacındaki hâlleri HEAD ile aynı olmalı; değilse `KesifBagiHatasi`, koşu açılmaz.
+- Açılışta manifestin SHA256'sı sabitlenir. Kapanışta manifest yeniden özetlenir ve kesif katmanı yeniden doğrulanır; uyuşmazlık `KesifBagiHatasi` ve mesaj nedenini söyler. Blok zaten hatayla bittiyse hatanın türü korunur, uyuşmazlık ona not olarak eklenir.
+- Koşucuya `KesifKaydi` verilir: `head_commit`, `manifest_sha256`, `agac_temiz`, `origin_main_esit` (fetch yapılmaz, yerel `refs/remotes/origin/main` ile), `acilis_utc`, `kapanis_utc`. `alanlar()` sözlük döner.
+- Pytest'te commit bağı yalnızca gerçek git test deposunda denetlenir (`_sahte_git` yaklaşımı).
+- Ölçüm (gerçek önbellek, tek ölçüm): açılış 55,61 s, kapanış 23,44 s.
+
+**D-C1: KESIF karar noktası açık keşif koşusu ister** (`0599686`). `olay_karari` ve `sinyal_kosulu` KESIF'te `kesif_kosusu` dışında `KesifBaglamiYok` verir. Bağlam süreç düzeyindedir ve ağ yasağı gibi pid denetimli ortam değişkeniyle (`SHORT_LAB_KESIF_KOSUSU`) alt süreçlere taşınır. Pytest istisnası manifest denetimiyle aynıdır (M-11 onu atlatır). Yükleyicilere uygulanmaz. F1 denetim betiklerinde karar noktası çağrısı yok, sarmaya gerek olmadı.
+
+**D-C2: `manifest-dogrula --katman tam` yalnızca açık onay koşusunda çalışır** (`52e5769`); dışında `OnayKatmaniKilitli`. Komut satırı ayrı süreç olduğu için pratikte her zaman reddedilir. `manifest_dogrula(katman="tam")` fonksiyonu izin istemeye devam eder, çünkü onay koşusu açılışı onu `_AKTIF_KOSU` atanmadan önce çağırır.
+
+**D-C4 ve M-1: okuma bütünlüğü** (`c5bc7d2`).
+- Ağsız yolda ve ağ yasaklı koşuda bir dosya süreçte ilk kez okunurken baytlar bir kez okunur, SHA256 manifestle (onay dosyasında ayrıntı listesiyle) karşılaştırılır, çerçeve aynı baytlardan kurulur ve `bv._DOGRULANMIS`'te tutulur. Sonraki okumalarda boy denetlenir, kopyanın kopyası döner; ilk okumadan sonraki disk değişikliği sonuca girmez. Erişim denetimi belleğe bakmadan önce her okunuşta çalışır; koşu açılışı ve kapanışı belleği temizler.
+- Maliyet (20 sembol, 2280 dosya, 30,0 MB, sıcak disk): salt SHA256 0,106 s; parquet yoldan 8,54 s, bayttan 6,84 s. Keşif koşusu içinde ilk geçiş 26,01 s, ikinci geçiş (bellek) 18,36 s. Bayttan kurulan 2280 çerçevenin hepsi yoldan okunanla aynı.
+- `bv.onbellege_yaz` ağ yasaklı koşu açıkken `KosuYazmaYasagi` verir.
+
+**M-3, M-15, M-16: yol normalleştirmesi** (`c5bc7d2`). `onbellekten_oku` yolu okumadan önce çözer ve önbellek köküne göre denetler: kök dışı, kökün kendisi, dizin ve `\\?\` / `\\.\` önekli yol `OnbellekYoluHatasi`. Tanımlı türde biçim dışı yol onay sayılır. Okuma çözülmüş yoldan yapılır. Yan bulgu ve düzeltme: `onay_verisi_mi(A, "")` `pd.Period("")` NaT olduğu için False dönüyordu; ay artık biçimle denetlenir, biçim dışı ay onaydır.
+
+**D-C3 ve R3a: ağ taraması** (`587e40e`). `ONBELLEK_DESENI` analiz kodunda `requests`, `urllib`, `socket`, `http.client`, `aiohttp`, `httpx` içe aktarımlarını (.ipynb kaynak metni dahil) ve `http://` / `https://` metnini yakalar. `config.py` ve `data/` muaftır. Yanlış pozitif denetimi: desen `analysis/`, `events/`, `study/` altında (muaf `00_veri_denetimi` dahil) hiçbir satıra takılmaz. Modül adını metin olarak geçen kural (`"requests"`) F1 betiğindeki paket sürümü satırına takıldığı için çıkarıldı; `importlib`/`__import__` sınır olarak yazılı.
+
+**Değişen mevcut testler.** Davranış bilerek değiştiği için güncellendi, silinen test yok:
+- D-B1: §14.41'deki KESIF davranışını kaydeden testler ters çevrildi ya da onay koşusuna taşındı (`test_onbellek_manifest.py` üç test, `test_sizinti_manifest.py` iki test, `test_onay_verisi_izni.py` bir test). Sahte liste ve ham yükleyicilerin imzalarına `aylar=`/`aralik=` eklendi (11 dosya, davranış aynı).
+- D-B2: `test_kesif_kosusu.py` kapanıştaki ikinci `kesif` doğrulamasını bekler; yönlendirilmiş kök testi kapanıştan önce kökü geri alır.
+- D-C2: komut satırı çıktısı testi `tam`ı açık onay koşusunda çağırır.
+- Kök dışı okuma: `test_binance_vision.py` kökü geçici dizine yönlendirir; `test_onay_verisi_izni.py` kök dışını artık reddedilmiş bekler.
+- M-1 keşif testi: kapanış doğrulaması bozulmayı ayrıca yakaladığı için gövde `pytest.raises(KesifBagiHatasi)` içine alındı.
+
+**Kaldırılan işaretleyiciler.** 7 işaretleyici, 10 xfail durumu: M-1 (2 test), M-3 (3 parametre), M-15 (`uzun_yol_oneki`, 2 parametre), M-16 (1), R3a (1), R3c (1). R3c listede yoktu; URL deseniyle gerçekten kapandığı için araştırma tarafının onayıyla kaldırıldı. Hesap: 133 − 10 = **123**.
+
+**D-B1'in sonucu olarak listede olmayan XPASS'ler (S-8 yöntemi).** KESIF yüklemesi artık onay izni açmadığı için iki saldırının KESIF varyantı kapandı, C1/C2 varyantı açık kaldı. İkisinde de işaretleyiciye dokunulmadı:
+- **S-8** (`test_sizinti_perf1.py`): S-8'in KESIF varyantı D-B1 ile kapandı; C1/C2 varyantı açık. Testin kurulumu bu yüzden açık onay koşusundaki C1 yükleyicisine taşındı, işaretleyiciye dokunulmadı; test hâlâ xfail. KESIF senaryosu normal teste çevrildi: `test_kesif_yuklemesi_izin_acmaz_baska_is_parcacigi_b_okuyamaz`.
+- **R5** (`test_tur_saldirilari_r.py`): R5'in KESIF varyantı D-B1 ile kapandı; C1/C2 varyantı açık. Kurulum açık onay koşusundaki C1 yüklemesine taşındı; C1'de B verisi meşru olduğu için saldırı, özel yükleyicinin kapının izniyle C2 ayı dosyasını okumasıdır. İşaretleyiciye dokunulmadı; test hâlâ xfail. KESIF senaryosu normal test: `test_kesif_yuklemesi_izin_acmaz_mum_yukleyici_b_okuyamaz`.
+- F2 yalnızca KESIF'te koştuğu için S-8 ve R5 artık F2'yi ilgilendirmiyor; F3 tek süreç kuralıyla (D-C7) zaten korunuyor.
+
+**Kayda geçenler (kod yok).**
+- **D-C7.** F3 koşusu tek süreçte çalışır. Onay izni ve `_AKTIF_KOSU` alt süreçlere geçmez; F3 seçilen tek yapılandırmayla sınırlı olduğu için paralellik gerekmez. F3 gereksinimidir.
+- **D-C8.** Git istisnası (§14.40) ve iki katmanlı "dondurulmuş" tanımı (§14.41) ön-kayıtta yazılı değil. F1 kapanışındaki kilit oturumunda ön-kayıt revizyonuyla yazılacak; bu turun önbelleğe yazma yasağı ve ilk okuma SHA256'sı da aynı revizyona girer (denetçi). F3'ü bloklar, F2'yi bloklamaz.
+- **D-C5.** Önbelleğin ve onay ayrıntı listesinin yedeği araştırma tarafınca alındı. Kaydı F1 kapanışında yazılacak.
+
+**F2 gereksinimleri.**
+- Koşucu `split.kesif_kosusu` içinde çalışır; karar noktası başka yerde çalışmaz (D-C1).
+- Koşucu `KesifKaydi.alanlar()`'ı sonuç dosyalarına yazar.
+- Resmî F2 koşusu temiz ağaç (`agac_temiz=True`) ve `origin/main` eşitliği ister. Bu turda zorlanmaz, yalnızca kayda geçer.
+- Paralellik süreçle yapılır (§14.40); ağ yasağı ve keşif bağlamı alt süreçlere taşınır.
+
+**Testler.** Parçalı tam takım `587e40e` (171 dosya): **4788 geçti, 123 xfailed, 0 başarısız, 0 XPASS, 3 atlandı**. Sızıntı testçisinin dosyası (`a2c39fb`) tek başına: 73 geçti, 13 xfailed, 1 atlandı; tam takım sonucu aşağıda.
+
+**Metodoloji denetçisi.** Bloklayıcı yok. Hükümler: D-B1 kapandı (kapı yolu); D-B2 kapandı, artıkları D-K3, D-K4, D-K5. Onay koşusu olmadan C1/C2 verisini okutan yeni yol: **hayır**. Eşik, ızgara, ufuk, maliyet ve kontrol tanımı değişmedi. `_DOGRULANMIS` her okunuşta erişim denetimi ve açılış/kapanış temizliği kuralına uyar.
+
+| Kod | Özet | Durum |
+|---|---|---|
+| D-C1 | Keşif bağlamı tarama dışı adlarla açılabiliyor (`_KESIF_DURUMU`, `_kesif_baglami`, `SHORT_LAB_KESIF_KOSUSU`); `mae` ve `pozisyon_fundingi` bağlam istemiyor | Açık |
+| D-K1 | `_DOGRULANMIS` anahtarında küme adı yok; yol kümeyi tek anlamlı belirlediği için bugün eşdeğer, gerekçe kodda yazılı değil | Açık |
+| D-K2 | Ay elemesi "dosya ayı = kayıt ayı" varsayar; komşu dosyada kalan KESIF kaydı düşerdi. 5 sembolde eşitlik testi fark bulmadı; bütün evrende ölçülmedi | Açık, doğrulanmalı |
+| D-K3 | `split.csv` ve `universe.csv` kapanışta yeniden denetlenmiyor | Açık |
+| D-K4 | `origin_main_esit` fetch yapılmadan yerel izleme referansına bakar | Açık |
+| D-K5 | `KesifKaydi` özel alanları atanabilir; KILIT.md `kesif_commit`i bir koşu kaydına ve temiz ağaca bağlanmıyor | Açık, F2 koşucusunda |
+| D-K6 | Ağ taraması `ftplib`, `asyncio`, `subprocess`+`curl` gibi yolları kapsamıyor | Açık |
+| D-K7 | Kod §14.42'ye atıf yapıyordu, bölüm yoktu | Bu bölümle kapandı |
+
+**Sızıntı testçisi** (`tests/test_sizinti_f2_oncesi.py`, yalnızca yeni dosya; mevcut dosyalara dokunmadığı `git status` ile doğrulandı). Ajan Bash'e erişemediği için testleri ana oturum koştu; sonuç ajanın tahminiyle aynı. Gerçek (kasıtsız) onay sızıntısı bulunmadı. Geçen 73 durum ay elemesi, bağ, karar noktası, `tam` komutu, ilk okuma sonrası değişiklik ve yol normalleştirmesi (sembolik bağlantı, junction, 8.3 kısa ad, UNC, karışık ayırıcı, bayt yolu, PathLike) hedeflerini kapsar.
+
+| Kod | Saldırı | Sınıf |
+|---|---|---|
+| F-1 | `git update-index --assume-unchanged/--skip-worktree` ile kirli bağlı dosya `git diff` için temiz görünür (6 parametre) | Kasıtlı |
+| F-2 | `core.autocrlf=true` ile CRLF'li manifest temiz görünür; kayıttaki özet HEAD baytlarından farklı | Kasıtlı |
+| F-3 | Git karşılaştırması ile özet sabitleme arasında manifest değişir | Zaman yarışı, dış süreç ister |
+| F-4 | Pathspec joker karakteri (`split[1].csv`) git denetimini başka dosyaya yönlendirir | Kasıtlı |
+| F-5, F-6 | Ortam değişkenini kendi pid'iyle ayarlayıp alt süreç başlatmak keşif bağlamını / onay iznini verir | Kasıtlı, belgelenmiş sınır |
+| F-7, F-8 | `_KESIF_DURUMU` / `_IZIN` sözlüğü yerinde değiştirilebilir | Kasıtlı, belgelenmiş sınır |
+
+F-1, F-2, F-3'ün ortak kökü: bağ çalışma ağacı baytlarını HEAD blobunun baytlarıyla karşılaştırmıyor, `git diff`e güveniyor. Tek düzeltme önerisi: `sha256(çalışma baytları) == sha256(git cat-file blob HEAD:yol)` ve özet sabitleme aynı okumadan. F-4 için `--literal-pathspecs`. Ajanın gözlemi (sızıntı değil): `aylara_gore_ele` ile `_anahtar_denetle` ayı farklı yerden çıkarır; tutarsız ad kapalı yönde reddedilir.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
