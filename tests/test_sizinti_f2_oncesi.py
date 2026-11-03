@@ -273,10 +273,6 @@ def _acilir_mi() -> bool:
     return True
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="F-1: `git update-index --assume-unchanged/--skip-worktree` ile HEAD'den farkli bagli dosya "
-                          "`git diff --quiet HEAD` tarafindan temiz gorulur; kesif kosusu kirli manifest/split/universe "
-                          "ile acilir")
 @pytest.mark.parametrize("bayrak", ["--assume-unchanged", "--skip-worktree"])
 @pytest.mark.parametrize("dosya", ["onbellek_manifest.csv", "split.csv", "universe.csv"])
 def test_git_dizininde_gizlenmis_kirli_bagli_dosya_kesif_kosusunu_acmamali(depo, bayrak, dosya):
@@ -287,9 +283,6 @@ def test_git_dizininde_gizlenmis_kirli_bagli_dosya_kesif_kosusunu_acmamali(depo,
     assert not _acilir_mi(), f"{dosya} HEAD'den farkli ama git dizininde gizlendigi icin kosu acildi"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="F-2: core.autocrlf=true iken CRLF'li manifest git'e gore temiz; kayda yazilan "
-                          "manifest_sha256 commit edilen blobun ozetinden farkli")
 def test_autocrlf_ile_crlf_manifest_kayittaki_ozeti_head_baytlarina_baglamali(depo):
     """D-B2: kayittaki `manifest_sha256` HEAD'deki manifest baytlarinin ozeti olmali ya da kosu acilmamali."""
     git(depo, "config", "core.autocrlf", "true")
@@ -306,9 +299,6 @@ def test_autocrlf_ile_crlf_manifest_kayittaki_ozeti_head_baytlarina_baglamali(de
     assert sabitlenen == beklenen, "kosu, commit edilmemis (CRLF) manifest baytlarina baglandi"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="F-3: HEAD karsilastirmasi ile ozet sabitleme arasinda manifest degisirse kirli manifest "
-                          "sabitlenir ve kosu acilir (kontrol-kullanim yarisi)")
 def test_git_kontrolunden_sonra_ozetlemeden_once_degisen_manifest_kosuyu_acmamali(depo, monkeypatch):
     """D-B2: acilis ile dogrulama arasinda manifest degisirse kosu acilmamali."""
     yol = mf._etkin_yol()
@@ -318,7 +308,8 @@ def test_git_kontrolunden_sonra_ozetlemeden_once_degisen_manifest_kosuyu_acmamal
     def sarmal(*arguman, **anahtar):
         sonuc = gercek(*arguman, **anahtar)
         komut = arguman[0] if arguman else anahtar.get("args")
-        if (not durum["yapildi"] and isinstance(komut, list) and "diff" in komut
+        # RESULTS §14.43: bag artik `git diff` degil `git cat-file blob HEAD:<yol>` ile kurulur; yaris noktasi o cagri.
+        if (not durum["yapildi"] and isinstance(komut, list) and ("diff" in komut or "cat-file" in komut)
                 and str(komut[-1]).endswith("onbellek_manifest.csv")):
             durum["yapildi"] = True
             yol.write_bytes(yol.read_bytes() + b"\n")  # git kontrolu gectikten HEMEN sonra
@@ -327,13 +318,10 @@ def test_git_kontrolunden_sonra_ozetlemeden_once_degisen_manifest_kosuyu_acmamal
     monkeypatch.setattr(subprocess, "run", sarmal)
     acildi = _acilir_mi()
     if not durum["yapildi"]:  # kurulum hatasi xfail arkasina saklanmaz (AssertionError degil)
-        raise RuntimeError("kurulum: manifest icin `git diff` cagrisi yakalanamadi")
+        raise RuntimeError("kurulum: manifest icin `git diff` / `git cat-file` cagrisi yakalanamadi")
     assert not acildi, "manifest git kontrolunden sonra degisti ama kosu acildi"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="F-4: git pathspec joker karakteri: `data/split[1].csv` izlenen `data/split1.csv`e eslenir; "
-                          "izlenmeyen kirli dosya temiz gorunur")
 def test_joker_karakterli_dosya_adi_git_kontrolunu_baska_dosyaya_yonlendiremez(depo, monkeypatch):
     """D-B2: bagli dosya GERCEKTEN git'te izlenmeli; adinin pathspec olarak baska dosyaya eslenmesi sayilmaz."""
     kaynak = config.SPLIT_CSV

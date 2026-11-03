@@ -1508,22 +1508,27 @@ class KesifKaydi:
     """Kesif kosusunun kaydi. Alanlar salt okunur; `kapanis_utc` kosu kapaninca dolar. F2 kosucusu bunu sonuc dosyalarina
     yazar (`alanlar()`)."""
 
-    __slots__ = ("_head", "_manifest", "_temiz", "_origin", "_acilis", "_kapanis")
+    __slots__ = ("_head", "_manifest", "_temiz", "_origin", "_origin_zamani", "_acilis", "_kapanis")
 
-    def __init__(self, head, manifest_sha256, agac_temiz, origin_esit, acilis_utc):
+    def __init__(self, head, manifest_sha256, agac_temiz, origin_esit, acilis_utc, origin_ref_zamani=None):
         self._head, self._manifest, self._temiz = head, manifest_sha256, agac_temiz
-        self._origin, self._acilis, self._kapanis = origin_esit, acilis_utc, None
+        self._origin, self._origin_zamani = origin_esit, origin_ref_zamani
+        self._acilis, self._kapanis = acilis_utc, None
 
     head_commit = property(lambda self: self._head)
     manifest_sha256 = property(lambda self: self._manifest)
     agac_temiz = property(lambda self: self._temiz)
+    # D-K4 (RESULTS §14.43): esitlik yerel `refs/remotes/origin/main` ile, fetch YAPILMADAN olculur; deger o referansin
+    # son guncellenme anina (reflog, UTC) gore anlamlidir. Resmi F2 kosusundan hemen once `git fetch` F2 kosucusunun isidir.
     origin_main_esit = property(lambda self: self._origin)
+    origin_main_ref_zamani = property(lambda self: self._origin_zamani)
     acilis_utc = property(lambda self: self._acilis)
     kapanis_utc = property(lambda self: self._kapanis)
 
     def alanlar(self) -> dict:
         return {"head_commit": self._head, "manifest_sha256": self._manifest, "agac_temiz": self._temiz,
-                "origin_main_esit": self._origin, "acilis_utc": self._acilis, "kapanis_utc": self._kapanis}
+                "origin_main_esit": self._origin, "origin_main_ref_zamani": self._origin_zamani,
+                "acilis_utc": self._acilis, "kapanis_utc": self._kapanis}
 
     def __repr__(self) -> str:
         return f"KesifKaydi({self.alanlar()})"
@@ -1608,10 +1613,30 @@ def _kesif_bagli_dosyalar() -> list[Path]:
     return [onbellek_manifest._etkin_yol(), Path(config.SPLIT_CSV), Path(config.UNIVERSE_CSV)]
 
 
-def kesif_bagi_denetle() -> None:
-    """Manifest, split.csv ve universe.csv git'te izlenmeli ve calisma agacindaki halleri HEAD'dekiyle ayni olmali; degilse
-    `KesifBagiHatasi`. Git okunamazsa da hata (kapali yon)."""
+def _git_bayt(*argumanlar: str, sure: int = 30) -> bytes | None:
+    """Git ciktisini BAYT olarak doner (`cat-file blob`); pathspec'ler her zaman literal (`GIT_LITERAL_PATHSPECS=1`,
+    sizinti F-4). Hata ya da sifirdan farkli cikis kodunda None."""
+    ortam = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_LITERAL_PATHSPECS": "1"}
+    try:
+        cikti = subprocess.run(["git", "--literal-pathspecs", *argumanlar], cwd=_depo(), capture_output=True,
+                               timeout=sure, env=ortam)
+    except Exception:
+        return None
+    return cikti.stdout if cikti.returncode == 0 else None
+
+
+def kesif_bagi_denetle() -> dict[str, str]:
+    """Bagli dosyalari (manifest, split.csv, universe.csv) HEAD'e BAYT duzeyinde baglar (RESULTS §14.43; sizinti F-1..F-4,
+    denetci D-K3). Her dosya icin:
+      - calisma agacindaki baytlar BIR KEZ okunur;
+      - `git --literal-pathspecs ls-files --error-unmatch` ile izlendigi (joker karakter eslemesi yok) ve
+        `git cat-file blob HEAD:<yol>` ile HEAD'deki baytlari alinir;
+      - iki baytin SHA256'si esit olmali; degilse `KesifBagiHatasi`.
+    `git diff`e dayanilmaz: `--assume-unchanged` / `--skip-worktree` bayraklari ve `core.autocrlf` donusumu git'in
+    "temiz" hukmunu degistirir, baytlari degistirmez. Doner: dosya yolu -> sabitlenen SHA256 (ayni okumadan). Git
+    okunamazsa da hata (kapali yon)."""
     depo = _depo().resolve()
+    sabit: dict[str, str] = {}
     for yol in _kesif_bagli_dosyalar():
         if yol is None:
             raise KesifBagiHatasi("Kesif kosusu manifest olmadan commit'e baglanamaz.")
@@ -1619,11 +1644,21 @@ def kesif_bagi_denetle() -> None:
             goreli = Path(yol).resolve().relative_to(depo).as_posix()
         except ValueError:
             raise KesifBagiHatasi(f"{yol} git deposunun ({depo}) icinde degil; kesif kosusu commit'e baglanamaz.") from None
-        if _git("ls-files", "--error-unmatch", "--", goreli) is None:
-            raise KesifBagiHatasi(f"{goreli} git'te izlenmiyor; kesif kosusu commit'e baglanamaz (RESULTS §14.42).")
-        if _git("diff", "--quiet", "HEAD", "--", goreli) is None:
-            raise KesifBagiHatasi(f"{goreli} calisma agacinda HEAD'dekinden farkli ya da git okunamadi; kesif kosusu "
-                                  "acilmaz. Once commit edin (RESULTS §14.42, denetci D-B2).")
+        try:
+            calisma = Path(yol).read_bytes()  # tek okuma: karsilastirma ve sabitleme bundan
+        except OSError as hata:
+            raise KesifBagiHatasi(f"{goreli} okunamadi: {hata}") from None
+        if _git_bayt("ls-files", "--error-unmatch", "--", goreli) is None:
+            raise KesifBagiHatasi(f"{goreli} git'te izlenmiyor; kesif kosusu commit'e baglanamaz (RESULTS §14.43).")
+        head = _git_bayt("cat-file", "blob", f"HEAD:{goreli}")
+        if head is None:
+            raise KesifBagiHatasi(f"HEAD:{goreli} okunamadi; kesif kosusu commit'e baglanamaz.")
+        ozet = hashlib.sha256(calisma).hexdigest()
+        if ozet != hashlib.sha256(head).hexdigest():
+            raise KesifBagiHatasi(f"{goreli} calisma agacindaki baytlari HEAD'dekinden farkli; kesif kosusu acilmaz. Once "
+                                  "commit edin (RESULTS §14.43, denetci D-B2).")
+        sabit[str(yol)] = ozet
+    return sabit
 
 
 def _dosya_sha256(yol) -> str | None:
@@ -1640,7 +1675,12 @@ def _kesif_kaydi_kur(manifest_sha256: str | None) -> KesifKaydi:
     temiz = None if durum is None else not [s for s in durum.splitlines() if s.strip()]
     uzak = _git("rev-parse", "--verify", "--quiet", _UZAK_REF)
     origin = None if head is None or uzak is None else uzak.strip() == head
-    return KesifKaydi(head, manifest_sha256, temiz, origin, _iso_zaman())
+    # Yerel referansin son guncellenme ani (reflog; D-K4). Fetch yapilmaz.
+    secici = _git("reflog", "-1", "--date=unix", "--format=%gd", _UZAK_REF)
+    eslesme = re.search(r"@\{(\d+)\}", secici or "")
+    zaman = (dt.datetime.fromtimestamp(int(eslesme.group(1)), dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+             if eslesme else None)
+    return KesifKaydi(head, manifest_sha256, temiz, origin, _iso_zaman(), origin_ref_zamani=zaman)
 
 
 @contextmanager
@@ -1662,13 +1702,17 @@ def kesif_kosusu():
     if _AKTIF_KOSU is not None:
         raise RuntimeError(f"Acik onay kosusu icinde kesif kosusu acilamaz: {_AKTIF_KOSU}.")
     denetim = onbellek_manifest.denetim_etkin()
-    if denetim and _kesif_git_denetimi():
-        kesif_bagi_denetle()
-    manifest_ozeti = _dosya_sha256(onbellek_manifest._etkin_yol()) if denetim else None
+    # Sabitlenen ozetler bagli dosyalarin TEK okumasindan gelir (RESULTS §14.43, F-3): git kipinde HEAD'e bayt bagindan,
+    # aksi halde dogrudan okumadan. Kapanista ayni dosyalar yeniden ozetlenir (D-K3).
+    if not denetim:
+        sabit: dict[str, str] = {}
+    elif _kesif_git_denetimi():
+        sabit = kesif_bagi_denetle()
+    else:
+        sabit = {str(y): _dosya_sha256(y) for y in _kesif_bagli_dosyalar() if y is not None}
+    manifest_ozeti = sabit.get(str(onbellek_manifest._etkin_yol())) if denetim else None
     if denetim:
         onbellek_manifest.manifest_dogrula(katman="kesif")
-        if _dosya_sha256(onbellek_manifest._etkin_yol()) != manifest_ozeti:
-            raise KesifBagiHatasi("Manifest kesif kosusu acilirken degisti; kosu acilmadi.")
     kayit = _kesif_kaydi_kur(manifest_ozeti)
     kume_bellegi.temizle()
     bv.donuk_bellek_temizle()
@@ -1683,21 +1727,26 @@ def kesif_kosusu():
         kayit._kapanis = _iso_zaman()
         try:
             if denetim:
-                _kesif_kapanisi_denetle(manifest_ozeti, onbellek_manifest, hata)
+                _kesif_kapanisi_denetle(sabit, onbellek_manifest, hata)
         finally:
             kume_bellegi.temizle()
             bv.donuk_bellek_temizle()
 
 
-def _kesif_kapanisi_denetle(manifest_ozeti: str | None, onbellek_manifest, hata: BaseException | None) -> None:
+def _kesif_kapanisi_denetle(sabit: dict[str, str], onbellek_manifest, hata: BaseException | None) -> None:
     """Kapanista manifest acilistakiyle ayni olmali ve kesif katmani hala dogrulanmali; degilse `KesifBagiHatasi`.
 
     Blok zaten hatayla bittiyse o hata ayni turuyle yukari cikar (turu gizlenmez) ve kapanis uyusmazligi ona not olarak
     eklenir: kosu hatayla bittigi icin sonucu zaten yoktur; uyusmazlik yine acikca yazilir."""
     sorun = None
-    if _dosya_sha256(onbellek_manifest._etkin_yol()) != manifest_ozeti:
+    manifest_yolu = str(onbellek_manifest._etkin_yol())
+    degisen = [Path(y).name for y, ozet in sabit.items() if _dosya_sha256(y) != ozet]
+    if manifest_yolu in sabit and Path(manifest_yolu).name in degisen:
         sorun = ("Kesif kosusu kapanisi: manifest dosyasi kosu sirasinda degisti (SHA256 acilistakiyle ayni degil). "
                  "Kosunun sonuclari bu manifeste baglanamaz (RESULTS §14.42).")
+    elif degisen:
+        sorun = (f"Kesif kosusu kapanisi: bagli dosya(lar) kosu sirasinda degisti: {degisen}. Kosunun bolme ve evren "
+                 "tablosu acilistakiyle ayni degil (RESULTS §14.43, denetci D-K3).")
     else:
         try:
             onbellek_manifest.manifest_dogrula(katman="kesif")
@@ -1844,7 +1893,7 @@ _KORUNAN_ADLAR = frozenset({
     "_onay_kumesi_dogrula", "_sonuc_dogrula", "aktif_onay_kosusu", "onay_baglami_dogrula", "onay_kosusu", "kesif_kosusu",
     # Kesif kosusunun commit bagi (RESULTS §14.42, D-B2).
     "KesifKaydi", "kesif_bagi_denetle", "_kesif_git_denetimi", "_kesif_bagli_dosyalar", "_kesif_kaydi_kur",
-    "_kesif_kapanisi_denetle", "_dosya_sha256",
+    "_kesif_kapanisi_denetle", "_dosya_sha256", "_git_bayt",
     # Kesif baglami (RESULTS §14.42, D-C1).
     "_KESIF_DURUMU", "_KESIF_ORTAM_ADI", "_kesif_baglami", "kesif_kosusu_acik", "kesif_baglami_dogrula",
     "KesifBaglamiYok",

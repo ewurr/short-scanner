@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 
 import pytest
 
@@ -71,7 +72,8 @@ def test_temiz_depoda_acilir_ve_kayit_alanlari_dolu(depo):
         assert kayit.origin_main_esit is False  # "veri" commit'i itilmedi
         assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", kayit.acilis_utc)
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", kayit.kapanis_utc)
-    assert set(kayit.alanlar()) == {"head_commit", "manifest_sha256", "agac_temiz", "origin_main_esit", "acilis_utc",
+    assert set(kayit.alanlar()) == {"head_commit", "manifest_sha256", "agac_temiz", "origin_main_esit",
+                                    "origin_main_ref_zamani", "acilis_utc",
                                     "kapanis_utc"}
     with pytest.raises(AttributeError):
         kayit.head_commit = "0" * 40
@@ -111,6 +113,37 @@ def test_kosu_icinde_manifest_degisirse_kapanis_hata_verir(depo):
             yol = mf._etkin_yol()
             yol.write_bytes(yol.read_bytes() + b"\n")
     assert bv._KOSU_AGSIZ["sayac"] == 0
+
+
+@pytest.mark.parametrize("hedef", ["split", "universe"])
+def test_kosu_icinde_split_ya_da_evren_degisirse_kapanis_hata_verir(depo, hedef):
+    """RESULTS §14.43 (denetci D-K3): bolme ve evren tablosu da kapanista yeniden ozetlenir."""
+    yol = {"split": config.SPLIT_CSV, "universe": config.UNIVERSE_CSV}[hedef]
+    with pytest.raises(split.KesifBagiHatasi, match=yol.name):
+        with split.kesif_kosusu():
+            yol.write_bytes(yol.read_bytes() + b"\n")
+
+
+@pytest.mark.parametrize("bayrak", ["--assume-unchanged", "--skip-worktree"])
+def test_git_bayragi_ile_gizlenen_degisiklik_bayt_bagina_takilir(depo, bayrak):
+    """RESULTS §14.43 (sizinti F-1): bag `git diff`e degil baytlara dayanir."""
+    git(depo, "update-index", bayrak, "data/split.csv")
+    config.SPLIT_CSV.write_bytes(config.SPLIT_CSV.read_bytes() + b"\n")
+    with pytest.raises(split.KesifBagiHatasi, match="baytlari"):
+        _ac()
+
+
+def test_kayit_manifest_ozeti_head_blobunun_ozetidir(depo):
+    blob = subprocess.run(["git", "cat-file", "blob", "HEAD:data/onbellek_manifest.csv"], cwd=depo, check=True,
+                          capture_output=True).stdout
+    assert _ac().manifest_sha256 == hashlib.sha256(blob).hexdigest()
+
+
+def test_origin_ref_zamani_kayda_gecer(depo):
+    """RESULTS §14.43 (D-K4): yerel `origin/main` referansinin son guncellenme ani (reflog, UTC). Fetch yapilmaz."""
+    kayit = _ac()
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", kayit.origin_main_ref_zamani)
+    assert "origin_main_ref_zamani" in kayit.alanlar()
 
 
 def test_kosu_icinde_onbellek_degisirse_kapanis_hata_verir(depo):
