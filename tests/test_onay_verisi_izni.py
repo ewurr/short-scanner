@@ -79,9 +79,9 @@ def test_onbellekten_oku_kesif_verisini_ve_onbellek_disini_okur(onbellek, tmp_pa
 
 def test_ham_yukleyici_onay_verisini_izin_disinda_okumaz(onbellek, monkeypatch):
     monkeypatch.setattr(bv, "mum_dosyalari",
-                        lambda s, b: [f"data/futures/um/monthly/klines/{s}/{b}/{s}-{b}-2021-01.zip"])
+                        lambda s, b, aylar=None: [f"data/futures/um/monthly/klines/{s}/{b}/{s}-{b}-2021-01.zip"])
     monkeypatch.setattr(bv, "funding_dosyalari",
-                        lambda s: [f"data/futures/um/monthly/fundingRate/{s}/{s}-fundingRate-2021-01.zip"])
+                        lambda s, aylar=None: [f"data/futures/um/monthly/fundingRate/{s}/{s}-fundingRate-2021-01.zip"])
     _yaz(onbellek, "klines", B_SEMBOLU, "4h", "2021-01.parquet")
     _yaz(onbellek, "funding", B_SEMBOLU, "2021-01.parquet")
     with pytest.raises(bv.OnayVerisiKorumasi):
@@ -104,17 +104,40 @@ def test_zip_indir_onay_verisini_izin_disinda_indirmez(monkeypatch):
         bv.zip_indir(f"data/futures/um/monthly/klines/{_a_sembolu()}/4h/{_a_sembolu()}-4h-2021-01.zip")
 
 
-def test_kapili_yukleyici_kesifte_c2_aylarini_izinle_okuyup_keser(onbellek, monkeypatch):
-    """KESIF kumesinde A sembolunun ham okumasi C2 aylarini da okur (izinle) ve kume araligina keser."""
+def test_kapili_yukleyici_kesifte_c2_ayini_acmaz_ve_keser(onbellek, monkeypatch):
+    """RESULTS §14.42 (D-B1; §14.41'de bu test C2 aylarinin izinle okundugunu kaydediyordu): KESIF kumesinde A sembolunun
+    C2 ayi dosyasi acilmaz; liste ay elemesinden gecer, izin acilmaz."""
     a = _a_sembolu()
     aylar = ["2025-08", "2025-09"]
-    monkeypatch.setattr(bv, "mum_dosyalari", lambda s, b: [f"data/futures/um/monthly/klines/{s}/{b}/{s}-{b}-{ay}.zip"
-                                                         for ay in aylar])
+    istenen = []
+
+    def liste(s, b, aylar=None):
+        istenen.append(aylar)
+        tum = [f"data/futures/um/monthly/klines/{s}/{b}/{s}-{b}-{ay}.zip" for ay in ("2025-08", "2025-09")]
+        return tum if aylar is None else bv.aylara_gore_ele(tum, aylar)
+
+    monkeypatch.setattr(bv, "mum_dosyalari", liste)
     for ay in aylar:
         _yaz(onbellek, "klines", a, "4h", f"{ay}.parquet", cerceve=sahte_4h(f"{ay}-01", 6 * 28))
+    okunan = []
+    gercek = pd.read_parquet
+    monkeypatch.setattr(pd, "read_parquet", lambda yol, *x, **y: (okunan.append(str(yol)), gercek(yol, *x, **y))[1])
     mumlar = klines.mumlari_yukle(a, config.BAR_4H, "KESIF")
     assert len(mumlar) and mumlar["open_time"].max() <= pd.Timestamp(config.KESIF_SONU)
+    assert istenen == [("2020-01", "2025-08")]
+    assert okunan and not [y for y in okunan if "2025-09" in y]
     assert bv._IZIN["sayac"] == 0
+
+
+def test_kapili_yukleyici_kesifte_eleme_atlatilirsa_onay_ayi_korumaya_takilir(onbellek, monkeypatch):
+    """RESULTS §14.42: KESIF yuklemesi izinsizdir; eleme yapmayan bir liste C2 ayini dondururse okuma reddedilir."""
+    a = _a_sembolu()
+    monkeypatch.setattr(bv, "mum_dosyalari", lambda s, b, aylar=None: [
+        f"data/futures/um/monthly/klines/{s}/{b}/{s}-{b}-{ay}.zip" for ay in ("2025-08", "2025-09")])
+    for ay in ("2025-08", "2025-09"):
+        _yaz(onbellek, "klines", a, "4h", f"{ay}.parquet", cerceve=sahte_4h(f"{ay}-01", 6 * 28))
+    with pytest.raises(bv.OnayVerisiKorumasi):
+        klines.mumlari_yukle(a, config.BAR_4H, "KESIF")
 
 
 def test_kapili_yukleyici_b_sembolunu_kesifte_okumaz(onbellek, monkeypatch):

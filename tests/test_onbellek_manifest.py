@@ -405,16 +405,37 @@ def test_kapi_yolu_tutarli_manifestle_okur(onbellek):
     assert len(klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")) == 12
 
 
-def test_kesif_yuklemesi_c2_ayi_dosyasini_da_ham_okur_ve_ayrinti_listesine_bakar(onbellek, monkeypatch):
-    """RESULTS §14.41: kapi yolu butun aylari okuyup sonra keser; KESIF yuklemesi A grubunun C2 dosyasini da acar."""
+def test_kesif_yuklemesi_hicbir_onay_dosyasini_acmaz_ve_ayrinti_listesini_okumaz(onbellek, monkeypatch):
+    """RESULTS §14.42 (denetci D-B1; §14.41'deki eski test bunun tersini kaydediyordu): KESIF yuklemesi kume araligi
+    disindaki aylari dosya acmadan eler. Acma denemeleri yorumlayici kancasiyla sayilir; ayrinti listesinin okunmasi
+    engellenir. Yedek kanit: onay dosyasi bozuk olsa da yukleme ayni sonucu verir."""
+    global _ACILAN
     mf.manifest_kur()
-    okunan = []
-    gercek = pd.read_parquet
-    monkeypatch.setattr(pd, "read_parquet", lambda yol, *a, **k: (okunan.append(str(yol)), gercek(yol, *a, **k))[1])
+    _bayt_cevir(_onay_yolu(onbellek))
     bv.donuk_bellek_temizle()
-    cerceve = klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
-    assert any(C2_AYI in y for y in okunan) and "onay" in mf._BELLEK
-    assert cerceve["open_time"].max() < pd.Timestamp(config.C2_BASI)
+    monkeypatch.setattr(mf, "_onay_listesi", lambda *_: pytest.fail("ayrinti listesi okundu"))
+    _ACILAN = []
+    try:
+        cerceve = klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
+        gunluk = klines.mumlari_yukle(A_SEMBOL, config.BAR_1D, "KESIF")
+        acilan = list(_ACILAN)
+    finally:
+        _ACILAN = None
+    assert any(AY_ONCESI in a for a in acilan), "kanca calismiyor"
+    assert not [a for a in acilan if C2_AYI in a or _b_sembolu() in a or "onay_ayrintisi" in a]
+    assert "onay" not in mf._BELLEK
+    assert len(cerceve) == 12 and cerceve["open_time"].max() < pd.Timestamp(config.C2_BASI)
+    assert gunluk.empty or gunluk["open_time"].max() < pd.Timestamp(config.C2_BASI)
+
+
+def test_kesif_yuklemesi_izinsizdir_onay_ayina_ulasma_korumaya_takilir(onbellek, monkeypatch):
+    """RESULTS §14.42: KESIF yuklemesi onay verisi izni acmaz. Ay elemesi atlatilsa (eleme yapmayan sahte fonksiyon)
+    onay dosyasi yine okunmaz: dondurulmus listenin onay anahtari `OnayVerisiKorumasi` verir."""
+    mf.manifest_kur()
+    monkeypatch.setattr(bv, "aylara_gore_ele", lambda anahtarlar, aylar: list(anahtarlar))
+    monkeypatch.setattr(pd, "read_parquet", lambda *_a, **_k: pytest.fail("parquet acildi"))
+    with pytest.raises(bv.OnayVerisiKorumasi):
+        klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
 
 
 def test_agsiz_yolda_manifestte_olmayan_kesif_dosyasi_okunmaz(onbellek, monkeypatch):
@@ -450,24 +471,33 @@ def test_listede_olup_manifestte_olmayan_ay_ag_ya_da_sessiz_atlama_vermez(onbell
         klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
 
 
-def test_agsiz_yolda_boyu_degismis_onay_dosyasi_okunmaz_ve_ad_vermez(onbellek):
+def test_onay_kosusunda_boyu_degismis_onay_dosyasi_okunmaz_ve_ad_vermez(onbellek, tmp_path):
+    """RESULTS §14.42: KESIF yuklemesi onay dosyasina artik ulasmaz (D-B1); okuma denetiminin onay kolu onay kosusu
+    icinde sinanir. Kosu acildiktan sonra boyu degisen onay dosyasi okunmaz; mesaj adini ve boyunu yazmaz."""
+    gecici_kayit(tmp_path / "ONAY_KAYDI.md")
     mf.manifest_kur()
-    hedef = _onay_yolu(onbellek)
+    b = _b_sembolu()
+    hedef = onbellek / "klines" / b / config.BAR_4H / f"{AY_ONCESI}.parquet"
     boy = hedef.stat().st_size
-    hedef.write_bytes(hedef.read_bytes() + b"x")
-    with pytest.raises(mf.ManifestUyusmazligi) as hata:
-        klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
-    assert C2_AYI not in str(hata.value) and str(boy) not in str(hata.value)
+    with kosu("H2", "C1"):
+        hedef.write_bytes(hedef.read_bytes() + b"x")
+        with pytest.raises(mf.ManifestUyusmazligi) as hata:
+            klines.mumlari_yukle(b, config.BAR_4H, "C1", onay=True)
+    assert b not in str(hata.value) and str(boy) not in str(hata.value)
 
 
-def test_agsiz_yolda_ayrinti_listesi_bozuksa_kesif_yuklemesi_durur(onbellek):
-    """Ilk okumada depodaki ozetle karsilastirma."""
+def test_ayrinti_listesi_bozuk_olsa_da_kesif_yuklemesi_ona_bakmaz_onay_kosusu_durur(onbellek, tmp_path):
+    """RESULTS §14.42 (D-B1; §14.41'de KESIF yuklemesi bu listeye bakip duruyordu): KESIF yuklemesi ayrinti listesini
+    okumaz, bozuk liste onu etkilemez. Listeyi denetleyen yer onay kosusunun acilisidir (`tam`)."""
+    gecici_kayit(tmp_path / "ONAY_KAYDI.md")
     mf.manifest_kur()
     yol = mf.onay_ayrinti_yolu()
     yol.write_bytes(yol.read_bytes() + b"x\t1\ty\n")
     bv.donuk_bellek_temizle()
+    assert len(klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")) == 12
     with pytest.raises(mf.ManifestUyusmazligi, match="ozet uyusmazligi"):
-        klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
+        with kosu("H2", "C1"):
+            pytest.fail("kosu acildi")
 
 
 def test_manifest_yokken_agsiz_okuma_hata_verir(onbellek):
@@ -477,7 +507,7 @@ def test_manifest_yokken_agsiz_okuma_hata_verir(onbellek):
 
 def test_funding_kapi_yolu_da_manifestten_gecer(onbellek, monkeypatch):
     """Funding kapisi evreni okur ve sonra ham yolu izler; ham yol `onbellekten_oku` uzerinden denetlenir."""
-    monkeypatch.setattr(bv, "_donuk_anahtarlar", lambda *_a: [
+    monkeypatch.setattr(bv, "_donuk_anahtarlar", lambda *_a, **_k: [
         f"{bv.FUNDING_ONEKI}/{A_SEMBOL}/{A_SEMBOL}-fundingRate-2021-04.zip"])
     mf.manifest_kur()
     with pytest.raises(mf.ManifestUyusmazligi, match="2021-04"):

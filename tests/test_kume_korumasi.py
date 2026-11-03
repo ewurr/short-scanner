@@ -59,7 +59,7 @@ def kayit(tmp_path, monkeypatch):
 def sahte_ham(monkeypatch):
     """KESIF/C2 sinirini kapsayan sahte ham veri; ag kullanilmaz."""
 
-    def mumlar(sembol, bar=config.BAR_4H, yenile=False):
+    def mumlar(sembol, bar=config.BAR_4H, yenile=False, aralik=None):
         zaman = pd.date_range("2025-08-25", "2025-09-10", freq="4h", tz="UTC")
         cerceve = pd.DataFrame(
             {
@@ -70,14 +70,14 @@ def sahte_ham(monkeypatch):
         )
         return klines.gunluge_cevir(cerceve, donemler=tum_seri_donemi(cerceve)) if bar == config.BAR_1D else cerceve
 
-    def fund(sembol, yenile=False):
+    def fund(sembol, yenile=False, aralik=None):
         zaman = pd.date_range("2025-08-25", "2025-09-10", freq="8h", tz="UTC")
         return pd.DataFrame({"odeme_zamani": zaman, "aralik_saat": 8, "oran": 1e-4, "oran_8h": 1e-4})
 
     monkeypatch.setattr(klines, "ham_mumlari_yukle", mumlar)
     monkeypatch.setattr(funding, "ham_funding_yukle", fund)
 
-    def birincil(sembol, yenile=False):
+    def birincil(sembol, yenile=False, aralik=None):
         return mumlar(sembol, config.BAR_1D)
 
     monkeypatch.setattr(klines, "ham_birincil_gunluk_indir", birincil)

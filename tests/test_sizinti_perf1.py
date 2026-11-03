@@ -508,13 +508,10 @@ def test_donuk_liste_kesif_ayi_izinsiz_okunur_ama_c2_siniri_tam_ayda_kesinlesir(
             bv.mum_dosyalari(A_SEMBOL, config.BAR_4H)
 
 
-@_acik("S-8: Onay verisi izni SUREC GENELIDIR (`_IZIN['sayac']`); bir is parcacigi kapidan gecmis bir yukleyici "
-       "icindeyken (izin acik) baska bir is parcacigi `bv.onbellekten_oku` ile B grubu parquet'ini onay "
-       "kosusu olmadan okuyabilir. Kodda belgelenmis sinir (`binance_vision` §0). Gercek onay sizintisi: "
-       "yalniz analiz kodu eszamanli is parcacigi + `onbellekten_oku` kullanirsa; ikisi de taramayla yasakli, "
-       "bu yuzden KASITLI atlatma. Calisma aninda engel yok.")
-def test_izin_surec_geneli_baska_is_parcacigi_b_parquetini_okuyamamali(monkeypatch, gecici_onbellek):
-    """On-kayit §3 satir 123 + CLAUDE.md §3.2: izin yalniz izni acan yukleyici icin gecerli olmali."""
+def _izin_tutan_yukleyici_varken_baska_parcacik_okur_mu(monkeypatch, yukle) -> bool:
+    """`yukle` bir is parcaciginda calisirken (ham yukleyici `bloke` icinde bekler) ana is parcacigi B grubu parquet'ini
+    `bv.onbellekten_oku` ile izinsiz okuyabiliyor mu. Kurulum: B dosyasi yazilir, izinsiz okumanin reddedildigi
+    dogrulanir."""
     b = _b_sembolu()
     _mum_yaz(b, "2021-01", "2021-01-01 00:00", 12)
     yol = bv.onbellek_yolu("klines", b, config.BAR_4H, "2021-01.parquet")
@@ -522,27 +519,48 @@ def test_izin_surec_geneli_baska_is_parcacigi_b_parquetini_okuyamamali(monkeypat
         bv.onbellekten_oku(yol)
     izinde, devam = threading.Event(), threading.Event()
 
-    def bloke(sembol, bar, yenile=False):
+    def bloke(sembol, bar, yenile=False, aralik=None):
         izinde.set()
         devam.wait(20)
         return sahte_4h("2021-01-01 00:00", 6)
 
     monkeypatch.setattr(klines, "ham_mumlari_yukle", bloke)
-    isci = threading.Thread(target=lambda: klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF"), daemon=True)
+    isci = threading.Thread(target=yukle, daemon=True)
     isci.start()
-    okudu = None
     try:
         if not izinde.wait(20):
-            raise RuntimeError("kurulum: isci is parcacigi izin baglamina girmedi")
+            raise RuntimeError("kurulum: isci is parcacigi yukleyiciye girmedi")
         try:
             bv.onbellekten_oku(yol)
-            okudu = True
+            return True
         except bv.OnayVerisiKorumasi:
-            okudu = False
+            return False
     finally:
         devam.set()
         isci.join(20)
+
+
+@_acik("S-8: Onay verisi izni SUREC GENELIDIR (`_IZIN['sayac']`); bir is parcacigi kapidan gecmis bir yukleyici "
+       "icindeyken (izin acik) baska bir is parcacigi `bv.onbellekten_oku` ile B grubu parquet'ini onay "
+       "kosusu olmadan okuyabilir. Kodda belgelenmis sinir (`binance_vision` §0). Gercek onay sizintisi: "
+       "yalniz analiz kodu eszamanli is parcacigi + `onbellekten_oku` kullanirsa; ikisi de taramayla yasakli, "
+       "bu yuzden KASITLI atlatma. Calisma aninda engel yok.")
+def test_izin_surec_geneli_baska_is_parcacigi_b_parquetini_okuyamamali(monkeypatch, gecici_onbellek, tmp_path):
+    """On-kayit §3 satir 123 + CLAUDE.md §3.2: izin yalniz izni acan yukleyici icin gecerli olmali. Izni tutan
+    yukleyici: acik bir onay kosusu icindeki C1 yuklemesi (RESULTS §14.42; KESIF yuklemesi artik izin acmaz)."""
+    gecici_kayit(tmp_path / "ONAY_KAYDI.md")
+    with kosu("H2", "C1"):
+        okudu = _izin_tutan_yukleyici_varken_baska_parcacik_okur_mu(
+            monkeypatch, lambda: klines.mumlari_yukle(_b_sembolu(), config.BAR_4H, "C1", onay=True))
     assert okudu is False, "baska is parcacigi, izin baglami disinda B grubu parquet'ini okudu"
+
+
+def test_kesif_yuklemesi_izin_acmaz_baska_is_parcacigi_b_okuyamaz(monkeypatch, gecici_onbellek):
+    """RESULTS §14.42 (D-B1'in sonucu): KESIF yuklemesi onay verisi izni acmaz; o calisirken baska bir is parcacigi B
+    grubu parquet'ini okuyamaz. S-8'in KESIF varyanti boylece kapandi (C1/C2 varyanti yukaridaki xfail testte)."""
+    okudu = _izin_tutan_yukleyici_varken_baska_parcacik_okur_mu(
+        monkeypatch, lambda: klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF"))
+    assert okudu is False, "KESIF yuklemesi calisirken baska is parcacigi B grubu parquet'ini okudu"
 
 
 @pytest.mark.parametrize("hata_yolu", ["liste_yok", "eksik_ay"])

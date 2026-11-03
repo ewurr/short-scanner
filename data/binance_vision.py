@@ -76,7 +76,8 @@ class VeriYok(Exception):
 # Onbellek ve indirme yardimcilari kume kapisi tasimaz. Onay verisi (B grubu sembollerin her ayi ve butun
 # sembollerin C2 donemindeki aylari; on-kayit §3) bu yardimcilarla YALNIZCA acik bir izin baglaminda okunur:
 #   - kume kapisindan (`split.kume_erisimi`) gecmis yukleyiciler: `split.yukle`, `funding.funding_yukle`,
-#     `klines.birincil_gunluk_indir` (veriyi ardindan kume araligina keserler);
+#     `klines.birincil_gunluk_indir`; YALNIZCA C1/C2 yuklemesinde ve yalnizca kume araligindaki aylar icin (ay elemesi,
+#     RESULTS §14.42 D-B1). KESIF yuklemesi izin acmaz;
 #   - evren kurulumu (`universe`) ve F1 veri denetimi betikleri (`analysis/00_veri_denetimi`; CLAUDE.md §3.1:
 #     kapsama ve butunluk denetimi serbesttir).
 # Izin disinda onay verisi okuma denemesi `OnayVerisiKorumasi` verir; boylece analiz kodunda kolaylik icin yazilan
@@ -327,16 +328,64 @@ def _donuk_liste() -> dict:
     return copy.deepcopy(icerik)
 
 
-def _donuk_anahtarlar(tur: str, *yol: str) -> list[str]:
-    """Dondurulmus listeden anahtarlar; her anahtarda onay verisi izni aranir (`OnayVerisiKorumasi`)."""
+def _donuk_anahtarlar(tur: str, *yol: str, aylar: tuple[str, str] | None = None) -> list[str]:
+    """Dondurulmus listeden anahtarlar; her anahtarda onay verisi izni aranir (`OnayVerisiKorumasi`). `aylar` verilirse
+    araligin disindaki anahtarlar izin denetiminden ONCE, yalnizca adlarina gore elenir (`aylara_gore_ele`; D-B1)."""
     dugum = _donuk_oku()[tur]
     try:
         for parca in yol:
             dugum = dugum[parca]
     except KeyError:
         raise DonukListeYok(f"Dondurulmus listede {tur} {yol} yok: {donuk_liste_yolu()}.") from None
+    if aylar is not None:
+        dugum = aylara_gore_ele(dugum, aylar)
     _donuk_anahtar_denetle(dugum)
     return list(dugum)
+
+
+# --- 0d) Ay elemesi (RESULTS §14.42, denetci D-B1) ---------------------------------------------------------------
+#
+# Yukleyiciler eskiden sembolun butun aylarini (KESIF yuklemesinde A grubunun C2 aylari dahil) izinle acip sonra kume
+# araligina kesiyordu. Artik istenen kume araligiyla kesismeyen aylar DOSYA ACILMADAN, yalnizca dosya adindaki aya gore
+# elenir. Kume sinirlari ay basina denk gelir; denk gelmeyen sinir sessizce yuvarlanmaz, `AySiniriHatasi` verir.
+
+_AY_DESENI = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
+
+
+class AySiniriHatasi(ValueError):
+    """Ay elemesine verilen aralik ay sinirlarina denk gelmiyor (baslangic ay basi degil ya da bitis ay sonu degil)."""
+
+
+def ay_araligi_sinirlari(bas, son) -> tuple[str, str]:
+    """Kapali [bas, son] zaman araligindan (ilk ay, son ay) `YYYY-MM`. `bas` ay basi 00:00:00 UTC, `son` bir ayin son
+    saniyesi (23:59:59) olmali; degilse `AySiniriHatasi` (sessizce yuvarlanmaz). Saf."""
+    b, s = pd.Timestamp(bas), pd.Timestamp(son)
+    if b.tz is None or s.tz is None:
+        raise AySiniriHatasi(f"Ay elemesi sinirlari UTC olmali: {bas!r}, {son!r}")
+    b, s = b.tz_convert("UTC"), s.tz_convert("UTC")
+    if b != b.normalize() or b.day != 1:
+        raise AySiniriHatasi(f"Ay elemesinin baslangici ay basi (gun 1, 00:00:00 UTC) olmali: {b}")
+    sonraki = s + pd.Timedelta(seconds=1)
+    if sonraki != sonraki.normalize() or sonraki.day != 1:
+        raise AySiniriHatasi(f"Ay elemesinin bitisi bir ayin son saniyesi (23:59:59 UTC) olmali: {s}")
+    if s < b:
+        raise AySiniriHatasi(f"Ay elemesinin bitisi baslangicindan once: {b} > {s}")
+    return b.strftime("%Y-%m"), s.strftime("%Y-%m")
+
+
+def aylara_gore_ele(anahtarlar, aylar: tuple[str, str]) -> list[str]:
+    """Dosya adindaki ayi [ilk, son] araliginda olan anahtarlar ve yollar. Ayi ayristirilamayan ad ELENMEZ: kapali yon,
+    izin denetimi onu onay verisi sayar. Dosya acilmaz. Saf."""
+    ilk, son = aylar
+    if not (_AY_DESENI.fullmatch(ilk) and _AY_DESENI.fullmatch(son)):
+        raise AySiniriHatasi(f"Ay araligi `YYYY-MM` olmali: {aylar!r}")
+    kalan = []
+    for anahtar in anahtarlar:
+        ad = str(anahtar).replace("\\", "/").rsplit("/", 1)[-1]
+        ay = dosya_ayi(ad) if ad.endswith(".zip") else ad.removesuffix(".parquet")
+        if not _AY_DESENI.fullmatch(ay) or ilk <= ay <= son:
+            kalan.append(anahtar)
+    return kalan
 
 
 def onay_verisi_mi(sembol: str, ay: str) -> bool:
@@ -459,22 +508,26 @@ def tum_sembol_dizinleri() -> list[str]:
     return sorted(p.rstrip("/").rsplit("/", 1)[-1] for p in alt_dizinler)
 
 
-def mum_dosyalari(sembol: str, bar: str) -> list[str]:
-    """Bir sembol/bar icin aylik zip anahtarlari, ay sirasinda. Agsiz okuma baglaminda dondurulmus listeden."""
+def mum_dosyalari(sembol: str, bar: str, aylar: tuple[str, str] | None = None) -> list[str]:
+    """Bir sembol/bar icin aylik zip anahtarlari, ay sirasinda. Agsiz okuma baglaminda dondurulmus listeden. `aylar`
+    verilirse aralik disindaki aylar adlarina gore elenir (`aylara_gore_ele`)."""
     if _agsiz_mi():
-        return _donuk_anahtarlar("mum", sembol, bar)
+        return _donuk_anahtarlar("mum", sembol, bar, aylar=aylar)
     ag_yasagi_denetle(f"mum_dosyalari({sembol}, {bar})")
     _, anahtarlar = _listele(f"{MUM_ONEKI}/{sembol}/{bar}/", ayirici="")
-    return sorted(a for a in anahtarlar if a.endswith(".zip"))
+    sonuc = sorted(a for a in anahtarlar if a.endswith(".zip"))
+    return sonuc if aylar is None else aylara_gore_ele(sonuc, aylar)
 
 
-def funding_dosyalari(sembol: str) -> list[str]:
-    """Bir sembol icin aylik funding zip anahtarlari, ay sirasinda. Agsiz okuma baglaminda dondurulmus listeden."""
+def funding_dosyalari(sembol: str, aylar: tuple[str, str] | None = None) -> list[str]:
+    """Bir sembol icin aylik funding zip anahtarlari, ay sirasinda. Agsiz okuma baglaminda dondurulmus listeden. `aylar`
+    verilirse aralik disindaki aylar adlarina gore elenir (`aylara_gore_ele`)."""
     if _agsiz_mi():
-        return _donuk_anahtarlar("funding", sembol)
+        return _donuk_anahtarlar("funding", sembol, aylar=aylar)
     ag_yasagi_denetle(f"funding_dosyalari({sembol})")
     _, anahtarlar = _listele(f"{FUNDING_ONEKI}/{sembol}/", ayirici="")
-    return sorted(a for a in anahtarlar if a.endswith(".zip"))
+    sonuc = sorted(a for a in anahtarlar if a.endswith(".zip"))
+    return sonuc if aylar is None else aylara_gore_ele(sonuc, aylar)
 
 
 def listeyi_dondur(uzerine_yaz: bool = False) -> dict:

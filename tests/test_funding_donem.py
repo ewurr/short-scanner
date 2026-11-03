@@ -103,7 +103,7 @@ def ortam(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "UNIVERSE_CSV", tmp_path / "universe.csv")
 
     ham = _fund("2021-01-05 00:00", "2021-01-20 00:00", "2021-02-05 00:00", "2021-02-20 00:00", "2021-03-01 00:00")
-    monkeypatch.setattr(funding, "ham_funding_yukle", lambda sembol, yenile=False: ham.copy())
+    monkeypatch.setattr(funding, "ham_funding_yukle", lambda sembol, yenile=False, aralik=None: ham.copy())
     # KESIF araligi 2021'i kapsar (config); kume kesimi ayrica test edilir.
     assert split.kume_araligi("KESIF")[0] <= D0.baslangic
 

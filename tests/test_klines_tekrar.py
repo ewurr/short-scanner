@@ -33,7 +33,7 @@ def _sahte_onbellek(monkeypatch, tmp_path, kategori, aylar_ve_cerceveler, bar=No
             yol = bv.onbellek_yolu("klines_birincil_1d", sembol, f"{ay}.parquet")
         cerceve.to_parquet(yol, index=False)
         anahtarlar.append(anahtar)
-    monkeypatch.setattr(bv, "mum_dosyalari", lambda s, b: anahtarlar)
+    monkeypatch.setattr(bv, "mum_dosyalari", lambda s, b, aylar=None: anahtarlar)
 
     def yasak(*_a, **_k):
         raise AssertionError("onbellek doluyken indirme yapilmamali")

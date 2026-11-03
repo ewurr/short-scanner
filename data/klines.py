@@ -87,13 +87,7 @@ def mumlari_yukle(
     from data import split as split_modulu  # split bu modulu import eder; dongu onlenir
 
     def yukle() -> pd.DataFrame:
-        return split_modulu.yukle(
-            sembol,
-            bar,
-            kume,
-            onay=onay,
-            mum_yukleyici=lambda s, b: ham_mumlari_yukle(s, b, yenile=yenile),
-        )
+        return split_modulu.yukle(sembol, bar, kume, onay=onay, yenile=yenile)
 
     if yenile:
         return yukle()
@@ -101,25 +95,29 @@ def mumlari_yukle(
         return yukle()
 
 
-def ham_mumlari_yukle(sembol: str, bar: str = config.BAR_4H, yenile: bool = False) -> pd.DataFrame:
-    """Bir sembolun TUM mumlari, KUME KORUMASI OLMADAN; yalnizca eksik aylari indirir.
+def ham_mumlari_yukle(sembol: str, bar: str = config.BAR_4H, yenile: bool = False, *,
+                      aralik: tuple | None = None) -> pd.DataFrame:
+    """Bir sembolun mumlari, KUME KORUMASI OLMADAN; yalnizca eksik aylari indirir.
 
-    B grubu ve C2 donemi dahil tum gecmisi dondurur. Yalnizca veri katmani
-    (`split.yukle`) ve tum gecmisi olcmesi gereken F1 kapsama denetimi icindir
-    (CLAUDE.md §3.1). Analiz ve olay kodu bunu CAGIRMAZ.
+    `aralik` verilmezse B grubu ve C2 donemi dahil tum gecmisi dondurur: yalnizca tum gecmisi olcmesi gereken F1
+    kapsama denetimi icindir (CLAUDE.md §3.1). `split.yukle` kapidan gectikten sonra kumenin kapali araligini
+    `aralik=(bas, son)` olarak verir; aralikla kesismeyen aylarin dosyalari ACILMAZ, adlarina gore elenir
+    (`bv.aylara_gore_ele`; RESULTS §14.42, denetci D-B1). Sinirlar ay sinirina denk gelmeli (`bv.AySiniriHatasi`).
+    Aralik verildiginde 1d serisi de yalnizca araliktaki 4h serisinden turetilir. Analiz ve olay kodu bunu CAGIRMAZ.
 
     Onbellek ay basina tek parquet dosyasidir (`cache/klines/<sembol>/<bar>/<ay>.parquet`),
     bu sayede yeniden calistirma tamamlanmis aylari yeniden indirmez.
     """
+    aylar = None if aralik is None else bv.ay_araligi_sinirlari(*aralik)
     if bar == config.BAR_1D:
         # Tek 1d yolu (on-kayit §2 rev.8): sembolun commit edilmis listeleme
         # donemleriyle, yalnizca donem ici hizali 4h barlardan.
         from data import universe as universe_modulu
 
         donemler = universe_modulu.sembol_donemleri(universe_modulu.evren_yukle(), sembol)
-        return gunluge_cevir(ham_mumlari_yukle(sembol, config.BAR_4H, yenile), donemler=donemler)
+        return gunluge_cevir(ham_mumlari_yukle(sembol, config.BAR_4H, yenile, aralik=aralik), donemler=donemler)
 
-    anahtarlar = bv.mum_dosyalari(sembol, bar)
+    anahtarlar = bv.mum_dosyalari(sembol, bar, aylar=aylar)
     parcalar = []
     for anahtar in anahtarlar:
         ay = bv.dosya_ayi(anahtar)
@@ -309,20 +307,26 @@ def birincil_gunluk_indir(
     izinli, bas, son = split_modulu.kume_erisimi(sembol, kume, onay=onay)
     if not izinli:
         return pd.DataFrame(columns=[s for s in bv.MUM_SUTUNLARI if s != "ignore"])
-    # Kapidan gecildi; ham okuma onay verisi izniyle, ardindan kume araligina kesilir.
-    with bv.onay_verisi_izni(f"klines.birincil_gunluk_indir({sembol}, {kume})"):
-        ham = ham_birincil_gunluk_indir(sembol, yenile=yenile)
+    # Kapidan gecildi; yalnizca kume araligiyla kesisen aylar okunur (ay elemesi; RESULTS §14.42, denetci D-B1),
+    # ardindan kume araligina kesilir. Onay verisi izni yalnizca C1/C2'de acilir.
+    from contextlib import nullcontext
+
+    izin = (bv.onay_verisi_izni(f"klines.birincil_gunluk_indir({sembol}, {kume})")
+            if kume in config.ONAY_KUMELERI else nullcontext())
+    with izin:
+        ham = ham_birincil_gunluk_indir(sembol, yenile=yenile, aralik=(bas, son))
     return donem_kes(ham, bas, son)
 
 
-def ham_birincil_gunluk_indir(sembol: str, yenile: bool = False) -> pd.DataFrame:
+def ham_birincil_gunluk_indir(sembol: str, yenile: bool = False, *, aralik: tuple | None = None) -> pd.DataFrame:
     """Kaynaktaki birincil 1d dosyalarini KUME KORUMASI OLMADAN indirir.
 
-    B grubu ve C2 donemi dahil tum gecmisi dondurur. Yalnizca tum gecmisi olcmesi
-    gereken F1 capraz dogrulamasi icindir (CLAUDE.md §3.1). Analiz ve olay kodu
-    bunu CAGIRMAZ.
+    `aralik` verilmezse B grubu ve C2 donemi dahil tum gecmisi dondurur: yalnizca tum gecmisi olcmesi gereken F1
+    capraz dogrulamasi icindir (CLAUDE.md §3.1). `birincil_gunluk_indir` kumenin araligini verir; aralik disindaki
+    aylar acilmaz (D-B1). Analiz ve olay kodu bunu CAGIRMAZ.
     """
-    anahtarlar = bv.mum_dosyalari(sembol, config.BAR_1D)
+    aylar = None if aralik is None else bv.ay_araligi_sinirlari(*aralik)
+    anahtarlar = bv.mum_dosyalari(sembol, config.BAR_1D, aylar=aylar)
     parcalar = []
     for anahtar in anahtarlar:
         ay = bv.dosya_ayi(anahtar)

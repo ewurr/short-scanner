@@ -43,7 +43,7 @@ def sembol(monkeypatch):
     tablo = split.split_oku()
     s = str(tablo.loc[tablo["grup"] == "A", "sembol"].iloc[0])
 
-    def sahte(sembol_, bar=config.BAR_4H, yenile=False):
+    def sahte(sembol_, bar=config.BAR_4H, yenile=False, aralik=None):
         if bar == config.BAR_1D:
             return klines.gunluge_cevir(_dort_saat(), donemler=[DONEM])
         return _dort_saat()

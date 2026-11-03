@@ -1593,21 +1593,35 @@ def yukle(
     kume: str,
     onay: bool = False,
     mum_yukleyici=None,
+    yenile: bool = False,
 ) -> pd.DataFrame:
     """Bir sembolun mumlarini kume kisitlarina uyarak yukler.
 
     Kume kapisi `kume_erisimi`dir. Sembol istenen kumenin grubunda degilse bos
     cerceve doner; veri kume araligina kesilir.
+
+    Ay elemesi (RESULTS §14.42, denetci D-B1): varsayilan yukleyici yalnizca kume araligiyla kesisen aylarin dosyalarini
+    acar (`klines.ham_mumlari_yukle(..., aralik=...)`). Onay verisi izni YALNIZCA C1/C2'de acilir; KESIF yuklemesi
+    izinsiz calisir, yani bir onay dosyasina ulasma denemesi `OnayVerisiKorumasi` verir. `mum_yukleyici` yalnizca test
+    dikisidir (`(sembol, bar)` alir; ay elemesi ve izin onun sorumlulugunda degildir).
     """
     izinli, bas, son = kume_erisimi(sembol, kume, onay=onay)
     if not izinli:
         return _bos_mum_cercevesi()
 
-    yukleyici = klines.ham_mumlari_yukle if mum_yukleyici is None else mum_yukleyici
+    from contextlib import nullcontext
+
     from data import binance_vision as bv
 
-    # Kapidan gecildi; ham okuma (butun aylar) onay verisi izniyle, ardindan kume araligina kesilir.
-    with bv.onay_verisi_izni(f"split.yukle({sembol}, {bar}, {kume})"):
+    if mum_yukleyici is None:
+        def yukleyici(s, b):
+            return klines.ham_mumlari_yukle(s, b, yenile=yenile, aralik=(bas, son))
+    else:
+        yukleyici = mum_yukleyici
+    izin = (bv.onay_verisi_izni(f"split.yukle({sembol}, {bar}, {kume})") if kume in config.ONAY_KUMELERI
+            else nullcontext())
+    # Kapidan gecildi; kume araligindaki aylar okunur (onay kumesinde izinle), ardindan kume araligina kesilir.
+    with izin:
         ham = yukleyici(sembol, bar)
     return klines.donem_kes(ham, bas, son)
 

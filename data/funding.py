@@ -94,14 +94,19 @@ def funding_yukle(
     evren = universe.evren_yukle()
     if not (evren["sembol"] == sembol).any():
         raise KeyError(f"{sembol} universe.csv icinde yok.")
-    # Kapidan gecildi; ham okuma (butun aylar) onay verisi izniyle, ardindan kume araligina kesilir.
+    # Kapidan gecildi; yalnizca kume araligiyla kesisen aylar okunur (ay elemesi, dosya acilmadan; RESULTS §14.42,
+    # denetci D-B1), ardindan kume araligina kesilir. Onay verisi izni yalnizca C1/C2'de acilir.
     # Aga cikmaz (on-kayit §3 rev.13; `bv.agsiz_okuma`). Istisna `yenile=True`: guncelleme aracidir.
-    with bv.onay_verisi_izni(f"funding.funding_yukle({sembol}, {kume})"):
+    from contextlib import nullcontext
+
+    izin = (bv.onay_verisi_izni(f"funding.funding_yukle({sembol}, {kume})") if kume in config.ONAY_KUMELERI
+            else nullcontext())
+    with izin:
         if yenile:
-            tum = ham_funding_yukle(sembol, yenile=True)
+            tum = ham_funding_yukle(sembol, yenile=True, aralik=(bas, son))
         else:
             with bv.agsiz_okuma():
-                tum = ham_funding_yukle(sembol, yenile=False)
+                tum = ham_funding_yukle(sembol, yenile=False, aralik=(bas, son))
     if tum.empty:
         return tum
     tum = donem_sonrasi_kayitlari_at(tum, universe.sembol_donemleri(evren, sembol), config.BAR_4H)
@@ -109,16 +114,18 @@ def funding_yukle(
     return tum.loc[maske].reset_index(drop=True)
 
 
-def ham_funding_yukle(sembol: str, yenile: bool = False) -> pd.DataFrame:
-    """Bir sembolun TUM funding gecmisi, KUME KORUMASI OLMADAN; eksik aylar indirilir.
+def ham_funding_yukle(sembol: str, yenile: bool = False, *, aralik: tuple | None = None) -> pd.DataFrame:
+    """Bir sembolun funding gecmisi, KUME KORUMASI OLMADAN; eksik aylar indirilir.
 
-    B grubu ve C2 donemi dahil tum gecmisi dondurur. Yalnizca veri katmani ve
-    tum gecmisi olcmesi gereken F1 kapsama denetimi icindir (CLAUDE.md §3.1).
-    Analiz ve olay kodu bunu CAGIRMAZ.
+    `aralik` verilmezse B grubu ve C2 donemi dahil tum gecmisi dondurur: yalnizca tum gecmisi olcmesi gereken F1
+    kapsama denetimi icindir (CLAUDE.md §3.1). `funding_yukle` kapidan gectikten sonra kumenin kapali araligini
+    `aralik=(bas, son)` olarak verir; aralikla kesismeyen aylarin dosyalari ACILMAZ (`bv.aylara_gore_ele`; RESULTS
+    §14.42, denetci D-B1). Analiz ve olay kodu bunu CAGIRMAZ.
 
     Sutunlar: odeme_zamani (UTC), aralik_saat, oran (gercek), oran_8h (normal).
     """
-    anahtarlar = bv.funding_dosyalari(sembol)
+    aylar = None if aralik is None else bv.ay_araligi_sinirlari(*aralik)
+    anahtarlar = bv.funding_dosyalari(sembol, aylar=aylar)
     parcalar = []
     for anahtar in anahtarlar:
         ay = bv.dosya_ayi(anahtar)

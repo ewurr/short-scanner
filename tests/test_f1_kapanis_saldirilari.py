@@ -206,7 +206,7 @@ def test_ham_mumlari_yukle_cakisan_zaman_damgasini_sessizce_cozer(tmp_path, monk
     monkeypatch.setattr(config, "ONBELLEK_DIZINI", tmp_path)
     sembol, bar = "TESTUSDT", config.BAR_4H
     anahtar = f"{bv.MUM_ONEKI}/{sembol}/{bar}/{sembol}-{bar}-2021-01.zip"
-    monkeypatch.setattr(bv, "mum_dosyalari", lambda s, b: [anahtar])
+    monkeypatch.setattr(bv, "mum_dosyalari", lambda s, b, aylar=None: [anahtar])
 
     def _zip_indir_yasak(*_a, **_k):
         raise AssertionError("onbellek doluyken zip_indir cagrilmamali (ag kullanilmamali)")
@@ -271,7 +271,7 @@ def test_ham_funding_yukle_yakin_ms_farkli_kayitlari_saate_yuvarlamaz(tmp_path, 
     monkeypatch.setattr(config, "ONBELLEK_DIZINI", tmp_path)
     sembol = "TESTUSDT"
     anahtar = f"{bv.FUNDING_ONEKI}/{sembol}/{sembol}-fundingRate-2021-01.zip"
-    monkeypatch.setattr(bv, "funding_dosyalari", lambda s: [anahtar])
+    monkeypatch.setattr(bv, "funding_dosyalari", lambda s, aylar=None: [anahtar])
 
     def _zip_indir_yasak(*_a, **_k):
         raise AssertionError("onbellek doluyken zip_indir cagrilmamali (ag kullanilmamali)")

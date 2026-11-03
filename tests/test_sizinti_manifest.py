@@ -434,15 +434,16 @@ def test_komut_satiri_ciktisi_onay_ay_adi_ve_b_sembolu_sizdirmaz(onbellek, capsy
                                                                         "onay_dosya", "sure_sn"}
 
 
-def test_ayrinti_listesi_yokken_kesif_yuklemesi_hatasi_ay_adi_ve_boy_vermez(onbellek):
-    """Ozet ve RESULTS §14.41: KESIF yuklemesinin hatalari onay ay adini ya da boyunu sizdirmaz."""
+def test_ayrinti_listesi_yokken_kesif_yuklemesi_ona_bakmaz(onbellek):
+    """RESULTS §14.42 (D-B1; §14.41'de bu test KESIF yuklemesinin ayrinti listesi yokken ad sizdirmadan durdugunu
+    sinardi): KESIF yuklemesi ayrinti listesini hic okumaz; liste yokken de sonuc ayni."""
     mf.manifest_kur()
-    boy = str(_onay_yolu(onbellek).stat().st_size)
+    once = klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
     mf.onay_ayrinti_yolu().unlink()
     bv.donuk_bellek_temizle()
-    with pytest.raises(mf.ManifestYok) as hata:
-        klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
-    assert C2_AYI not in str(hata.value) and boy not in str(hata.value).replace(str(onbellek), "")
+    kume_bellegi.temizle()
+    sonra = klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
+    pd.testing.assert_frame_equal(once, sonra)
 
 
 # --- M-14: sabit baglanti -----------------------------------------------------------------------------------------
@@ -571,12 +572,12 @@ def test_onay_kosusu_hatayla_kapanirsa_da_bellek_kopyalari_dusurulur(onbellek, t
 
 
 def test_kesif_kosusu_gercek_yuklemeden_sonra_kapanista_onay_listesi_bellekte_kalmaz(onbellek):
-    """CLAUDE.md §5: KESIF yuklemesi A grubunun C2 dosyasini da acar ve ayrinti listesini bellege alir; kosu kapanista
-    bu kopya duser (kosu disina onay dosyasi adi/boyu tasinmaz)."""
+    """CLAUDE.md §5 ve RESULTS §14.42 (D-B1): KESIF yuklemesi ayrinti listesini bellege almaz (§14.41'de alirdi); kosu
+    kapanisinda kopyalar duser (kosu disina onay dosyasi adi/boyu tasinmaz)."""
     mf.manifest_kur()
     with split.kesif_kosusu():
         klines.mumlari_yukle(A_SEMBOL, config.BAR_4H, "KESIF")
-        assert "onay" in mf._BELLEK
+        assert "onay" not in mf._BELLEK
     assert mf._BELLEK == {} and bv._DONUK_BELLEK == {}
     with pytest.raises(bv.OnayVerisiKorumasi):
         mf._onay_listesi(mf._manifest())

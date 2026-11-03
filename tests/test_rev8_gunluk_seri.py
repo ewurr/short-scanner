@@ -104,8 +104,8 @@ def test_1d_yukleyici_ayni_fonksiyonu_commit_edilmis_donemlerle_cagirir(monkeypa
     d = Donem(T("2025-01-01 08:00"), T("2025-01-05 08:00"), 20, 20)
     gercek = klines.ham_mumlari_yukle
 
-    def sahte(sembol, bar=config.BAR_4H, yenile=False):
-        return m.copy() if bar == config.BAR_4H else gercek(sembol, bar, yenile)
+    def sahte(sembol, bar=config.BAR_4H, yenile=False, aralik=None):
+        return m.copy() if bar == config.BAR_4H else gercek(sembol, bar, yenile, aralik=aralik)
 
     monkeypatch.setattr(klines, "ham_mumlari_yukle", sahte)
     monkeypatch.setattr(universe_modulu, "evren_yukle", lambda *a, **k: pd.DataFrame())
