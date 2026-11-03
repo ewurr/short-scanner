@@ -3967,7 +3967,7 @@ M-15 ve M-16 ajanın işaretsiz bıraktığı iki testte çıktı; işaretleri k
 - Resmî F2 koşusu temiz ağaç (`agac_temiz=True`) ve `origin/main` eşitliği ister. Bu turda zorlanmaz, yalnızca kayda geçer.
 - Paralellik süreçle yapılır (§14.40); ağ yasağı ve keşif bağlamı alt süreçlere taşınır.
 
-**Testler.** Parçalı tam takım `587e40e` (171 dosya): **4788 geçti, 123 xfailed, 0 başarısız, 0 XPASS, 3 atlandı**. Sızıntı testçisinin dosyası (`a2c39fb`) tek başına: 73 geçti, 13 xfailed, 1 atlandı; tam takım sonucu aşağıda.
+**Testler.** Parçalı tam takım `587e40e` (171 dosya): **4788 geçti, 123 xfailed, 0 başarısız, 0 XPASS, 3 atlandı**. Sızıntı testçisinin dosyası (`a2c39fb`) tek başına: 73 geçti, 13 xfailed, 1 atlandı. Parçalı tam takım `b828157` (172 dosya): **4861 geçti, 136 xfailed, 0 başarısız, 0 XPASS, 4 atlandı** (123 + 13 = 136).
 
 **Metodoloji denetçisi.** Bloklayıcı yok. Hükümler: D-B1 kapandı (kapı yolu); D-B2 kapandı, artıkları D-K3, D-K4, D-K5. Onay koşusu olmadan C1/C2 verisini okutan yeni yol: **hayır**. Eşik, ızgara, ufuk, maliyet ve kontrol tanımı değişmedi. `_DOGRULANMIS` her okunuşta erişim denetimi ve açılış/kapanış temizliği kuralına uyar.
 
