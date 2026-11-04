@@ -257,9 +257,7 @@ def test_data_dizini_izlenen_ikiz_dizine_kavsak_olunca_kosu_acilmamali(bagli_dep
         os.rmdir(veri_dizini)  # yalnizca kavsagi kaldirir
 
 
-@_xf("S-5", "`git replace`: HEAD:data/split.csv blobu yerel replace referansiyla oynanmis baytlarla degistirilince "
-            "`cat-file blob` oynanmis baytlari dondurur; bag gecer (GIT_NO_REPLACE_OBJECTS / --no-replace-objects yok)",
-    raises=pytest.fail.Exception)
+# S-5 kapandi (RESULTS §14.44): bagin git cagrilari `split._bag_ortami` ile.
 def test_git_replace_ile_head_blobu_degistirilerek_bayt_bagi_atlatilmamali(bagli_depo):
     """§14.43: 'HEAD'deki baytlar' commit'in gercek baytlari olmali; yerel replace referansi onlari degistirmemeli."""
     yol = config.SPLIT_CSV
@@ -276,8 +274,7 @@ def test_git_replace_ile_head_blobu_degistirilerek_bayt_bagi_atlatilmamali(bagli
             pass
 
 
-@_xf("S-6", "`_git_bayt` ve `_git` ortami suzmeden `os.environ`i miras alir: GIT_DIR baska bir (sahte) depoya cevrilince "
-            "ls-files/cat-file o depodan okunur; oynanmis split.csv 'HEAD'e bagli' gorunur", raises=pytest.fail.Exception)
+# S-6 kapandi (RESULTS §14.44): bagin git cagrilari `split._bag_ortami` ile.
 def test_git_dir_ortam_degiskeniyle_sahte_depodan_head_baytlari_okutulamamali(bagli_depo, monkeypatch, tmp_path):
     """§14.43: git ortam degiskenleri (GIT_DIR, GIT_INDEX_FILE, GIT_WORK_TREE...) bag denetimine tasinmamali."""
     dekoy = tmp_path / "dekoy"

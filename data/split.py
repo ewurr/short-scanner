@@ -1613,10 +1613,35 @@ def _kesif_bagli_dosyalar() -> list[Path]:
     return [onbellek_manifest._etkin_yol(), Path(config.SPLIT_CSV), Path(config.UNIVERSE_CSV)]
 
 
+# Kesif baginin git cagrilarinin ortami (RESULTS §14.44; sizinti S-5, S-6). Depo, indeks, calisma agaci ve nesne dizini
+# git'e ortam degiskeniyle baska bir yere cevrilemez; yerel `git replace` referanslari nesne okumasini saptiramaz.
+# Yalnizca bag (`kesif_bagi_denetle`) ve kesif kaydi (`_kesif_kaydi_kur`) bu ortami kullanir; onay kaydinin git
+# cagrilari (`_git`) bu turda degismedi (P-7 ayri bir bulgudur).
+_BAG_SUZULEN_ORTAM = ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_OBJECT_DIRECTORY")
+
+
+def _bag_ortami() -> dict[str, str]:
+    ortam = {k: v for k, v in os.environ.items() if k.upper() not in _BAG_SUZULEN_ORTAM}
+    ortam.update({"GIT_TERMINAL_PROMPT": "0", "GIT_LITERAL_PATHSPECS": "1", "GIT_NO_REPLACE_OBJECTS": "1"})
+    return ortam
+
+
+def _bag_git(*argumanlar: str, sure: int = 30) -> str | None:
+    """Kesif kaydinin metin ciktili git cagrilari (`_bag_ortami`). Hata ya da sifirdan farkli cikis kodunda None."""
+    try:
+        cikti = subprocess.run(["git", "--no-replace-objects", *argumanlar], cwd=_depo(), capture_output=True,
+                               text=True, encoding="utf-8", errors="replace", timeout=sure, env=_bag_ortami())
+    except Exception:
+        return None
+    return cikti.stdout if cikti.returncode == 0 else None
+
+
 def _git_bayt(*argumanlar: str, sure: int = 30) -> bytes | None:
     """Git ciktisini BAYT olarak doner (`cat-file blob`); pathspec'ler her zaman literal (`GIT_LITERAL_PATHSPECS=1`,
-    sizinti F-4). Hata ya da sifirdan farkli cikis kodunda None."""
-    ortam = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_LITERAL_PATHSPECS": "1"}
+    sizinti F-4); replace referanslari yok sayilir ve depo yonlendiren ortam degiskenleri suzulur (`_bag_ortami`; S-5,
+    S-6). Hata ya da sifirdan farkli cikis kodunda None."""
+    ortam = _bag_ortami()
+    argumanlar = ("--no-replace-objects", *argumanlar)
     try:
         cikti = subprocess.run(["git", "--literal-pathspecs", *argumanlar], cwd=_depo(), capture_output=True,
                                timeout=sure, env=ortam)
@@ -1669,14 +1694,15 @@ def _dosya_sha256(yol) -> str | None:
 
 
 def _kesif_kaydi_kur(manifest_sha256: str | None) -> KesifKaydi:
-    head = _git("rev-parse", "HEAD")
+    # Bagin ortami (S-5, S-6; RESULTS §14.44): kayit da bagla ayni depodan, replace referanslari yok sayilarak okunur.
+    head = _bag_git("rev-parse", "HEAD")
     head = head.strip() if head is not None and re.fullmatch(r"[0-9a-f]{40}", head.strip()) else None
-    durum = _git("status", "--porcelain")
+    durum = _bag_git("status", "--porcelain")
     temiz = None if durum is None else not [s for s in durum.splitlines() if s.strip()]
-    uzak = _git("rev-parse", "--verify", "--quiet", _UZAK_REF)
+    uzak = _bag_git("rev-parse", "--verify", "--quiet", _UZAK_REF)
     origin = None if head is None or uzak is None else uzak.strip() == head
     # Yerel referansin son guncellenme ani (reflog; D-K4). Fetch yapilmaz.
-    secici = _git("reflog", "-1", "--date=unix", "--format=%gd", _UZAK_REF)
+    secici = _bag_git("reflog", "-1", "--date=unix", "--format=%gd", _UZAK_REF)
     eslesme = re.search(r"@\{(\d+)\}", secici or "")
     zaman = (dt.datetime.fromtimestamp(int(eslesme.group(1)), dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
              if eslesme else None)
