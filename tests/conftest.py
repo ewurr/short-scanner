@@ -46,10 +46,14 @@ def ag_kapali(monkeypatch, request):
 
 @pytest.fixture(autouse=True)
 def bellek_temiz():
-    """Bellek onbellegi testler arasinda sizmaz (RESULTS §14.40)."""
+    """Bellek onbellegi testler arasinda sizmaz (RESULTS §14.40). Dogrulanmis okuma bellegi (`bv._DOGRULANMIS`),
+    dondurulmus liste ve manifest kopyalari da duser (`bv.donuk_bellek_temizle`): bir testin okudugu cerceve
+    sonraki testin sonucuna girmez ve tam takimda surec bellegi birikmez."""
+    from data import binance_vision as bv
     from data import kume_bellegi
 
     kume_bellegi.temizle()
+    bv.donuk_bellek_temizle()
 
 
 @pytest.fixture(autouse=True)
