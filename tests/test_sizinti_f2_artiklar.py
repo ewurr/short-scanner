@@ -514,9 +514,7 @@ def test_pytest_ortam_degiskeni_sahteciligi_test_kaydini_pytest_disinda_ayarlatm
     assert _alt(kod, tmp_path) == ["OnayKorumasi"]
 
 
-@_xf("S-11", "`onbellek_manifest.MANIFEST_YOLU` modul degiskeni korumasiz: `= None` atamasi uretim kipinde "
-             "`denetim_etkin()`i False yapar; kesif_kosusu commit bagini, manifest dogrulamasini ve KESIF baglam "
-             "kuralini topluca atlar (tek atama)", raises=AssertionError)
+# S-11 kapandi (RESULTS §14.44): pytest disinda `denetim_etkin()` her zaman True; yol eksikse `ManifestYok`.
 def test_manifest_yolu_degiskeni_none_yapilarak_kesif_sozlesmesi_kapatilamamali():
     """§14.42 D-B2/D-C1: manifest denetiminin acik/kapali bayragi modul disindan degistirilememeli."""
     hazir = "from data import onbellek_manifest as mf\nmf.MANIFEST_YOLU = None"

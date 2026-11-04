@@ -82,15 +82,26 @@ def _test_manifest_ayarla(yol) -> Path:
 
 
 def _etkin_yol() -> Path | None:
+    """Denetimin manifest yolu. pytest disinda her zaman `MANIFEST_YOLU`dur ve bir yol OLMALIDIR: modul degiskeni `None`
+    (ya da yol olmayan bir deger) yapilmissa `ManifestYok` (S-11, RESULTS §14.44). pytest icinde testin kendi ayari."""
     from data import split
 
     test = split._pytest_testi()
     if test is None:
-        return MANIFEST_YOLU
+        if not isinstance(MANIFEST_YOLU, (str, os.PathLike)):
+            raise ManifestYok("Manifest yolu tanimli degil (MANIFEST_YOLU); pytest disinda manifest denetimi "
+                              "kapatilamaz (RESULTS §14.44, S-11).")
+        return Path(MANIFEST_YOLU)
     return _TEST_AYARI[1] if _TEST_AYARI is not None and _TEST_AYARI[0] == test else None
 
 
 def denetim_etkin() -> bool:
+    """pytest disinda HER ZAMAN True (S-11): denetimin acik olup olmadigi bir modul degiskenine bagli degildir; yolun
+    kendisi okunurken (`_etkin_yol`) eksikse hata verir. pytest icinde yalnizca testin kendi manifestini kurdugu testte."""
+    from data import split
+
+    if split._pytest_testi() is None:
+        return True
     return _etkin_yol() is not None
 
 
