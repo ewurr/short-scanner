@@ -36,6 +36,7 @@ import argparse
 import concurrent.futures
 import dataclasses
 import hashlib
+import json
 import math
 import multiprocessing
 import subprocess
@@ -316,28 +317,73 @@ def agac_temiz() -> bool:
     return cikti.strip() == ""
 
 
-def kos(semboller, ayar: dict, isci: int):
-    """Kesif kosusu icinde, surec havuzuyla. (satirlar, kesif kaydi alanlari)."""
+def _ara_dizin_dogrula(ara_dizin) -> Path | None:
+    """Ara kayit dizini depo DISINDA olmali (calisma agaci temiz kalir; kesilmis veri yazilmaz, yalnizca sayilar)."""
+    if ara_dizin is None:
+        return None
+    yol = Path(ara_dizin).resolve()
+    if yol == KOK or KOK in yol.parents:
+        raise SystemExit("--ara-dizin depo disinda olmali (calisma agaci temiz kalir).")
+    yol.mkdir(parents=True, exist_ok=True)
+    return yol
+
+
+def kos(semboller, ayar: dict, isci: int, ara_dizin: Path | None = None):
+    """Kesif kosusu icinde, surec havuzuyla. (satirlar, kesif kaydi alanlari listesi).
+
+    `ara_dizin` verilirse her biten sembolun satirlari oraya yazilir (`<sembol>.json`: satirlar, HEAD, ayar) ve sonraki
+    kosu ayni HEAD ve ayni ayarla kaydi olan sembolleri atlar (kesilen kosunun kaldigi yerden devami). Farkli HEAD ya da
+    ayarla yazilmis ara kayit hata verir; karisik sonuc birlestirilmez. Her kosunun kesif kaydi `kayitlar.jsonl`ye
+    eklenir ve cikti kayit dosyasina hepsi yazilir."""
     satirlar = []
     with split_modulu.kesif_kosusu() as kayit:
-        if isci <= 1:
+        head = kayit.alanlar()["head_commit"]
+        kalan = list(semboller)
+        if ara_dizin is not None:
+            kalan = []
             for s in semboller:
-                satirlar += sembol_isi(s, ayar)
-        else:
+                yol = ara_dizin / f"{s}.json"
+                if not yol.exists():
+                    kalan.append(s)
+                    continue
+                onceki = json.loads(yol.read_text(encoding="utf-8"))
+                if onceki["head_commit"] != head or onceki["ayar"] != ayar:
+                    raise SystemExit(f"{yol.name}: ara kayit baska bir HEAD ya da ayarla yazilmis; birlestirilmez.")
+                satirlar += onceki["satirlar"]
+
+        def kaydet(s, sonuc):
+            if ara_dizin is not None:
+                (ara_dizin / f"{s}.json").write_text(
+                    json.dumps({"head_commit": head, "ayar": ayar, "satirlar": sonuc}), encoding="utf-8")
+
+        if isci <= 1:
+            for s in kalan:
+                sonuc = sembol_isi(s, ayar)
+                kaydet(s, sonuc)
+                satirlar += sonuc
+                print(f"bitti: {s}", file=sys.stderr, flush=True)
+        elif kalan:
             baglam = multiprocessing.get_context("spawn")
             with concurrent.futures.ProcessPoolExecutor(max_workers=isci, mp_context=baglam,
                                                         max_tasks_per_child=1) as havuz:
-                isler = {havuz.submit(sembol_isi, s, ayar): s for s in semboller}
+                isler = {havuz.submit(sembol_isi, s, ayar): s for s in kalan}
                 for is_ in concurrent.futures.as_completed(isler):
                     sembol = isler[is_]
                     try:
-                        satirlar += is_.result()
+                        sonuc = is_.result()
+                        kaydet(sembol, sonuc)
                     except Exception as hata:  # noqa: BLE001
-                        satirlar.append({"sembol": sembol, "donem_no": -1, "rol": "HATA", "hata": type(hata).__name__})
+                        sonuc = [{"sembol": sembol, "donem_no": -1, "rol": "HATA", "hata": type(hata).__name__}]
+                    satirlar += sonuc
                     print(f"bitti: {sembol}", file=sys.stderr, flush=True)
+    kayitlar = [kayit.alanlar()]
+    if ara_dizin is not None:
+        with (ara_dizin / "kayitlar.jsonl").open("a", encoding="utf-8") as d:
+            d.write(json.dumps(kayit.alanlar(), default=str) + "\n")
+        kayitlar = [json.loads(x) for x in (ara_dizin / "kayitlar.jsonl").read_text(encoding="utf-8").splitlines() if x]
     tablo = pd.DataFrame(satirlar).reindex(columns=SUTUNLAR)
     tablo = tablo.sort_values(["sembol", "donem_no", "hipotez", "yapilandirma", "rol"], kind="stable")
-    return tablo.reset_index(drop=True), kayit.alanlar()
+    return tablo.reset_index(drop=True), kayitlar
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -352,7 +398,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--isci", type=int, default=max(1, (multiprocessing.cpu_count() or 2) - 1))
     ap.add_argument("--sembol", nargs="*", default=None, help="ornegin alt kumesi (varsayilan: butun ornek)")
     ap.add_argument("--etiket", default="p2a")
+    ap.add_argument("--ara-dizin", default=None, help="depo disinda ara kayit dizini (kesilen kosunun devami)")
     arg = ap.parse_args(argv)
+    ara_dizin = _ara_dizin_dogrula(arg.ara_dizin)
     if not agac_temiz():
         print("Calisma agaci temiz degil; esitlik kosusu commit edilmis agacta yapilir.", file=sys.stderr)
         return 2
@@ -363,9 +411,9 @@ def main(argv: list[str] | None = None) -> int:
     from calistir import csv_yaz, kosu_kilidi
 
     with kosu_kilidi(f"esitlik_kapi_{arg.etiket}"):
-        tablo, kayit = kos(semboller, ayar, arg.isci)
+        tablo, kayitlar = kos(semboller, ayar, arg.isci, ara_dizin)
         csv_yaz(tablo, BU_DIZIN / f"esitlik_kapi_{arg.etiket}_tam.csv")
-        csv_yaz(pd.DataFrame([kayit]), BU_DIZIN / f"esitlik_kapi_{arg.etiket}_kesif_kaydi_tam.csv")
+        csv_yaz(pd.DataFrame(kayitlar), BU_DIZIN / f"esitlik_kapi_{arg.etiket}_kesif_kaydi_tam.csv")
     karsi = int(tablo["karsilastirilan_bar"].fillna(0).sum())
     uyus = int(tablo["uyusmayan_bar"].fillna(0).sum())
     hata = int((tablo["hata"].fillna("") != "").sum())

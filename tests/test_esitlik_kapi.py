@@ -165,3 +165,51 @@ def test_tohum_kosu_sirasindan_bagimsiz_ve_parcalara_bagli():
 
 def test_esitlik_betigi_bugunku_olay_karari_ve_referansi_karsilastirir():
     assert ek.pozisyon_modulu is pozisyon and ek.referans is ref and ek.funding_modulu is funding
+
+
+class _SahteKayit:
+    def __init__(self, head):
+        self.head = head
+
+    def alanlar(self):
+        return {"head_commit": self.head, "agac_temiz": True}
+
+
+def _sahte_kosu(monkeypatch, head, cagrilan):
+    import contextlib
+
+    @contextlib.contextmanager
+    def kosu():
+        yield _SahteKayit(head)
+
+    import types
+
+    monkeypatch.setattr(ek, "split_modulu", types.SimpleNamespace(kesif_kosusu=kosu))
+
+    def isi(s, ayar):
+        cagrilan.append(s)
+        return [{"sembol": s, "donem_no": 0, "rol": "K1", "karsilastirilan_bar": 1, "uyusmayan_bar": 0}]
+
+    monkeypatch.setattr(ek, "sembol_isi", isi)
+
+
+def test_ara_dizin_kesilen_kosuyu_kaldigi_yerden_surdurur(monkeypatch, tmp_path):
+    cagrilan = []
+    _sahte_kosu(monkeypatch, "a" * 40, cagrilan)
+    ayar = {"bar": "ornek"}
+    ek.kos(["X", "Y"], ayar, 1, tmp_path)
+    assert cagrilan == ["X", "Y"]
+    (tmp_path / "Y.json").unlink()                     # Y'de kesilmis gibi
+    tablo, kayitlar = ek.kos(["X", "Y"], ayar, 1, tmp_path)
+    assert cagrilan == ["X", "Y", "Y"] and sorted(tablo["sembol"]) == ["X", "Y"] and len(kayitlar) == 2
+    _sahte_kosu(monkeypatch, "b" * 40, cagrilan)       # baska HEAD: birlestirilmez
+    with pytest.raises(SystemExit):
+        ek.kos(["X", "Y"], ayar, 1, tmp_path)
+    _sahte_kosu(monkeypatch, "a" * 40, cagrilan)       # baska ayar: birlestirilmez
+    with pytest.raises(SystemExit):
+        ek.kos(["X", "Y"], {"bar": "tum"}, 1, tmp_path)
+
+
+def test_ara_dizin_depo_icinde_olamaz():
+    with pytest.raises(SystemExit):
+        ek._ara_dizin_dogrula(KOK / "analysis" / "ara")
