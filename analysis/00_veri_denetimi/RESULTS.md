@@ -3995,6 +3995,100 @@ M-15 ve M-16 ajanın işaretsiz bıraktığı iki testte çıktı; işaretleri k
 
 F-1, F-2, F-3'ün ortak kökü: bağ çalışma ağacı baytlarını HEAD blobunun baytlarıyla karşılaştırmıyor, `git diff`e güveniyor. Tek düzeltme önerisi: `sha256(çalışma baytları) == sha256(git cat-file blob HEAD:yol)` ve özet sabitleme aynı okumadan. F-4 için `--literal-pathspecs`. Ajanın gözlemi (sızıntı değil): `aylara_gore_ele` ile `_anahtar_denetle` ayı farklı yerden çıkarır; tutarsız ad kapalı yönde reddedilir.
 
+### §14.43 F2 öncesi artıklar (2026-11-04)
+
+Kapsam: §14.42'de F2 kodundan önce kapanması gereken artıklar (Bölüm 1) ve performans 2'nin planı (Bölüm 2, kod yok). Getiri, sinyal değeri, olay sayısı ya da karar sonucu hesaplanmadı, yazdırılmadı. `events/` ve `study/` boş. Kilitli dosyalara dokunulmadı. Onay koşusu açılmadı, C1/C2 dosyası okunmadı.
+
+**D-K2: ay elemesi KESIF kaydı düşürmüyor** (`497594d` betik, `c65568e` ikinci funding kanıtının sınırı, `d7c07b6` çıktılar). Betik: `dk2_ay_elemesi.py` (F1 denetim sınıfı). Çıktılar yalnızca sayı ve KESIF tarafı zaman damgası: `dk2_ay_elemesi_tam.csv`, `dk2_dosya_ayi_tam.csv`, `dk2_kesif_kaydi_tam.csv`.
+- **Referans (eski yol, bütün aylar açılarak).** 4h: `koruma_pozitif_fiyat_tam.csv`, sütun `KESIF_bar` (`koruma_olcumu.py`, `klines.ham_mumlari_yukle`; dönem içi = `pencere.donem_ici_4h_maskesi`). Funding: `rev9_ritim_kayit_tam.csv`, `kume == "KESIF"` satırlarının `kayit` toplamı (`rev9_ritim.py`, `funding.ham_funding_yukle`; dönem içi = [dönem başı, B], toleranslı).
+- **Yeni yol.** `split.kesif_kosusu` içinde, kapılı yükleyicilerle (`klines.mumlari_yukle`, `funding.funding_yukle`, KESIF), bütün A sembolleri.
+- **Sonuç.** 333 A sembolü; 4h 1.113.921 = 1.113.921, funding 721.761 = 721.761; sembol başına fark 0.
+- **İkinci funding kanıtı.** Dönemi KESIF sonunu içeren 234 sembolün hepsinde son KESIF funding kaydı + aralığı = C2 başı (aralık 4 saat: 163, 8 saat: 69, 1 saat: 2). Kalan 99 sembolde ölçüt uygulanmaz. Aynı yükleyicinin çıktısından gelen bir öz tutarlılık denetimidir; birincil kanıt sayım karşılaştırmasıdır.
+- **Ters kontrol.** Manifestin `kesif` katmanındaki her dosyanın her kaydı dosyanın ayında: funding 6.616 dosya ve 767.098 kayıt, klines 6.696 dosya ve 1.195.499 kayıt, birincil 1d 6.635 dosya ve 197.521 kayıt; ay dışı kayıt 0, ay dışı dosya 0.
+- **Kapsam (denetçi D-B7).** Kanıt yalnızca **A grubu, KESIF** için geçerlidir. C1'de (B grubu) ve C2'de ay elemesi aynı ay sınırlarıyla çalışır; 19.947 KESIF dosyasında ay dışı kayıt bulunmaması orası için yalnızca tümevarımsal bir gerekçedir. Başlangıç sınırını (2019-12 → 2020-01) A grubunda yalnızca BCHUSDT kesiyor (D-C5).
+- **Köken (denetçi D-C3).** Ölçüm `c65568e`'de, bayt bağından (`c9bba46`) önce koştu; kayıt `agac_temiz=False`, `origin_main_esit=False`. Ağacın neden kirli olduğu kayıtta yok.
+
+**F-1, F-2, F-3, F-4, D-K3, D-K4: git bağı baytlara dayanır** (`c9bba46`). `kesif_kosusu` açılışında bağlı her dosya (manifest, `split.csv`, `universe.csv`) için çalışma ağacı baytlarının SHA256'sı `git --literal-pathspecs cat-file blob HEAD:<yol>` baytlarının SHA256'sıyla karşılaştırılır (`GIT_LITERAL_PATHSPECS=1`). Manifestin sabitlenen özeti aynı okumadan alınır. `git diff`e dayanan denetim kaldırıldı. Kapanışta üç dosya aynı yöntemle yeniden özetlenir (D-K3). D-K4: `KesifKaydi` `origin_main_ref_zamani` alanını yazar; fetch yapılmaz. **F2 gereksinimi:** resmî koşudan hemen önce `git fetch`. Denetçi D-C1: alan referansın son *değişim* anıdır, değişiklik getirmeyen fetch'i göstermez; fetch'in yapıldığının kanıtı değildir.
+
+**D-C1: keşif bağlamı** (`5bf1ffd`). `_KESIF_DURUMU`, `_kesif_baglami` ve `SHORT_LAB_KESIF_KOSUSU` analiz kodu taramasında yasak ad; `kesif_kosusu` izinli. `pozisyon.mae` ve `funding.pozisyon_fundingi` KESIF'te `kesif_kosusu` dışında `KesifBaglamiYok` verir. F-7 (sözlüğün yerinde değiştirilmesi) bu değişiklikle kapanmadı, xfail kaldı.
+
+**D-K6: ağ taraması** (`10f3b99`). `ftplib`, `smtplib`, `asyncio` ağ açılışları (`open_connection`, `create_connection`) ve `subprocess` ile birlikte geçen `curl`/`wget`/`Invoke-WebRequest`/`iwr` metinleri yakalanır. Mevcut analiz kodunda yanlış pozitif yok (tarama testleri tam takımda geçiyor).
+
+**Test altyapısı.** `d26b4dc`: otomatik `bellek_temiz` fixture'ı yalnızca `kume_bellegi`ni temizliyordu; `bv._DOGRULANMIS`, dondurulmuş liste ve manifest kopyaları testler arasında kalıyordu. Fixture artık `bv.donuk_bellek_temizle()` da çağırır. Hedefli takım (bu belleklere dokunan 21 dosya): 589 geçti, 3 atlandı, 44 xfailed. `f70d5e5`: `tools/parcali_takim.py` grup başına tepe belleği (MB) yazar (Windows'ta `GetProcessMemoryInfo` → `PeakWorkingSetSize`; `--grup` parametresi zaten vardı, varsayılan 4).
+
+**Kaldırılan işaretleyiciler ve xfail hesabı.** F-1 (6 durum), F-2, F-3, F-4: 9 xfail durumu; hepsi beklenen XPASS listesindeydi. Hesap: 136 − 9 = **127**. F-7 açık.
+
+**Parçalı tam takım** (`f70d5e5`, 172 dosya, **8 grup**). **4900 geçti, 127 xfailed, 0 başarısız, 0 XPASS, 4 atlandı**; toplam süre 1823 s. **Grup sayısı neden 8:** önceki tur takımın bir grubu bellek yüzünden durmuştu. Gruplar sırayla koştuğu için 8 grup toplam süreyi değiştirmez, süreç başına tepe belleği düşürür. Toplamlar önceki turlarla karşılaştırılabilir, grup satırları karşılaştırılamaz (round-robin bölme grup sayısına bağlıdır). Gruplar tek tek ön planda koşuldu (aracın `gruplara_bol`, `grubu_kos`, `tablo` fonksiyonlarıyla).
+
+| Grup | Dosya | Geçen | xfail | Atlanan | Süre (s) | Tepe bellek (MB) |
+|---|---|---|---|---|---|---|
+| 0 | 22 | 562 | 0 | 0 | 107,6 | 136 |
+| 1 | 22 | 575 | 4 | 1 | 98,8 | 139 |
+| 2 | 22 | 868 | 26 | 0 | 111,8 | 144 |
+| 3 | 22 | 796 | 55 | 0 | 616,6 | 1673 |
+| 4 | 21 | 523 | 26 | 2 | 374,7 | 134 |
+| 5 | 21 | 469 | 15 | 1 | 362,5 | 141 |
+| 6 | 21 | 687 | 0 | 0 | 112,5 | 148 |
+| 7 | 21 | 420 | 1 | 0 | 38,7 | 138 |
+
+Grup 3'ün tepe belleği ötekilerin on katı; hangi dosyanın ürettiği ölçülmedi.
+
+**Bölüm 2: güncel ölçüm** (`f70d5e5`, `kesif_kosusu` içinde; girdi §14.40 ile aynı: SOLUSDT, KESIF, dönem 0, t = 2022-06-01 00:00 UTC, ızgaranın ilk demeti; yalnızca süre ve bellek boyutu).
+
+| Çağrı | İlk (s) | Sonraki (ms) |
+|---|---|---|
+| olay_karari olay / K1 / K2 H2 | 1,42 / 0,74 / 0,60 | 31,2 / 69,9 / 75,9 |
+| olay_karari olay / K1 / K2 H3 | 0,57 / 0,57 / 0,57 | 16,2 / 14,5 / 15,9 |
+| sinyal_kosulu H1 pump / H2 / H3 | 0,60 / 0,62 / 0,62 | 31,8 / 36,7 / 14,7 |
+
+- Bar başına marjinal (ms): H1 pump değerleri 30,1; H2 sinyal değerleri 24,4; H3 sinyal değerleri 9,7; plan 0,59; funding tamlığı 17,0; funding toplamı 17,6.
+- Ardışık 200 bar (H2 koşulu + K1 H2): 19,1 s, bar başına 95,5 ms.
+- Tam KESIF yürüyüşü (SOLUSDT dönem 0, H2 koşulu): 10.847 bar, 315 s, bar başına 29,1 ms. Yürüyüş sonunda `bv._DOGRULANMIS` 120 dosya, 1,10 MB; `kume_bellegi` 2 girdi, 2,42 MB (`memory_usage(deep=True)`).
+- `kesif_kosusu` açılışı 59,2 s, kapanışı 24,3 s.
+- **Toplam kestirim** (§14.40 formülü, aynı çağrı sayıları): koşul 8,2 + K1 16,5 + yükleme 0,16 gün; K2 isabetle 1,06, ıskalamayla 8,4 gün; **toplam 26,0 ile 33,3 gün** (§14.40: 24,4 ile 37,3). K2 ıskalama satırı düştü, çünkü `_DOGRULANMIS` parquet ve SHA256 maliyetini sembol başına bir kez ödetiyor. Tek çekirdek, tek ölçüm.
+
+Plan belgesi: `D:\Projeler\prompts\plan_performans_2.md` (depo dışı; araştırma tarafının onayını bekliyor).
+
+**Metodoloji denetçisi.** Onay koşusu olmadan C1/C2 verisini okutan yeni yol: **hayır**. Bölüm 1 ön-kayıt §3 ve CLAUDE.md §5 ile uyumlu; sapma bulgusu yok. D-K2 yöntemi sağlam, iddia A grubu KESIF ile sınırlı.
+
+| Kod | Özet |
+|---|---|
+| D-A1 | Plan: P2b ile P2c arasında ve H1 olay rolü skaler kalırsa olaylar ve kontroller iki ayrı karar yolundan geçer; §4 rev.9 "aynı çağrıyla". Olay rolü de aynı kapıdan geçmeden F2 sonucu üretilmemeli |
+| D-B1 | Plan: H2 funding penceresinde skaler yolun t kapanışına kesme adımı anılmıyor (sonraki bozuk kayıt geçmiş barın hata yolunu değiştirir); ortalama n > 8 olabilir, φ sınırında kayan nokta |
+| D-B2 | Plan: skaler tamlık kesin eşitlikle çalışır, tolerans yalnızca sınırlarda; ızgara çapası (1d), hücre kuralının ikinci kopyası, `isna` denetimi |
+| D-B3 | Plan: veri hatası (`VeriHatasi`) ret koduna ya da False bite dönüşmemeli |
+| D-B4 | Plan: `OnaylanmisPozisyon` yalnızca örneklenen aday için kurulursa aday örneklemeden sonra düşebilir (rev.13) |
+| D-B5 | Plan: gerçek veri eşitlik testi P0, P1 ve funding toplamı hesaplar (faz sınırı); pytest içinde denetimler kapalı, betik olarak koşmalı |
+| D-B6 | Plan: F3'ün vektörel mi skaler mi koşacağı yazılı değil; onay kümesinde gerçek veri eşitliği sınanamaz |
+| D-B7 | D-K2 kanıtı yalnızca A grubu KESIF |
+| D-B8 | Plan: skaler referansın indirgemesi değiştirilirse eşitlik testi totolojiye döner (plan içinde çelişki) |
+| D-C1 | `origin_main_ref_zamani` fetch'in kanıtı değil; `@{0}` biçimi şüpheli |
+| D-C2 | `agac_temiz` hâlâ `git status --porcelain`'e dayanıyor (assume-unchanged / skip-worktree) |
+| D-C3 | D-K2 kirli ağaçta, bayt bağından önce koştu |
+| D-C4 | D-K2 ters kontrolü `kesif_kosusu` dışında, SHA denetimsiz; manifest yolu sabit yazılmış |
+| D-C5 | D-K2: `<=` tolerans, `son_bar` denetlenmiyor, başlangıç sınırı tek sembol, eksik referans 0 sayılıyor |
+| D-C6 – D-C11 | Plan: toplamda tamlığı atlayan bayrak, uygunluğun vektörleştirilmesi, plan önbelleğinin yeri, kontrol maskesinin koşuldan bağımsızlığı, tekrarlanabilirlik (tohum, sıra, sürümler), K1'in ikinci aşaması |
+
+**Sızıntı testçisi** (`acc6fcb`, `tests/test_sizinti_f2_artiklar.py`, yalnızca yeni dosya; mevcut dosyalara dokunulmadığı `git status` ile doğrulandı). Ajan Bash'e erişemediği için testleri ana oturum koştu: **52 geçti, 2 atlandı, 62 xfailed, 0 XPASS**; sonuç ajanın tahminiyle aynı. Atlananlar: sembolik bağlantı yetkisi yok; autocrlf ön koşulu sağlanmadı. Hedefin savunması tutan saldırıları: BOM/NUL/CRLF/autocrlf/filtreyle gizlenen bayt oynaması, staged değişiklik, `git rm --cached`, pathspec ve büyük/küçük harf yolu, kapanışta kalıcı değişiklik; `mae`/`pozisyon_fundingi` koşu dışı, iş parçacığı, iç içe koşu ve BaseException; `import ftplib as f`, `;` sonrası import, `exec`, shlex listesiyle curl, `curl.exe`.
+
+| Kod | Saldırı | Şiddet |
+|---|---|---|
+| S-11 | `onbellek_manifest.MANIFEST_YOLU = None` üretim kipinde `denetim_etkin()`i kapatır: bayt bağı, manifest doğrulaması ve keşif bağlamı topluca atlanır | Yüksek |
+| S-10 | `import pytest` + sahte `PYTEST_CURRENT_TEST`: keşif kuralı kapanır, `_test_kaydi_ayarla` pytest dışında kabul edilir | Yüksek (kasıtlı) |
+| S-13 | Tam genişlikli kimlikler (NFKC): ad taramaları ham metne bakar | Yüksek (tarama) |
+| S-1 | Sembolik bağlantı / dizin kavşağı: `resolve()` hedefi bağlar, HEAD:`data/universe.csv` karşılaştırılmaz | Orta |
+| S-5 | `git replace` `cat-file` çıktısını değiştirir (`GIT_NO_REPLACE_OBJECTS`) | Orta |
+| S-6 | `GIT_DIR`/`GIT_INDEX_FILE`/`GIT_WORK_TREE` süzülmüyor | Orta |
+| S-2 | `config.SPLIT_CSV`/`UNIVERSE_CSV` koşu içinde yeniden bağlanırsa kapanış eski yolları özetler | Orta |
+| S-8 | Ortam adı taramaları büyük/küçük harfe duyarlı; Windows'ta adlar duyarsız | Orta |
+| S-14 | `__globals__`, `sys._getframe().f_globals`, `inspect.getmodule().__dict__` taramada yok | Orta |
+| S-15 – S-20 | Ağ taraması: asyncio takma adı, blok içi/bölünmüş import, listede olmayan kütüphaneler (telnetlib, ccxt, paramiko …), `create_subprocess_*`/`os.exec*`/`os.spawn*`, `irm`/`certutil`/`bitsadmin` | Orta |
+| S-3, S-4, S-7, S-9, S-12, S-16, S-21 | Koşu içinde değiştirip geri yazma; `with`siz kapanışta yalnızca not; `getattr` ile özel sınıf; devralınan bağlamın düşmemesi; biçimi bozuk küme adı; `__import__`; bölünmüş araç adı | Düşük / belgelenmiş sınır |
+
+Bulgular düzeltilmedi. Dur koşulu oluşmadı: bu turun kodu, onay koşusu olmadan C1/C2 verisini okutan yeni bir yol açmadı (denetçi; sızıntı testçisinin bulguları kasıtlı atlatmalar ve tarama boşluklarıdır). S-11 ve S-10 F2 koşucusundan önce ele alınmalı; karar araştırma tarafında.
+
+**xfail toplamı.** 127 + 62 = **189**. Atlanan 4 + 2 = 6. Sızıntı dosyasıyla tam takım toplamı hesapla 4952 geçen; bir bütün olarak yeniden koşulmadı.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
