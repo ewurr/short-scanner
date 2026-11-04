@@ -1,0 +1,9 @@
+sembol,olcut,kaynak_tablo,kaynak_sutun,kural
+SOLUSDT,sabit_SOLUSDT,-,-,RESULTS §14.40 esitlik kumesi
+XRPUSDT,sabit_XRPUSDT,-,-,RESULTS §14.40 esitlik kumesi
+1000WHYUSDT,delist,delist_siniflandirmasi_tam.csv,sinif,sinif == SETTLING; en az bir donem KESIF ile kesisir (evren donem_baslangic)
+AERGOUSDT,iki_donemli,sembol_ozeti_tam.csv,donem_sayisi,donem_sayisi == 2; iki donem de KESIF ile kesisir (evren donem_baslangic)
+ALPACAUSDT,funding_ritmi_degisen,rev9_ritim_kayit_tam.csv,aralik_saat,kume == KESIF satirlarinda aralik_saat en az iki farkli deger
+1000XECUSDT,funding_gec_baslayan,rev9_uygulama_baslangic_tam.csv,capa_yok,"kume == KESIF, capa_yok > 0"
+BNXUSDT,uzun_bosluklu,bosluklar_tam.csv,eksik_bar,donem_bolen == False satirlarinda en buyuk eksik_bar (esitlikte alfabetik ilk)
+1000000MOGUSDT,donemi_kesif_sonunu_asan,dk2_ay_elemesi_tam.csv,donem_kesif_sonunu_icerir,donem_kesif_sonunu_icerir == True
