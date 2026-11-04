@@ -1699,6 +1699,13 @@ def _kesif_kaydi_kur(manifest_sha256: str | None) -> KesifKaydi:
     head = head.strip() if head is not None and re.fullmatch(r"[0-9a-f]{40}", head.strip()) else None
     durum = _bag_git("status", "--porcelain")
     temiz = None if durum is None else not [s for s in durum.splitlines() if s.strip()]
+    # D-C2 (RESULTS §14.44): `--assume-unchanged` ve `--skip-worktree` isaretli dosyalar `status`ta gorunmez; `ls-files -v`
+    # etiketiyle (kucuk harf = assume-unchanged, "S" = skip-worktree) bulunur ve agaci kirli sayar.
+    isaretler = _bag_git("ls-files", "-v")
+    if isaretler is None:
+        temiz = None
+    elif temiz and any(s[:1].islower() or s[:1] == "S" for s in isaretler.splitlines() if s):
+        temiz = False
     uzak = _bag_git("rev-parse", "--verify", "--quiet", _UZAK_REF)
     origin = None if head is None or uzak is None else uzak.strip() == head
     # Yerel referansin son guncellenme ani (reflog; D-K4). Fetch yapilmaz.
