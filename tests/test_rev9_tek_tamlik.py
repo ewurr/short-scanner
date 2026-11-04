@@ -121,6 +121,9 @@ IZINLI_CAPA_ARAMASI = {
     ("analysis/00_veri_denetimi/rev9_hazirlik.py", "oneri_tamlik_ayrintisi"),
     ("analysis/00_veri_denetimi/rev9_hazirlik.py", "son_hal_tamlik_ayrintisi"),
     ("analysis/00_veri_denetimi/rev9_hazirlik.py", "tahmin_yok_tamlik_ayrintisi"),
+    # Performans 2a (plan v2 karar 3): F2 oncesi skaler yolun dondurulmus referansi. Karar yoluna girmez; analiz kodu
+    # adini anamaz (`tarama_yardimcisi.SKALER_REFERANS_DESENI`), metni `tests/test_skaler_referans.py` SHA ile sabit.
+    ("data/_skaler_referans.py", "funding_tamlik_ayrintisi"),
 }
 
 

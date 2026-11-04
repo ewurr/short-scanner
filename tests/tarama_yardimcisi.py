@@ -213,3 +213,31 @@ def olay_rolu_ihlalleri(kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR, uzantilar=
         if rol_deseni.search(metin) and "olay_dizisi" not in metin:
             bulunan.append(yol.relative_to(kok).as_posix())
     return bulunan
+
+
+# Skaler referans (performans 2a; plan v2 karar 3): `data/_skaler_referans.py` F2 oncesi skaler karar yolunun
+# dondurulmus kopyasidir ve yalnizca esitlik testleri, gercek veri esitlik betigi ve F3 golge kosusu kullanir. Analiz
+# kodu (ve `data/`nin geri kalani) modulun adini anmaz; istisnalar `tests/` ve
+# `analysis/00_veri_denetimi/esitlik_*.py`dir. Genel `IZINLI_ALTLAR` muafiyeti (`data/`, `analysis/00_veri_denetimi/`)
+# bu desene UYGULANMAZ. Sinir: adi parcalayip `importlib` ile kurulan bir erisim yakalanmaz.
+SKALER_REFERANS_DESENI = r"skaler_referans"
+SKALER_REFERANS_UZANTILARI = (".py", ".ipynb", ".pyw")
+
+
+def skaler_referans_istisnasi(goreli: str) -> bool:
+    """`goreli` (depo kokune gore, `/` ayracli) skaler referansi anabilir mi?"""
+    return (goreli.startswith("tests/") or goreli == "data/_skaler_referans.py"
+            or re.fullmatch(r"analysis/00_veri_denetimi/esitlik_[^/]*\.py", goreli) is not None)
+
+
+def skaler_referans_ihlalleri(kok: Path = KOK) -> list[str]:
+    """Istisnalar disinda skaler referansin adini anan dosyalar."""
+    derli = re.compile(SKALER_REFERANS_DESENI)
+    bulunan = []
+    for yol in sorted(y for u in SKALER_REFERANS_UZANTILARI for y in kok.rglob(f"*{u}")):
+        goreli = yol.relative_to(kok).as_posix()
+        if skaler_referans_istisnasi(goreli):
+            continue
+        if derli.search(yol.read_text(encoding="utf-8", errors="replace")):
+            bulunan.append(goreli)
+    return bulunan
