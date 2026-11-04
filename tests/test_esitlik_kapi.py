@@ -118,8 +118,15 @@ class _BozukFunding:
         toplam = funding._plan_fundingi(fr, plan)
         return toplam + 1.0 if (plan.sinyal_zamani == self.hedef and self.alan == "toplam") else toplam
 
+    def _satirdan_toplam(self, fr, plan, tamlik):
+        toplam = funding._satirdan_toplam(fr, plan, tamlik)
+        return toplam + 1.0 if (plan.sinyal_zamani == self.hedef and self.alan == "toplu_toplam") else toplam
 
-@pytest.mark.parametrize("alan", ("satir", "toplam"))
+    def __getattr__(self, ad):
+        return getattr(funding, ad)
+
+
+@pytest.mark.parametrize("alan", ("satir", "toplam", "toplu_toplam"))
 def test_funding_satiri_ve_toplami_bozulunca_yakalanir(alan):
     kimlik, izgara, siralar, y = _kur(206)
     barlar = [izgara[j] for j in siralar]

@@ -159,19 +159,36 @@ def _toplam_esit(a: float, b: float) -> bool:
 
 def funding_karsilastir(barlar, hipotez: str, kimlik: dict, *, kapi_funding=funding_modulu,
                         ref=referans) -> tuple[int, int, list[str]]:
-    """Barin plani iki yoldan kurulur ve ayni olmali; plan varsa funding tamlik satiri (butun sutunlar) ve toplam."""
+    """Barin plani iki yoldan kurulur ve ayni olmali; plan varsa funding tamlik satiri (butun sutunlar) ve toplam.
+
+    Uc yol referansla karsilastirilir (P2a, D-C6): genel n = 1 yolu (`pozisyon_funding_ayrintisi`, `_plan_fundingi`),
+    kapinin tek tamlik yolu (`_pozisyon_tamlik_satiri` + `_satirdan_toplam`) ve toplu yol (bar kumesindeki butun
+    planlar TEK cagrida, `_planlar_tamlik_satirlari`). Bir barda uclerinden biri ayrisirsa bar uyusmayandir."""
     m, fr, sinirlar = _veri(kimlik)
     zamanlar = pd.DatetimeIndex(m["open_time"])
-    uyusmayan = []
+    uyusmayan = set()
+    planli = []
     for t in barlar:
         pa, pb = _plan(pencere_modulu, zamanlar, t, hipotez, sinirlar), _plan(ref, zamanlar, t, hipotez, sinirlar)
         esit = sonuc_esit(pa, pb)
         if esit and not isinstance(pa, BaseException):
-            esit = (_satir_esit(kapi_funding.pozisyon_funding_ayrintisi(fr, pa), ref.pozisyon_funding_ayrintisi(fr, pa))
-                    and _toplam_esit(kapi_funding._plan_fundingi(fr, pa), ref._plan_fundingi(fr, pa)))
+            ref_satir, ref_toplam = ref.pozisyon_funding_ayrintisi(fr, pa), ref._plan_fundingi(fr, pa)
+            tek = kapi_funding._pozisyon_tamlik_satiri(fr, pa)
+            esit = (_satir_esit(kapi_funding.pozisyon_funding_ayrintisi(fr, pa), ref_satir)
+                    and _toplam_esit(kapi_funding._plan_fundingi(fr, pa), ref_toplam)
+                    and _satir_esit(tek.satir, ref_satir)
+                    and _toplam_esit(kapi_funding._satirdan_toplam(fr, pa, tek), ref_toplam))
+            planli.append((t, pa, ref_satir, ref_toplam))
         if not esit:
-            uyusmayan.append(t)
-    return len(barlar), len(uyusmayan), [z.isoformat() for z in uyusmayan[:20]]
+            uyusmayan.add(t)
+    if planli:
+        toplu = kapi_funding._planlar_tamlik_satirlari(fr, [p for _, p, _, _ in planli])
+        for (t, plan, ref_satir, ref_toplam), tamlik in zip(planli, toplu):
+            if not (_satir_esit(tamlik.satir, ref_satir)
+                    and _toplam_esit(kapi_funding._satirdan_toplam(fr, plan, tamlik), ref_toplam)):
+                uyusmayan.add(t)
+    sirali = sorted(uyusmayan)
+    return len(barlar), len(sirali), [z.isoformat() for z in sirali[:20]]
 
 
 # --- Bar kumeleri --------------------------------------------------------------------------------------

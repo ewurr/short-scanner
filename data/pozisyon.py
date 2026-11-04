@@ -445,10 +445,55 @@ def _karar_verisi(sembol: str, kume: str, *, kume_baslangic, kume_bitis, donem_b
     Sonuc (sembol, kume, donem) basina bir kez hesaplanir (`data.kume_bellegi`); erisim denetimi
     her cagrida calisir.
     """
+    return _karar_girdisi(sembol, kume, kume_baslangic=kume_baslangic, kume_bitis=kume_bitis,
+                          donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)[:3]
+
+
+class _PlanSerisi:
+    """Plan serisi (performans 2a, plan v2 karar 5): (sembol, kume, donem) verisi icin (bar, ufuk, birincil ufuk, t) ->
+    `pencere.pozisyon_plani` sonucu (imzali plan ya da `OlayOlusmaz` reddi). Her anahtar EN COK BIR KEZ kurulur ve
+    yapilandirmalar ile hipotezler arasinda paylasilir: plan hipotezin bar turune ve birincil ufkuna baglidir,
+    yapilandirmaya bagli degildir; on-kayit §4 "Ufuk degerlerinin baglanmasi" (rev.10): "H1 ve H2 icin 4h izgarada
+    birincil 18 bar ... H3 icin 1d izgarada birincil 14 gun". Plan VEKTORLESTIRILMEZ; yalnizca yeniden kullanilir.
+
+    Seri `kume_bellegi`ndeki `_karar_girdisi` girdisinin parcasidir, ayri bir girdi degildir: anahtar kume adini
+    tasir, her okumada erisim denetimi calisir (isabet dahil), onay kosusunun acilisi ve kapanisi (`temizle`) ve LRU
+    dusurmesi seriyi veriyle birlikte dusurur (proje anayasasi §5, on-kayit §3). `copy()` kendisini doner: seri
+    paylasim icindir ve yalnizca degismez nesneler (imzali plan, ret sinifi ve mesaji) tasir; veri cercevesi tasimaz.
+    Ret yeniden firlatilirken ayni sinif ve ayni mesajla yeni bir nesne kurulur. `OlayOlusmaz` disindaki hatalar
+    (programlama ya da veri hatasi) saklanmaz, her cagrida yeniden olusur."""
+
+    __slots__ = ("_harita",)
+
+    def __init__(self):
+        self._harita: dict = {}
+
+    def copy(self):
+        return self
+
+    def al(self, anahtar, kur):
+        kayit = self._harita.get(anahtar)
+        if kayit is None:
+            try:
+                kayit = ("plan", kur())
+            except pencere_modulu.OlayOlusmaz as hata:
+                kayit = ("ret", type(hata), hata.args)
+            self._harita[anahtar] = kayit
+        if kayit[0] == "ret":
+            raise kayit[1](*kayit[2])
+        return kayit[1]
+
+    def __len__(self) -> int:
+        return len(self._harita)
+
+
+def _karar_girdisi(sembol: str, kume: str, *, kume_baslangic, kume_bitis, donem_baslangic, donem_bitis):
+    """(4h mumlari, funding, 1d mumlari, plan serisi): `_karar_verisi`nin bellek girdisi ve plan serisi (tek girdi)."""
     return kume_bellegi.getir(
         ("karar", sembol, kume, kume_baslangic, kume_bitis, donem_baslangic, donem_bitis),
         _erisim_denetimi(kume),
-        lambda: _karar_verisi_kur(sembol, kume, kume_baslangic, kume_bitis, donem_baslangic, donem_bitis))
+        lambda: (*_karar_verisi_kur(sembol, kume, kume_baslangic, kume_bitis, donem_baslangic, donem_bitis),
+                 _PlanSerisi()))
 
 
 def _karar_verisi_kur(sembol: str, kume: str, kume_baslangic, kume_bitis, donem_baslangic,
@@ -674,15 +719,19 @@ def olay_karari(
     # 1d serisi tektir ve donem ici 4h barlardan turetilir (on-kayit §2 rev.8 "1 gunluk barlar": "Bu seri
     # tektir: H3'un sinyal pencereleri, butun hipotezlerin uygunluk hacmi ve K1/K2 havuzlarinin 1d barlari
     # ayni seriden gelir").
-    mumlar_4h, funding, gunluk_mumlar = _karar_verisi(
+    mumlar_4h, funding, gunluk_mumlar, plan_serisi = _karar_girdisi(
         sembol, kume, kume_baslangic=kume_baslangic, kume_bitis=kume_bitis,
         donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
     zamanlar = _mum_zamanlari(mumlar_4h)
     gunluk_hacim = _gunluk_hacim(gunluk_mumlar)
 
-    plan = pencere_modulu.pozisyon_plani(
-        zamanlar, sinyal_zamani, ufuk, bar, birincil_ufuk=birincil_ufuk, kume_baslangic=kume_baslangic,
-        kume_bitis=kume_bitis, donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
+    # Plan (sembol, kume, donem) verisi icin (bar, ufuk, birincil ufuk, t) basina bir kez kurulur ve yapilandirmalar
+    # arasinda paylasilir (performans 2a; `_PlanSerisi`). Kural ve girdiler `pencere.pozisyon_plani`ninkiyle aynidir.
+    plan = plan_serisi.al(
+        (bar, int(ufuk), int(birincil_ufuk), sinyal_zamani),
+        lambda: pencere_modulu.pozisyon_plani(
+            zamanlar, sinyal_zamani, ufuk, bar, birincil_ufuk=birincil_ufuk, kume_baslangic=kume_baslangic,
+            kume_bitis=kume_bitis, donem_baslangic=donem_baslangic, donem_bitis=donem_bitis))
     # Sinyal bari t seride olmali (kapi sertlestirme turu 2, denetci KS D-B3): plan yalnizca t+1'i arar.
     # 4h: t acilisli donem ici bar; 1d: t gunu turetilmis 1d serisinde (alti 4h barin tamami donem ici).
     if bar == config.BAR_4H:
@@ -750,11 +799,14 @@ def olay_karari(
     if donem_funding_yok:
         raise FundingTamDegil(f"{sembol} donem {donem_no}: evren tablosunda funding kaydi yok (on-kayit §2 "
                               "'Funding'i bulunmayan donemler'); olay ya da kontrol olusmaz.")
-    ayrinti = funding_modulu.pozisyon_funding_ayrintisi(funding, plan)
+    # Tek tamlik (performans 2a, D-C6): satir bir kez hesaplanir, toplam ayni satirin diliminden alinir
+    # (`funding._satirdan_toplam`; skaler `_plan_fundingi` ile ayni kayitlar, ayni indirgeme).
+    tamlik = funding_modulu._pozisyon_tamlik_satiri(funding, plan)
+    ayrinti = tamlik.satir
     if not bool(ayrinti["tam"]):
         raise FundingTamDegil(f"Pozisyonun funding'i tam degil: giris {plan.giris}, cikis {plan.cikis_ani} "
                               f"({plan.cikis_turu}); olay brut dahil hicbir hesapta olusmaz.")
-    toplam = funding_modulu._plan_fundingi(funding, plan)
+    toplam = funding_modulu._satirdan_toplam(funding, plan, tamlik)
     if math.isnan(toplam):
         raise FundingTamDegil(f"Pozisyonun funding'i hesaplanamadi (oran NaN): giris {plan.giris}.")
     # Sonlu olmayan degerler (kapi sertlestirme turu 2): +-inf funding toplami, fiyat ve MAE penceresi.

@@ -19,6 +19,8 @@ sayiyordu.)
 
 from __future__ import annotations
 
+import dataclasses
+
 import numpy as np
 import pandas as pd
 
@@ -438,7 +440,8 @@ def _zaman_dizisi(funding: pd.DataFrame, yer: str) -> pd.DatetimeIndex:
     return zamanlar
 
 
-def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *, donem_baslari) -> pd.DataFrame:
+def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *, donem_baslari,
+                             _ic_sutunlar: bool = False) -> pd.DataFrame:
     """Pozisyon funding tamliginin TEK uygulamasi, kosul kosul (on-kayit §4 rev.9
     "Funding tamligi"; pencere: §4 "Funding odemesinin sinirlari", "Donem sonu
     istisnasi"). Vektorel: `girisler[i]`, `pencere_sonlari[i]` ve `donem_baslari[i]`
@@ -487,6 +490,11 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     "8", "4", "2", "1" ya da "siniflanmamis"; capa yoksa None.
     Dizinin uclari (`capa_zamani`, `son_kayit_zamani`; capa yoksa NaT) olcum betiklerinin tani
     sutunlari icindir; kural baska yerde yeniden kurulmasin diye buradan verilir.
+
+    `_ic_sutunlar=True` (MODUL DISINA KAPALI; performans 2a, D-C6): sonuca iki ic sutun eklenir, `capa_index` ve
+    `son_index` (capanin ve penceredeki son kaydin `funding` icindeki sirasi; capa yoksa -1). Tek karar noktasi funding
+    toplamini bu satirin dilimiyle alir (`_satirdan_toplam`), tamligi ikinci kez hesaplamaz. Kurallar ve diger sutunlar
+    degismez; ic sutunlar `tam`a girmez.
     Saf.
     """
     from data import pencere as pencere_modulu
@@ -505,6 +513,9 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
     for k in TAMLIK_ZAMANLARI:
         sonuc[k] = pd.Series(pd.NaT, index=sonuc.index, dtype="datetime64[ns, UTC]")
     if n == 0 or funding.empty:
+        if _ic_sutunlar:
+            sonuc["capa_index"] = np.full(n, -1, dtype=np.int64)
+            sonuc["son_index"] = np.full(n, -1, dtype=np.int64)
         return sonuc
     zamanlar = _zaman_dizisi(funding, "funding_tamlik_ayrintisi")
     aralik = pd.to_numeric(funding["aralik_saat"], errors="coerce").to_numpy(dtype=float)
@@ -581,6 +592,9 @@ def funding_tamlik_ayrintisi(funding: pd.DataFrame, girisler, pencere_sonlari, *
                                       index=sonuc.index, dtype=object)
     sonuc["capa_zamani"] = zamanlar[jj].where(capa_var)
     sonuc["son_kayit_zamani"] = zamanlar[son_i].where(capa_var)
+    if _ic_sutunlar:
+        sonuc["capa_index"] = np.where(capa_var, jj, -1).astype(np.int64)
+        sonuc["son_index"] = np.where(capa_var, son_i, -1).astype(np.int64)
     return sonuc
 
 
@@ -593,6 +607,75 @@ def pozisyon_funding_ayrintisi(funding: pd.DataFrame, plan) -> pd.Series:
     pencere_modulu.plan_dogrula(plan)
     return funding_tamlik_ayrintisi(funding, [plan.giris], [funding_penceresi_sonu(plan)],
                                     donem_baslari=[plan.donem_baslangic]).iloc[0]
+
+
+# --- Tek tamlik ve toplu cagri (performans 2a; plan v2 karar 5, D-C6) ----------------------------------
+#
+# Kapi funding tamlik satirini BIR KEZ hesaplar ve toplami ayni satirdan alir. Rev.9'dan bu yana `_plan_fundingi`
+# tamligi kendi icinde yeniden hesapliyordu (`pozisyon_funding_tam_mi`); kapi ayni plan icin kurali iki kez
+# uyguluyordu. Iki ic adim:
+#   - `_planlar_tamlik_satirlari(funding, planlar)`: `funding_tamlik_ayrintisi`nin bir funding serisi icin butun
+#     planlarla TEK cagrisi (toplu yol). Kural kodu yazilmaz; ayni fonksiyonun n > 1 cagrisidir. n = 1 durumu kapinin
+#     bar basina yoludur (`_pozisyon_tamlik_satiri`).
+#   - `_satirdan_toplam(funding, plan, tamlik)`: toplam, tamlik satirinin `capa_index` ve `son_index` degerleriyle
+#     kesilen dilimden, skaler `_plan_fundingi` ile AYNI indirgemeyle (`pd.to_numeric(...).sum()`) alinir. Onek
+#     toplami KULLANILMAZ (toplama sirasi degisir; RESULTS §14.44). Tamlik atlanmaz: fonksiyon "hesaplandi" bayragi
+#     degil satirin kendisini alir ve `tam` degilse NaN doner.
+# Getiri tarafi degismez: `pozisyon_fundingi` toplami `_plan_fundingi` ile yeniden hesaplar ve kararinkiyle `==` ister.
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class _TamlikSatiri:
+    """Bir planin funding tamlik satiri (genel sutunlar) ve ic dilim sinirlari. Yalnizca bu modulun ic adimlari kurar."""
+
+    satir: pd.Series
+    capa_index: int
+    son_index: int
+    plan: object
+    kayit_sayisi: int
+
+
+_IC_SUTUNLAR = ("capa_index", "son_index")
+
+
+def _planlar_tamlik_satirlari(funding: pd.DataFrame, planlar) -> list[_TamlikSatiri]:
+    """Toplu yol (1b): bir funding serisi ve planlar listesi icin `funding_tamlik_ayrintisi`nin TEK cagrisi. Her plan
+    `pozisyon_funding_ayrintisi` ile ayni pencereyi kullanir (giris, `funding_penceresi_sonu`, donem basi). MODUL DISINA
+    KAPALI; analiz kodu icin kaynak taramasinda yasaklidir."""
+    from data import pencere as pencere_modulu
+
+    planlar = list(planlar)
+    for plan in planlar:
+        pencere_modulu.plan_dogrula(plan)
+    tablo = funding_tamlik_ayrintisi(funding, [p.giris for p in planlar], [funding_penceresi_sonu(p) for p in planlar],
+                                     donem_baslari=[p.donem_baslangic for p in planlar], _ic_sutunlar=True)
+    genel = tablo.drop(columns=list(_IC_SUTUNLAR))
+    capa = tablo["capa_index"].to_numpy()
+    son = tablo["son_index"].to_numpy()
+    return [_TamlikSatiri(genel.iloc[i], int(capa[i]), int(son[i]), plan, len(funding))
+            for i, plan in enumerate(planlar)]
+
+
+def _pozisyon_tamlik_satiri(funding: pd.DataFrame, plan) -> _TamlikSatiri:
+    """Kapinin bar basina yolu: toplu yolun n = 1 durumu. `satir` = `pozisyon_funding_ayrintisi(funding, plan)`."""
+    return _planlar_tamlik_satirlari(funding, [plan])[0]
+
+
+def _satirdan_toplam(funding: pd.DataFrame, plan, tamlik: _TamlikSatiri) -> float:
+    """Pozisyonun funding toplami, tamlik satirinin diliminden (1a). `_plan_fundingi` ile ayni sonuc: odeme penceresi
+    [capa + 1, son] = "giris anindan SONRA, pencere sonuna kadar (dahil)" (§4 "Funding odemesinin sinirlari"); ayni
+    indirgeme. Satir bu plan ve bu funding serisi icin kurulmus olmali (ValueError). MODUL DISINA KAPALI."""
+    from data import pencere as pencere_modulu
+
+    pencere_modulu.plan_dogrula(plan)
+    if not isinstance(tamlik, _TamlikSatiri) or tamlik.plan is not plan or tamlik.kayit_sayisi != len(funding):
+        raise ValueError("_satirdan_toplam: tamlik satiri bu plan ve bu funding serisi icin kurulmamis.")
+    if not bool(tamlik.satir["tam"]):
+        return float("nan")
+    oran = pd.to_numeric(funding["oran"].iloc[tamlik.capa_index + 1:tamlik.son_index + 1], errors="coerce")
+    if oran.isna().any():
+        return float("nan")
+    return float(oran.sum())
 
 
 def pozisyon_funding_tam_mi(funding: pd.DataFrame, plan) -> bool:

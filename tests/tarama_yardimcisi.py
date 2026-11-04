@@ -75,8 +75,10 @@ UYGUNLUK_ADLARI = ("uygun_mu", "uygunluk_serisi", "uygunluk_karari", "esikleri_d
 CIKIS_KAPI_DISI_DESENI = (
     r"\b(cikis_bari|ufuk_kumeye_sigar_mi|cikis_ani|pozisyon_plani|pozisyon_fundingi|_plan_fundingi|pozisyon_funding_tam_mi"
     r"|pozisyon_funding_ayrintisi|funding_tamlik_ayrintisi"
+    # Performans 2a (D-C6): tek tamlik ve toplu cagri ic adimlari.
+    r"|_pozisyon_tamlik_satiri|_planlar_tamlik_satirlari|_satirdan_toplam"
     r"|" + "|".join(UYGUNLUK_ADLARI) + r")\s*\(|\b(CikisSonucu|PozisyonPlani|OnaylanmisPozisyon)\s*\("
-    r"|_PLAN_GIZLI|_plan_imzasi|_ONAY_GIZLI|\beligibility\b"
+    r"|_PLAN_GIZLI|_plan_imzasi|_ONAY_GIZLI|\beligibility\b|\b_TamlikSatiri\b|\b_ic_sutunlar\b"
 )
 """Olayin ya da kontrolun olusup olusmadigina yalnizca `pozisyon.olay_karari` karar
 verir (on-kayit §4 rev.8 "Olayin kumede olusma olcutu": tek karar noktasi, funding
@@ -96,7 +98,9 @@ TURETILMIS_SERI_DESENI = (
 # kararli bir atlatmayi (ör. `setattr` ile parcalanmis ad) yakalamaz.
 # Kapi sertlestirme turu 2: kapinin veri yolu (`_veri_yukle`, `_kume_verisi`) ve sentetik veri kaydi da.
 KAYIT_DESENI = (r"\b_kayitlar\b|\bkapi_yardimcisi\b|\bSENTETIK_(DONEMLER|GRUPLAR|VERI)\b"
-                r"|\b_veri_yukle\b|\b_kume_verisi(_yukle)?\b|\b_karar_verisi(_kur)?\b")
+                r"|\b_veri_yukle\b|\b_kume_verisi(_yukle)?\b|\b_karar_verisi(_kur)?\b"
+                # Performans 2a: kapinin bellek girdisi ve plan serisi.
+                r"|\b_karar_girdisi\b|\b_PlanSerisi\b")
 
 # Onay kaydini atlatma yollari (onay kaydi ve kosu butunlugu turu, denetci KS3 D-B1). Analiz kodu onay kosusunun
 # durumuna, test kaydina, kayit yazicilarina ya da modul sozluklerine erisemez; kayit dosyasinin adini da anmaz
