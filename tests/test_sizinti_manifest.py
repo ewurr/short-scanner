@@ -747,9 +747,7 @@ def _tara(tmp_path, metin: str, uzanti: str = ".py", ad: str = "sahte") -> bool:
 _TAM = "ｂｖ"  # "ｂｖ": NFKC ile "bv"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="M-5: Python kimlikleri NFKC ile normallestirir; tam genislikli 'ｂｖ' gercek `bv` modulune "
-                          "ulasir ama `\\bbv\\b` desenine takilmaz")
+# M-5 kapandi (RESULTS §14.45; S-13 ile ayni acik): tarama NFKC ile normallesmis metne bakar.
 @pytest.mark.parametrize("duz, gizli, kontrol", [
     ("from data import klines\nx = klines.bv\n", f"from data import klines\nx = klines.{_TAM}\n",
      lambda ns: ns["x"] is bv),

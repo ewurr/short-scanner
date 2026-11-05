@@ -8,9 +8,16 @@ study/, analysis/ altindaki F2 ve sonrasi) kaynagi taranarak korunur.
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 
 KOK = Path(__file__).resolve().parents[1]
+
+
+def _oku(yol: Path) -> str:
+    """Taranan metin NFKC ile normallestirilir (S-13, M-5; RESULTS §14.45): Python kimlikleri NFKC ile normallesir
+    (PEP 3131), bu yuzden tam genislikli `ｂｖ` gercek `bv` adina ulasir; tarama da normallesmis metne bakar."""
+    return unicodedata.normalize("NFKC", yol.read_text(encoding="utf-8", errors="replace"))
 
 # Kumeye ait olmayan hesaplarin yasal olarak yasadigi yerler.
 IZINLI_ALTLAR = ("data", "tests", "analysis/00_veri_denetimi", ".claude")
@@ -26,7 +33,7 @@ def ihlaller(desen: str, kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR, uzantilar
         # `cache` adli bir alt dizindeki calistirilabilir dosya da taranir.
         if any(p in izinli for p in yol.parents):
             continue
-        if derli.search(yol.read_text(encoding="utf-8", errors="replace")):
+        if derli.search(_oku(yol)):
             bulunan.append(yol.relative_to(kok).as_posix())
     return bulunan
 
@@ -213,7 +220,7 @@ def olay_rolu_ihlalleri(kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR, uzantilar=
     for yol in sorted(y for u in uzantilar for y in kok.rglob(f"*{u}")):
         if any(p in izinli for p in yol.parents):
             continue
-        metin = yol.read_text(encoding="utf-8", errors="replace")
+        metin = _oku(yol)
         if rol_deseni.search(metin) and "olay_dizisi" not in metin:
             bulunan.append(yol.relative_to(kok).as_posix())
     return bulunan
@@ -242,6 +249,6 @@ def skaler_referans_ihlalleri(kok: Path = KOK) -> list[str]:
         goreli = yol.relative_to(kok).as_posix()
         if skaler_referans_istisnasi(goreli):
             continue
-        if derli.search(yol.read_text(encoding="utf-8", errors="replace")):
+        if derli.search(_oku(yol)):
             bulunan.append(goreli)
     return bulunan

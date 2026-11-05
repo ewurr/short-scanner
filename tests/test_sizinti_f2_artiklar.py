@@ -627,20 +627,14 @@ def test_kucuk_harfli_ortam_degiskeni_adlari_taramaya_takilmali(tmp_path, metin)
     assert _yakalanir(tmp_path, metin, tur="onbellek" if "onay_verisi" in metin else "onay")
 
 
+# S-13 kapandi (RESULTS §14.45): tarama NFKC ile normallesmis metne bakar; alti parametrenin xfail isareti kaldirildi.
 @pytest.mark.parametrize("tur,metin", [
-    pytest.param("onay", f"from data import split\nsplit.{_tam('_KESIF_DURUMU')}['sayac'] += 1\n",
-                 marks=_xf("S-13", "tam genislikli kimlik NFKC ile ASCII ada cevrilir; ad taramasi gormez",
-                           raises=AssertionError)),
-    pytest.param("onay", f"split.{_tam('_kesif_baglami')}().__enter__()\n",
-                 marks=_xf("S-13", "ozel baglam sinifi tam genislikli", raises=AssertionError)),
-    pytest.param("onay", f"split.{_tam('_test_kaydi_ayarla')}(yol)\n",
-                 marks=_xf("S-13", "test kaydi ayarlayicisi tam genislikli", raises=AssertionError)),
-    pytest.param("onbellek", f"import {_tam('ftplib')}\n",
-                 marks=_xf("S-13", "ftplib ice aktarimi tam genislikli", raises=AssertionError)),
-    pytest.param("onbellek", f"import {_tam('socket')}\n",
-                 marks=_xf("S-13", "socket ice aktarimi tam genislikli", raises=AssertionError)),
-    pytest.param("onbellek", f"import {_tam('requests')}\n",
-                 marks=_xf("S-13", "requests ice aktarimi tam genislikli", raises=AssertionError)),
+    pytest.param("onay", f"from data import split\nsplit.{_tam('_KESIF_DURUMU')}['sayac'] += 1\n"),
+    pytest.param("onay", f"split.{_tam('_kesif_baglami')}().__enter__()\n"),
+    pytest.param("onay", f"split.{_tam('_test_kaydi_ayarla')}(yol)\n"),
+    pytest.param("onbellek", f"import {_tam('ftplib')}\n"),
+    pytest.param("onbellek", f"import {_tam('socket')}\n"),
+    pytest.param("onbellek", f"import {_tam('requests')}\n"),
 ])
 def test_tam_genislikli_kimlikler_ad_taramasini_atlatmamali(tmp_path, tur, metin):
     """Taramalar ham metne bakar; Python kimlikleri NFKC normallestirir. Cozum: `ast` ile ayristirip normallesmis adlara bakmak."""
