@@ -2,32 +2,42 @@
 
 Ornek: `esitlik_ornegi.csv` (performans kodundan once sabitlendi; `esitlik_ornegi_sec.py`). Her sembolun evrendeki her
 gecerli donemi, KESIF araliginda, istenen hipotez, yapilandirma ve rol kumesinde iki yoldan karara sokulur:
-  - kapi: `data.pozisyon.olay_karari` (bugunku yol; P2a ve sonrasinda degisen yol),
-  - referans: `data._skaler_referans.olay_karari` (F2 oncesi skaler yolun dondurulmus kopyasi).
-Karsilastirilan (bellekte; hicbir deger yazilmaz):
-  - kapi karari ve ret gerekcesi sinifi (hata sinifi ayni olmali),
-  - iki taraf da onaylarsa `OnaylanmisPozisyon`un butun alanlari (`==`; NaN konumlari dahil, NaN == NaN sayilir),
-  - `funding_satiri` satirlari: barin plani (iki yoldan kurulur, ayni olmali) uzerinde funding tamlik satirinin butun
-    sutunlari (`Series.equals`, NaN ve NaT konumlari dahil) ve funding toplami (`==`).
+  - yeni: `data.pozisyon.olay_karari` (bugunku yol; P2a ve sonrasinda degisen yol),
+  - referans: skaler referansin `olay_karari`si (F2 oncesi skaler yolun dondurulmus kopyasi). Referans modul duzeyinde
+    bir adla TUTULMAZ (S-17, RESULTS §14.44): yalnizca karsilastirma fonksiyonlarinin icinde ice aktarilir; bu modulu
+    ice aktaran kod referansa bu modul uzerinden adsiz ulasamaz.
+
+Sozlesme (performans 2b-0; denetci D-B2, D-B3, D-C4, D-C7, sizinti S-17, S-18, S-28, S-29):
+  - Karsilastirilan (bellekte; hicbir deger, hicbir hata mesaji yazilmaz): sonuc SINIFI, ret MESAJI (`str(hata)`) ve iki
+    taraf da onaylarsa `OnaylanmisPozisyon`un butun alanlari (`==`; NaN konumlari dahil, NaN == NaN sayilir).
+    `funding_satiri` biriminde: barin plani (iki yoldan kurulur, ayni olmali; ret sinifi ve mesaji dahil), plan varsa
+    funding tamlik satirinin butun sutunlari (`Series.equals`) ve funding toplami, uc yeni yoldan (n = 1, tek tamlik,
+    toplu cagri).
+  - Her birim icin ayri sayilar: `karsilastirilan_bar`, `uyusmayan_bar`, `beklenmeyen_hata_referans`,
+    `beklenmeyen_hata_yeni`. "Beklenmeyen hata" = `pencere.OlayOlusmaz` ailesi DISINDAKI her istisna. Iki taraf ayni
+    sinifla (ve ayni mesajla) duserse bar uyusmayan sayilmaz, ama iki tarafta da beklenmeyen hata sayilir; "0 uyusmayan"
+    tek basina esitlik kaniti degildir. Ilk 20 beklenmeyen hata yalnizca `taraf:Sinif@zaman` olarak yazilir.
+  - `kapsam_bar`: K1 ve K2 rollerinde iki tarafin AYNI onayli pozisyonu verdigi bar sayisi; `funding_satiri` biriminde
+    planin kurulabildigi bar sayisi. Kontrol rolleri sinyal kosuluna bakmaz (on-kayit §6 rev.12), bu yuzden bu sayi olay
+    bilgisi tasimaz. OLAY ROLUNDE bos birakilir: olay rolunde onay sayisi olay sayisidir ve yazilmaz.
+  - Bar kipi (`--bar`, zorunlu) acik bir parametredir; sureye gore otomatik secilmez:
+      `tum`: donem ∩ KESIF araligindaki butun izgara barlari (4h ya da 1d; seride olmayan bar da sorulur).
+      `ornek`: tohumlu `--n` bar + sinir barlari (donemin ilk ve son 200 bari, kume sinirinin +-200 bari, funding ritim
+      degisiminin +-20 bari). Tohum kurali `esitlik_ornegi_sec.py` aciklamasindadir.
+    Kip (`bar_kumesi`) ve birimin tohumu (`tohum`; `tum` kipinde bos) her satira yazilir.
+  - Agac temizligi bu betikte HESAPLANMAZ: `split.kesif_kosusu`nun `KesifKaydi.agac_temiz` degeri kullanilir (bag
+    ortami, `ls-files -v` bayraklari ve izlenmeyen dosyalar orada denetlenir). Deger True degilse kosu baslamaz.
+
 H1'in olay rolu capa ister: t barinin capasi, barin izgaradaki sirasi i ile `t - (1 + i mod 12) x 4 saat`tir (sabit, kosula
 bakilmadan; boylece karsilastirilan bar sayisi sinyal kosulunun sonucuna bagli degildir ve olay sayisi sizmaz).
 
-Bar kumesi (`--bar`):
-  - `tum`: donem ∩ KESIF araligindaki butun izgara barlari (4h ya da 1d; seride olmayan bar da sorulur).
-  - `ornek`: tohumlu `--n` bar + sinir barlari (donemin ilk ve son 200 bari, kume sinirinin +-200 bari, funding ritim
-    degisiminin +-20 bari). Tohum kurali `esitlik_ornegi_sec.py` aciklamasindadir.
-  - `uyarlamali`: once her hipotezde 30 tohumlu kalibrasyon bari olculur; sembolun `tum` kestirimi `--sure-siniri-dk`
-    dakikayi asarsa sembolun butun hipotezleri `ornek` ile (kalibrasyon barlari dahil) kosar. Satirdaki `bar_kumesi`
-    hangisinin kullanildigini yazar.
+Cikti: `esitlik_kapi_<etiket>_tam.csv` (`SUTUNLAR`) ve `esitlik_kapi_<etiket>_kesif_kaydi_tam.csv` (`KesifKaydi.alanlar()`).
+`hata` birimin kendisi kurulamadiginda (veri, izgara) yalnizca istisna SINIF adidir. Komut satirina da yalnizca sayilar
+ve sinif adlari cikar.
 
-Cikti: `esitlik_kapi_<etiket>_tam.csv` (sembol, donem_no, hipotez, yapilandirma, rol, bar_kumesi, karsilastirilan_bar,
-uyusmayan_bar, ilk_20_uyusmayan, sure_s, hata) ve `esitlik_kapi_<etiket>_kesif_kaydi_tam.csv` (`KesifKaydi.alanlar()`).
-`hata` yalnizca beklenmeyen bir hatanin SINIF adidir; mesaj yazilmaz (mesaj deger icerebilir). Uyusmayan barlar yalnizca
-zaman damgasiyla yazilir.
-
-Temiz calisma agaci ister (`git status --porcelain` bos); `split.kesif_kosusu` icinde kosar, ag yasagi kosu boyuncadir.
-Paralellik: surec havuzu kesif kosusunun ICINDE kurulur (plan_performans_2 §6: isciler kesif baglamini ve ag yasagini
-devralir). Getiri, sinyal degeri ya da olay sayisi hesaplanmaz, yazilmaz.
+`split.kesif_kosusu` icinde kosar, ag yasagi kosu boyuncadir. Paralellik: surec havuzu kesif kosusunun ICINDE kurulur
+(plan_performans_2 §6: isciler kesif baglamini ve ag yasagini devralir). Getiri, sinyal degeri ya da olay sayisi
+hesaplanmaz, yazilmaz.
 """
 
 from __future__ import annotations
@@ -39,7 +49,6 @@ import hashlib
 import json
 import math
 import multiprocessing
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -53,7 +62,6 @@ sys.path.insert(0, str(KOK))
 sys.path.insert(0, str(BU_DIZIN))
 
 import config  # noqa: E402
-from data import _skaler_referans as referans  # noqa: E402
 from data import funding as funding_modulu  # noqa: E402
 from data import pencere as pencere_modulu  # noqa: E402
 from data import pozisyon as pozisyon_modulu  # noqa: E402
@@ -62,16 +70,19 @@ from data import split as split_modulu  # noqa: E402
 from data import universe as universe_modulu  # noqa: E402
 
 ORNEK = BU_DIZIN / "esitlik_ornegi.csv"
-SUTUNLAR = ["sembol", "donem_no", "hipotez", "yapilandirma", "rol", "bar_kumesi", "karsilastirilan_bar", "uyusmayan_bar",
-            "ilk_20_uyusmayan", "sure_s", "hata"]
+SUTUNLAR = ["sembol", "donem_no", "hipotez", "yapilandirma", "rol", "bar_kumesi", "tohum", "karsilastirilan_bar",
+            "uyusmayan_bar", "beklenmeyen_hata_referans", "beklenmeyen_hata_yeni", "kapsam_bar", "ilk_20_uyusmayan",
+            "ilk_20_beklenmeyen", "sure_s", "hata"]
+SAYI_ALANLARI = ("karsilastirilan_bar", "uyusmayan_bar", "beklenmeyen_hata_referans", "beklenmeyen_hata_yeni")
 ROLLER = ("olay", "K1", "K2")
+KONTROL_ROLLERI = ("K1", "K2")
 FUNDING_SATIRI = "funding_satiri"
+BAR_KIPLERI = ("tum", "ornek")
 KUME = "KESIF"
 H4 = pd.Timedelta(hours=4)
 SINIR_DONEM = 200
 SINIR_KUME = 200
 SINIR_RITIM = 20
-KALIBRASYON = 30
 
 
 # --- Karsilastirma -------------------------------------------------------------------------------------
@@ -87,17 +98,67 @@ def _deger_esit(a, b) -> bool:
 
 
 def sonuc_esit(a, b) -> bool:
-    """Hata: ayni sinif. Onayli pozisyon (ya da plan): butun alanlar, NaN konumlari dahil."""
+    """Hata: ayni sinif VE ayni mesaj (mesaj yalnizca bellekte karsilastirilir). Onayli pozisyon (ya da plan): butun
+    alanlar, NaN konumlari dahil."""
     if isinstance(a, BaseException) or isinstance(b, BaseException):
-        return type(a) is type(b)
+        return type(a) is type(b) and str(a) == str(b)
     return _deger_esit(a, b)
+
+
+def beklenmeyen(sonuc) -> bool:
+    """`OlayOlusmaz` ailesi disindaki her istisna beklenmeyen hatadir (D-B2)."""
+    return isinstance(sonuc, BaseException) and not isinstance(sonuc, pencere_modulu.OlayOlusmaz)
 
 
 def _cagir(fonk, *args, **kwargs):
     try:
         return fonk(*args, **kwargs)
-    except Exception as hata:  # noqa: BLE001 - yalnizca sinifi karsilastirilir
+    except Exception as hata:  # noqa: BLE001 - sinif ve mesaj yalnizca bellekte karsilastirilir
         return hata
+
+
+class Sayac:
+    """Bir birimin sayilari. Yalnizca sayi, zaman damgasi ve istisna SINIF adi tutar; deger ve mesaj tutmaz."""
+
+    def __init__(self):
+        self.karsilastirilan = 0
+        self.uyusmayan: list[pd.Timestamp] = []
+        self.beklenmeyen_referans = 0
+        self.beklenmeyen_yeni = 0
+        self.beklenmeyen_ilk: list[str] = []
+        self.kapsam = 0
+
+    def bar(self, t, esit: bool, referans_sonuclari=(), yeni_sonuclari=(), kapsam: bool = False) -> None:
+        self.karsilastirilan += 1
+        if not esit:
+            self.uyusmayan.append(t)
+        for taraf, sonuclar in (("referans", referans_sonuclari), ("yeni", yeni_sonuclari)):
+            hatalar = [s for s in sonuclar if beklenmeyen(s)]
+            if hatalar:
+                if taraf == "referans":
+                    self.beklenmeyen_referans += 1
+                else:
+                    self.beklenmeyen_yeni += 1
+                if len(self.beklenmeyen_ilk) < 20:
+                    self.beklenmeyen_ilk.append(f"{taraf}:{type(hatalar[0]).__name__}@{pd.Timestamp(t).isoformat()}")
+        if kapsam and esit:
+            self.kapsam += 1
+
+    def alanlar(self, kapsam_yazilir: bool) -> dict:
+        return {"karsilastirilan_bar": self.karsilastirilan, "uyusmayan_bar": len(self.uyusmayan),
+                "beklenmeyen_hata_referans": self.beklenmeyen_referans, "beklenmeyen_hata_yeni": self.beklenmeyen_yeni,
+                "kapsam_bar": self.kapsam if kapsam_yazilir else "",
+                "ilk_20_uyusmayan": ";".join(z.isoformat() for z in sorted(self.uyusmayan)[:20]),
+                "ilk_20_beklenmeyen": ";".join(self.beklenmeyen_ilk)}
+
+
+def _referans_modulu(ref):
+    """Verilen referans ya da skaler referans modulu. Modul duzeyinde ad tutulmaz (S-17)."""
+    if ref is not None:
+        return ref
+    from data import _skaler_referans
+
+    return _skaler_referans
 
 
 def tohum(sembol: str, donem_no: int, hipotez: str, yapilandirma_kimligi: str, rol: str) -> int:
@@ -124,15 +185,16 @@ def karar(modul, hipotez: str, yapilandirma, rol: str, t, kimlik: dict, sira: in
 
 
 def karsilastir(barlar, siralar, hipotez: str, yapilandirma, rol: str, kimlik: dict, *, kapi=pozisyon_modulu,
-                ref=referans) -> tuple[int, int, list[str]]:
-    """(karsilastirilan, uyusmayan, ilk 20 uyusmayanin zaman damgasi). Deger dondurmez."""
-    uyusmayan = []
+                ref=None) -> Sayac:
+    """Kapi karari: sonuc sinifi, ret mesaji ve onayli pozisyonun butun alanlari. Deger dondurmez."""
+    ref = _referans_modulu(ref)
+    sayac = Sayac()
     for t, sira in zip(barlar, siralar):
         a = karar(kapi, hipotez, yapilandirma, rol, t, kimlik, sira)
         b = karar(ref, hipotez, yapilandirma, rol, t, kimlik, sira)
-        if not sonuc_esit(a, b):
-            uyusmayan.append(t)
-    return len(barlar), len(uyusmayan), [z.isoformat() for z in uyusmayan[:20]]
+        sayac.bar(t, sonuc_esit(a, b), (b,), (a,),
+                  kapsam=rol in KONTROL_ROLLERI and isinstance(a, pozisyon_modulu.OnaylanmisPozisyon))
+    return sayac
 
 
 def _veri(kimlik: dict):
@@ -150,46 +212,64 @@ def _plan(modul, zamanlar, t, hipotez: str, sinirlar):
                   kume_baslangic=kb, kume_bitis=ks, donem_baslangic=bas, donem_bitis=bitis)
 
 
-def _satir_esit(a: pd.Series, b: pd.Series) -> bool:
-    return list(a.index) == list(b.index) and a.equals(b)
+def _esit(a, b) -> bool:
+    """Funding biriminin parcalari: hata (sinif ve mesaj), satir (`Series.equals`, ayni indeks), toplam (NaN == NaN)."""
+    if isinstance(a, BaseException) or isinstance(b, BaseException):
+        return sonuc_esit(a, b)
+    if isinstance(a, pd.Series) or isinstance(b, pd.Series):
+        return (isinstance(a, pd.Series) and isinstance(b, pd.Series) and list(a.index) == list(b.index)
+                and a.equals(b))
+    return (isinstance(a, float) and isinstance(b, float) and math.isnan(a) and math.isnan(b)) or bool(a == b)
 
 
-def _toplam_esit(a: float, b: float) -> bool:
-    return (math.isnan(a) and math.isnan(b)) or a == b
+def _satir(tamlik):
+    return tamlik if isinstance(tamlik, BaseException) else tamlik.satir
 
 
-def funding_karsilastir(barlar, hipotez: str, kimlik: dict, *, kapi_funding=funding_modulu,
-                        ref=referans) -> tuple[int, int, list[str]]:
+def funding_karsilastir(barlar, hipotez: str, kimlik: dict, *, kapi_funding=funding_modulu, ref=None) -> Sayac:
     """Barin plani iki yoldan kurulur ve ayni olmali; plan varsa funding tamlik satiri (butun sutunlar) ve toplam.
 
-    Uc yol referansla karsilastirilir (P2a, D-C6): genel n = 1 yolu (`pozisyon_funding_ayrintisi`, `_plan_fundingi`),
+    Uc yeni yol referansla karsilastirilir (P2a, D-C6): genel n = 1 yolu (`pozisyon_funding_ayrintisi`, `_plan_fundingi`),
     kapinin tek tamlik yolu (`_pozisyon_tamlik_satiri` + `_satirdan_toplam`) ve toplu yol (bar kumesindeki butun
-    planlar TEK cagrida, `_planlar_tamlik_satirlari`). Bir barda uclerinden biri ayrisirsa bar uyusmayandir."""
+    planlar TEK cagrida, `_planlar_tamlik_satirlari`). Bir barda uclerinden biri ayrisirsa bar uyusmayandir. Her cagri
+    ayri yakalanir: bir tarafin beklenmeyen hatasi o barda o tarafa sayilir."""
+    ref = _referans_modulu(ref)
     m, fr, sinirlar = _veri(kimlik)
     zamanlar = pd.DatetimeIndex(m["open_time"])
-    uyusmayan = set()
+    bar_sonucu = {}   # t -> (esit, referans sonuclari, yeni sonuclari, plan kuruldu mu)
     planli = []
     for t in barlar:
         pa, pb = _plan(pencere_modulu, zamanlar, t, hipotez, sinirlar), _plan(ref, zamanlar, t, hipotez, sinirlar)
-        esit = sonuc_esit(pa, pb)
-        if esit and not isinstance(pa, BaseException):
-            ref_satir, ref_toplam = ref.pozisyon_funding_ayrintisi(fr, pa), ref._plan_fundingi(fr, pa)
-            tek = kapi_funding._pozisyon_tamlik_satiri(fr, pa)
-            esit = (_satir_esit(kapi_funding.pozisyon_funding_ayrintisi(fr, pa), ref_satir)
-                    and _toplam_esit(kapi_funding._plan_fundingi(fr, pa), ref_toplam)
-                    and _satir_esit(tek.satir, ref_satir)
-                    and _toplam_esit(kapi_funding._satirdan_toplam(fr, pa, tek), ref_toplam))
-            planli.append((t, pa, ref_satir, ref_toplam))
-        if not esit:
-            uyusmayan.add(t)
+        esit, ref_sonuc, yeni_sonuc = sonuc_esit(pa, pb), [pb], [pa]
+        kuruldu = not isinstance(pa, BaseException) and not isinstance(pb, BaseException)
+        if esit and kuruldu:
+            ref_satir = _cagir(ref.pozisyon_funding_ayrintisi, fr, pa)
+            ref_toplam = _cagir(ref._plan_fundingi, fr, pa)
+            tek = _cagir(kapi_funding._pozisyon_tamlik_satiri, fr, pa)
+            tek_toplam = tek if isinstance(tek, BaseException) else _cagir(kapi_funding._satirdan_toplam, fr, pa, tek)
+            genel_satir = _cagir(kapi_funding.pozisyon_funding_ayrintisi, fr, pa)
+            genel_toplam = _cagir(kapi_funding._plan_fundingi, fr, pa)
+            ref_sonuc += [ref_satir, ref_toplam]
+            yeni_sonuc += [genel_satir, genel_toplam, _satir(tek), tek_toplam]
+            esit = (_esit(genel_satir, ref_satir) and _esit(genel_toplam, ref_toplam)
+                    and _esit(_satir(tek), ref_satir) and _esit(tek_toplam, ref_toplam))
+            if not any(isinstance(x, BaseException) for x in (ref_satir, ref_toplam)):
+                planli.append((t, pa, ref_satir, ref_toplam))
+        bar_sonucu[t] = [esit, ref_sonuc, yeni_sonuc, kuruldu]
     if planli:
-        toplu = kapi_funding._planlar_tamlik_satirlari(fr, [p for _, p, _, _ in planli])
-        for (t, plan, ref_satir, ref_toplam), tamlik in zip(planli, toplu):
-            if not (_satir_esit(tamlik.satir, ref_satir)
-                    and _toplam_esit(kapi_funding._satirdan_toplam(fr, plan, tamlik), ref_toplam)):
-                uyusmayan.add(t)
-    sirali = sorted(uyusmayan)
-    return len(barlar), len(sirali), [z.isoformat() for z in sirali[:20]]
+        toplu = _cagir(kapi_funding._planlar_tamlik_satirlari, fr, [p for _, p, _, _ in planli])
+        for k, (t, plan, ref_satir, ref_toplam) in enumerate(planli):
+            tamlik = toplu if isinstance(toplu, BaseException) else toplu[k]
+            toplam = tamlik if isinstance(tamlik, BaseException) else _cagir(kapi_funding._satirdan_toplam, fr, plan,
+                                                                              tamlik)
+            bar_sonucu[t][2] += [_satir(tamlik), toplam]
+            if not (_esit(_satir(tamlik), ref_satir) and _esit(toplam, ref_toplam)):
+                bar_sonucu[t][0] = False
+    sayac = Sayac()
+    for t in barlar:
+        esit, ref_sonuc, yeni_sonuc, kuruldu = bar_sonucu[t]
+        sayac.bar(t, esit, ref_sonuc, yeni_sonuc, kapsam=kuruldu)
+    return sayac
 
 
 # --- Bar kumeleri --------------------------------------------------------------------------------------
@@ -245,76 +325,69 @@ def _birim_etiketleri(roller, funding_satiri: bool):
     return list(roller) + ([FUNDING_SATIRI] if funding_satiri else [])
 
 
-def _kos(birim, izgara, siralar, hipotez, y, kimlik):
+def _kos(birim, izgara, siralar, hipotez, y, kimlik) -> Sayac:
     barlar = [izgara[i] for i in siralar]
     if birim == FUNDING_SATIRI:
         return funding_karsilastir(barlar, hipotez, kimlik)
     return karsilastir(barlar, siralar, hipotez, y, birim, kimlik)
 
 
+def _bos_satir(sembol, donem_no, hipotez, yk, rol) -> dict:
+    return {"sembol": sembol, "donem_no": donem_no, "hipotez": hipotez, "yapilandirma": yk, "rol": rol,
+            "bar_kumesi": "", "tohum": "", "karsilastirilan_bar": 0, "uyusmayan_bar": 0, "beklenmeyen_hata_referans": 0,
+            "beklenmeyen_hata_yeni": 0, "kapsam_bar": "", "ilk_20_uyusmayan": "", "ilk_20_beklenmeyen": "",
+            "sure_s": 0.0, "hata": ""}
+
+
 def sembol_isi(sembol: str, ayar: dict) -> list[dict]:
-    """Bir sembolun butun donemleri, hipotezleri, yapilandirmalari ve rolleri. Yalnizca sayi ve zaman damgasi doner."""
+    """Bir sembolun butun donemleri, hipotezleri, yapilandirmalari ve rolleri. Yalnizca sayi, zaman damgasi ve sinif adi
+    doner. Bar kipi `ayar["bar"]` acik parametredir (`tum` ya da `ornek`); sureye gore secilmez."""
+    kip = ayar["bar"]
+    if kip not in BAR_KIPLERI:
+        raise ValueError(f"bar kipi {BAR_KIPLERI} degerlerinden biri olmali.")
     satirlar = []
     bas_sure = time.perf_counter()
-    gorevler = []
     for donem_no in _donemler(sembol):
         kimlik = {"sembol": sembol, "donem_no": donem_no}
         for hipotez in ayar["hipotezler"]:
             izgara_y = list(sinyal_modulu.izgara(hipotez))
             yapilandirmalar = izgara_y[:1] if ayar["yapilandirma"] == "ilk" else izgara_y
-            izgara = bar_izgarasi(kimlik, hipotez)
             for y in yapilandirmalar:
-                gorevler.append((kimlik, hipotez, y, izgara))
-
-    # Kalibrasyon (yalnizca `uyarlamali`): her gorevde 30 tohumlu bar, butun birimler.
-    kip = ayar["bar"]
-    kalibrasyon: dict[int, set[int]] = {}
-    if kip == "uyarlamali":
-        kestirim = 0.0
-        for k, (kimlik, hipotez, y, izgara) in enumerate(gorevler):
-            yk = sinyal_modulu.yapilandirma_kimligi(hipotez, y)
-            sec = sorted(tohumlu_siralar(len(izgara), KALIBRASYON, tohum(sembol, kimlik["donem_no"], hipotez, yk,
-                                                                         "kalibrasyon")))
-            kalibrasyon[k] = set(sec)
-            t0 = time.perf_counter()
-            for birim in _birim_etiketleri(ayar["roller"], ayar["funding_satiri"]):
-                _kos(birim, izgara, sec, hipotez, y, kimlik)
-            if sec:
-                kestirim += (time.perf_counter() - t0) / len(sec) * len(izgara)
-        kip = "tum" if kestirim <= ayar["sure_siniri_dk"] * 60 else "ornek"
-
-    for k, (kimlik, hipotez, y, izgara) in enumerate(gorevler):
-        yk = sinyal_modulu.yapilandirma_kimligi(hipotez, y)
-        for birim in _birim_etiketleri(ayar["roller"], ayar["funding_satiri"]):
-            t0 = time.perf_counter()
-            satir = {"sembol": sembol, "donem_no": kimlik["donem_no"], "hipotez": hipotez, "yapilandirma": yk,
-                     "rol": birim, "bar_kumesi": "", "karsilastirilan_bar": 0, "uyusmayan_bar": 0,
-                     "ilk_20_uyusmayan": "", "sure_s": 0.0, "hata": ""}
-            try:
-                if kip == "tum":
-                    siralar = list(range(len(izgara)))
-                    satir["bar_kumesi"] = "tum"
-                else:
-                    sec = tohumlu_siralar(len(izgara), ayar["n"], tohum(sembol, kimlik["donem_no"], hipotez, yk, birim))
-                    sec |= sinir_siralari(izgara, kimlik) | kalibrasyon.get(k, set())
-                    siralar = sorted(sec)
-                    satir["bar_kumesi"] = f"ornek_{ayar['n']}+sinir" + ("+kalibrasyon" if k in kalibrasyon else "")
-                n, u, ilk = _kos(birim, izgara, siralar, hipotez, y, kimlik)
-                satir.update(karsilastirilan_bar=n, uyusmayan_bar=u, ilk_20_uyusmayan=";".join(ilk))
-            except Exception as hata:  # noqa: BLE001 - yalnizca sinif adi yazilir
-                satir["hata"] = type(hata).__name__
-            satir["sure_s"] = round(time.perf_counter() - t0, 1)
-            satirlar.append(satir)
-    satirlar.append({"sembol": sembol, "donem_no": -1, "hipotez": "", "yapilandirma": "", "rol": "TOPLAM_SURE",
-                     "bar_kumesi": kip, "karsilastirilan_bar": 0, "uyusmayan_bar": 0, "ilk_20_uyusmayan": "",
-                     "sure_s": round(time.perf_counter() - bas_sure, 1), "hata": ""})
+                yk = sinyal_modulu.yapilandirma_kimligi(hipotez, y)
+                for birim in _birim_etiketleri(ayar["roller"], ayar["funding_satiri"]):
+                    t0 = time.perf_counter()
+                    satir = _bos_satir(sembol, donem_no, hipotez, yk, birim)
+                    try:
+                        izgara = bar_izgarasi(kimlik, hipotez)
+                        if kip == "tum":
+                            siralar = list(range(len(izgara)))
+                            satir["bar_kumesi"] = "tum"
+                        else:
+                            birim_tohumu = tohum(sembol, donem_no, hipotez, yk, birim)
+                            sec = tohumlu_siralar(len(izgara), ayar["n"], birim_tohumu)
+                            siralar = sorted(sec | sinir_siralari(izgara, kimlik))
+                            satir["bar_kumesi"] = f"ornek_{ayar['n']}+sinir"
+                            satir["tohum"] = str(birim_tohumu)
+                        sayac = _kos(birim, izgara, siralar, hipotez, y, kimlik)
+                        satir.update(sayac.alanlar(kapsam_yazilir=birim != "olay"))
+                    except Exception as hata:  # noqa: BLE001 - yalnizca sinif adi yazilir, mesaj yazilmaz
+                        satir["hata"] = type(hata).__name__
+                    satir["sure_s"] = round(time.perf_counter() - t0, 1)
+                    satirlar.append(satir)
+    toplam = _bos_satir(sembol, -1, "", "", "TOPLAM_SURE")
+    toplam.update(bar_kumesi=kip, sure_s=round(time.perf_counter() - bas_sure, 1))
+    satirlar.append(toplam)
     return satirlar
 
 
-def agac_temiz() -> bool:
-    cikti = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=KOK, capture_output=True,
-                           text=True, check=True).stdout
-    return cikti.strip() == ""
+def _guvenli_sembol_isi(sembol: str, ayar: dict) -> list[dict]:
+    """`sembol_isi`; birim disinda (donem listesi, ayar) dusen hata yalnizca sinif adiyla tek satir olur (S-18)."""
+    try:
+        return sembol_isi(sembol, ayar)
+    except Exception as hata:  # noqa: BLE001 - yalnizca sinif adi
+        satir = _bos_satir(sembol, -1, "", "", "HATA")
+        satir["hata"] = type(hata).__name__
+        return [satir]
 
 
 def _ara_dizin_dogrula(ara_dizin) -> Path | None:
@@ -328,8 +401,15 @@ def _ara_dizin_dogrula(ara_dizin) -> Path | None:
     return yol
 
 
+class AgacTemizDegil(SystemExit):
+    """Kesif kaydi calisma agacini temiz bulmadi; esitlik kosusu commit edilmis agacta yapilir."""
+
+
 def kos(semboller, ayar: dict, isci: int, ara_dizin: Path | None = None):
     """Kesif kosusu icinde, surec havuzuyla. (satirlar, kesif kaydi alanlari listesi).
+
+    Agac temizligi `KesifKaydi.agac_temiz`ten okunur (S-28, S-29, D-C7): betik ikinci bir uygulama tasimaz. Deger True
+    degilse hicbir sembol kosmadan `AgacTemizDegil` (SystemExit) firlatilir.
 
     `ara_dizin` verilirse her biten sembolun satirlari oraya yazilir (`<sembol>.json`: satirlar, HEAD, ayar) ve sonraki
     kosu ayni HEAD ve ayni ayarla kaydi olan sembolleri atlar (kesilen kosunun kaldigi yerden devami). Farkli HEAD ya da
@@ -337,7 +417,11 @@ def kos(semboller, ayar: dict, isci: int, ara_dizin: Path | None = None):
     eklenir ve cikti kayit dosyasina hepsi yazilir."""
     satirlar = []
     with split_modulu.kesif_kosusu() as kayit:
-        head = kayit.alanlar()["head_commit"]
+        alanlar = kayit.alanlar()
+        if alanlar.get("agac_temiz") is not True:
+            raise AgacTemizDegil("Kesif kaydi calisma agacini temiz bulmadi; esitlik kosusu commit edilmis agacta "
+                                 "yapilir.")
+        head = alanlar["head_commit"]
         kalan = list(semboller)
         if ara_dizin is not None:
             kalan = []
@@ -358,7 +442,7 @@ def kos(semboller, ayar: dict, isci: int, ara_dizin: Path | None = None):
 
         if isci <= 1:
             for s in kalan:
-                sonuc = sembol_isi(s, ayar)
+                sonuc = _guvenli_sembol_isi(s, ayar)
                 kaydet(s, sonuc)
                 satirlar += sonuc
                 print(f"bitti: {s}", file=sys.stderr, flush=True)
@@ -366,14 +450,14 @@ def kos(semboller, ayar: dict, isci: int, ara_dizin: Path | None = None):
             baglam = multiprocessing.get_context("spawn")
             with concurrent.futures.ProcessPoolExecutor(max_workers=isci, mp_context=baglam,
                                                         max_tasks_per_child=1) as havuz:
-                isler = {havuz.submit(sembol_isi, s, ayar): s for s in kalan}
+                isler = {havuz.submit(_guvenli_sembol_isi, s, ayar): s for s in kalan}
                 for is_ in concurrent.futures.as_completed(isler):
                     sembol = isler[is_]
                     try:
                         sonuc = is_.result()
                         kaydet(sembol, sonuc)
-                    except Exception as hata:  # noqa: BLE001
-                        sonuc = [{"sembol": sembol, "donem_no": -1, "rol": "HATA", "hata": type(hata).__name__}]
+                    except Exception as hata:  # noqa: BLE001 - yalnizca sinif adi
+                        sonuc = [_bos_satir(sembol, -1, "", "", "HATA") | {"hata": type(hata).__name__}]
                     satirlar += sonuc
                     print(f"bitti: {sembol}", file=sys.stderr, flush=True)
     kayitlar = [kayit.alanlar()]
@@ -386,38 +470,50 @@ def kos(semboller, ayar: dict, isci: int, ara_dizin: Path | None = None):
     return tablo.reset_index(drop=True), kayitlar
 
 
+def ozet(tablo: pd.DataFrame) -> dict:
+    """Komut satiri ozeti: yalnizca sayilar."""
+    sayilar = {a: int(pd.to_numeric(tablo[a], errors="coerce").fillna(0).sum()) for a in SAYI_ALANLARI}
+    sayilar["hatali_birim"] = int((tablo["hata"].fillna("") != "").sum())
+    return sayilar
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--bar", choices=BAR_KIPLERI, required=True, help="bar kipi; sureye gore secilmez (D-B3, D-C4)")
     ap.add_argument("--hipotez", nargs="+", default=list(config.HIPOTEZLER), choices=list(config.HIPOTEZLER))
     ap.add_argument("--yapilandirma", choices=("ilk", "hepsi"), default="ilk")
     ap.add_argument("--rol", nargs="+", default=list(ROLLER), choices=list(ROLLER))
     ap.add_argument("--funding-satiri", action=argparse.BooleanOptionalAction, default=True)
-    ap.add_argument("--bar", choices=("tum", "ornek", "uyarlamali"), default="uyarlamali")
     ap.add_argument("--n", type=int, default=2000)
-    ap.add_argument("--sure-siniri-dk", type=float, default=15.0)
     ap.add_argument("--isci", type=int, default=max(1, (multiprocessing.cpu_count() or 2) - 1))
     ap.add_argument("--sembol", nargs="*", default=None, help="ornegin alt kumesi (varsayilan: butun ornek)")
     ap.add_argument("--etiket", default="p2a")
     ap.add_argument("--ara-dizin", default=None, help="depo disinda ara kayit dizini (kesilen kosunun devami)")
     arg = ap.parse_args(argv)
     ara_dizin = _ara_dizin_dogrula(arg.ara_dizin)
-    if not agac_temiz():
-        print("Calisma agaci temiz degil; esitlik kosusu commit edilmis agacta yapilir.", file=sys.stderr)
-        return 2
     ornek = list(pd.read_csv(ORNEK, usecols=["sembol"])["sembol"])
     semboller = ornek if arg.sembol is None else [s for s in ornek if s in set(arg.sembol)]
     ayar = {"hipotezler": arg.hipotez, "yapilandirma": arg.yapilandirma, "roller": arg.rol,
-            "funding_satiri": arg.funding_satiri, "bar": arg.bar, "n": arg.n, "sure_siniri_dk": arg.sure_siniri_dk}
+            "funding_satiri": arg.funding_satiri, "bar": arg.bar, "n": arg.n}
     from calistir import csv_yaz, kosu_kilidi
 
-    with kosu_kilidi(f"esitlik_kapi_{arg.etiket}"):
-        tablo, kayitlar = kos(semboller, ayar, arg.isci, ara_dizin)
-        csv_yaz(tablo, BU_DIZIN / f"esitlik_kapi_{arg.etiket}_tam.csv")
-        csv_yaz(pd.DataFrame(kayitlar), BU_DIZIN / f"esitlik_kapi_{arg.etiket}_kesif_kaydi_tam.csv")
-    karsi = int(tablo["karsilastirilan_bar"].fillna(0).sum())
-    uyus = int(tablo["uyusmayan_bar"].fillna(0).sum())
-    hata = int((tablo["hata"].fillna("") != "").sum())
-    print(f"karsilastirilan bar: {karsi}, uyusmayan bar: {uyus}, hatali birim: {hata}")
+    try:
+        with kosu_kilidi(f"esitlik_kapi_{arg.etiket}"):
+            tablo, kayitlar = kos(semboller, ayar, arg.isci, ara_dizin)
+            csv_yaz(tablo, BU_DIZIN / f"esitlik_kapi_{arg.etiket}_tam.csv")
+            csv_yaz(pd.DataFrame(kayitlar), BU_DIZIN / f"esitlik_kapi_{arg.etiket}_kesif_kaydi_tam.csv")
+    except AgacTemizDegil:
+        print("Calisma agaci temiz degil (kesif kaydi); esitlik kosusu commit edilmis agacta yapilir.", file=sys.stderr)
+        return 2
+    except Exception as hata:  # noqa: BLE001 - S-18: mesaj yazilmaz, yalnizca sinif adi
+        hata = type(hata).__name__
+        print(f"kosu dustu: {hata}", file=sys.stderr)
+        return 3
+    sayilar = ozet(tablo)
+    karsi, uyus = sayilar["karsilastirilan_bar"], sayilar["uyusmayan_bar"]
+    hata = sayilar["beklenmeyen_hata_referans"] + sayilar["beklenmeyen_hata_yeni"] + sayilar["hatali_birim"]
+    print(f"karsilastirilan bar: {karsi}, uyusmayan bar: {uyus}, beklenmeyen hata (iki taraf) + hatali birim: {hata} "
+          "(ayrintisi CSV'de)")
     return 0 if (uyus == 0 and hata == 0) else 1
 
 

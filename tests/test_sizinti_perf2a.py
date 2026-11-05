@@ -123,14 +123,16 @@ def test_kaynaksiz_pyc_referans_adini_taramadan_gizler(tmp_path):
     assert skaler_referans_ihlalleri(kok) == ["analysis/h/kos.pyc"]
 
 
-@bulgu("S-17", "analiz kodu `esitlik_kapi` modulunu ice aktarip `referans` takma adiyla referansa adsiz ulasabilir")
+# S-17 kapandi (ana oturum, RESULTS §14.45): `esitlik_kapi` referansi modul duzeyinde bir adla tutmaz; referans yalnizca
+# karsilastirma fonksiyonlarinin icinde ice aktarilir. Saldiri on kosulu (`ek.referans`) artik kurulamaz; test savunmanin
+# tuttugunu gosterir.
 def test_esitlik_betigi_uzerinden_referansa_adsiz_erisim_taranmaz(tmp_path):
-    """Dayanak: SKALER_REFERANS_DESENI yalnizca `skaler_referans` metnini arar; istisna dosyasi (`esitlik_kapi.py`) referansi
-    `referans` adiyla tutar. Bu dosyayi ice aktaran analiz kodu referansa ad anmadan erisir (ref onayi imzasizdir, getiriye
-    giremez; yine de plan v2 karar 3'un 'analiz kodu kullanmaz' niyeti delinir)."""
-    _on_kosul(ek.referans is ref, "esitlik betigi referansi tutmuyor")
-    metin = "import esitlik_kapi\nreferans_modulu = esitlik_kapi.referans\n"
-    assert _tara(tmp_path, "analysis/h1/kos.py", metin) == ["analysis/h1/kos.py"]
+    """Dayanak: SKALER_REFERANS_DESENI yalnizca `skaler_referans` metnini arar. Istisna dosyasini (`esitlik_kapi.py`) ice
+    aktaran analiz kodu referansa ad anmadan erisememeli: modulun hicbir niteligi (ve varsayilan argumani) referans degil."""
+    assert not hasattr(ek, "referans")
+    for ad, deger in vars(ek).items():
+        assert deger is not ref, ad
+        assert all(x is not ref for x in (getattr(deger, "__defaults__", None) or ())), ad
 
 
 def test_referans_onayi_getiri_giris_noktalarinda_reddedilir():
@@ -252,28 +254,31 @@ def test_ornek_kipinde_beklenmeyen_hata_yalnizca_sinif_adi_olarak_yazilir(monkey
     monkeypatch.setattr(ref, "pozisyon_funding_ayrintisi", bozuk)
     satirlar = ek.sembol_isi(kimlik["sembol"], _sentinel_ayari("ornek", []))
     birim = [s for s in satirlar if s["rol"] == ek.FUNDING_SATIRI]
-    assert len(birim) == 1 and birim[0]["hata"] == "RuntimeError"
+    # Performans 2b-0 (D-B2): beklenmeyen hata artik bar duzeyinde, taraf ve sinif adiyla sayilir (ana oturum guncelledi).
+    assert len(birim) == 1 and birim[0]["beklenmeyen_hata_referans"] > 0
+    assert birim[0]["ilk_20_beklenmeyen"].startswith("referans:RuntimeError@")
     assert SENTINEL not in repr(satirlar)
 
 
-@bulgu("S-18", "kalibrasyon asamasi (uyarlamali kip) birim hatasini yakalamaz; hata mesaji (deger icerebilir) disari cikar")
+# S-18 kapandi (ana oturum, RESULTS §14.45): kalibrasyon dongusu ve `uyarlamali` kip kaldirildi; birim disi hatalar da
+# `_guvenli_sembol_isi` ile sinif adina indirgenir. Test savunmanin tuttugunu gosterir.
 def test_kalibrasyon_asamasi_hata_mesajini_disari_sizdirir(monkeypatch):
-    """Dayanak: esitlik_kapi aciklamasi ('mesaj yazilmaz'). `sembol_isi` ana dongusunde her birim `try/except` ile sinif
-    adina indirgenir, ama `uyarlamali` kipin kalibrasyon dongusundeki `_kos` cagrisi try DISINDADIR: oradaki hatanin mesaji
-    tek surecli kosuda (`--isci 1`; `kos` isci <= 1 yolu) yakalanmadan izleme ciktisina cikar."""
+    """Dayanak: esitlik_kapi aciklamasi ('mesaj yazilmaz'). Kosucunun kullandigi `_guvenli_sembol_isi`, eski `uyarlamali`
+    kipte de, ornek kipte deger tasiyan bir birim hatasinda da mesaji disari vermez."""
     kimlik, _ = dunya(402, BAS, BITIS)
     monkeypatch.setattr(ek, "_donemler", lambda s: [0])
+    for ad, deger in (("SINIR_DONEM", 3), ("SINIR_KUME", 3), ("SINIR_RITIM", 2)):
+        monkeypatch.setattr(ek, ad, deger)
 
     def bozuk(fr, plan):
         raise RuntimeError(SENTINEL)
 
     monkeypatch.setattr(ref, "pozisyon_funding_ayrintisi", bozuk)
-    mesaj = None
-    try:
-        ek.sembol_isi(kimlik["sembol"], _sentinel_ayari("uyarlamali", []))
-    except Exception as hata:  # noqa: BLE001 - mesaj sizintisi sinaniyor
-        mesaj = str(hata)
-    assert mesaj is None or SENTINEL not in mesaj
+    for kip in ("uyarlamali", "ornek"):
+        satirlar = ek._guvenli_sembol_isi(kimlik["sembol"], _sentinel_ayari(kip, []))
+        assert SENTINEL not in repr(satirlar)
+    eski = ek._guvenli_sembol_isi(kimlik["sembol"], _sentinel_ayari("uyarlamali", []))
+    assert [s["hata"] for s in eski] == ["ValueError"]
 
 
 @pytest.mark.parametrize("hedef", [KOK / "tests" / ".." / "analysis" / "ara", KOK / "ara", KOK / "cache" / "ara",
@@ -858,29 +863,47 @@ def test_ayni_boyda_icerik_degisikligi_ve_geri_yuklenen_mtime_agaci_temiz_goster
     assert _temiz_mi() is False
 
 
-@bulgu("S-28", "esitlik_kapi.agac_temiz assume-unchanged ile gizlenen degisikligi gormez (D-C2 duzeltmesi yalnizca split'te)")
+class _KayitTemizlik:
+    def __init__(self, temiz):
+        self.temiz = temiz
+
+    def alanlar(self):
+        return {"head_commit": "a" * 40, "agac_temiz": self.temiz}
+
+
+# S-28 kapandi (ana oturum, RESULTS §14.45): betigin ikinci `agac_temiz` uygulamasi kaldirildi; kosu `KesifKaydi.agac_temiz`
+# degerine dayanir (D-C2 `ls-files -v` denetimi orada). Test savunmanin tuttugunu gosterir.
 def test_esitlik_betigi_agac_temiz_gizlenen_degisikligi_gormez(tmp_path, monkeypatch):
-    """Dayanak: esitlik_kapi aciklamasi ('Temiz calisma agaci ister') ve D-C2. Betigin kendi `agac_temiz` kontrolu
-    `git status --porcelain --untracked-files=all` kullanir; `ls-files -v` bakmadigi icin assume-unchanged ile gizlenen kod
-    degisikligiyle kosu baslar (yalnizca kesif kaydi sonradan agac_temiz=False yazar)."""
+    """Dayanak: esitlik_kapi aciklamasi ve D-C2. assume-unchanged ile gizlenen degisiklik kesif kaydinda kirli sayilir ve
+    esitlik kosusu o kayitla BASLAMAZ."""
+    assert not hasattr(ek, "agac_temiz")
     depo = gecici_depo(tmp_path)
-    monkeypatch.setattr(ek, "KOK", depo)
-    _on_kosul(ek.agac_temiz() is True, "baslangic agaci temiz degil")
     git(depo, "update-index", "--assume-unchanged", DEPO_BETIGI)
     yol = depo / DEPO_BETIGI
     yol.write_bytes(yol.read_bytes() + b"# gizli degisiklik\n")
     _on_kosul(git(depo, "status", "--porcelain").strip() == "", "bayrak degisikligi gizlemedi")
-    assert ek.agac_temiz() is False
+    temiz = _temiz_mi()
+    assert temiz is False
+
+    @contextmanager
+    def kesif():
+        yield _KayitTemizlik(temiz)
+
+    monkeypatch.setattr(ek, "split_modulu", types.SimpleNamespace(kesif_kosusu=kesif))
+    monkeypatch.setattr(ek, "sembol_isi", lambda s, a: pytest.fail("kirli agacta sembol kostu"))
+    with pytest.raises(SystemExit):
+        ek.kos(["X"], {"bar": "ornek"}, 1, None)
 
 
-@bulgu("S-29", "esitlik_kapi.agac_temiz GIT_DIR/GIT_WORK_TREE'yi suzmez: temiz bir sahte depo kirli agaci temiz gosterir")
+# S-29 kapandi (ana oturum, RESULTS §14.45): betik agaci kendisi denetlemez; kesif kaydi bag ortamiyla denetler. Test
+# savunmanin tuttugunu gosterir.
 def test_esitlik_betigi_agac_temiz_depo_yonlendirmesine_aldanir(tmp_path, monkeypatch):
-    """Dayanak: S-5 niyeti; esitlik_kapi.agac_temiz `_bag_ortami` kullanmaz, ortami oldugu gibi miras alir."""
+    """Dayanak: S-5 niyeti. GIT_DIR/GIT_WORK_TREE temiz bir sahte depoya cevrilse de kesif kaydi kirli agaci kirli yazar."""
+    assert not hasattr(ek, "agac_temiz")
     depo = gecici_depo(tmp_path)
     sahte = _sahte_depo(tmp_path)
     (depo / "izlenmeyen.py").write_text("x = 1\n", encoding="utf-8")
-    monkeypatch.setattr(ek, "KOK", depo)
-    _on_kosul(ek.agac_temiz() is False, "taban: kirli agac kirli gorunmeli")
+    _on_kosul(_temiz_mi() is False, "taban: kirli agac kirli gorunmeli")
     monkeypatch.setenv("GIT_DIR", str(sahte / ".git"))
     monkeypatch.setenv("GIT_WORK_TREE", str(sahte))
-    assert ek.agac_temiz() is False
+    assert _temiz_mi() is False

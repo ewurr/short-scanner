@@ -399,7 +399,9 @@ def test_tarama_istisnalari_yalnizca_tests_ve_esitlik_betikleri(tmp_path):
 
     dosyalar = {
         "tests/test_x.py": True, "data/_skaler_referans.py": True,
-        "analysis/00_veri_denetimi/esitlik_kapi.py": True,
+        "analysis/00_veri_denetimi/esitlik_kapi.py": True, "analysis/00_veri_denetimi/esitlik_ornegi_sec.py": True,
+        # D-C10 (performans 2b-0): istisna acik dosya adlarina daraldi; desene uyan yeni bir dosya istisna degildir.
+        "analysis/00_veri_denetimi/esitlik_yeni.py": False, "analysis/00_veri_denetimi/esitlik_kapi2.py": False,
         "analysis/00_veri_denetimi/calistir.py": False, "analysis/00_veri_denetimi/alt/esitlik_x.py": False,
         "data/pozisyon.py": False, "study/kos.py": False, "events/h1.ipynb": False, "tools/arac.pyw": False,
     }

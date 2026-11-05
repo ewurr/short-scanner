@@ -229,16 +229,21 @@ def olay_rolu_ihlalleri(kok: Path = KOK, izinli_altlar=IZINLI_ALTLAR, uzantilar=
 # Skaler referans (performans 2a; plan v2 karar 3): `data/_skaler_referans.py` F2 oncesi skaler karar yolunun
 # dondurulmus kopyasidir ve yalnizca esitlik testleri, gercek veri esitlik betigi ve F3 golge kosusu kullanir. Analiz
 # kodu (ve `data/`nin geri kalani) modulun adini anmaz; istisnalar `tests/` ve
-# `analysis/00_veri_denetimi/esitlik_*.py`dir. Genel `IZINLI_ALTLAR` muafiyeti (`data/`, `analysis/00_veri_denetimi/`)
+# acik adli iki esitlik betigidir (`SKALER_REFERANS_IZINLI_DOSYALAR`; performans 2b-0, D-C10: `esitlik_*` deseni
+# dizine eklenecek her dosyaya acikti, acik adlara daraltildi). Genel `IZINLI_ALTLAR` muafiyeti (`data/`, `analysis/00_veri_denetimi/`)
 # bu desene UYGULANMAZ. Sinir: adi parcalayip `importlib` ile kurulan bir erisim yakalanmaz.
 SKALER_REFERANS_DESENI = r"skaler_referans"
 SKALER_REFERANS_UZANTILARI = (".py", ".ipynb", ".pyw")
+SKALER_REFERANS_IZINLI_DOSYALAR = frozenset({
+    "data/_skaler_referans.py",
+    "analysis/00_veri_denetimi/esitlik_kapi.py",
+    "analysis/00_veri_denetimi/esitlik_ornegi_sec.py",
+})
 
 
 def skaler_referans_istisnasi(goreli: str) -> bool:
     """`goreli` (depo kokune gore, `/` ayracli) skaler referansi anabilir mi?"""
-    return (goreli.startswith("tests/") or goreli == "data/_skaler_referans.py"
-            or re.fullmatch(r"analysis/00_veri_denetimi/esitlik_[^/]*\.py", goreli) is not None)
+    return goreli.startswith("tests/") or goreli in SKALER_REFERANS_IZINLI_DOSYALAR
 
 
 def skaler_referans_ihlalleri(kok: Path = KOK) -> list[str]:
