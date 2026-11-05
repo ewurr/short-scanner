@@ -126,6 +126,119 @@ def test_kopya_olay_karari_ve_sinyal_kosulunun_cagri_grafini_kapsar():
     assert [n.lineno for n in ast.walk(agac) if isinstance(n, (ast.Import, ast.ImportFrom)) and n.col_offset] == []
 
 
+# --- 2b. D-C1 (RESULTS §14.44): ad tekilligi, baslik importlari, statik ad cozumu ---------------------------
+
+# Modul basligindaki ice aktarmalar (`ast.unparse`, kaynak sirasiyla). Dosya SHA'si bunlari zaten kapsar; bu liste
+# degisikligin NEREDE oldugunu soyler: yeni bir `data` ice aktarmasi referansa kopyalanmamis bir yol acar.
+BASLIK_IMPORTLARI = (
+    "from __future__ import annotations",
+    "import functools",
+    "import functools as _functools",
+    "import itertools",
+    "import math",
+    "import sys",
+    "import types as _types",
+    "from dataclasses import dataclass, field, replace",
+    "from types import MappingProxyType",
+    "import numpy as np",
+    "import pandas as pd",
+    "import config",
+    "from data import klines as klines_modulu",
+    "from data import pozisyon as _pozisyon_asli",
+    "from data import split as split_modulu",
+    "from data.pencere import ADIM_4H, ADIMLAR, ODEME_TOLERANSI, _plan_imzasi, _zaman_dizisi_dogrula, adim, ayni_an, "
+    "ayni_an_basi, ayni_an_sonu, ayni_ya_da_once, ayni_ya_da_sonra, once, plan_dogrula, sonra, utc_zamani",
+    "from data.pencere import CikisSonucu, DonemDisiSinyal, GirisBariYok, HipotezUfuklari, IleriKaymaSiniriHatasi, "
+    "KumeSiniriHatasi, OlayOlusmaz, PozisyonPlani, VeriHatasi, ZamanDizisiHatasi",
+    "from data.pozisyon import FundingTamDegil, OnaylanmisPozisyon, SinyalBariYok, SinyalKosuluSaglanmadi, "
+    "SinyalPenceresiTamDegil, UygunDegil",
+    "from data.sinyal import TepePenceresiKurulamaz, YapilandirmaHatasi",
+)
+
+
+def _ust_duzey_adlar(agac: ast.Module) -> list[str]:
+    """Modul ad alanina ust duzeyde baglanan her ad (tanim, atama hedefi, ice aktarma), tekrarlariyla."""
+    adlar = []
+    for d in agac.body:
+        if isinstance(d, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            adlar.append(d.name)
+        elif isinstance(d, ast.Assign):
+            adlar += [n.id for h in d.targets for n in ast.walk(h) if isinstance(n, ast.Name)]
+        elif isinstance(d, ast.AnnAssign):
+            adlar.append(d.target.id)
+        elif isinstance(d, (ast.Import, ast.ImportFrom)):
+            adlar += [a.asname or a.name.split(".")[0] for a in d.names if a.name != "annotations"]
+    return adlar
+
+
+def test_referanstaki_ust_duzey_adlar_tekildir():
+    """Kopyalanan iki tanim ayni adi tasirsa sonraki oncekini sessizce ezer (`_sonlu` carpismasi, degisiklik 2)."""
+    sayac = collections.Counter(_ust_duzey_adlar(ast.parse(YOL.read_text(encoding="utf-8"))))
+    assert sorted(a for a, n in sayac.items() if n > 1) == []
+
+
+def test_referansin_baslik_importlari_sabit():
+    agac = ast.parse(YOL.read_text(encoding="utf-8"))
+    ust = [ast.unparse(d) for d in agac.body if isinstance(d, (ast.Import, ast.ImportFrom))]
+    assert tuple(ust) == BASLIK_IMPORTLARI
+    # Ice aktarmalarin hepsi kopyalanan bolumlerden ONCE, baslikta.
+    ilk_tanim = next(d.lineno for d in agac.body if isinstance(d, (ast.FunctionDef, ast.ClassDef)))
+    assert all(d.lineno < ilk_tanim for d in agac.body if isinstance(d, (ast.Import, ast.ImportFrom)))
+
+
+def _yerel_adlar(dugum) -> set[str]:
+    """Bir tanimin govdesinde baglanan adlar: parametreler, atama/dongu/with/except hedefleri, ic tanimlar."""
+    adlar = set()
+    for x in ast.walk(dugum):
+        if isinstance(x, ast.arg):
+            adlar.add(x.arg)
+        elif isinstance(x, ast.Name) and isinstance(x.ctx, (ast.Store, ast.Del)):
+            adlar.add(x.id)
+        elif isinstance(x, ast.ExceptHandler) and x.name:
+            adlar.add(x.name)
+        elif isinstance(x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and x is not dugum:
+            adlar.add(x.name)
+    return adlar
+
+
+def test_gecisli_cagri_grafiginde_referansta_karsiligi_olmayan_ad_yok():
+    """`olay_karari` ve `sinyal_kosulu`ndan referansin icinde ulasilan her tanimda yuklenen her ad cozulur: yerel ad,
+    referansin ust duzey adi (kopya, dayanilan ice aktarma, takma ad) ya da yerlesik ad. Takma adlar uzerinden
+    (`pencere_modulu.x`) ulasilan ad referansta tanimlidir; `klines_modulu`, `split_modulu`, `_pozisyon_asli`
+    uzerinden ulasilan ad DAYANILAN'dadir. Calisma anina birakilan (NameError ile ortaya cikacak) ad kalmaz."""
+    import builtins
+
+    agac = ast.parse(YOL.read_text(encoding="utf-8"))
+    tanim = {d.name: d for d in agac.body if isinstance(d, (ast.FunctionDef, ast.ClassDef))}
+    ust = set(_ust_duzey_adlar(agac))
+    oz = {"pencere_modulu", "sinyal_modulu", "funding_modulu", "eligibility_modulu"}
+    dis = {"klines_modulu": "data.klines", "split_modulu": "data.split", "_pozisyon_asli": "data.pozisyon"}
+    eksik, gorulen, yigin = [], set(), ["olay_karari", "sinyal_kosulu"]
+    while yigin:
+        ad = yigin.pop()
+        if ad in gorulen:
+            continue
+        gorulen.add(ad)
+        yerel = _yerel_adlar(tanim[ad])
+        for x in ast.walk(tanim[ad]):
+            if isinstance(x, ast.Name) and isinstance(x.ctx, ast.Load):
+                if x.id in tanim:
+                    yigin.append(x.id)
+                elif x.id not in yerel and x.id not in ust and not hasattr(builtins, x.id):
+                    eksik.append(f"{ad}: {x.id}")
+            elif isinstance(x, ast.Attribute) and isinstance(x.value, ast.Name):
+                if x.value.id in oz:
+                    if x.attr in tanim:
+                        yigin.append(x.attr)
+                    elif x.attr not in ust:
+                        eksik.append(f"{ad}: {x.value.id}.{x.attr}")
+                elif x.value.id in dis and x.attr not in ref.DAYANILAN[dis[x.value.id]]:
+                    eksik.append(f"{ad}: {x.value.id}.{x.attr}")
+    assert eksik == []
+    # Grafik kopyanin buyuk bolumunu kapsamali (yanlislikla bos bir yurume testi gecirmesin).
+    assert {"olay_karari", "sinyal_kosulu", "funding_tamlik_ayrintisi", "pozisyon_plani"} <= gorulen
+
+
 # --- 3. Dayanilan adlar ------------------------------------------------------------------------------
 
 def test_referans_data_dan_yalnizca_dayanilan_listesindeki_adlari_kullanir():
