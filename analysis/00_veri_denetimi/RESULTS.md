@@ -4089,6 +4089,176 @@ Bulgular düzeltilmedi. Dur koşulu oluşmadı: bu turun kodu, onay koşusu olma
 
 **xfail toplamı.** 127 + 62 = **189**. Atlanan 4 + 2 = 6. Sızıntı dosyasıyla tam takım toplamı hesapla 4952 geçen; bir bütün olarak yeniden koşulmadı.
 
+### §14.44 Performans 2a (2026-11-04/05)
+
+Bu bölüm getiri, sinyal değeri ya da olay sayısı içermez. Sayılar süre, bellek, bar ve test sayılarıdır.
+
+**Plan v2 kararları** (araştırma tarafı; `prompt_perf2a.md`):
+1. **Tek kapı: seçenek A, olay rolü dahil.** `kapi_serisi` bütün rollere karar verir; `olay_karari` onun ince sarmalayıcısı olur. Seçenek B reddedildi.
+2. **D-A1 kapandı, sıra yeniden bölündü.**
+   - P2b, `kapi_serisi`'ni olay, K1 ve K2 dahil bütün rollere aynı anda getirir. H1'in çapalı olay rolü de buna dahildir; çapa parametre olarak verilir.
+   - P2c yalnızca koşul serisi ve dizi kurallarıdır.
+   - Böylece hiçbir ara durumda olay ve kontrol ayrı karar yolundan geçmez.
+   - **F2 koşucusu P2c bitmeden yazılmaz.**
+3. **Skaler referans `data/_skaler_referans.py`'dir.** "Skaler de aynı yardımcıyı çağırır" seçeneği reddedildi (D-B8).
+4. **K2: seçenek a.** Ayrı rolle bit dizisi kurulur; bit kapının bütün koşullarını kapsar (D-B4). Veri hatası ret koduna ya da False bite dönüşmez (D-B3). Bu P2b'nin işidir.
+5. **Plan vektörleştirilmez, yalnızca yeniden kullanılır.** Plan önbelleği `kume_bellegi` kurallarına tabidir (D-C8).
+6. **Gerçek veri eşitliği pytest dışında, betikle yapılır (D-B5).** Örnek, performans kodundan önce sabitlendi.
+7. **F3'te vektörel yol birincil, skaler referans gölgedir (D-B6).** Uyuşmazlık "GEÇERSİZ: uygulama hatası" hükmü verir. Kural F3 planında kesinleşir; bu turda kod yok.
+8. **Kalan denetçi bulguları** (D-B1, D-B2, D-C7, D-C9, D-C10, D-C11) P2b'nin plan bölümüne girer. Bu turda yalnızca D-C6 ve D-C8 uygulandı.
+
+**Skaler referans** (`fe1d70f`). `data/_skaler_referans.py`, 2.257 satır.
+- **Kopyalanan kaynak:** 4e63037'den, `olay_karari` ve `sinyal_kosulu`'nun geçişli çağrı grafiğindeki kural fonksiyonları ve sabitler, kaynak sırasıyla, AST ile birebir.
+  - `data/pencere.py`: 30 ad
+  - `data/funding.py`: 14 ad
+  - `data/eligibility.py`: 6 ad
+  - `data/sinyal.py`: 38 ad
+  - `data/pozisyon.py`: 14 ad
+  - Tam liste raporda.
+- **SHA256:** `933983b51bd74ef23fb843bc6d1f5e5d9509240b47cdfc1b9bed3de202f7e1a9`. `.gitattributes` dosyayı `eol=lf` tutar.
+- **Üç belgeli mekanik değişiklik:**
+  1. funding fonksiyonlarındaki yerel `from data import pencere` satırları silindi;
+  2. sinyal `_sonlu` → `_sinyal_sonlu` (ad çakışması);
+  3. `olay_karari` imzasız döner; referans ikinci bir onay kaynağı değildir.
+- **Dayanılan adlar (`DAYANILAN`):**
+  - `config`;
+  - zaman toleransı ve ızgara adımı yardımcıları;
+  - plan imzası;
+  - sınıflar;
+  - veri ve tablo yolu: `pozisyon._karar_verisi`, `donem_kaydi`, `grup_dogrula`, `kume_sinirlari`;
+  - `split` bağlam denetimleri;
+  - `klines.hucreleri_tam_mi`.
+- **Testler** (`tests/test_skaler_referans.py`):
+  - SHA sabit;
+  - gövde 4e63037'den yeniden üretilip birebir karşılaştırılır;
+  - dayanılan liste;
+  - imzasız onay;
+  - üç sentetik dünyada kapı, koşul, funding satırı ve toplam eşitliği.
+- **Tarama:** `skaler_referans` adını yasaklar. İstisnalar: `tests/`, `data/_skaler_referans.py`, `analysis/00_veri_denetimi/esitlik_*.py`.
+
+**Eşitlik örneği** (`d7a6a7b`, `esitlik_ornegi.csv`). Seçim yalnızca F1 kapsama ve ritim sütunlarıyla, mekanik kuralla yapıldı (ölçüt başına alfabetik ilk).
+
+| Sembol | Ölçüt | Tablo, sütun |
+|---|---|---|
+| SOLUSDT | sabit | §14.40 eşitlik kümesi |
+| XRPUSDT | sabit | §14.40 eşitlik kümesi |
+| 1000WHYUSDT | delist | `delist_siniflandirmasi_tam.csv`, `sinif` |
+| AERGOUSDT | iki dönemli | `sembol_ozeti_tam.csv`, `donem_sayisi` |
+| ALPACAUSDT | funding ritmi değişen | `rev9_ritim_kayit_tam.csv`, `aralik_saat` |
+| 1000XECUSDT | funding'i geç başlayan | `rev9_uygulama_baslangic_tam.csv`, `capa_yok` |
+| BNXUSDT | dönem içi en uzun boşluk | `bosluklar_tam.csv`, `eksik_bar` |
+| 1000000MOGUSDT | dönemi KESIF sonunu aşan | `dk2_ay_elemesi_tam.csv`, `donem_kesif_sonunu_icerir` |
+
+Tohum kuralı: `sha256("|".join((TOHUM, "esitlik", sembol, donem_no, hipotez, yapilandirma_kimligi, rol)))[:8]`.
+
+**P2a** (`d989c18`).
+- **Tek tamlık (1a, D-C6).**
+  - Kapı tamlık satırını bir kez hesaplar (`funding._pozisyon_tamlik_satiri`).
+  - Toplam satırın `capa_index` / `son_index` diliminden, skalerle aynı indirgemeyle alınır (`_satirdan_toplam`). Önek toplamı kullanılmaz.
+  - Toplam tamlığı atlamaz: satırın kendisini alır, `tam` değilse NaN döner.
+  - Kesimin skaler maskeyle aynı kayıtları seçtiği testle gösterildi.
+- **Toplu çağrı (1b):** `_planlar_tamlik_satirlari`. Skaler API değişmedi; iç sütunlar yalnızca `_ic_sutunlar=True` ile gelir.
+- **Plan yeniden kullanımı.** `pozisyon._PlanSerisi`, `_karar_verisi`'nin `kume_bellegi` girdisinin parçasıdır; ayrı LRU yuvası kullanmaz.
+  - Plan (bar, ufuk, birincil ufuk, t) başına bir kez kurulur.
+  - Plan yapılandırmalar arasında ve H1 ile H2 arasında paylaşılır. Gerekçe, ön-kayıt §4 rev.10: "H1 ve H2 için 4h ızgarada birincil 18 bar ... H3 için 1d ızgarada birincil 14 gün".
+  - Ret aynı sınıf ve mesajla yeniden fırlar. `OlayOlusmaz` dışı hatalar saklanmaz.
+  - Anahtar küme adını taşır; erişim denetimi her okumada, isabet dahil, çalışır; `temizle` ve LRU girdiyi düşürür.
+- D-B1'e (H2 funding sinyal penceresi) dokunulmadı.
+
+**Gerçek veri eşitliği** (`06ec2b6`; `esitlik_kapi.py`, HEAD `16a0ae0`, temiz ağaç, `kesif_kosusu`, 7 işçi).
+- Kapsam: 8 sembol, her hipotezin ilk yapılandırması; roller olay, K1, K2 ve funding satırı (plan, tamlık satırı, toplam; n = 1, tek tamlık ve toplu yol).
+- **Sonuç: 175.459 birim-bar karşılaştırıldı, uyuşmayan 0, hatalı birim 0.**
+- **Bütün barlar koşulmadı.** Her sembolde tüm-bar kestirimi 15 dakikayı aştı. Uyarlamalı kip her sembolü tohumlu 2.000 bar + sınır barları (dönem ilk/son 200, küme sınırı ±200, ritim değişimi ±20) + kalibrasyon barlarıyla koşturdu.
+  - Izgarası küçük sembollerde örnek bütün barları kapsıyor.
+  - SOL, XRP, XEC ve BNX'in 4h tarafında ~10 bin barın ~2,4 bini kapsandı.
+  - Kalan 26 yapılandırma koşulmadı.
+- İlk koşu bilgisayar kapanınca yarıda kaldı ve sonuçları kayboldu. Betiğe sembol başına ara kayıt ve kaldığı yerden devam eklendi (`16a0ae0`), koşu baştan yapıldı.
+- H1 olay rolünde çapa sabit kuralla verildi: `t − (1 + i mod 12) × 4h`. Bu rolde karşılaştırma büyük ölçüde ret sınıfı eşitliğidir (D-C5).
+
+**Ölçüm** (§14.43 betiği, aynı girdi; P2a sonrası).
+- Ölçülen kod `06ec2b6`'dır.
+- Kayıtta `agac_temiz=False` yazıyor: açılış sırasında S-11 düzenlemesi yapılıyordu.
+
+| Kalem | Önce (f70d5e5) | Sonra |
+|---|---|---|
+| `olay_karari` K1 / K2 / olay H2 (ms) | 69,9 / 75,9 / 31,2 | 56,7 / 47,9 / 29,7 |
+| `olay_karari` K1 / K2 / olay H3 (ms) | 14,5 / 15,9 / 16,2 | 12,7 / 12,9 / 14,2 |
+| `sinyal_kosulu` H1 pump / H2 / H3 (ms) | 31,8 / 36,7 / 14,7 | 28,8 / 25,9 / 12,4 |
+| Funding tamlığı + toplamı, kapının yolu (ms) | 17,0 + 17,6 | 17,9 (tek tamlık) |
+| Toplu çağrı, plan başına (ms) | — | 0,48 |
+| Ardışık 200 bar, H2 koşulu + K1 H2 (ms/bar) | 95,5 | 77,0 |
+| Aynı 200 bar, K1 H2 ikinci yapılandırma (ms/bar) | — | 51,9 |
+| `kesif_kosusu` açılış / kapanış (s) | 59,2 / 24,3 | 24,1 / 35,6 |
+
+**Toplam kestirim** (§14.40 formülü, tek çekirdek): **20,8 ile 27,9 gün** (§14.43: 26,0 ile 33,3).
+- Koşul 6,6 gün; K1 13,4 gün; yükleme 0,13 gün.
+- K2 isabetle 0,67 gün, ıskalamayla 7,8 gün.
+
+**Kapanan güvenlik açıkları** (her biri ayrı commit, `edeb267`, `9b33af8`, `b2f75b1`):
+- **S-11:** `denetim_etkin()` pytest dışında her zaman True. `MANIFEST_YOLU` yol değilse `ManifestYok`.
+- **S-5, S-6:** bağın git çağrıları `_bag_ortami` ile yapılır. `GIT_NO_REPLACE_OBJECTS=1` ve `--no-replace-objects` verilir; `GIT_DIR`, `GIT_INDEX_FILE`, `GIT_WORK_TREE`, `GIT_OBJECT_DIRECTORY` süzülür. Onay kaydının `_git` çağrıları değişmedi; P-7 xfail kaldı.
+- **D-C2:** kesif kaydının `agac_temiz` alanı `git ls-files -v` ile assume-unchanged ve skip-worktree dosyalarını kirli sayar. D-C2'yi sınayan xfail yoktu; yeni test eklendi.
+
+**Uygulanmayanlar: S-10 ve S-13.** İkisi de uygulandı ve sınandı. İkisi de beklenen listede olmayan bir XPASS verdi:
+- S-13 (NFKC), M-5'in üç parametresini XPASS yaptı (`test_sizinti_manifest.py`);
+- S-10 (pytest_configure işareti), M-11'i XPASS yaptı.
+
+M-5 ve M-11 önceki turlardan, aynı açıkların başka kodla kaydıdır. XPASS'ların sebebi "KESİF yüklemesi izin açmıyor" değildir. Bu yüzden kural gereği iki değişiklik commit edilmedi ve geri alındı. Yamalar depo dışında, araştırma tarafının kararını bekliyor:
+- `D:\Projeler\prompts\yama_s13_nfkc.diff`
+- `D:\Projeler\prompts\yama_s10_pytest_isareti.diff`
+
+**Kaldırılan işaretleyiciler ve xfail hesabı.**
+- Kaldırılanlar S-11, S-5, S-6: 189 − 3 = **186**. Parçalı takım bunu doğruladı.
+- Sızıntı testçisinin yeni dosyası 17 xfail ekledi: **toplam 203**.
+
+**Parçalı tam takım** (`tools/parcali_takim.py --grup 8`, sızıntı dosyaları dahil, araç tek seferde, arka planda):
+- **5.012 geçti, 186 xfail, 0 başarısız, 0 XPASS, 6 atlandı.**
+- Grup tepe belleği 133–160 MB; bir grup 1.793 MB (`test_kisa_sifir_kosusu.py`'nin olduğu grup).
+- Grup 7'nin süresi 55.812 s'dir: bilgisayar koşu sırasında uykuya geçti. Toplam süre önceki turlarla karşılaştırılamaz; grup satırları da (yeni dosyalarla gruplar kaydı) karşılaştırılamaz.
+- Sızıntı testçisinin dosyası takımdan sonra eklendi ve ayrı koşuldu; aşağıya bakın.
+
+**Grup 3 bellek ölçümü** (§14.43'ün 22 dosyası, tek tek, ayrı süreçte):
+- 500 MB'ı aşan tek dosya `test_kisa_sifir_kosusu.py`: **1.783 MB**, 191 s.
+- Sebep **gerçek önbellek okuması**: `test_evrende_ortada_kisa_sifir_kosusu_yok_uyarisi` bütün evrenin 4h mum dosyalarını `cache/klines/` altından okuyup hacim serilerini birlikte bellekte tutar.
+- Diğer 21 dosya 94–107 MB.
+- Düzeltme yapılmadı.
+
+**F3 gölge koşusu kararı (D-B6).** F3'te vektörel yol birincil, `_skaler_referans` gölge koşudur. İkisi uyuşmazsa hüküm "GEÇERSİZ: uygulama hatası"dır. Kural F3 planında kesinleşir.
+
+**Metodoloji denetçisi.** A bulgusu yok. **Dur koşulu: HAYIR.**
+- **D-B1:** dayanılan tarafta kural kalmış. `_karar_verisi` altında dönem ve küme kesimi, bar düzeyli mevcutluk, 1d türetmesi var; `hucreleri_tam_mi` da öyle. Ayrıca `_karar_verisi` bu turda bir sarmalayıcıya döndü. P2b/P2c bunları değiştirirse kapı ile referans birlikte kayar.
+- **D-B2:** eşitlik kapısı aynı sınıflı her hatayı (ör. `VeriHatasi`, `KesifBaglamiYok`) uyuşan sayıyor. "0 uyuşmayan", iki yolun aynı hatayla düşmesini dışlamıyor.
+- **D-B3:** "bütün barlar" karşılanmadı (yukarıda).
+- C bulguları: D-C1…D-C11.
+  - Birebir kopya testinin tekillik ve tamlık boşlukları;
+  - `_satirdan_toplam` seriyi yalnızca uzunlukla bağlıyor;
+  - `sure_s` yan kanalı;
+  - tohum çıktıya yazılmıyor;
+  - H1 olay rolünün sınırı;
+  - uzun boşluk ölçütünün yorumu;
+  - betiğin kendi `agac_temiz`'i D-C2'siz;
+  - süzülmeyen başka git değişkenleri;
+  - S-10 üzerinden S-11 aşımı;
+  - `esitlik_*` istisnasının genişliği;
+  - referansın imzalı plan üretmesi.
+
+**Sızıntı testçisi** (`48584ba`, `tests/test_sizinti_perf2a.py`, yalnızca yeni dosya).
+- Koşu: 90 geçti, 17 xfail.
+- Ana oturum iki düzeltme yaptı:
+  - bir kuruluş hatası: rastgele seri dönem bitiş barını düşürüyordu;
+  - S-24 XPASS verdi, savunma tuttu, işaret kaldırıldı.
+- Bulgular S-14…S-30 (S-24 hariç). Orta önemdekiler:
+  - **S-14:** `.ipynb` JSON kaçışı;
+  - **S-23:** süzülmeyen git değişkenleri;
+  - **S-25:** `GIT_CONFIG_*` ile `status.showUntrackedFiles=no`, izlenmeyen dosya varken `agac_temiz` True.
+- Orta/düşük:
+  - **S-15:** kodlama satırı;
+  - **S-18:** kalibrasyon döngüsünde hata mesajı sızar;
+  - **S-20:** `_satirdan_toplam` aynı uzunlukta başka bir seriyi kabul eder;
+  - **S-26:** depo ayarıyla aynı durum;
+  - **S-28:** betiğin `agac_temiz`'i `ls-files -v` bakmaz.
+- Bulgular düzeltilmedi.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
