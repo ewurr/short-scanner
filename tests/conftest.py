@@ -17,6 +17,10 @@ def pytest_addoption(parser):
 
 
 def pytest_configure(config):
+    # S-10 (RESULTS §14.44): test istisnasi bu isarete dayanir, ortam degiskenine degil.
+    from data import split
+
+    split._pytest_oturumu_kur(config)
     config.addinivalue_line("markers", "ag: aga cikar; yalnizca `--ag` ile kosulur, varsayilan `pytest -q` agsizdir.")
 
 

@@ -494,17 +494,13 @@ def test_kontrol_pytest_disi_surecte_test_kaydi_ayarlanamaz():
     assert _alt(kod, os.getcwd()) == ["OnayKorumasi"]
 
 
-@_xf("S-10", "ortam sahteciligi: `import pytest` + PYTEST_CURRENT_TEST ayarlayan bir surecte `_pytest_testi()` doner, "
-             "`denetim_etkin()` False olur ve KESIF karar noktasi baglam istemez (kesif sozlesmesi sessizce kapanir)",
-     raises=AssertionError)
+# S-10 kapandi (RESULTS §14.45): test istisnasi `pytest_configure` isaretine dayanir; xfail isareti kaldirildi.
 def test_pytest_ortam_degiskeni_sahteciligi_kesif_baglami_denetimini_kapatmamali():
     """§14.42 D-C1: test istisnasi yalnizca gercek pytest oturumunda gecerli olmali."""
     assert _alt(_sablon(_PYTEST_SAHTE, "split.kesif_baglami_dogrula('KESIF')")) == ["KesifBaglamiYok"]
 
 
-@_xf("S-10", "ortam sahteciligi: sahte PYTEST_CURRENT_TEST ile `split._test_kaydi_ayarla` pytest disinda KABUL edilir "
-             "(kayit yolu ve sahte git ortami degistirilebilir); korumanin tek dayanagi bu degiskendir",
-     raises=AssertionError)
+# S-10 kapandi (RESULTS §14.45).
 def test_pytest_ortam_degiskeni_sahteciligi_test_kaydini_pytest_disinda_ayarlatmamali(tmp_path):
     """§3.3 / split.py `_test_kaydi_ayarla`: 'pytest disinda OnayKorumasi' vaadi."""
     kod = _sablon(_PYTEST_SAHTE, "split._test_kaydi_ayarla(__import__('pathlib').Path(sys.argv[2]) / 'k.md')")

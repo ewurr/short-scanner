@@ -811,10 +811,25 @@ class _TestAyari:
 _TEST_AYARI: _TestAyari | None = None
 
 
+# pytest oturumu isareti (S-10, RESULTS §14.44): `tests/conftest.py` `pytest_configure` kancasinda `_pytest_oturumu_kur`
+# ile kurar. Yalnizca gercek bir pytest oturumunda vardir; `import pytest` ve sahte `PYTEST_CURRENT_TEST` artik istisnayi
+# acmaz. Sinir: kurucuyu adiyla cagiran kararli bir atlatma yakalanmaz (ad taramasi `ONAY_ATLATMA_DESENI`de).
+_PYTEST_OTURUMU = {"config": None}
+
+
+def _pytest_oturumu_kur(pytest_config) -> None:
+    """YALNIZCA `tests/conftest.py` `pytest_configure`: verilen nesne gercek bir `pytest.Config` olmali."""
+    import pytest
+
+    if not isinstance(pytest_config, pytest.Config):
+        raise OnayKorumasi("pytest oturumu isareti yalnizca pytest_configure kancasindan kurulur.")
+    _PYTEST_OTURUMU["config"] = pytest_config
+
+
 def _pytest_testi() -> str | None:
-    """Calisan pytest testinin kimligi; pytest disinda None."""
+    """Calisan pytest testinin kimligi; pytest disinda (oturum isareti yoksa) None."""
     deger = os.environ.get("PYTEST_CURRENT_TEST")
-    if not deger or "pytest" not in sys.modules:
+    if not deger or "pytest" not in sys.modules or _PYTEST_OTURUMU["config"] is None:
         return None
     return deger.rsplit(" (", 1)[0]
 

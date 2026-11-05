@@ -719,9 +719,7 @@ def test_eslesmemis_kosu_agsiz_cikisi_calisan_kosunun_yasagini_kaldirmaz(onbelle
     assert yasakli, "eslesmemis cikis calisan kosunun ag yasagini kaldirdi"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="M-11: _pytest_testi yalnizca PYTEST_CURRENT_TEST ve 'pytest' modulune bakar; ikisini taklit "
-                          "eden surecte manifest denetimi (kesif_kosusu, okuma_denetle) kapanir")
+# M-11 kapandi (RESULTS §14.45; S-10 ile ayni acik): `_pytest_testi` `pytest_configure` isaretine dayanir.
 def test_pytest_adi_ortam_degiskeni_taklit_edilerek_manifest_denetimi_kapatilamaz():
     """On-kayit §3 rev.13: manifest denetimi pytest disinda her zaman calisir. `PYTEST_CURRENT_TEST` ayarlayip `pytest`i
     ice aktaran bir surec, denetimi kapatamamali (ayrica `_test_manifest_ayarla` ile sahte manifest dayatamamali)."""
