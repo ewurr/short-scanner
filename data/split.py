@@ -1084,7 +1084,13 @@ def _kaydi_commit_et(mesaj: str) -> None:
         return
     goreli = _kayit_goreli()
     if _git("add", "--", goreli) is None or _git("commit", "--only", "--quiet", "-m", mesaj, "--", goreli) is None:
-        raise OnayKaydiCommitsiz(f"Onay kaydi commit edilemedi ({mesaj}). Kayit satiri calisma agacinda; elle "
+        # D-B4 (RESULTS §14.46): git ortami global/sistem yapilandirmasini okumaz; kimlik yalnizca deponun yerel
+        # yapilandirmasindan gelir. Eksikse hata bunu acikca soyler.
+        eksik = [a for a in ("user.name", "user.email") if not (_git("config", "--local", "--get", a) or "").strip()]
+        neden = (f" Deponun yerel yapilandirmasinda {'/'.join(eksik)} yok (git ortami global ve sistem yapilandirmasini "
+                 "okumaz; `git config --local user.name ...` ile ekleyin, `python -m data.split git-hazirlik` ile "
+                 "denetleyin)." if eksik else "")
+        raise OnayKaydiCommitsiz(f"Onay kaydi commit edilemedi ({mesaj}).{neden} Kayit satiri calisma agacinda; elle "
                                  "commit edilmeden yeni kosu acilmaz.")
     _kayit_commitli_denetle()
 
@@ -1694,6 +1700,50 @@ def _bag_ortami() -> dict[str, str]:
     return ortam
 
 
+def _git_tani(*argumanlar: str, sure: int = 30) -> tuple[int | None, str]:
+    """`git-hazirlik` tanisinin git cagrisi: ayni beyaz listeli ortam (`_bag_ortami`). Doner: (cikis kodu, stderr'in
+    son satiri); calistirilamazsa (None, hata sinifi)."""
+    try:
+        cikti = subprocess.run(["git", *argumanlar], cwd=_depo(), capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", timeout=sure, env=_bag_ortami())
+    except Exception as hata:
+        return None, type(hata).__name__
+    satirlar = [s for s in cikti.stderr.strip().splitlines() if s.strip()]
+    return cikti.returncode, satirlar[-1].strip() if satirlar else ""
+
+
+def _eposta_maskele(deger: str) -> str:
+    yerel, at, alan = deger.partition("@")
+    return f"{yerel[:1]}***@{alan}" if at else "***"
+
+
+def git_hazirlik() -> int:
+    """Tani komutu (`python -m data.split git-hazirlik`; RESULTS §14.46, D-B4). Onay kosusunun git islemlerinin bu
+    makinede calisip calismayacagini, onay kosusuyla AYNI beyaz listeli ortamla sinar:
+      - `git config --local --get` ile `user.name`, `user.email` (maskeli yazilir), `credential.helper`;
+      - `git fetch` (onay kosusunun refspec'iyle; yalnizca `refs/remotes/origin/main` guncellenir);
+      - `git push --dry-run origin main` (hicbir sey itilmez; kimlik bilgisi yardimcisi sinanir).
+    Onay kosusu ACMAZ, kayda dokunmaz, commit yapmaz. Analiz kodunda adi taramayla yasaktir
+    (`tests/tarama_yardimcisi.ONAY_ATLATMA_DESENI`). Doner: hepsi tamamsa 0, degilse 1."""
+    tamam = True
+    print(f"git-hazirlik: depo {_depo()}; ortam beyaz listeli ({', '.join(_GIT_ORTAM_BEYAZ_LISTESI)}), global ve "
+          "sistem yapilandirmasi okunmaz")
+    for anahtar in ("user.name", "user.email", "credential.helper"):
+        deger = (_git("config", "--local", "--get", anahtar) or "").strip()
+        if not deger:
+            tamam = False
+            print(f"  {anahtar}: YOK (deponun yerel yapilandirmasinda)")
+        else:
+            print(f"  {anahtar}: {_eposta_maskele(deger) if anahtar == 'user.email' else deger}")
+    for ad, komut in (("fetch", ("fetch", "--quiet", "--no-tags", UZAK_DEPO, f"+refs/heads/{UZAK_DAL}:{_UZAK_REF}")),
+                      ("push --dry-run", ("push", "--dry-run", UZAK_DEPO, UZAK_DAL))):
+        kod, son = _git_tani(*komut, sure=_AG_SURESI)
+        tamam = tamam and kod == 0
+        print(f"  {ad}: {'TAMAM' if kod == 0 else 'BASARISIZ'} (cikis {kod}){': ' + son if son else ''}")
+    print(f"git-hazirlik: {'TAMAM' if tamam else 'EKSIK'}")
+    return 0 if tamam else 1
+
+
 def _bag_git(*argumanlar: str, sure: int = 30) -> str | None:
     """Kesif kaydinin metin ciktili git cagrilari (`_bag_ortami`). Hata ya da sifirdan farkli cikis kodunda None."""
     try:
@@ -2012,6 +2062,8 @@ _KORUNAN_ADLAR = frozenset({
     "_pytest_oturumu_kur",
     # Agac temizliginin tek kaynagi (RESULTS §14.46; D-B1, S-31..S-33).
     "_IZLENMEYEN_KOMUTU", "_agac_kirlilikleri",
+    # Git hazirlik tanisi (RESULTS §14.46, D-B4).
+    "git_hazirlik", "_git_tani", "_eposta_maskele",
 })
 
 
@@ -2029,3 +2081,10 @@ class _KorunanModul(types.ModuleType):
 
 
 sys.modules[__name__].__class__ = _KorunanModul
+
+
+if __name__ == "__main__":
+    # `python -m data.split git-hazirlik` (RESULTS §14.46, D-B4): yalnizca tani; onay kosusu acmaz, kayda dokunmaz.
+    if sys.argv[1:] == ["git-hazirlik"]:
+        raise SystemExit(git_hazirlik())
+    raise SystemExit("kullanim: python -m data.split git-hazirlik")
