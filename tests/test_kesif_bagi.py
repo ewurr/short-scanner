@@ -72,7 +72,7 @@ def test_temiz_depoda_acilir_ve_kayit_alanlari_dolu(depo):
         assert kayit.origin_main_esit is False  # "veri" commit'i itilmedi
         assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", kayit.acilis_utc)
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", kayit.kapanis_utc)
-    assert set(kayit.alanlar()) == {"head_commit", "manifest_sha256", "agac_temiz", "origin_main_esit",
+    assert set(kayit.alanlar()) == {"head_commit", "manifest_sha256", "agac_temiz", "agac_kirli_sayisi", "origin_main_esit",
                                     "origin_main_ref_zamani", "acilis_utc",
                                     "kapanis_utc"}
     with pytest.raises(AttributeError):

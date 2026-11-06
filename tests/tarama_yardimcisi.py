@@ -132,7 +132,7 @@ ONAY_ATLATMA_DESENI = (
     r"|\b_KESIF_DURUMU\b|\b_kesif_baglami\b|\bSHORT_LAB_KESIF_KOSUSU\b|\b_KESIF_ORTAM_ADI\b|\b_kesif_baglamini_devral\b"
     # RESULTS §14.46 (denetci D-B2, sizinti S-38): §14.45'in git ortami, durum komutu ve pytest oturumu isareti.
     r"|\b_GIT_ORTAM_BEYAZ_LISTESI\b|\b_GIT_SABIT_ORTAM\b|\b_DURUM_KOMUTU\b|\b_bag_ortami\b|\b_bag_git\b"
-    r"|\b_PYTEST_OTURUMU\b|\b_pytest_oturumu_kur\b"
+    r"|\b_PYTEST_OTURUMU\b|\b_pytest_oturumu_kur\b|\b_IZLENMEYEN_KOMUTU\b|\b_agac_kirlilikleri\b"
 )
 
 # Onbellege dogrudan erisim (onay kaydi kapanis turu; §14.25 tablo satir 1, kazayla olabilir): C1/C2 verisi

@@ -323,8 +323,7 @@ def _gizli_dosya(depo, ad="gizli_kural.py"):
     return ad
 
 
-@bulgu("S-31", "`.git/info/exclude` izlenmeyen dosyayi `status --untracked-files=all` ciktisindan da gizler; "
-               "agac_temiz True kalir (--ignored kullanilmiyor)")
+# S-31 kapandi (RESULTS §14.46): izlenmeyenler yalnizca .gitignore'a gore (`split._agac_kirlilikleri`).
 def test_info_exclude_ile_gizlenen_izlenmeyen_dosya_agaci_temiz_gostermemeli(tmp_path):
     """Dayanak: CLAUDE.md §3.3 ('temiz calisma agaci'); S-25/S-26 niyeti. `-c status.showUntrackedFiles=all` ayari ezer
     ama dislama kurallarini ezmez. `.git/info/exclude` commit edilmeyen, depo-yerel bir dislama listesidir: orada adi
@@ -339,8 +338,7 @@ def test_info_exclude_ile_gizlenen_izlenmeyen_dosya_agaci_temiz_gostermemeli(tmp
     assert _temiz_mi() is False
 
 
-@bulgu("S-32", "deponun kendi `.git/config`indeki `core.excludesFile` (dogrudan ya da `include.path` ile) izlenmeyen "
-               "dosyayi gizler; beyaz liste yalnizca global/sistem yapilandirmasini keser")
+# S-32 kapandi (RESULTS §14.46): izlenmeyenler yalnizca .gitignore'a gore (`split._agac_kirlilikleri`).
 @pytest.mark.parametrize("yol", ["dogrudan", "include"])
 def test_yerel_core_excludesfile_ile_gizlenen_izlenmeyen_dosya_agaci_temiz_gostermemeli(tmp_path, yol):
     """Dayanak: CLAUDE.md §3.3; `split._GIT_SABIT_ORTAM` aciklamasi ('Yalnizca deponun kendi .git/config'u okunur').
@@ -361,8 +359,7 @@ def test_yerel_core_excludesfile_ile_gizlenen_izlenmeyen_dosya_agaci_temiz_goste
     assert _temiz_mi() is False
 
 
-@bulgu("S-33", "beyaz listedeki HOME ile git varsayilan `$HOME/.config/git/ignore` dosyasini okur; GIT_CONFIG_GLOBAL "
-               "bunu kapatmaz, orada adi gecen izlenmeyen dosya gizlenir")
+# S-33 kapandi (RESULTS §14.46): izlenmeyenler yalnizca .gitignore'a gore (`split._agac_kirlilikleri`).
 def test_home_altindaki_xdg_ignore_dosyasi_izlenmeyen_dosyayi_gizleyip_agaci_temiz_gostermemeli(tmp_path, monkeypatch):
     """Dayanak: CLAUDE.md §3.3; `split._GIT_ORTAM_BEYAZ_LISTESI` (HOME, USERPROFILE gecer). `core.excludesFile` ayarsizsa
     git `$XDG_CONFIG_HOME/git/ignore` ya da `$HOME/.config/git/ignore` dosyasini kullanir; bu ayar degil dosyadir, bu

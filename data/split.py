@@ -760,9 +760,10 @@ def ortam_karari(head: str | None, durum: str | None, betik: str | None, izleniy
         raise OnayOrtamiHatasi("Onay kosusu acilamaz: calisma agacinin durumu okunamadi.")
     kirli = [s for s in durum.splitlines() if s.strip()]
     if kirli:
+        # RESULTS §14.46: kirli sayilan dosyalarin adi yazilmaz, yalnizca sayisi (`git status` ile ayrintiya bakilir).
         raise OnayOrtamiHatasi(
-            f"Onay kosusu yalnizca temiz calisma agacinda acilir; {len(kirli)} degisiklik var "
-            f"(ornek: {kirli[:5]}). Once commit edin.")
+            f"Onay kosusu yalnizca temiz calisma agacinda acilir; {len(kirli)} kirli kayit var (izlenen degisiklik, "
+            "assume-unchanged / skip-worktree isareti ya da .gitignore disi izlenmeyen dosya). Once commit edin.")
     if betik is None:
         raise OnayOrtamiHatasi("Onay kosusu etkilesimli oturumdan ya da `python -c` ile acilamaz; depo "
                                "icinde git'te izlenen bir betikten calistirin.")
@@ -789,7 +790,9 @@ def _kosu_ortami() -> KosuOrtami:
             betik = str(yol)  # depo disi: izlenmiyor
         else:
             izleniyor = _git("ls-files", "--error-unmatch", "--", betik) is not None
-    return ortam_karari(_git("rev-parse", "HEAD"), _git(*_DURUM_KOMUTU), betik, izleniyor)
+    kirli = _agac_kirlilikleri()
+    durum = None if kirli is None else "".join(f"{k}\n" for k in kirli)
+    return ortam_karari(_git("rev-parse", "HEAD"), durum, betik, izleniyor)
 
 
 # --- Test kaydi (yalnizca pytest) --------------------------------------------
@@ -1527,16 +1530,20 @@ class KesifKaydi:
     """Kesif kosusunun kaydi. Alanlar salt okunur; `kapanis_utc` kosu kapaninca dolar. F2 kosucusu bunu sonuc dosyalarina
     yazar (`alanlar()`)."""
 
-    __slots__ = ("_head", "_manifest", "_temiz", "_origin", "_origin_zamani", "_acilis", "_kapanis")
+    __slots__ = ("_head", "_manifest", "_temiz", "_kirli_sayisi", "_origin", "_origin_zamani", "_acilis", "_kapanis")
 
-    def __init__(self, head, manifest_sha256, agac_temiz, origin_esit, acilis_utc, origin_ref_zamani=None):
+    def __init__(self, head, manifest_sha256, agac_temiz, origin_esit, acilis_utc, origin_ref_zamani=None,
+                 agac_kirli_sayisi=None):
         self._head, self._manifest, self._temiz = head, manifest_sha256, agac_temiz
+        self._kirli_sayisi = agac_kirli_sayisi
         self._origin, self._origin_zamani = origin_esit, origin_ref_zamani
         self._acilis, self._kapanis = acilis_utc, None
 
     head_commit = property(lambda self: self._head)
     manifest_sha256 = property(lambda self: self._manifest)
     agac_temiz = property(lambda self: self._temiz)
+    # RESULTS §14.46: kirli kayit SAYISI (dosya adi degil); git okunamadiysa None.
+    agac_kirli_sayisi = property(lambda self: self._kirli_sayisi)
     # D-K4 (RESULTS §14.43): esitlik yerel `refs/remotes/origin/main` ile, fetch YAPILMADAN olculur; deger o referansin
     # son guncellenme anina (reflog, UTC) gore anlamlidir. Resmi F2 kosusundan hemen once `git fetch` F2 kosucusunun isidir.
     origin_main_esit = property(lambda self: self._origin)
@@ -1546,7 +1553,7 @@ class KesifKaydi:
 
     def alanlar(self) -> dict:
         return {"head_commit": self._head, "manifest_sha256": self._manifest, "agac_temiz": self._temiz,
-                "origin_main_esit": self._origin, "origin_main_ref_zamani": self._origin_zamani,
+                "agac_kirli_sayisi": self._kirli_sayisi, "origin_main_esit": self._origin, "origin_main_ref_zamani": self._origin_zamani,
                 "acilis_utc": self._acilis, "kapanis_utc": self._kapanis}
 
     def __repr__(self) -> str:
@@ -1651,6 +1658,32 @@ _GIT_SABIT_ORTAM = {"GIT_NO_REPLACE_OBJECTS": "1", "GIT_CONFIG_NOSYSTEM": "1", "
 # Agac temizligi (S-25, S-26): izlenmeyen dosyalar komut satiriyla gosterilir; depo yapilandirmasi
 # (`status.showUntrackedFiles=no`) bunu kapatamaz. `--ignored` kullanilmaz: `.gitignore`daki onbellek kirli sayilmaz.
 _DURUM_KOMUTU = ("-c", "status.showUntrackedFiles=all", "status", "--porcelain", "--untracked-files=all")
+# Izlenmeyen dosyalar YALNIZCA commit edilen `.gitignore` dosyalarina gore suzulur (RESULTS §14.46; S-31, S-32, S-33):
+# `--exclude-standard` verilmedigi icin `.git/info/exclude`, yerel `core.excludesFile` (dogrudan ya da `include.path`
+# ile) ve `$HOME/.config/git/ignore` yok sayilir (git 2.41 ile sinandi; `tests/test_agac_temizligi_tek_kaynak.py`).
+_IZLENMEYEN_KOMUTU = ("ls-files", "--others", "--exclude-per-directory=.gitignore")
+
+
+def _agac_kirlilikleri() -> list[str] | None:
+    """Agac temizliginin TEK kaynagi (RESULTS §14.46; denetci D-B1, sizinti S-31, S-32, S-33). Kesif kaydi
+    (`_kesif_kaydi_kur`) ve onay kosu ortami (`_kosu_ortami`) bunu kullanir. Uc denetim birlesir:
+      - izlenen dosyalar: `_DURUM_KOMUTU` (`git status --porcelain --untracked-files=all`);
+      - `--assume-unchanged` (kucuk harf etiket) ve `--skip-worktree` ("S") isaretli dosyalar: `git ls-files -v`;
+      - izlenmeyen dosyalar: `_IZLENMEYEN_KOMUTU` (yalnizca `.gitignore`).
+    Doner: kirli kayitlarin tekillestirilmis, sirali listesi (bos = temiz); git okunamazsa None (kapali yon). Liste
+    cagirana yalnizca sayi olarak yansir: kesif kaydi ve onay hata mesaji dosya adi tasimaz. Sinir (kayitta kalir):
+    depo-yerel `filter.*.clean`, `core.fsmonitor`, `diff.ignoreSubmodules` (S-34, S-35, S-36; `.git` ic dosyalarinin
+    elle duzenlenmesini ister)."""
+    durum = _git(*_DURUM_KOMUTU)
+    isaretler = _git("ls-files", "-v")
+    izlenmeyen = _git(*_IZLENMEYEN_KOMUTU)
+    if durum is None or isaretler is None or izlenmeyen is None:
+        return None
+    kirli = {f"durum:{s[3:]}" if not s.startswith("??") else f"izlenmeyen:{s[3:]}" for s in durum.splitlines()
+             if s.strip()}
+    kirli |= {f"isaret:{s[2:]}" for s in isaretler.splitlines() if s and (s[:1].islower() or s[:1] == "S")}
+    kirli |= {f"izlenmeyen:{s}" for s in izlenmeyen.splitlines() if s.strip()}
+    return sorted(kirli)
 
 
 def _bag_ortami() -> dict[str, str]:
@@ -1732,15 +1765,11 @@ def _kesif_kaydi_kur(manifest_sha256: str | None) -> KesifKaydi:
     # Bagin ortami (S-5, S-6; RESULTS §14.44): kayit da bagla ayni depodan, replace referanslari yok sayilarak okunur.
     head = _bag_git("rev-parse", "HEAD")
     head = head.strip() if head is not None and re.fullmatch(r"[0-9a-f]{40}", head.strip()) else None
-    durum = _bag_git(*_DURUM_KOMUTU)
-    temiz = None if durum is None else not [s for s in durum.splitlines() if s.strip()]
-    # D-C2 (RESULTS §14.44): `--assume-unchanged` ve `--skip-worktree` isaretli dosyalar `status`ta gorunmez; `ls-files -v`
-    # etiketiyle (kucuk harf = assume-unchanged, "S" = skip-worktree) bulunur ve agaci kirli sayar.
-    isaretler = _bag_git("ls-files", "-v")
-    if isaretler is None:
-        temiz = None
-    elif temiz and any(s[:1].islower() or s[:1] == "S" for s in isaretler.splitlines() if s):
-        temiz = False
+    # Agac temizligi tek kaynaktan (RESULTS §14.46; D-B1): `_agac_kirlilikleri` (status + ls-files -v + .gitignore'a
+    # gore izlenmeyenler). Kayitta yalnizca sayi tutulur, dosya adi tutulmaz.
+    kirli = _agac_kirlilikleri()
+    temiz = None if kirli is None else not kirli
+    kirli_sayisi = None if kirli is None else len(kirli)
     uzak = _bag_git("rev-parse", "--verify", "--quiet", _UZAK_REF)
     origin = None if head is None or uzak is None else uzak.strip() == head
     # Yerel referansin son guncellenme ani (reflog; D-K4). Fetch yapilmaz.
@@ -1748,7 +1777,8 @@ def _kesif_kaydi_kur(manifest_sha256: str | None) -> KesifKaydi:
     eslesme = re.search(r"@\{(\d+)\}", secici or "")
     zaman = (dt.datetime.fromtimestamp(int(eslesme.group(1)), dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
              if eslesme else None)
-    return KesifKaydi(head, manifest_sha256, temiz, origin, _iso_zaman(), origin_ref_zamani=zaman)
+    return KesifKaydi(head, manifest_sha256, temiz, origin, _iso_zaman(), origin_ref_zamani=zaman,
+                      agac_kirli_sayisi=kirli_sayisi)
 
 
 @contextmanager
@@ -1980,6 +2010,8 @@ _KORUNAN_ADLAR = frozenset({
     # ve pytest oturumu isareti. Gerileme: korunmadiklari icin siradan bir atamayla agac temizligi dusurulebiliyordu.
     "_GIT_ORTAM_BEYAZ_LISTESI", "_GIT_SABIT_ORTAM", "_DURUM_KOMUTU", "_bag_ortami", "_bag_git", "_PYTEST_OTURUMU",
     "_pytest_oturumu_kur",
+    # Agac temizliginin tek kaynagi (RESULTS §14.46; D-B1, S-31..S-33).
+    "_IZLENMEYEN_KOMUTU", "_agac_kirlilikleri",
 })
 
 
