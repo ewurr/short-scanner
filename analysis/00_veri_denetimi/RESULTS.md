@@ -4259,6 +4259,97 @@ M-5 ve M-11 önceki turlardan, aynı açıkların başka kodla kaydıdır. XPASS
   - **S-28:** betiğin `agac_temiz`'i `ls-files -v` bakmaz.
 - Bulgular düzeltilmedi.
 
+### §14.45 Performans 2b-0 (2026-11-05/06)
+
+Bu bölüm getiri, sinyal değeri ya da olay sayısı içermez. Sayılar test, bar ve dosya sayılarıdır. Bu turda performans kodu yazılmadı; kapının hiçbir kural fonksiyonu değişmedi (`tests/test_skaler_referans_dayanilan.py` bunu bundan sonra sabitler).
+
+**S-10 ve S-13 (araştırma tarafı onayladı; §14.44'teki yamalar).**
+- **S-10, M-11** (`8c6cab9`): `split._pytest_testi` artık `tests/conftest.py` `pytest_configure` kancasının `_pytest_oturumu_kur(config)` ile kurduğu oturum işaretini ister (`isinstance(pytest.Config)`). `import pytest` + sahte `PYTEST_CURRENT_TEST` istisnayı açmaz. XPASS: S-10'un iki testi ve M-11 (aynı açığın eski kaydı).
+- **S-13, M-5** (`f645113`): `tests/tarama_yardimcisi._oku` taranan metni NFKC ile normalleştirir (PEP 3131). XPASS: S-13'ün altı parametresi ve M-5'in üç parametresi.
+- Listede olmayan XPASS çıkmadı. Yamalar `git apply` yerine elle uygulandı (hook `git apply`'ı kilitli dosyaya dokunabilir diye reddeder).
+
+**Dayanılan fonksiyonların sabitlenmesi (D-B1, D-C1; `9d4786d`).** `tests/test_skaler_referans_dayanilan.py`:
+- **Yöntem.** Kökler `ref.DAYANILAN`'daki bütün adlardır (`config` hariç). Geçişli grafik AST ile çıkarılır: bir tanımın gövdesinde yüklenen her ad, aynı modülün üst düzey tanımına ya da bir `data` takma adı (`pencere_modulu.x`, `bv.x`, `from data.pencere import x`, fonksiyon içi yerel içe aktarmalar dahil) üzerinden başka modülün üst düzey tanımına çözülürse kenardır. `HARIC`'teki adlarda grafik durur.
+- **Sabitleme.** Fonksiyonlar, sınıflar ve sabitler aynı yolla: tanımın AST aralığı (dekoratörler dahil), dosya metninden, satır sonları LF, SHA256. Sabitler için atama satırı (değer ifadesi dahil) sabitlenir, değeri değil (değerler `config`'ten gelir ya da süreçe özgüdür: `_PLAN_GIZLI = object()`). `inspect.getsource` yerine dosya metni kullanıldı, çünkü `tests/conftest.py` `pozisyon._kayitlar` ve `_veri_yukle`'yi her testte sarar.
+- **SABIT (61 ad).**
+  - `data.pozisyon`: `_karar_verisi`, `_karar_girdisi`, `_karar_verisi_kur`, `_kume_verisi`, `_kume_verisi_yukle`, `_tam_hucreli_barlar`, `_kayitlar`, `_DonemSiniri`, `_PlanSerisi`, `donem_kaydi`, `grup_dogrula`, `kume_sinirlari`, sınıflar `FundingTamDegil`, `OnaylanmisPozisyon`, `SinyalBariYok`, `SinyalKosuluSaglanmadi`, `SinyalPenceresiTamDegil`, `UygunDegil`.
+  - `data.klines`: `donem_kes`, `gunluge_cevir`, `hucreleri_tam_mi`, `GUNLUK_BAR_SAYISI`, `GUNLUK_IZGARA_ADIMI`, `HUCRE_SUTUNLARI`.
+  - `data.pencere`: `donem_ici_4h_maskesi`, `_zaman_dizisi_dogrula`, `utc_zamani`, `adim`, `ayni_an`, `ayni_an_basi`, `ayni_an_sonu`, `ayni_ya_da_once`, `ayni_ya_da_sonra`, `once`, `sonra`, `tolerans`, `_tolerans_pd`, `_sonuc`, `_plan_imzasi`, `plan_dogrula`, `ADIMLAR`, `ADIM_4H`, `ZAMAN_TOLERANSI`, `ODEME_TOLERANSI`, `_PLAN_GIZLI`, sınıflar `OlayOlusmaz`, `KumeSiniriHatasi`, `IleriKaymaSiniriHatasi`, `DonemDisiSinyal`, `GirisBariYok`, `VeriHatasi`, `ZamanDizisiHatasi`, `CikisSonucu`, `PozisyonPlani`, `HipotezUfuklari`.
+  - `data.funding._zaman_dizisi`; `data.split.kume_tanimi`, `kume_araligi`; `data.binance_vision.MUM_SUTUNLARI`; `data.sinyal` sınıfları `TepePenceresiKurulamaz`, `YapilandirmaHatasi`.
+- **HARIC (7 ad, grafik durur).** Veri yükleyicileri, erişim denetimleri ve bellek önbelleği; güvenlik düzeltmeleri bunları değiştirebilmeli: `pozisyon._veri_yukle`, `pozisyon._erisim_denetimi`, `kume_bellegi.getir`, `universe.evren_yukle`, `split.split_oku`, `split.onay_baglami_dogrula`, `split.kesif_baglami_dogrula`. Son ikisi DAYANILAN'dadır ama erişim denetimidir; prompt 2.1 "her fonksiyon" diyordu, 2.2'nin "erişim denetimleri dışarıda" kuralı uygulandı.
+- **Testler.** Grafikte sınıflandırılmamış yeni bir ad, artık grafikte olmayan bir SABIT adı ve değişen bir SHA ayrı ayrı kırmızı olur. Hata mesajı hangi adın değiştiğini ve bunun referansın kararını da değiştireceğini söyler; SABIT ancak referans yeniden dondurulduktan sonra güncellenir.
+- **D-C1** (`tests/test_skaler_referans.py`): referansta üst düzey adların tekilliği; başlık içe aktarmalarının (`ast.unparse`) sabitlenmesi ve hepsinin ilk tanımdan önce olması; `olay_karari` ve `sinyal_kosulu`'ndan ulaşılan her tanımda yüklenen her adın (yerel, üst düzey, yerleşik, öz-takma ad ya da DAYANILAN) çözüldüğünün statik denetimi.
+- **Sınır.** Statik grafik dinamik çağrıları, nesne metotlarını ve `config` değerlerini görmez. Denetçi D-B3 ve D-C5 ile sızıntı testçisi S-40…S-45 bu sınırı ve HARIC altındaki kuralları gösteriyor (aşağıda).
+
+**Eşitlik betiğinin yeni sözleşmesi (`8f80ebc`; D-B2, D-B3, D-C4, D-C7, D-C10, S-17, S-18, S-28, S-29).** `analysis/00_veri_denetimi/esitlik_kapi.py`:
+- **Karşılaştırma.** Sonuç sınıfı, ret mesajı (`str(hata)`, yalnızca bellekte) ve iki taraf onaylarsa `OnaylanmisPozisyon`'un bütün alanları. Funding biriminde plan (sınıf ve mesaj dahil), tamlık satırı ve toplam, üç yeni yoldan; her çağrı ayrı yakalanır.
+- **Sayılar** (birim başına): `karsilastirilan_bar`, `uyusmayan_bar`, `beklenmeyen_hata_referans`, `beklenmeyen_hata_yeni`. Beklenmeyen hata = `pencere.OlayOlusmaz` ailesi dışındaki her istisna. İki taraf aynı sınıf ve mesajla düşerse bar uyuşmayan sayılmaz, ama iki tarafta da beklenmeyen hata sayılır; çıkış kodu 1. İlk 20 beklenmeyen hata yalnızca `taraf:Sınıf@zaman`.
+- **`kapsam_bar`.** K1/K2'de iki tarafın aynı onaylı pozisyonu verdiği bar sayısı (kontrol rolleri sinyal koşuluna bakmaz, ön-kayıt §6 rev.12); funding biriminde planın kurulduğu bar sayısı. Olay rolünde boş: olay rolünde onay sayısı yazılmaz.
+- **Kip.** `--bar tum|ornek` zorunlu; uyarlamalı kip ve kalibrasyon kaldırıldı. Birimin tohumu (`tohum`) ve kip (`bar_kumesi`) her satıra yazılır.
+- **Mesaj yok.** Birim dışı hatalar `_guvenli_sembol_isi` ile tek satıra ve sınıf adına iner; `main` mesaj yazdırmaz.
+- **Ağaç temizliği.** Betik hesaplamaz: `KesifKaydi.agac_temiz is True` değilse `AgacTemizDegil` (hiçbir sembol koşmaz). İkinci uygulama (`agac_temiz`, `subprocess`) kaldırıldı.
+- **Referans.** Modül düzeyinde tutulmaz; yalnızca karşılaştırma fonksiyonlarının içinde içe aktarılır. Tarama istisnası `esitlik_*` deseninden açık adlara daraldı (`SKALER_REFERANS_IZINLI_DOSYALAR`: `data/_skaler_referans.py`, `esitlik_kapi.py`, `esitlik_ornegi_sec.py`).
+- **Testler** (`tests/test_esitlik_kapi.py`, 30): bilerek bozulmuş onay alanı, ret sınıfı ve ret mesajı uyuşmazlık sayılır; iki tarafın aynı `TypeError` ile düşmesi iki tarafta beklenmeyen hata sayılır; tek tarafın hatası o tarafa sayılır; çıktıda ve stdout/stderr'de sentinel mesaj bulunmaz; kip zorunlu.
+- **Sızıntı testçisinin dosyası** (`tests/test_sizinti_perf2a.py`): S-17, S-18, S-28 ve S-29'un testleri kaldırılan adlara dayanıyordu (`ek.referans`, uyarlamalı kip, `ek.agac_temiz`); ana oturum yeni sözleşmeye göre yeniden yazdı ve işaretleri kaldırdı. Bir savunma testi (`test_ornek_kipinde_beklenmeyen_hata...`) yeni sayılara göre güncellendi.
+- **Gerçek veri koşusu bu turda yapılmadı.** §14.44'teki "0 uyuşmayan" hâlâ örnek kipine ve eski sözleşmeye dayanır (denetçi D-C6).
+
+**Git ortamı (`4503229`; S-23, S-25, S-26, P-7, D-C8, D-C9).**
+- **Tek kurucu.** Bağ, keşif kaydı ve onay kaydı (`_git`) `split._bag_ortami()`'ndan geçer. Ortam beyaz listeyle kurulur: `PATH`, `SYSTEMROOT`, `USERPROFILE`, `HOME`, `TEMP`, `TMP`, `COMSPEC`, `PATHEXT`, `WINDIR`, `SYSTEMDRIVE`. Hiçbir `GIT_*` geçmez. Eklenenler: `GIT_NO_REPLACE_OBJECTS=1`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=os.devnull`, `GIT_LITERAL_PATHSPECS=1`, `GIT_TERMINAL_PROMPT=0`.
+- **`GIT_CONFIG_GLOBAL`.** `nul` (Windows `os.devnull`) ve boş dosya ikisi de sınandı (git 2.41.0.windows.3): ikisinde de `git config --list` yalnızca `.git/config`'i gösterir. `os.devnull` seçildi.
+- **Ağaç temizliği.** Keşif kaydı ve onay koşu ortamı `git -c status.showUntrackedFiles=all status --porcelain --untracked-files=all` kullanır; `--ignored` kullanılmaz (`.gitignore`'daki önbellek kirli sayılmaz). Gerçek depoda temiz ağaç beyaz listeli ortamla temiz okunur.
+- **`_git`'e `--no-replace-objects` bayrağı eklenmedi.** P-8'in sahte `run`'ı `komut[1] == "log"`a bakıyor; bayrak saldırıyı kendiliğinden etkisiz kılar ve listede olmayan bir XPASS verirdi. Ortamdaki `GIT_NO_REPLACE_OBJECTS=1` aynı işi görür.
+- **XPASS:** S-23, S-25, S-26, P-7. S-23'ün testi beyaz listenin kendi kurduğu `GIT_CONFIG_GLOBAL`'i "geçen" saymayacak biçimde güncellendi (ölçüt: ortamdaki değer geçmemeli). İki normal testin `[ortam]` parametresi (`test_onay_kaydi_git::test_origin_beklenen_depo_degilse_kosu_acilmaz`, `test_tur_saldirilari_q::test_origin_sahte_uzaga_yonlendirilip...`) kırıldı: `GIT_CONFIG_*` ile yönlendirme artık git'e ulaşmıyor. Testler yönlendirmenin etkisiz olduğunu (kayıt gerçek uzağa, sahteye hiçbir şey) sınayacak biçimde değişti.
+- **Sonuç (kararı araştırma tarafında; denetçi D-B4).** Bu makinede `user.name`/`user.email` kullanıcı global yapılandırmasında, `credential.helper=manager` ve `core.autocrlf=true` sistem yapılandırmasındadır; deponun `.git/config`'inde yoktur. Beyaz listeli ortamda onay kaydının commit'i "Author identity unknown" ile düşer, push kimlik bilgisini bulamaz. Koşu kapalı yönde düşer (kayda satır yazılmaz, çift harcanmaz), ama F3 bu makinede yerel yapılandırma yazılmadan koşulamaz. `core.autocrlf`'in okunmaması yanlış "kirli" üretebilir, yanlış "temiz" üretmez (D-C1).
+
+**Kaldırılan işaretleyiciler ve xfail hesabı.**
+- **§14.44 düzeltmesi.** §14.44 "186 + 17 = 203" yazdı. Sızıntı testçisinin 2a dosyasında xfail 18'dir (S-15 ve S-20 ikişer parametreli; 2a'nın ilk koşusundaki 18 xfail'e S-24 dahil değildi). Doğru taban **186 + 18 = 204**.
+- **Kaldırılan (20):** S-10 (2), M-11 (1), S-13 (6), M-5 (3), S-17, S-18, S-28, S-29 (4), S-23, S-25, S-26 (3), P-7 (1).
+- **Hesap:** 204 − 20 = **184**. Parçalı takım (`4503229`, sızıntı dosyaları dahil, 180 dosya): 5.143 geçti, 184 xfail, 0 başarısız, 0 XPASS, 6 atlandı, 2.346 s, tepe bellek 1.784 MB (grup 5, `test_kisa_sifir_kosusu.py`).
+- **Sızıntı testçisinin yeni dosyası** (`da961f7`): +22 → **206**.
+
+**Ajan bulguları** (düzeltilmedi).
+
+*Metodoloji denetçisi* (salt okuma; kabuk yoktu, testleri koşmadı). **A bulgusu yok. Dur koşulu: HAYIR** (C1/C2 erişimi hâlâ `onay_erisimi_denetle` → `_acik_kosu` zincirinden geçiyor; turun değişiklikleri zincire dokunmuyor).
+
+| Kod | Özet | Önem |
+|---|---|---|
+| D-B1 | Onay koşusunun temiz ağaç denetimi `--assume-unchanged`/`--skip-worktree` ile gizlenen değişikliği görmüyor; `ls-files -v` denetimi yalnızca keşif kaydında. | B |
+| D-B2 | Yeni adlar (`_GIT_ORTAM_BEYAZ_LISTESI`, `_GIT_SABIT_ORTAM`, `_DURUM_KOMUTU`, `_bag_ortami`, `_bag_git`, `_PYTEST_OTURUMU`, `_pytest_oturumu_kur`) `_KORUNAN_ADLAR`'da ve `ONAY_ATLATMA_DESENI`'nde yok; sıradan atama temiz ağaç denetimini düşürür ya da S-23'ü açar (gerileme). `split.py`'deki "ad taraması `ONAY_ATLATMA_DESENI`'de" yorumu yanlış. | B |
+| D-B3 | Dayanılan sabitlemesi HARIC `_veri_yukle` altındaki kuralları görmüyor: `funding.donem_sonrasi_kayitlari_at`, `_donem_icinde`, `sekiz_saate_normallestir`, tekrarlı ödeme seçimi, `universe.sembol_donemleri`, `split.yukle`/`kume_erisimi`. §14.44 D-B1 bu kısmıyla kapanmadı. | B |
+| D-B4 | Bu makinede onay kaydı commit edilemez ve itilemez (kimlik ve credential helper global/sistem yapılandırmasında); kapalı yönde düşer ama hata mesajı kimlik eksikliğini söylemez. | B |
+| D-C1 | `core.autocrlf` okunmuyor: yanlış kirli üretebilir; `ONAY_KAYDI.md` CRLF ise ilk commit'te bütün satırlar yeniden yazılmış görünebilir (şüpheli). | C |
+| D-C2 | `sure_s` yan kanalı kapanmadı (olay rolünde süre, koşulu geçen bar sayısıyla ölçeklenir). `kapsam_bar` için bulgu yok. | C |
+| D-C3 | Olay rolünde `ilk_20_*` zaman damgaları olay barı gösterebilir (şüpheli; bugün sayı sıfır). | C |
+| D-C4 | Genel tohum (`config.TOHUM`) çıktıya yazılmıyor; birim tohumu yazılıyor. | C |
+| D-C5 | Dayanılan grafiğinin statik kör noktaları (demet açma, `if`/`try` içi tanımlar, `import data.x as y`, `getattr`); kapı ile referans aynı `kume_bellegi` girdisini paylaşıyor (şüpheli). `config`'in dışarıda tutulması doğru. | C |
+| D-C6 | Önceki D-B3 yalnızca kod düzeyinde kapandı; `--bar tum` ile sonuç yok. | C |
+
+*Sızıntı testçisi* (yalnızca yeni `tests/test_sizinti_perf2b0.py`; `git status` yalnızca `?? tests/test_sizinti_perf2b0.py` gösterdi). Koşu: 15 geçti, 22 xfail, 1 atlandı, 0 XPASS.
+
+| Kod | Özet | Önem |
+|---|---|---|
+| S-31 | `.git/info/exclude` izlenmeyen dosyayı `--untracked-files=all`'dan da gizler; `agac_temiz` True. | orta |
+| S-32 | Yerel `core.excludesFile` (doğrudan ve `include.path` ile) aynı etki. | orta |
+| S-33 | Beyaz listedeki `HOME` ile `$HOME/.config/git/ignore` okunur. | orta/düşük |
+| S-34 | Yerel `filter.<ad>.clean` + `.git/info/attributes` izlenen dosya değişikliğini gizler (bu makinede ön koşul kurulamadı, test atlandı). | yüksek/orta |
+| S-35 | Yerel `diff.ignoreSubmodules=all` gitlink değişikliğini gizler (depoda submodule yok). | düşük |
+| S-36 | Yerel `core.fsmonitor` komutu keşif kaydının `git status`'unda çalışır. | düşük/orta |
+| S-37 | S-10 işareti pytest dışında kurulabilir: `pytest.Config.__new__`, `MagicMock(spec=pytest.Config)` ya da `_PYTEST_OTURUMU["config"]` doğrudan yazımı (üç parametre). | yüksek |
+| S-38 | `ONAY_ATLATMA_DESENI` `_pytest_oturumu_kur` ve `_PYTEST_OTURUMU`'yu içermiyor (iki parametre). | orta |
+| S-39 | Olay rolünde `sure_s` onay sayısıyla ölçeklenebilir (sahte saatle gösterildi). | düşük |
+| S-40 | Kural HARIC bir adın sarmalayıcısına taşınabilir (dört parametre). | orta |
+| S-41 | Pinli fonksiyonun `if True:` içinde yeniden tanımlanması özeti değiştirmez. | orta |
+| S-42 | `globals()[ad] = ...` ile yeniden bağlama. | orta |
+| S-43 | `GUNLUK_BAR_SAYISI -= 1` (artırmalı atama) sabitin değerini değiştirir, özeti değiştirmez. | orta |
+| S-44 | `fonk.__code__ = ...` ataması. | orta |
+| S-45 | Modül gölgeleme (`data/pencere/` paketi, `sys.modules` yönlendirmesi; iki parametre). | orta/yüksek |
+
+Savunmanın tuttuğu (işaretsiz) testler: pinli gövde değişikliği yakalanır; conftest yalnızca `_kayitlar`'ı yamalar; olay rolü satırı onay sayısından bağımsızdır (tum ve ornek); ara kayıt JSON'u ve stderr olay sayısı taşımaz; `GIT_CONFIG_GLOBAL=devnull` HOME'daki `.gitconfig`'i keser; ortamdaki `GIT_CONFIG_*`, `GIT_ATTR_SOURCE`, `GIT_EXTERNAL_DIFF` geçmez; sahte `PYTEST_CURRENT_TEST` + `import pytest` istisnayı açmaz; kurucu `pytest.Config` olmayan beş nesneyi reddeder.
+
+**Denetçinin plan v2 bulguları.** `D:\Projeler\prompts\plan_performans_2_v2.md` bu tur boyunca diskte yoktu (dizinde yalnızca `plan_performans_2.md` var; G1–G15 içermiyor). Denetçinin (b) bölümü yapılmadı; planın SHA256'sı kaydedilemedi.
+
+**Commit'ler:** `8c6cab9` (S-10, M-11), `f645113` (S-13, M-5), `9d4786d` (dayanılan sabitleme), `8f80ebc` (eşitlik betiği), `4503229` (git ortamı), `da961f7` (sızıntı testçisi), bu kayıt.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
