@@ -236,6 +236,13 @@ def test_origin_beklenen_depo_degilse_kosu_acilmaz(depo, tmp_path, monkeypatch, 
         monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
         monkeypatch.setenv("GIT_CONFIG_KEY_0", "remote.origin.pushurl")
         monkeypatch.setenv("GIT_CONFIG_VALUE_0", str(sahte))
+        # Performans 2b-0 (RESULTS §14.45): git cagrilari beyaz listeli ortamla kosar; GIT_CONFIG_* git'e ulasmaz.
+        # Yonlendirme ETKISIZDIR: kosu acilir ve kayit beklenen (gercek) uzaga itilir, sahteye hicbir sey gitmez.
+        with kosu("H1", "C1"):
+            pass
+        assert "H1 C1 BASLADI" in git(uzak_depo(depo), "log", "main", "--format=%s")
+        assert git(sahte, "for-each-ref").strip() == ""
+        return
     once = _kayit(depo)
     ilk = git(depo, "rev-parse", "HEAD").strip()
     with pytest.raises(split.OnayUzakHatasi, match="beklenen depoya"):

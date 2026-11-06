@@ -243,6 +243,12 @@ def test_origin_sahte_uzaga_yonlendirilip_geri_alininca_cift_yeniden_acilmamali(
         monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
         monkeypatch.setenv("GIT_CONFIG_KEY_0", "remote.origin.url")
         monkeypatch.setenv("GIT_CONFIG_VALUE_0", str(sahte))
+        # Performans 2b-0 (RESULTS §14.45): git cagrilari beyaz listeli ortamla kosar; GIT_CONFIG_* git'e ulasmaz.
+        # Yonlendirme ETKISIZDIR: kosu gercek uzaga itilir, sahte hicbir kayit gormez; geri alma adimi konusuz kalir.
+        _acilmali("H1", "C1")
+        assert "H1 C1 BITTI" in _uzak_mesajlari(uzak)
+        assert "ONAY_KAYDI" not in _uzak_mesajlari(sahte)
+        return
 
     once = _kayit(depo)
     with pytest.raises(split.OnayUzakHatasi, match="beklenen depoya"):

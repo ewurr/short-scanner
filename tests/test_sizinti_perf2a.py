@@ -742,7 +742,7 @@ def test_bag_ortami_dort_degiskeni_suzer_ve_replace_ile_pathspec_bayraklarini_zo
     assert ortam["GIT_NO_REPLACE_OBJECTS"] == "1" and ortam["GIT_LITERAL_PATHSPECS"] == "1"
 
 
-@bulgu("S-23", "`_bag_ortami` yalnizca 4 depo degiskenini suzer; GIT_COMMON_DIR, GIT_CONFIG_*, GIT_ALTERNATE_* ... gecer")
+# S-23 kapandi (RESULTS §14.45): git ortami beyaz listeyle kurulur; hicbir GIT_* degiskeni gecmez.
 def test_bag_ortami_depo_ve_yapilandirma_yonlendiren_diger_degiskenleri_de_suzmeli(monkeypatch):
     """Dayanak: S-5 niyeti ('Depo, indeks, calisma agaci ve nesne dizini git'e ortam degiskeniyle baska bir yere
     cevrilemez'). Ayni sinifin diger degiskenleri: ortak dizin (refs ve nesneler), alternatif nesne dizinleri, ad alani,
@@ -751,8 +751,12 @@ def test_bag_ortami_depo_ve_yapilandirma_yonlendiren_diger_degiskenleri_de_suzme
              "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM"]
     for ad in adlar:
         monkeypatch.setenv(ad, "x")
-    gecen = sorted(a for a in adlar if a in {k.upper() for k in split._bag_ortami()})
+    # Performans 2b-0 (ana oturum): beyaz listeli ortam GIT_CONFIG_GLOBAL'i KENDISI os.devnull'a kurar; olcut ortamdaki
+    # DEGERIN ("x") gecmemesidir, adin bulunmamasi degil.
+    ortam = {k.upper(): v for k, v in split._bag_ortami().items()}
+    gecen = sorted(a for a in adlar if ortam.get(a) == "x")
     assert gecen == [], f"suzulmeyen degiskenler: {gecen}"
+    assert ortam["GIT_CONFIG_GLOBAL"] == os.devnull and ortam["GIT_CONFIG_NOSYSTEM"] == "1"
 
 
 def test_depo_yonlendiren_dort_degisken_kesif_kaydini_ve_head_okumasini_saptiramaz(tmp_path, monkeypatch):
@@ -800,7 +804,7 @@ def test_replace_referansi_head_icindeki_bayt_okumasini_saptiramaz(tmp_path):
     assert split._git_bayt("cat-file", "blob", f"HEAD:{DEPO_BETIGI}") == v2
 
 
-@bulgu("S-25", "GIT_CONFIG_COUNT/KEY/VALUE ile status.showUntrackedFiles=no: izlenmeyen dosya varken agac_temiz True")
+# S-25 kapandi (RESULTS §14.45): GIT_CONFIG_* git'e ulasmaz; status --untracked-files=all.
 def test_git_yapilandirma_ortam_degiskeni_izlenmeyen_dosyayi_gizleyip_agaci_temiz_gosterir(tmp_path, monkeypatch):
     """Dayanak: CLAUDE.md §3.3 ('temiz çalışma ağacı'); S-5/S-6 niyeti. Ortam degiskeniyle enjekte edilen git ayari
     `git status --porcelain` ciktisini bosaltir; `_kesif_kaydi_kur` `--untracked-files` bayragi vermedigi icin kaydi
@@ -816,7 +820,7 @@ def test_git_yapilandirma_ortam_degiskeni_izlenmeyen_dosyayi_gizleyip_agaci_temi
     assert _temiz_mi() is False
 
 
-@bulgu("S-26", "depo yapilandirmasinda status.showUntrackedFiles=no: izlenmeyen dosya varken kesif kaydi agac_temiz True")
+# S-26 kapandi (RESULTS §14.45): `-c status.showUntrackedFiles=all` depo ayarini ezer.
 def test_yerel_git_ayari_izlenmeyen_dosyayi_gizleyip_agaci_temiz_gosterir(tmp_path):
     """Dayanak: CLAUDE.md §3.3. `esitlik_kapi.agac_temiz` acikca `--untracked-files=all` verir; `_kesif_kaydi_kur` vermez
     ve git ayarina (kullanicinin global ayari dahil) bagli kalir. Beklenen: izlenmeyen dosya her ayarda kirli sayilir."""

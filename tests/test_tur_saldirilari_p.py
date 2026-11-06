@@ -293,8 +293,7 @@ def test_info_attributes_ile_kayit_ikili_isaretlenince_gecmis_denetimi_kor_olmam
 # --- Saldiri 6: git replace --------------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="P-7: `git replace <kayit-commit> <ilk>` nesne okumasini saptirir; `git log` "
-                          "`--no-replace-objects` olmadan yerine konan commit'i gosterir, satirlar gorunmez", **_BASARILI)
+# P-7 kapandi (RESULTS §14.45): onay kaydinin git cagrilari GIT_NO_REPLACE_OBJECTS=1 ile kosar.
 def test_git_replace_ile_kayit_commitleri_gizlenince_cift_yeniden_acilmamali(depo):
     """Kural: tek atis gecmis denetimi. Saldiri: kosu; `reset --hard <ilk>`; kosunun iki commit'i
     (`git replace -f <c> <ilk>`) ilk commit'le degistirilir. `git log --all --reflog -p` degistirilmis nesneyi

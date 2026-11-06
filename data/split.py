@@ -274,12 +274,13 @@ _KAYIT_YOLU: Path = Path(config.ONAY_KAYDI)
 
 
 def _git(*argumanlar: str, sure: int = 30) -> str | None:
+    # Onay kaydinin git cagrilari (performans 2b-0; sizinti S-23, P-7): bag ve kesif kaydiyla AYNI beyaz listeli ortam
+    # (`_bag_ortami`). Replace referanslari ortamdaki GIT_NO_REPLACE_OBJECTS=1 ile yok sayilir (komut satiri ayni kalir).
     # GIT_TERMINAL_PROMPT=0: kimlik bilgisi istenirse beklemek yerine hata (ag islemleri).
-    ortam = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
     try:
         cikti = subprocess.run(
-            ["git", *argumanlar], cwd=_depo(), capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=sure, env=ortam,
+            ["git", *argumanlar], cwd=_depo(), capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=sure, env=_bag_ortami(),
         )
     except Exception:
         return None
@@ -788,7 +789,7 @@ def _kosu_ortami() -> KosuOrtami:
             betik = str(yol)  # depo disi: izlenmiyor
         else:
             izleniyor = _git("ls-files", "--error-unmatch", "--", betik) is not None
-    return ortam_karari(_git("rev-parse", "HEAD"), _git("status", "--porcelain"), betik, izleniyor)
+    return ortam_karari(_git("rev-parse", "HEAD"), _git(*_DURUM_KOMUTU), betik, izleniyor)
 
 
 # --- Test kaydi (yalnizca pytest) --------------------------------------------
@@ -1628,16 +1629,32 @@ def _kesif_bagli_dosyalar() -> list[Path]:
     return [onbellek_manifest._etkin_yol(), Path(config.SPLIT_CSV), Path(config.UNIVERSE_CSV)]
 
 
-# Kesif baginin git cagrilarinin ortami (RESULTS §14.44; sizinti S-5, S-6). Depo, indeks, calisma agaci ve nesne dizini
-# git'e ortam degiskeniyle baska bir yere cevrilemez; yerel `git replace` referanslari nesne okumasini saptiramaz.
-# Yalnizca bag (`kesif_bagi_denetle`) ve kesif kaydi (`_kesif_kaydi_kur`) bu ortami kullanir; onay kaydinin git
-# cagrilari (`_git`) bu turda degismedi (P-7 ayri bir bulgudur).
-_BAG_SUZULEN_ORTAM = ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE", "GIT_OBJECT_DIRECTORY")
+# Git cagrilarinin TEK ortam kurucusu (performans 2b-0, RESULTS §14.45; sizinti S-5, S-6, S-23, S-25, S-26, P-7, denetci
+# D-C8). Bag (`kesif_bagi_denetle`), kesif kaydi (`_kesif_kaydi_kur`) ve onay kaydi (`_git`) bu ortami kullanir.
+#   - Ortam BEYAZ LISTEYLE kurulur: yalnizca `_GIT_ORTAM_BEYAZ_LISTESI`ndeki surec degiskenleri gecer. Hicbir `GIT_*`
+#     degiskeni ortamdan gecmez (depo, indeks, calisma agaci, nesne ve ortak dizin yonlendirmesi, `GIT_CONFIG_*` ile
+#     ayar enjeksiyonu, ad alani).
+#   - Sistem ve kullanici (global) yapilandirmasi okunmaz: `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=os.devnull`
+#     (Windows'ta `nul`; git 2.41 ile sinandi). Yalnizca deponun kendi `.git/config`u okunur.
+#   - `GIT_NO_REPLACE_OBJECTS=1` (yerel `git replace` referanslari nesne okumasini saptiramaz), `GIT_LITERAL_PATHSPECS=1`
+#     (joker eslemesi yok), `GIT_TERMINAL_PROMPT=0`.
+# SONUC (kullanicinin karari, RESULTS §14.45): onay kaydinin commit'i ve push'u global/sistem ayarindaki kimligi
+# (`user.name`, `user.email`) ve kimlik bilgisi yardimcisini (`credential.helper`) artik gormez; onay kosusu bunlarin
+# deponun yerel yapilandirmasinda bulunmasini ister. `core.autocrlf` da okunmaz.
+_GIT_ORTAM_BEYAZ_LISTESI = ("PATH", "SYSTEMROOT", "USERPROFILE", "HOME", "TEMP", "TMP", "COMSPEC", "PATHEXT", "WINDIR",
+                            "SYSTEMDRIVE")
+_GIT_SABIT_ORTAM = {"GIT_NO_REPLACE_OBJECTS": "1", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull,
+                    "GIT_LITERAL_PATHSPECS": "1", "GIT_TERMINAL_PROMPT": "0"}
+# Agac temizligi (S-25, S-26): izlenmeyen dosyalar komut satiriyla gosterilir; depo yapilandirmasi
+# (`status.showUntrackedFiles=no`) bunu kapatamaz. `--ignored` kullanilmaz: `.gitignore`daki onbellek kirli sayilmaz.
+_DURUM_KOMUTU = ("-c", "status.showUntrackedFiles=all", "status", "--porcelain", "--untracked-files=all")
 
 
 def _bag_ortami() -> dict[str, str]:
-    ortam = {k: v for k, v in os.environ.items() if k.upper() not in _BAG_SUZULEN_ORTAM}
-    ortam.update({"GIT_TERMINAL_PROMPT": "0", "GIT_LITERAL_PATHSPECS": "1", "GIT_NO_REPLACE_OBJECTS": "1"})
+    """Butun git cagrilarinin ortami (beyaz liste + sabit degiskenler)."""
+    izinli = set(_GIT_ORTAM_BEYAZ_LISTESI)
+    ortam = {k: v for k, v in os.environ.items() if k.upper() in izinli}
+    ortam.update(_GIT_SABIT_ORTAM)
     return ortam
 
 
@@ -1712,7 +1729,7 @@ def _kesif_kaydi_kur(manifest_sha256: str | None) -> KesifKaydi:
     # Bagin ortami (S-5, S-6; RESULTS §14.44): kayit da bagla ayni depodan, replace referanslari yok sayilarak okunur.
     head = _bag_git("rev-parse", "HEAD")
     head = head.strip() if head is not None and re.fullmatch(r"[0-9a-f]{40}", head.strip()) else None
-    durum = _bag_git("status", "--porcelain")
+    durum = _bag_git(*_DURUM_KOMUTU)
     temiz = None if durum is None else not [s for s in durum.splitlines() if s.strip()]
     # D-C2 (RESULTS §14.44): `--assume-unchanged` ve `--skip-worktree` isaretli dosyalar `status`ta gorunmez; `ls-files -v`
     # etiketiyle (kucuk harf = assume-unchanged, "S" = skip-worktree) bulunur ve agaci kirli sayar.
