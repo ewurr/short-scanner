@@ -71,16 +71,20 @@ def _kopya_kur(tmp_path, monkeypatch) -> Path:
     return kok
 
 
-def _denetim() -> tuple[list[str], list[str], list[str]]:
-    """Sabitleme testinin uc kosulu: (ozeti degisenler, siniflandirilmamis adlar, grafikte artik kalmayanlar)."""
+def _denetim() -> tuple[list[str], list[str], list[str], list[str]]:
+    """Sabitleme testinin dort kosulu: (SABIT'te ozeti degisenler, GUVENLIK'te gerekcesiz degisenler, siniflandirilmamis
+    adlar, grafikte artik kalmayanlar). RESULTS §14.46 (D-B3): HARIC kalkti, yerine GUVENLIK listesi geldi; ana oturum
+    yardimciyi yeni yapiya uyarladi (saldirilarin kendisi degismedi)."""
     degisen = sorted(ad for ad, sha in dpd.SABIT.items() if dpd._sha(ad) != sha)
     ulasilan = dpd._kapanis()
-    return degisen, sorted(ulasilan - set(dpd.SABIT) - set(dpd.HARIC)), sorted(set(dpd.SABIT) - ulasilan)
+    bilinen = set(dpd.SABIT) | set(dpd.GUVENLIK)
+    return (degisen, dpd._gerekcesiz_guvenlik_degisiklikleri(), sorted(ulasilan - bilinen),
+            sorted(bilinen - ulasilan))
 
 
 def _temiz_kopya(tmp_path, monkeypatch) -> Path:
     kok = _kopya_kur(tmp_path, monkeypatch)
-    _on_kosul(_denetim() == ([], [], []), "taban: sabitleme testi zaten kirmizi")
+    _on_kosul(_denetim() == ([], [], [], []), "taban: sabitleme testi zaten kirmizi")
     return kok
 
 
@@ -101,12 +105,12 @@ def test_sabitleme_pinli_fonksiyonun_govde_degisikligini_yakalar(tmp_path, monke
     _on_kosul(kaynak in metin, "kaynak metin bulunamadi")
     yol.write_text(metin.replace(kaynak, kaynak.rstrip("\n") + "\n    pass\n", 1), encoding="utf-8", newline="\n")
     dpd._BILGI.clear()
-    degisen, _, _ = _denetim()
+    degisen, _, _, _ = _denetim()
     assert "data.pozisyon._tam_hucreli_barlar" in degisen
 
 
-@bulgu("S-40", "kural, HARIC'teki bir adin (yukleyici / bellek onbellegi / tablo okuyucu) saricisina tasinir; grafik orada "
-               "durur, yeni yardimci hicbir yerden ulasilmaz, sabitleme yesil kalir")
+# S-40 kapandi (RESULTS §14.46, D-B3): grafik artik HARIC'te durmaz; eski HARIC adlari GUVENLIK'te sabitli, sarmalayici
+# yeniden tanim ozeti degistirir ve RESULTS'ta gerekcesiz GUVENLIK degisikligi testi kirar.
 @pytest.mark.parametrize("modul,ad", [("pozisyon", "_veri_yukle"), ("kume_bellegi", "getir"),
                                       ("universe", "evren_yukle"), ("split", "split_oku")])
 def test_haric_adin_icine_kural_tasimak_sabitlemeyi_gecirmemeli(tmp_path, monkeypatch, modul, ad):
@@ -115,7 +119,7 @@ def test_haric_adin_icine_kural_tasimak_sabitlemeyi_gecirmemeli(tmp_path, monkey
     tarafi BIRLIKTE kaydirir ve esitlik testleri farki goremez. Beklenen: sabitleme bu degisikligi yakalar. Gozlenen:
     yeni sarmalayici ve `_gizli_kural` hicbir SABIT adi degistirmez ve grafikte gorunmez."""
     kok = _temiz_kopya(tmp_path, monkeypatch)
-    _on_kosul(f"data.{modul}.{ad}" in dpd.HARIC, "ad HARIC'te degil")
+    _on_kosul(f"data.{modul}.{ad}" in dpd.GUVENLIK, "ad GUVENLIK'te degil")
     _ekle(monkeypatch, kok, modul,
           f"\n\n{ad}_orijinal = {ad}\n\n\ndef {ad}(*args, **kwargs):\n    veri = {ad}_orijinal(*args, **kwargs)\n"
           "    return _gizli_kural(veri)\n\n\ndef _gizli_kural(veri):\n    return veri  # kural govdesi burada yasar\n")
