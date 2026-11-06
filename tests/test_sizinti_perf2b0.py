@@ -249,8 +249,7 @@ def test_olay_rolu_satiri_onay_sayisindan_bagimsizdir(monkeypatch, kip):
     assert sonuclar[0] == sonuclar[1] == sonuclar[2]
 
 
-@bulgu("S-39", "olay rolu satirinin `sure_s` alani onayli ve reddedilen barlarin hesap suresi farkini tasir; 0.1 sn "
-               "cozunurlukle olay sayisina dogru bir kanal acar")
+# S-39 kapandi (RESULTS §14.46, D-C2): olay rolunde `sure_s` yazilmaz; sure yalnizca sembol toplami (TOPLAM_SURE).
 def test_olay_rolu_sure_s_onay_sayisini_sizdirmaz(monkeypatch):
     """Dayanak: esitlik_kapi aciklamasi ('Getiri, sinyal degeri ya da olay sayisi hesaplanmaz, yazilmaz'). Onayli bar
     onaysiz bardan pahaliysa (pozisyon kurma, funding toplami) olay satirinin suresi onay sayisiyla artar. Sahte saatle

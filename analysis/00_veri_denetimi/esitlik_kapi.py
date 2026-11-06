@@ -17,6 +17,12 @@ Sozlesme (performans 2b-0; denetci D-B2, D-B3, D-C4, D-C7, sizinti S-17, S-18, S
     `beklenmeyen_hata_yeni`. "Beklenmeyen hata" = `pencere.OlayOlusmaz` ailesi DISINDAKI her istisna. Iki taraf ayni
     sinifla (ve ayni mesajla) duserse bar uyusmayan sayilmaz, ama iki tarafta da beklenmeyen hata sayilir; "0 uyusmayan"
     tek basina esitlik kaniti degildir. Ilk 20 beklenmeyen hata yalnizca `taraf:Sinif@zaman` olarak yazilir.
+  - OLAY ROLUNDE yan kanal yoktur (performans 2b-0 kapanisi, RESULTS §14.46; denetci D-C2, D-C3, sizinti S-39): `sure_s`,
+    `ilk_20_uyusmayan` ve `ilk_20_beklenmeyen` bos yazilir (yalnizca sayilar kalir). Onayli bar onaysiz bardan pahali
+    oldugu icin birim suresi onay sayisini, uyusmayan / beklenmeyen barin zaman damgasi da olay anini tasiyabilir. Sure
+    yalnizca sembol duzeyinde toplam olarak (`TOPLAM_SURE` satiri) yazilir. Uyusmazlik ya da beklenmeyen hata varsa
+    betik 1 ile cikar; olay rolunun hata ayiklamasi ayrica ve depo disinda yapilir.
+  - `genel_tohum` (D-C4): `config.TOHUM` her satira yazilir (birim tohumu `tohum` ondan turetilir).
   - `kapsam_bar`: K1 ve K2 rollerinde iki tarafin AYNI onayli pozisyonu verdigi bar sayisi; `funding_satiri` biriminde
     planin kurulabildigi bar sayisi. Kontrol rolleri sinyal kosuluna bakmaz (on-kayit §6 rev.12), bu yuzden bu sayi olay
     bilgisi tasimaz. OLAY ROLUNDE bos birakilir: olay rolunde onay sayisi olay sayisidir ve yazilmaz.
@@ -70,7 +76,8 @@ from data import split as split_modulu  # noqa: E402
 from data import universe as universe_modulu  # noqa: E402
 
 ORNEK = BU_DIZIN / "esitlik_ornegi.csv"
-SUTUNLAR = ["sembol", "donem_no", "hipotez", "yapilandirma", "rol", "bar_kumesi", "tohum", "karsilastirilan_bar",
+SUTUNLAR = ["sembol", "donem_no", "hipotez", "yapilandirma", "rol", "bar_kumesi", "genel_tohum", "tohum",
+            "karsilastirilan_bar",
             "uyusmayan_bar", "beklenmeyen_hata_referans", "beklenmeyen_hata_yeni", "kapsam_bar", "ilk_20_uyusmayan",
             "ilk_20_beklenmeyen", "sure_s", "hata"]
 SAYI_ALANLARI = ("karsilastirilan_bar", "uyusmayan_bar", "beklenmeyen_hata_referans", "beklenmeyen_hata_yeni")
@@ -144,12 +151,14 @@ class Sayac:
         if kapsam and esit:
             self.kapsam += 1
 
-    def alanlar(self, kapsam_yazilir: bool) -> dict:
+    def alanlar(self, kapsam_yazilir: bool, zaman_yazilir: bool = True) -> dict:
+        """`kapsam_yazilir=False` ve `zaman_yazilir=False` olay rolu icindir: kapsam ve zaman damgalari bos (§14.46)."""
         return {"karsilastirilan_bar": self.karsilastirilan, "uyusmayan_bar": len(self.uyusmayan),
                 "beklenmeyen_hata_referans": self.beklenmeyen_referans, "beklenmeyen_hata_yeni": self.beklenmeyen_yeni,
                 "kapsam_bar": self.kapsam if kapsam_yazilir else "",
-                "ilk_20_uyusmayan": ";".join(z.isoformat() for z in sorted(self.uyusmayan)[:20]),
-                "ilk_20_beklenmeyen": ";".join(self.beklenmeyen_ilk)}
+                "ilk_20_uyusmayan": (";".join(z.isoformat() for z in sorted(self.uyusmayan)[:20])
+                                     if zaman_yazilir else ""),
+                "ilk_20_beklenmeyen": ";".join(self.beklenmeyen_ilk) if zaman_yazilir else ""}
 
 
 def _referans_modulu(ref):
@@ -334,7 +343,7 @@ def _kos(birim, izgara, siralar, hipotez, y, kimlik) -> Sayac:
 
 def _bos_satir(sembol, donem_no, hipotez, yk, rol) -> dict:
     return {"sembol": sembol, "donem_no": donem_no, "hipotez": hipotez, "yapilandirma": yk, "rol": rol,
-            "bar_kumesi": "", "tohum": "", "karsilastirilan_bar": 0, "uyusmayan_bar": 0, "beklenmeyen_hata_referans": 0,
+            "bar_kumesi": "", "genel_tohum": config.TOHUM, "tohum": "", "karsilastirilan_bar": 0, "uyusmayan_bar": 0, "beklenmeyen_hata_referans": 0,
             "beklenmeyen_hata_yeni": 0, "kapsam_bar": "", "ilk_20_uyusmayan": "", "ilk_20_beklenmeyen": "",
             "sure_s": 0.0, "hata": ""}
 
@@ -369,10 +378,11 @@ def sembol_isi(sembol: str, ayar: dict) -> list[dict]:
                             satir["bar_kumesi"] = f"ornek_{ayar['n']}+sinir"
                             satir["tohum"] = str(birim_tohumu)
                         sayac = _kos(birim, izgara, siralar, hipotez, y, kimlik)
-                        satir.update(sayac.alanlar(kapsam_yazilir=birim != "olay"))
+                        satir.update(sayac.alanlar(kapsam_yazilir=birim != "olay", zaman_yazilir=birim != "olay"))
                     except Exception as hata:  # noqa: BLE001 - yalnizca sinif adi yazilir, mesaj yazilmaz
                         satir["hata"] = type(hata).__name__
-                    satir["sure_s"] = round(time.perf_counter() - t0, 1)
+                    # Olay rolunde birim suresi yazilmaz (S-39, D-C2): yalnizca sembol toplami (TOPLAM_SURE).
+                    satir["sure_s"] = "" if birim == "olay" else round(time.perf_counter() - t0, 1)
                     satirlar.append(satir)
     toplam = _bos_satir(sembol, -1, "", "", "TOPLAM_SURE")
     toplam.update(bar_kumesi=kip, sure_s=round(time.perf_counter() - bas_sure, 1))

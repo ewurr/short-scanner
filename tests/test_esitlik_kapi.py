@@ -246,11 +246,15 @@ def test_sembol_isi_satirlari_yalnizca_sayi_zaman_damgasi_ve_sinif_adi_tasir(mon
         assert s["bar_kumesi"] == "ornek_5+sinir"
         # Tohum yazilir ve birimin tohum kuralindan gelir (D-C4).
         assert s["tohum"] == str(ek.tohum(kimlik["sembol"], 0, s["hipotez"], s["yapilandirma"], s["rol"]))
+        assert s["genel_tohum"] == ek.config.TOHUM
         if s["rol"] == "olay":
-            assert s["kapsam_bar"] == ""
+            # §14.46 (D-C2, D-C3, S-39): olay rolunde kapsam, birim suresi ve zaman damgalari yazilmaz.
+            assert s["kapsam_bar"] == "" and s["sure_s"] == ""
+            assert s["ilk_20_uyusmayan"] == "" and s["ilk_20_beklenmeyen"] == ""
+            assert not any(isinstance(v, float) for v in s.values())
         else:
             assert type(s["kapsam_bar"]) is int
-        assert set(s) - {"sure_s"} == {k for k, v in s.items() if not isinstance(v, float)}
+            assert set(s) - {"sure_s"} == {k for k, v in s.items() if not isinstance(v, float)}
 
 
 def test_tum_kipinde_butun_izgara_barlari_sorulur_ve_tohum_bos(monkeypatch):
