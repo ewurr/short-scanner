@@ -560,8 +560,7 @@ def test_bu_surecte_oturum_isareti_gercek_pytest_config_tasir():
     assert split._pytest_testi() is not None
 
 
-@bulgu("S-38", "`ONAY_ATLATMA_DESENI` `_pytest_oturumu_kur` ve `_PYTEST_OTURUMU` adlarini icermez; analiz kodu bunlari "
-               "taramaya takilmadan anabilir (split.py yorumu 'ad taramasi ONAY_ATLATMA_DESENI'de' diyor)")
+# S-38 kapandi (RESULTS §14.46): adlar `ONAY_ATLATMA_DESENI`nde ve `split._KORUNAN_ADLAR`da.
 @pytest.mark.parametrize("icerik", [
     "from data import split\nsplit._pytest_oturumu_kur(None)\n",
     "from data import split\nsplit._PYTEST_OTURUMU['config'] = 1\n",

@@ -814,7 +814,10 @@ _TEST_AYARI: _TestAyari | None = None
 
 # pytest oturumu isareti (S-10, RESULTS §14.44): `tests/conftest.py` `pytest_configure` kancasinda `_pytest_oturumu_kur`
 # ile kurar. Yalnizca gercek bir pytest oturumunda vardir; `import pytest` ve sahte `PYTEST_CURRENT_TEST` artik istisnayi
-# acmaz. Sinir: kurucuyu adiyla cagiran kararli bir atlatma yakalanmaz (ad taramasi `ONAY_ATLATMA_DESENI`de).
+# acmaz. Iki ad da `_KORUNAN_ADLAR`dadir (modul disindan atanamaz) ve analiz kodunda adiyla anilmalari taramayla yasaktir
+# (`tests/tarama_yardimcisi.ONAY_ATLATMA_DESENI`; RESULTS §14.46, D-B2, S-38; §14.45'e kadar bu yorum desende olmayan
+# adlari desende sayiyordu). Sinir (kayitta kalir, S-37): sozlugun ogesine dogrudan yazma ve sahte bir `pytest.Config`
+# nesnesi (`__new__`, `Mock(spec=...)`) bu korumadan gecer; ikisi de kasitli kod bicimi ister ve ad taramasina takilir.
 _PYTEST_OTURUMU = {"config": None}
 
 
@@ -1973,6 +1976,10 @@ _KORUNAN_ADLAR = frozenset({
     # kadar uzayamaz; olcut kazayla atlatmayi imkansiz, kasitli atlatmayi gorunur kilmaktir.
     "UZAK_DEPO", "UZAK_DAL", "_UZAK_REF", "_uzagi_getir", "_uzak_gecmis_kaydi", "_itilmemis_denetle", "_ileri_sarma_denetle", "_kaydi_it",
     "_it_ya_da_kaydet", "uzak_adresi_normal", "_uzak_adresi_denetle", "_itme_denemesi",
+    # Performans 2b-0 kapanisi (RESULTS §14.46; denetci D-B2, sizinti S-38): §14.45'te eklenen git ortami, durum komutu
+    # ve pytest oturumu isareti. Gerileme: korunmadiklari icin siradan bir atamayla agac temizligi dusurulebiliyordu.
+    "_GIT_ORTAM_BEYAZ_LISTESI", "_GIT_SABIT_ORTAM", "_DURUM_KOMUTU", "_bag_ortami", "_bag_git", "_PYTEST_OTURUMU",
+    "_pytest_oturumu_kur",
 })
 
 
