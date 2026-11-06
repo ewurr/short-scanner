@@ -20,8 +20,12 @@ Sozlesme (performans 2b-0; denetci D-B2, D-B3, D-C4, D-C7, sizinti S-17, S-18, S
   - OLAY ROLUNDE yan kanal yoktur (performans 2b-0 kapanisi, RESULTS §14.46; denetci D-C2, D-C3, sizinti S-39): `sure_s`,
     `ilk_20_uyusmayan` ve `ilk_20_beklenmeyen` bos yazilir (yalnizca sayilar kalir). Onayli bar onaysiz bardan pahali
     oldugu icin birim suresi onay sayisini, uyusmayan / beklenmeyen barin zaman damgasi da olay anini tasiyabilir. Sure
-    yalnizca sembol duzeyinde toplam olarak (`TOPLAM_SURE` satiri) yazilir. Uyusmazlik ya da beklenmeyen hata varsa
-    betik 1 ile cikar; olay rolunun hata ayiklamasi ayrica ve depo disinda yapilir.
+    yalnizca sembol duzeyinde toplam olarak (`TOPLAM_SURE` satiri) yazilir; HICBIR rolde birim suresi yazilmaz (denetci
+    kapanis D-B1: toplamdan diger birimlerin suresi cikarilarak olay rolunun suresi geri elde edilemesin). Olay rolu
+    kosulan birimler arasindaysa `TOPLAM_SURE` de bos yazilir: aksi halde olay rolu dahil ve haric iki kosunun
+    toplamlari farki olay suresini verirdi. Toplam sure yalnizca olay rolu icermeyen kosularda yazilir. Sinir (kayitta
+    kalir): kesif kaydinin acilis/kapanis zamani kosunun toplam suresini tasir. Uyusmazlik ya da beklenmeyen hata
+    varsa betik 1 ile cikar; olay rolunun hata ayiklamasi ayrica ve depo disinda yapilir.
   - `genel_tohum` (D-C4): `config.TOHUM` her satira yazilir (birim tohumu `tohum` ondan turetilir).
   - `kapsam_bar`: K1 ve K2 rollerinde iki tarafin AYNI onayli pozisyonu verdigi bar sayisi; `funding_satiri` biriminde
     planin kurulabildigi bar sayisi. Kontrol rolleri sinyal kosuluna bakmaz (on-kayit §6 rev.12), bu yuzden bu sayi olay
@@ -381,11 +385,13 @@ def sembol_isi(sembol: str, ayar: dict) -> list[dict]:
                         satir.update(sayac.alanlar(kapsam_yazilir=birim != "olay", zaman_yazilir=birim != "olay"))
                     except Exception as hata:  # noqa: BLE001 - yalnizca sinif adi yazilir, mesaj yazilmaz
                         satir["hata"] = type(hata).__name__
-                    # Olay rolunde birim suresi yazilmaz (S-39, D-C2): yalnizca sembol toplami (TOPLAM_SURE).
-                    satir["sure_s"] = "" if birim == "olay" else round(time.perf_counter() - t0, 1)
+                    # Birim suresi yazilmaz (S-39, D-C2; denetci kapanis D-B1): yalnizca sembol toplami (TOPLAM_SURE).
+                    satir["sure_s"] = ""
                     satirlar.append(satir)
     toplam = _bos_satir(sembol, -1, "", "", "TOPLAM_SURE")
-    toplam.update(bar_kumesi=kip, sure_s=round(time.perf_counter() - bas_sure, 1))
+    # Olay rolu kosulduysa toplam sure de yazilmaz (denetci kapanis D-B1): iki kosunun farki olay suresini vermesin.
+    olay_var = "olay" in _birim_etiketleri(ayar["roller"], ayar["funding_satiri"])
+    toplam.update(bar_kumesi=kip, sure_s="" if olay_var else round(time.perf_counter() - bas_sure, 1))
     satirlar.append(toplam)
     return satirlar
 

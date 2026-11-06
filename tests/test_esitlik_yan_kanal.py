@@ -61,10 +61,58 @@ def test_olay_rolunde_sure_ve_zaman_damgasi_yazilmaz_sayilar_yazilir(monkeypatch
     assert not any(z.isoformat() in repr(o) for z in _IZGARA)
     # Kontrol rolunde (olay bilgisi tasimaz) ayrinti korunur.
     assert k1[0]["ilk_20_uyusmayan"] != "" and k1[0]["ilk_20_beklenmeyen"].startswith("referans:TypeError@")
-    assert isinstance(k1[0]["sure_s"], float)
-    # Sure sembol duzeyinde toplam olarak yazilir.
+    # Denetci kapanis D-B1: birim suresi HICBIR rolde yazilmaz (toplamdan cikarma ile olay suresi elde edilemez).
+    assert k1[0]["sure_s"] == ""
+    # Olay rolu kosuldugu icin toplam sure de yazilmaz (denetci kapanis D-B1).
     toplam = [s for s in satirlar if s["rol"] == "TOPLAM_SURE"]
-    assert len(toplam) == 1 and isinstance(toplam[0]["sure_s"], float)
+    assert len(toplam) == 1 and toplam[0]["sure_s"] == ""
+
+
+@pytest.mark.parametrize("roller,funding", [(("olay",), False), (("olay", "K1"), False), (("olay", "K1", "K2"), True)])
+def test_olay_rolu_kosulursa_hicbir_satirda_sure_yazilmaz(monkeypatch, roller, funding):
+    """Denetci kapanis D-B1: tek rollu kosuda toplam olay biriminin suresi olurdu; cok rollu kosuda toplamdan diger
+    birimlerin suresi cikarilirdi."""
+    _sahte_dunya(monkeypatch, set(), set())
+    if funding:
+        monkeypatch.setattr(ek, "funding_karsilastir", lambda *a, **k: ek.Sayac())
+    satirlar = ek.sembol_isi("X", {**_ayar(roller=roller), "funding_satiri": funding})
+    assert all(s["sure_s"] == "" for s in satirlar)
+    assert [s["rol"] for s in satirlar].count("TOPLAM_SURE") == 1
+
+
+def _maliyetli_dunya(monkeypatch, onay_maskesi):
+    """Onayli olay barinin sahte saati 1 sn ilerlettigi dunya (S-39 kanalinin kendisi); kontrol rolleri sabit maliyet."""
+    saat = {"t": 0.0}
+    monkeypatch.setattr(ek, "_donemler", lambda sembol: [0])
+    monkeypatch.setattr(ek, "bar_izgarasi", lambda kimlik, hipotez: _IZGARA)
+    monkeypatch.setattr(ek, "sinir_siralari", lambda izgara, kimlik: set())
+
+    def karar(modul, hipotez, yapilandirma, rol, t, kimlik, sira):
+        saat["t"] += 0.01
+        if rol == "olay" and onay_maskesi[sira]:
+            saat["t"] += 1.0
+        return pozisyon.SinyalKosuluSaglanmadi("ayni")
+
+    monkeypatch.setattr(ek, "karar", karar)
+    monkeypatch.setattr(ek, "time", types.SimpleNamespace(perf_counter=lambda: saat["t"]))
+
+
+def test_olay_suresi_toplamdan_cikarmayla_bulunamaz(monkeypatch):
+    """Denetci kapanis D-B1: olay rolunun maliyeti onay sayisiyla buyurken (hepsi onay / hic onay) cikti satirlarinin
+    HICBIR sayisal alani bunu tasimaz: (olay, K1) kosusunun butun satirlari iki maskede aynidir; olay rolu icermeyen
+    (K1) kosusunun toplam suresi yazilir ama olay maskesinden bagimsizdir. Boylece ne ayni kosunun birim sureleri ne de
+    iki kosunun toplamlari arasindaki fark olay suresini verir."""
+    sonuc = {}
+    for ad, maske in (("hepsi", [True] * len(_IZGARA)), ("hic", [False] * len(_IZGARA))):
+        _maliyetli_dunya(monkeypatch, maske)
+        sonuc[(ad, "olay+K1")] = ek.sembol_isi("X", _ayar(roller=("olay", "K1")))
+        _maliyetli_dunya(monkeypatch, maske)
+        sonuc[(ad, "K1")] = ek.sembol_isi("X", _ayar(roller=("K1",)))
+    assert sonuc[("hepsi", "olay+K1")] == sonuc[("hic", "olay+K1")]
+    assert all(s["sure_s"] == "" for s in sonuc[("hepsi", "olay+K1")])
+    toplam_k1 = [s["sure_s"] for s in sonuc[("hepsi", "K1")] if s["rol"] == "TOPLAM_SURE"]
+    assert len(toplam_k1) == 1 and isinstance(toplam_k1[0], float) and toplam_k1[0] > 0
+    assert sonuc[("hepsi", "K1")] == sonuc[("hic", "K1")]
 
 
 def test_genel_tohum_her_satira_yazilir(monkeypatch):

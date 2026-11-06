@@ -254,7 +254,8 @@ def test_sembol_isi_satirlari_yalnizca_sayi_zaman_damgasi_ve_sinif_adi_tasir(mon
             assert not any(isinstance(v, float) for v in s.values())
         else:
             assert type(s["kapsam_bar"]) is int
-            assert set(s) - {"sure_s"} == {k for k, v in s.items() if not isinstance(v, float)}
+            assert s["sure_s"] == ""   # §14.46 (denetci kapanis D-B1): birim suresi hicbir rolde yazilmaz
+            assert not any(isinstance(v, float) for v in s.values())
 
 
 def test_tum_kipinde_butun_izgara_barlari_sorulur_ve_tohum_bos(monkeypatch):
