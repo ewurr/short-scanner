@@ -31,7 +31,8 @@ Sozlesme (performans 2b-0; denetci D-B2, D-B3, D-C4, D-C7, sizinti S-17, S-18, S
     planin kurulabildigi bar sayisi. Kontrol rolleri sinyal kosuluna bakmaz (on-kayit §6 rev.12), bu yuzden bu sayi olay
     bilgisi tasimaz. OLAY ROLUNDE bos birakilir: olay rolunde onay sayisi olay sayisidir ve yazilmaz.
   - Bar kipi (`--bar`, zorunlu) acik bir parametredir; sureye gore otomatik secilmez:
-      `tum`: donem ∩ KESIF araligindaki butun izgara barlari (4h ya da 1d; seride olmayan bar da sorulur).
+      `tum`: donem ∩ KESIF araligindaki butun sinyal izgarasi barlari (4h ya da 1d), `pozisyon.hipotez_izgarasi_barlari`
+      ndan (RESULTS §14.47; takvim izgarasi degil: seride olmayan bar ve yarim gun sorulmaz).
       `ornek`: tohumlu `--n` bar + sinir barlari (donemin ilk ve son 200 bari, kume sinirinin +-200 bari, funding ritim
       degisiminin +-20 bari). Tohum kurali `esitlik_ornegi_sec.py` aciklamasindadir.
     Kip (`bar_kumesi`) ve birimin tohumu (`tohum`; `tum` kipinde bos) her satira yazilir.
@@ -288,13 +289,12 @@ def funding_karsilastir(barlar, hipotez: str, kimlik: dict, *, kapi_funding=fund
 # --- Bar kumeleri --------------------------------------------------------------------------------------
 
 def bar_izgarasi(kimlik: dict, hipotez: str) -> pd.DatetimeIndex:
-    """Donem ∩ KESIF araligindaki izgara barlari (hipotezin bar turu)."""
-    bas, bitis, _ = pozisyon_modulu.donem_kaydi(kimlik["sembol"], kimlik["donem_no"])
-    kb, ks = pozisyon_modulu.kume_sinirlari(KUME)
-    bas, bitis = max(bas, kb), min(bitis, ks)
-    if pencere_modulu.hipotez_izgarasi(hipotez) == config.BAR_4H:
-        return pd.date_range(bas.ceil("4h"), bitis, freq=H4)
-    return pd.date_range(bas.ceil("D"), bitis, freq="1D")
+    """Donem ∩ KESIF araligindaki sinyal izgarasi (hipotezin bar turu): `pozisyon.hipotez_izgarasi_barlari`.
+
+    Izgara takvimden kurulmaz (RESULTS §14.47): 1d'de kapinin turettigi 1d serisi (yarim ilk / son gunler ve eksik
+    gunler disarida; on-kayit §2 satir 40), 4h'de donem ici mevcut 4h barlar. §14.46'daki takvim izgarasi yarim son
+    gunu kapiya veriyordu (iki tarafta ayni `DonemDisiSinyal`)."""
+    return pozisyon_modulu.hipotez_izgarasi_barlari(hipotez, kume=KUME, **kimlik)
 
 
 def sinir_siralari(izgara: pd.DatetimeIndex, kimlik: dict) -> set[int]:

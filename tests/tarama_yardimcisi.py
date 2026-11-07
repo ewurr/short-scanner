@@ -262,3 +262,38 @@ def skaler_referans_ihlalleri(kok: Path = KOK) -> list[str]:
         if derli.search(_oku(yol)):
             bulunan.append(goreli)
     return bulunan
+
+
+# Takvim izgarasi (RESULTS §14.47; teshis §14.46): sinyal izgarasi yalnizca `pozisyon.hipotez_izgarasi_barlari`ndan
+# alinir. Takvimden kurulan 1d izgarasi (`date_range(..., freq="1D")`) yarim ilk / son gunleri ve eksik gunleri kapiya
+# verir; on-kayit §2 (satir 40) bu gunleri 1d serisinin disinda tutar. Desen 1d adimli `date_range`i yakalar: `freq`
+# "D", "1D", "24h" ya da `Timedelta(days=1)` / `Timedelta("1D")`; arguman icinde bir duzey ic ice parantez (ör.
+# `bas.ceil("D")`) desteklenir.
+#
+# Genel `IZINLI_ALTLAR` muafiyeti bu desene UYGULANMAZ: `analysis/00_veri_denetimi/` de taranir, cunku kuralin
+# korudugu dosyalardan biri esitlik betigidir. Muafiyet yalnizca acik dosya adiyla verilir
+# (`TAKVIM_IZGARASI_IZINLI_DOSYALAR`); bugun bos (F1 betiklerinin hicbiri deseni kullanmiyor: `rev9_*` ve
+# `rev11_uygulama.py` 1d gunlerini `klines.gunluge_cevir`den alir, `a1_olcumu.py` 4h izgarasi kurar). `data/` (serinin
+# kendisi ve test onayi) ve `tests/` (sentetik dunyalar) disarida kalir.
+# Sinir: `freq` degiskenle verilirse (ör. `freq=ADIM`), `pd.offsets.Day`, `resample("D")` ya da `.floor("D").unique()`
+# ile kurulan izgara yakalanmaz.
+TAKVIM_IZGARASI_DESENI = (
+    r"""date_range\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*?\bfreq\s*=\s*"""
+    r"""(?:["']\s*(?:1\s*)?[dD]\s*["']|["']\s*24\s*[hH]\s*["']"""
+    r"""|(?:pd\s*\.\s*)?Timedelta\s*\(\s*(?:days\s*=\s*1\s*|["']\s*(?:1\s*)?[dD](?:ays?)?\s*["']\s*)\))"""
+)
+TAKVIM_IZGARASI_DISARIDA = ("data/", "tests/", ".claude/")
+TAKVIM_IZGARASI_IZINLI_DOSYALAR: frozenset[str] = frozenset()
+
+
+def takvim_izgarasi_ihlalleri(kok: Path = KOK) -> list[str]:
+    """`data/`, `tests/` ve `.claude/` disinda, acik muafiyeti olmayan ve takvimden 1d izgarasi kuran .py dosyalari."""
+    derli = re.compile(TAKVIM_IZGARASI_DESENI, re.S)
+    bulunan = []
+    for yol in sorted(kok.rglob("*.py")):
+        goreli = yol.relative_to(kok).as_posix()
+        if goreli.startswith(TAKVIM_IZGARASI_DISARIDA) or goreli in TAKVIM_IZGARASI_IZINLI_DOSYALAR:
+            continue
+        if derli.search(_oku(yol)):
+            bulunan.append(goreli)
+    return bulunan
