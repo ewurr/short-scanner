@@ -948,6 +948,43 @@ def sinyal_kosulu(t, *, hipotez: str, yapilandirma, capa, kume: str, sembol: str
     return sinyal_modulu.kosullar_saglandi(hipotez, gecerli, degerler)
 
 
+def hipotez_izgarasi_barlari(hipotez: str, *, kume: str, sembol: str, donem_no: int) -> pd.DatetimeIndex:
+    """Hipotezin sinyal izgarasi: (sembol, donem, kume) icin kapinin GORDUGU sinyal barlarinin acilislari (RESULTS
+    §14.47). F2 kosucusu ve esitlik betigi sinyal izgarasini YALNIZCA buradan alir; takvimden izgara kurulmaz.
+
+    Yeni kural YOKTUR: seri kapinin veri yolundan (`_karar_verisi`) okunur; erisim denetimi, kume ve donem kesimi,
+    bar duzeyli mevcutluk ve 1d turetmesi `olay_karari` ile `sinyal_kosulu`nun kullandigi ayni yerden gelir.
+      - 4h (H1, H2): donem ∩ kume icindeki mevcut, hucresi tam 4h barlarin acilislari (donem basi ile B arasinda,
+        iki uc dahil).
+      - 1d (H3): turetilmis 1d serisinin (`klines.gunluge_cevir`) acilislari. On-kayit §2 "1 gunluk barlar" (satir
+        40): "dönemin kısmi ilk ve son günleri 1d serisinde yer almaz. Bu seri tektir". Yarim ilk ve son gunler ve
+        alti barindan biri eksik gunler bu yuzden izgarada yoktur. Takvim izgarasi bu gunleri kapiya verir ve kapi
+        onlari programlama hatasi (`pencere.DonemDisiSinyal`) ya da `SinyalBariYok` ile reddeder (§14.46, §14.47).
+    Izgaradaki her bar `pencere.donem_ici_mi(t, bar, ...)` icin True'dur ve kapinin `SinyalBariYok` denetimini
+    (sinyal bari donem ici seride) gecer. Izgara olay ya da kontrol ADAYIDIR, karar degildir: uygunluk, sinyal
+    tamligi, plan, funding tamligi (funding'i bulunmayan donemler dahil) ve dizi kurallari karar noktasinda kalir.
+
+    Baglam karar noktasiyla aynidir: kume sinirlari kume ADINDAN, donem sinirlari evren tablosundan okunur (cagiran
+    sinir vermez); C1/C2 icin ayni (hipotez, kume) ciftinin acik onay kosusu, KESIF icin acik kesif kosusu gerekir;
+    sembolun grubu kumeye ait olmalidir. Getiri hesaplamaz, deger dondurmez: yalnizca zaman damgasi.
+    """
+    bar = pencere_modulu.hipotez_izgarasi(hipotez)
+    kume_baslangic, kume_bitis = kume_sinirlari(kume)
+    split_modulu.onay_baglami_dogrula(hipotez, kume)
+    split_modulu.kesif_baglami_dogrula(kume)
+    donem_baslangic, donem_bitis, _ = donem_kaydi(sembol, donem_no)
+    grup_dogrula(sembol, kume)
+    mumlar_4h, _, gunluk_mumlar = _karar_verisi(
+        sembol, kume, kume_baslangic=kume_baslangic, kume_bitis=kume_bitis,
+        donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
+    if bar == config.BAR_4H:
+        zamanlar = _mum_zamanlari(mumlar_4h)
+    else:
+        zamanlar = pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(gunluk_mumlar["open_time"]),
+                                                       "hipotez_izgarasi_barlari (1d)")
+    return pd.DatetimeIndex(zamanlar, name=None, copy=True)
+
+
 def pozisyon_fiyatlari(pozisyon) -> tuple[float, float]:
     """(P0, P1): brut getirinin tek girdisi. Yalnizca `olay_karari` ciktisini kabul eder."""
     onay_dogrula(pozisyon)
