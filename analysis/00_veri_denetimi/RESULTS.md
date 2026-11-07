@@ -4350,6 +4350,139 @@ Savunmanın tuttuğu (işaretsiz) testler: pinli gövde değişikliği yakalanı
 
 **Commit'ler:** `8c6cab9` (S-10, M-11), `f645113` (S-13, M-5), `9d4786d` (dayanılan sabitleme), `8f80ebc` (eşitlik betiği), `4503229` (git ortamı), `da961f7` (sızıntı testçisi), bu kayıt.
 
+### §14.46 Performans 2b-0 kapanışı (2026-11-07)
+
+**Bulgu politikası (istemden):**
+
+> Bir ajan bulgusu yalnızca şu durumlarda düzeltilir: (1) bir gerileme ise, (2) sıradan ya da kazara bir kod yolundan ulaşılabiliyorsa, (3) işletimi engelliyorsa. Kasıtlı kod biçimi gerektiren bulgular (modül gölgeleme, `__code__` ataması, `globals()` ile yeniden bağlama, `.git` iç dosyalarının elle düzenlenmesi, sahte nesne kurmak) xfail olarak kayıtta kalır (CLAUDE.md §5 doktrini). Kapatma turlarında sızıntı testçisi çalışmaz. Bu tur bir kapatma turudur; yalnızca metodoloji denetçisi çalışır.
+
+Getiri, sinyal değeri ya da olay sayısı raporlanmaz. Bu turda kilitli dosyalara dokunulmadı, onay koşusu açılmadı, performans kodu yazılmadı ve kapının kural fonksiyonları değişmedi.
+
+**Kapananlar:**
+- **D-B2 / S-38 (`19fb2f5`):** yeni git ve pytest adları (`_GIT_ORTAM_BEYAZ_LISTESI`, `_GIT_SABIT_ORTAM`, `_DURUM_KOMUTU`, `_bag_ortami`, `_bag_git`, `_PYTEST_OTURUMU`, `_pytest_oturumu_kur`) `_KORUNAN_ADLAR`da ve `ONAY_ATLATMA_DESENI`nde. `_PYTEST_OTURUMU`'nun yanlış yorumu düzeltildi; yorumda S-37 kayıtlı sınır olarak anılıyor.
+- **D-B1 / S-31, S-32, S-33 (`59cba66`):**
+  - Ağaç temizliğinin tek kaynağı `_agac_kirlilikleri`. Hem onay yolu hem keşif kaydı bunu kullanır.
+  - Kaynaklar:
+    - `git status` (izlenen değişiklik);
+    - `ls-files -v` (assume-unchanged ya da skip-worktree işareti);
+    - `ls-files --others --exclude-per-directory=.gitignore` (izlenmeyen dosya).
+  - Sonuncusu yalnızca `.gitignore`a (iç içe olanlar dahil) bakar: `.git/info/exclude`, `core.excludesFile` ve XDG ignore dosyası onu gizleyemez. Git 2.41.0.windows.3'te sınandı.
+  - Hata mesajı ve kayıt dosya adı değil, sayı taşır (`agac_kirli_sayisi`).
+  - Claude Code'un `.git/info/exclude`'daki girdileri `.gitignore`a taşındı. Taşınmasaydı `.claude/scheduled_tasks.lock` gibi dosyalar ağacı kirli gösterirdi.
+- **D-B4 (`721f54c`):**
+  - **Tanı:** beyaz liste değişmeden kimlik bilgisi yardımcısı (GCM) çalışıyor. `push --dry-run` 0 ile çıkıyor; aynı komut `-c credential.helper=` ile 128. APPDATA, LOCALAPPDATA, USERNAME, USERDOMAIN ve PROGRAMDATA gerekmedi, **beyaz liste genişletilmedi**.
+  - **Kimlik hata mesajı:** commit hatasında "Deponun yerel yapilandirmasinda user.email yok" (gerekirse user.name de) yazılır ve tanı komutu önerilir.
+  - **Tanı komutu:** `python -m data.split git-hazirlik`. Yerel user.name, user.email (maskeli) ve credential.helper değerlerini basar; ardından fetch ve `push --dry-run origin main` dener. Onay koşusu açmaz, kayda dokunmaz ve analiz kodunda yasaktır (tarama deseni, korunan adlar).
+  - **Tanının bir kez koşulan çıktısı:**
+    - user.name ve user.email (`e***@gmail.com`) mevcut, credential.helper `manager`;
+    - fetch: TAMAM (çıkış 0);
+    - `push --dry-run`: TAMAM (çıkış 0);
+    - sonuç: `git-hazirlik: TAMAM`.
+  - Git 2.41 Windows'ta user.name eksikse işletim sistemi kullanıcı adına düşer ve commit yine yapılır; commit'i düşüren eksik user.email'dir. Bu yüzden kimlik testi yalnızca user.email'de parametrelidir; tanı ikisini de ayrıca denetler.
+- **D-B3 / S-40 (`dfc6c4e`):**
+  - Dayanılan grafı artık HARIC'te durmuyor; yükleyicilerin altındaki kurallara da iniyor. Erişilen 200 ad iki listeye ayrıldı:
+    - **SABIT:** P2b–P2d boyunca değişmez.
+    - **GUVENLIK:** yükleyiciler, erişim denetimleri ve bellek önbelleği.
+  - Bir GUVENLIK tanımının SHA'sı değişirse, bu dosyada şu biçimde bir satır olmadan test düşer: `GUVENLIK: <ad> <yeni-sha-ilk-12> — <gerekçe>`. Satır başında ya da `- ` önekiyle yazılır; gerekçe en az 10 karakterdir.
+  - Bugünkü SHA'lar başlangıç değeridir; bu kayıtta henüz GUVENLIK satırı yok.
+  - **S-40, 4. adımla (D-B3) kapandı.** İstem "S-40..S-45 kayıtta kalır" diyordu, ama yeni graf HARIC'in altındaki kural sarmalayıcısını da sabitlediği için S-40'ın dört parametresi XPASS verdi ve işaretler kaldırıldı (istemden sapma). Denetçi kapanışın gerçek olduğunu, ama sarmalayıcı GUVENLIK'teyse gerekçe satırının dürüstlüğüne dayandığını yazdı (D-C1).
+- **D-C2, D-C3, D-C4 / S-39 (`016e877`):** eşitlik betiği olay rolünde `sure_s`, `ilk_20_uyusmayan` ve `ilk_20_beklenmeyen` alanlarını boş yazar; yalnızca sayılar kalır. Uyuşmazlık ya da beklenmeyen hatada 1 ile çıkar. `config.TOHUM` her satıra `genel_tohum` olarak yazılır.
+- **Kapanış denetçisi D-B1 (`8356cf2`):**
+  - Birim süresi hiçbir rolde yazılmaz.
+  - Olay rolü koşulursa sembolün `TOPLAM_SURE` satırı da boştur. İki seçenek vardı: toplamı hiç yazmamak, ya da yalnızca bütün birimleri içeren bir toplam yazmak. Birincisi seçildi, çünkü olay rolü içeren ve içermeyen iki koşunun toplamları arasındaki fark olay süresini verirdi.
+  - Test `test_olay_suresi_toplamdan_cikarmayla_bulunamaz` sahte saatle gösteriyor: olay rolünün maliyeti onay sayısıyla büyürken hiçbir çıktı alanı bunu taşımıyor.
+
+**Kayıtta kalanlar (kasıtlı kod biçimi gerektiren, xfail):**
+- S-34–S-37;
+- S-41–S-45: `if True:` içinde yeniden tanım, `globals()` ile bağlama, artırmalı atama, `__code__` ataması, modül gölgeleme.
+
+**SABIT ve GUVENLIK listelerinin başlangıç değerleri:**
+
+**SABIT (100 ad; ad → SHA256 ilk 12).**
+
+- `data.binance_vision`: `AySiniriHatasi` 6af3e7495c76, `FUNDING_SUTUNLARI` 2849d255ad11, `MUM_SUTUNLARI` 75e9a583706c, `_AY_DESENI` e23171400b5d, `_sayi_mi` 98369d30f295, `ay_araligi_sinirlari` 0cfe1921c726, `aylara_gore_ele` 1d1282f4c03a, `dosya_ayi` 36c5a2d3dd93, `zip_csv_oku` 8302acc8dd76
+- `data.donem`: `Donem` 73f25b8bf032
+- `data.funding`: `FUNDING_CIKTI_SUTUNLARI` 7fc3ffb2e492, `_ay_cercevesi` 8d3559ecdd91, `_donem_icinde` 19b6beca09e1, `_zaman_dizisi` 836592289afc, `donem_sonrasi_kayitlari_at` 4736d1a93859, `funding_yukle` bec67dc9b494, `ham_funding_yukle` a117ede3bcf5, `sekiz_saate_normallestir` 5a071b437901
+- `data.klines`: `GUNLUK_BAR_SAYISI` d9ef201dff26, `GUNLUK_IZGARA_ADIMI` 9ec8aae90fd1, `HUCRE_SUTUNLARI` 81799c9351b6, `SAYISAL_SUTUNLAR` 557fb44cf92f, `_ay_cercevesi` 799f21380083, `_tekrarsiz_birlestir` 7d37506e8a8a, `_zaman_cevir` 5187310b8629, `donem_kes` bedad54d2e15, `gunluge_cevir` 788c4e34ae69, `ham_mumlari_yukle` 871ba649b6d5, `hucreleri_tam_mi` 466bb842beeb
+- `data.pencere`: `ADIMLAR` 4af80d4d8def, `ADIM_4H` af5678e82356, `CikisSonucu` ab4784806d80, `DonemDisiSinyal` cc564872bddf, `GUNUN_SON_4H_BARI` 59052065f883, `GirisBariYok` c605d654eb52, `HipotezUfuklari` 1e72e3d49a20, `IleriKaymaSiniriHatasi` f7dc0487c734, `KumeSiniriHatasi` 8244cd175f58, `ODEME_TOLERANSI` a9363369ae75, `OlayOlusmaz` 7f659e4a0b40, `PozisyonPlani` e480f5ecbe97, `VeriHatasi` 564dc5b5cace, `ZAMAN_TOLERANSI` 0b663ba3de56, `ZamanDizisiHatasi` 787e383b69bd, `_PLAN_GIZLI` 0d3a7a336c44, `_plan_imzasi` c6c80116bdaa, `_sonuc` 67e64e762550, `_tolerans_pd` 4530bb245bc4, `_zaman_dizisi_dogrula` b0c3e6882431, `adim` 54e1ab7b0e21, `ayni_an` f607803d598d, `ayni_an_basi` de4687ff743f, `ayni_an_sonu` 101d7aae68f8, `ayni_ya_da_once` 584cee254bd9, `ayni_ya_da_sonra` 847b0c438465, `donem_ici_4h_maskesi` 02827d67874f, `donem_ici_mi` 211b1e45332f, `donem_kapanisi` 31943190a083, `once` 60c193d4c9cf, `plan_dogrula` 869006707457, `sonra` 45e485d19327, `tolerans` 650d4a3bb88c, `utc_zamani` 78fd50693c2e
+- `data.pozisyon`: `FundingTamDegil` a9a880520fd0, `OnaylanmisPozisyon` 7f81f29da960, `SinyalBariYok` 344aa69c72fd, `SinyalKosuluSaglanmadi` 8cf7357aef41, `SinyalPenceresiTamDegil` 9cf9887bf346, `UygunDegil` fe600ff2ec19, `_DonemSiniri` 82b0e8344955, `_PlanSerisi` c41843c998b6, `_karar_girdisi` b0b226e0cebb, `_karar_verisi` 7a60dc364121, `_karar_verisi_kur` a944ebfe77c5, `_kayitlar` 32f58a97cd33, `_kume_verisi` db5a2fdf63c7, `_kume_verisi_yukle` e5fae218146d, `_tam_hucreli_barlar` ea5921f95f01, `donem_kaydi` 670179f48045, `grup_dogrula` 32010689969f, `kume_sinirlari` 72a55ca8150c
+- `data.sinyal`: `TepePenceresiKurulamaz` d5a6a4a5f007, `YapilandirmaHatasi` 343efa79f835
+- `data.split`: `BOLME_SUTUNLARI` 932607135ddd, `BolmeTutarsizligi` edaed74dbb19, `_bos_mum_cercevesi` 4a6627fe1551, `grup` 8c428ab4c8f4, `kume_araligi` dc42cf355bd2, `kume_erisimi` c8276c141709, `kume_tanimi` 027a10ce011e, `split_dogrula` fcac76619e1a, `varlik_anahtari` e68abb30a27c, `yukle` 83d9b9fe0749
+- `data.universe`: `CSV_SUTUNLARI` dea3afcebc2e, `_BOOL_SUTUNLARI` 05ca4c3a163d, `_METIN_SUTUNLARI` 3db3f3dd63cd, `_TAMSAYI_SUTUNLARI` 769c27202b7b, `_ZAMAN_SUTUNLARI` a769b569314f, `_normallestir` 568b99d1697a, `sembol_donemleri` f82f2eb2cd17
+
+**GUVENLIK (100 ad; tür → ad → SHA256 ilk 12).**
+
+- *yukleyici* (33):
+  - `data.binance_vision`: `DonukListeYok` 456e77a084c5, `FUNDING_ONEKI` e611e9cc7d14, `INDIRME_KOKU` 87990555c317, `LISTELEME_KOKU` eb34b7b6b8e3, `MUM_ONEKI` 0a38fb620b64, `OnbellekYoluHatasi` 578ecaac9aaf, `S3_NS` 753ae234bbef, `VeriYok` 188b484464e9, `_AYGIT_ONEKLERI` 90f7886f7e9c, `_DONUK_BELLEK` 06ce72fbf2cf, `_LISTE_ALT_YOLU` c7a47423ad85, `_ONBELLEK_TURLERI` 3760b37447a9, `_YEREL` d27f2382b2af, `_anahtar_denetle` 6d755e3c32a1, `_donuk_anahtar_denetle` c01ceb26124e, `_donuk_anahtarlar` 0576f892f443, `_donuk_oku` b9cf0b4b1063, `_iste` c9b9e3a29969, `_listele` 6584a185fb8e, `_onbellek_yolu_denetle` 95c3d6dd747d, `_onbellek_yolu_normallestir` ae0006562ac5, `_oturum` efbaada7fc23, `donuk_liste_yolu` 56d1adbdf8ba, `funding_dosyalari` b4e3bd366559, `mum_dosyalari` 0a66b6c6f8b5, `onbellege_yaz` 4082bb241941, `onbellek_yolu` 84787a06ddd9, `onbellekten_oku` 3067ab08ee65, `zip_indir` 9a5f559357c9
+  - `data.klines`: `mumlari_yukle` 6b62a65c3212
+  - `data.pozisyon`: `_veri_yukle` dce15a76a2ad
+  - `data.split`: `split_oku` b7181f134280
+  - `data.universe`: `evren_yukle` 68fce88a3f3c
+- *erisim denetimi* (63):
+  - `data.binance_vision`: `AgsizOkumaIhlali` a4ae0ce2759e, `KosuAgYasagi` b9490d4bbbb7, `KosuYazmaYasagi` cfd9510c707e, `OnayVerisiKorumasi` 9ec36c0a971f, `_DEVRALINAN_IZIN` 70839dc1b1ee, `_DOGRULANMIS` 355e0aa3dedb, `_DOGRULANMIS_KILIDI` 9734b4f667dc, `_IZIN` 083700f34b6e, `_IZIN_KILIDI` 6af10fead60e, `_IZIN_ORTAM_ADI` ca5912a6be0d, `_KOSU_AGSIZ` 6738ec47ae0e, `_ag_yasak_mi` b7e769a8fec1, `_agsiz_mi` f2d62ab9dfef, `_onay_verisi_denetle` 846b52d1fb4c, `ag_yasagi_denetle` 4de9f970d9f6, `agsiz_okuma` e4801de56fd5, `onay_izni_var` 2ad1ccb6d3c0, `onay_verisi_izni` f5616665cba2, `onay_verisi_mi` 2c72aa596559
+  - `data.onbellek_manifest`: `MANIFEST_YOLU` 0f3727894d8b, `ManifestHatasi` 2dc9b34b4493, `ManifestUyusmazligi` 23676564a6be, `ManifestYok` e420a4eeba75, `_BELLEK` d4790125db53, `_Manifest` e0291b500e7d, `_SUTUNLAR` b8df0a884712, `_TEST_AYARI` 76d1b7df9bc5, `_etkin_yol` 1cffa4e01bd9, `_manifest` a525f8ee94c4, `_manifest_coz` 3ca1c6a5ff00, `_onay_dosyasi_mi` e6ccc6556684, `_onay_listesi` 4614c1088eba, `denetim_etkin` 099c7cea0fcd, `okuma_denetle` 2ac0c782e1c2, `onay_ayrinti_yolu` ddbc365dbed1
+  - `data.pozisyon`: `_erisim_denetimi` 456f25c63017
+  - `data.split`: `KILIT_SECILDI` 8873835f33bc, `KesifBaglamiYok` f8efa143f7a3, `KilitKaydi` a3a22c12186e, `ONAY_TABLO_BASLIGI` 82337d703400, `OnayGerekli` 9a7e8a497dc2, `OnayKorumasi` e935492e7a89, `OnayUyusmazligi` 12715da8d5e8, `_AKTIF_KOSU` f9a366f8c2c8, `_KAYIT_YOLU` 272e799f90fa, `_KESIF_DURUMU` 54c803e6efa0, `_Kosu` 421e154927c0, `_PYTEST_OTURUMU` f4b1f1cb5fc5, `_TEST_AYARI` abb2bfa94fb1, `_TestAyari` e3c926a7c6f3, `_acik_kosu` f472903ff9ad, `_kaydi_oku` 653fffe9feb1, `_kayit_yolu` 32791efd3e8a, `_pytest_testi` c7211bb35417, `_tablo_zamani` cd2af7e76b9c, `_test_ayari` 444047d7cdb8, `aktif_onay_kosusu` 6a0bc884f54b, `kayit_satirlari` 937e6a934b73, `kesif_baglami_dogrula` 96a930f42260, `kesif_kosusu_acik` 6bc94b6f1d3a, `not_alanlari` 4d5f5be11987, `onay_baglami_dogrula` 3e2350633d3a, `onay_erisimi_denetle` c2bc97b98183
+- *bellek onbellegi* (4):
+  - `data.kume_bellegi`: `AZAMI_GIRDI` 69c1a3c200b4, `_BELLEK` 20acd8c082ea, `_KILIT` 8adedced65be, `getir` 86c242664f11
+
+**Testler ve xfail aritmetiği:**
+- Parçalı takım (`tools/parcali_takim.py --grup 8`, `016e877` üzerinde): **5231 passed, 195 xfailed, 0 failed, 0 XPASS, 7 skipped**.
+- Kaldırılan işaretler, hepsi `tests/test_sizinti_perf2b0.py`'de: S-38 (2), S-31 (1), S-32 (2), S-33 (1), S-40 (4), S-39 (1).
+- 206 − 11 = **195**. Listede olmayan XPASS çıkmadı.
+- `016e877`den sonraki commit'ler (`8356cf2`, bu kayıt) yalnızca eşitlik betiğine, onun testlerine, RESULTS'a ve taban CSV'lerine dokunuyor. Bu yüzden takım yeniden koşulmadı; hedefli eşitlik ve tarama testleri koşuldu.
+
+**Tam bar eşitlik tabanı (P2b öncesi, ilk yapılandırma, `--bar tum`):**
+- Dosyalar: `esitlik_kapi_p2b0_tum_tam.csv` ve `esitlik_kapi_p2b0_tum_kesif_kaydi_tam.csv`. Etiket `p2b0_tum`; varsayılan `p2a` etiketi commit'li P2a tabanının üstüne yazardı.
+- Yapılandırmalar: `H1:theta=0.2,delta=0.08`, `H2:phi=0.0003,k=3`, `H3:nu=0.5,tau=0.15`.
+- Kapsam: 8 sembol, 120 birim (H1, H2, H3 × olay, K1, K2, funding_satiri), **392404 bar karşılaştırıldı**.
+- **0 uyuşmayan bar, 0 hatalı birim.** H1 ve H2'de bütün rollerde 0 beklenmeyen hata.
+- **Beklenmeyen hata: 12 referans + 12 yeni.** Hepsi H3'te, aynı üç barda (aşağıdaki açık madde), dört rolde ve iki tarafta aynı sınıfla. Çıkış kodu 1.
+- Örnek kipi koşusu (kalan 8 yapılandırma, `--bar ornek`) bu turda **açılmadı**; düzeltme turunda yapılacak.
+
+**Açık: H3'te dönem sonu yarım günü (3 bar, iki tarafta aynı DonemDisiSinyal; uygunluk ile pozisyon planı 1d dönem üyeliğinde tutarsız). Ortak kural boşluğu, eşitlik bozulması değil. Ayrı turda çözülecek; F2'yi bloklar.**
+
+| sembol | dönem | bar (1d) | istisna (referans ve yeni) |
+|---|---|---|---|
+| AERGOUSDT | 0 | 2025-03-27 | `pencere.DonemDisiSinyal` |
+| ALPACAUSDT | 0 | 2025-04-30 | `pencere.DonemDisiSinyal` |
+| BNXUSDT | 1 | 2025-03-17 | `pencere.DonemDisiSinyal` |
+
+- **Ne oluyor:**
+  - `pencere.pozisyon_plani` 1d sinyal barını, günün altı 4h barının hepsi dönem içindeyse dönem içi sayar (`donem_ici_mi`).
+  - Docstring'e göre `DonemDisiSinyal` bir programlama hatasıdır: uygunluk bu barı önceden reddetmeliydi.
+  - Üç sembol de delist olmuş. Dönem sonunun (sıfır olmayan hacimli son 4h bar) günün ortasına düştüğü yarım son günde, 1d bar uygunluktan geçiyor ama pozisyon planında dönem dışı sayılıyor.
+- **Neden eşitlik bozulması değil:** referans (`data/_skaler_referans.py`) ve yeni (`data/pencere.py`) aynı davranıyor.
+- **Bilinmeyen:** P2a tabanı (`esitlik_kapi_p2a_tam.csv`) beklenmeyen hata sütunlarından önce üretildiği için bu durumun orada da olup olmadığı o dosyadan okunamıyor.
+- **Bu turda dokunulmadı:** düzeltme kapının kural fonksiyonlarını değiştirir; bu tur için yasak.
+- **Düzeltme turunda yapılacaklar:**
+  - uygunluğun 1d dönem üyeliğini pozisyon planıyla aynı kurala bağlamak (ön-kayıt §6 rev.8 "Dönem üyeliği");
+  - etkilenen dayanılan / GUVENLIK SHA'larını gerekçe satırıyla güncellemek;
+  - tam bar tabanını yeniden üretmek ve örnek kipi koşusunu açmak.
+- Ret dört rolde aynı barda ve olay koşulundan önce oluyor. Bu yüzden kontrol satırlarındaki zaman damgasının olay bilgisi taşımadığı düşünülüyor; bu bir çıkarımdır, sınanmadı.
+
+**Metodoloji denetçisi (yalnızca denetçi çalıştı):**
+- Durma koşulu (onay koşusu olmadan C1/C2 verisi okuyan yeni sıradan yol): **hayır**. D-A bulgusu yok.
+- **(a) bu turun değişiklikleri:**
+  - D-B1 (`TOPLAM_SURE` çıkarması) `8356cf2`de kapandı.
+  - Açık kalanlar:
+    - D-B2: `evren_yukle` GUVENLIK'te, ama `haric` / `donem_funding_yok` bool ayrıştırma kuralı taşıyor;
+    - D-C1: GUVENLIK'te iki doğrudan dayanılan ad var;
+    - D-C2: `calistir.py` `git_durumu` / `ortam_kaydi` ikinci bir temizlik hesabı;
+    - D-C3: kendini yok sayan izlenmeyen `.gitignore` (ör. `.pytest_cache`);
+    - D-C4: user.name düşüşü; `git_hazirlik` `_uzak_adresi_denetle`yi çağırmıyor;
+    - D-C5: `ortam_karari` docstring'i bayat;
+    - D-C6: eşitlik betiği numpy / pandas sürümünü yazmıyor.
+- **(b) plan v2:**
+  - Dosya `D:\Projeler\prompts\plan_performans_2_v2.md`, SHA256 `3dc0e8f5889e2990f66c894fc78cb51094d0794cc31f7c5b243f2c525ad35d1a`.
+  - Bulgular:
+    - G1/D-C7, G2/D-B3 (G11 ile çelişki), G3/D-B4, G5/D-C8, G6/D-B5, G7/D-C9, G8/D-C10, G9/D-C11, G10/D-B6, G11/D-B7, G13/D-C12, G14/D-B8, G15/D-B12;
+    - plan geneli: D-B9, D-B10, D-B11, D-C13;
+    - G4 ve G12'de bulgu yok.
+  - Bu bulgular P2b planlamasında ele alınacak; bu turda dokunulmadı (bulgu politikası).
+
+**Commit'ler:** `19fb2f5` (D-B2, S-38), `59cba66` (D-B1, S-31–S-33), `721f54c` (D-B4), `dfc6c4e` (D-B3, S-40), `016e877` (D-C2–D-C4, S-39), `8356cf2` (kapanış D-B1), bu kayıt ve tam bar tabanı.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
