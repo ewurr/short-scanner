@@ -750,9 +750,14 @@ class KosuOrtami:
 def ortam_karari(head: str | None, durum: str | None, betik: str | None, izleniyor: bool) -> KosuOrtami:
     """Kosu ortaminin karari. Saf.
 
-    `head`: `git rev-parse HEAD` ciktisi; `durum`: `git status --porcelain` ciktisi (None: git okunamadi);
-    `betik`: cagiran betigin depo icindeki yolu (None: etkilesimli oturum ya da `python -c`); `izleniyor`:
-    betik git'te izleniyor mu. Temiz agac + izlenen betik: kosunun kodu kayda yazilan commit'te bulunur.
+    `head`: `git rev-parse HEAD` ciktisi. `durum`: agac temizliginin TEK kaynaginin (`_agac_kirlilikleri`, RESULTS
+    §14.46) kirli kayitlari, satir basina bir kayit (`durum:<yol>`, `isaret:<yol>`, `izlenmeyen:<yol>`); bos metin =
+    temiz, None = git okunamadi. Bu `git status --porcelain` ciktisi DEGILDIR (RESULTS §14.48, D-C5): izlenen
+    degisikliklerin yaninda assume-unchanged / skip-worktree isaretlerini ve `.gitignore` disindaki izlenmeyen
+    dosyalari da icerir; kayit adlari yalnizca SAYI olarak mesaja yansir. Test kipinde (`_TestAyari.durum`) ayni
+    bicimde verilir. `betik`: cagiran betigin depo icindeki yolu (None: etkilesimli oturum ya da `python -c`);
+    `izleniyor`: betik git'te izleniyor mu. Temiz agac + izlenen betik: kosunun kodu kayda yazilan commit'te bulunur.
+    Yerel kimlik (`user.name`, `user.email`) burada degil, `_kimlik_denetle`de denetlenir (§14.48, D-C4).
     """
     if head is None or not re.fullmatch(r"[0-9a-f]{40}", head.strip()):
         raise OnayOrtamiHatasi("Onay kosusu acilamaz: git commit'i okunamadi (git yok ya da depo degil).")
