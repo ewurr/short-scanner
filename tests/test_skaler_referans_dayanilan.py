@@ -145,6 +145,8 @@ SABIT = {
     "data.universe._TAMSAYI_SUTUNLARI": "769c27202b7bc96b5dd4ca4e2d5c76a0368361ef7b4fa1d2cacb797627383adc",
     "data.universe._ZAMAN_SUTUNLARI": "a769b569314fcb651b832cbf185c474472d29957287bf8a2ba8228260868e82a",
     "data.universe._normallestir": "568b99d1697a04efdee7e36dbae6cdeffa7cfd25674593136d623c0db7eca25d",
+    # RESULTS §14.48 (D-B2): `evren_yukle`nin bool ayristirmasi kural tasir; yukleyiciden ayrilip SABIT'e alindi.
+    "data.universe.bool_sutunlarini_ayristir": "05649ae9fb63cdfffafcbef429ed9c2962619933ad3a6ba62dfeffa0ecccfffa",
     "data.universe.sembol_donemleri": "f82f2eb2cd172cea05417593b8ce9a52d8c6c5aa89d44ac4594e4e8f6841d791",
 }
 

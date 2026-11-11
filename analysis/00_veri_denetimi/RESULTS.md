@@ -4587,6 +4587,14 @@ Getiri, sinyal değeri ya da olay sayısı raporlanmaz. Bu turda kilitli dosyala
 
 **Commit'ler:** `1b3b2ac` (yardımcı), `1851fd3` (eşitlik betiği ve tarama), `c6c7eaa` (sözleşme açıklaması), `4037fad` (eşitlik tabanı CSV'leri), bu kayıt.
 
+### §14.48 Performans 2b-1 (2026-11-11)
+
+*(Kayıt bu turun commit'leriyle birlikte büyür; tam metin tur sonunda yazılır.)*
+
+**0. aşama, D-B2 — `GUVENLIK:` satırı:**
+
+GUVENLIK: data.universe.evren_yukle 67f080fd74bd — D-B2 (plan v3 G2): bool ayristirmasi `bool_sutunlarini_ayristir`a (SABIT) cikarildi; yukleyicinin davranisi birebir ayni, govdede yalnizca cagri kaldi
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,

@@ -429,12 +429,23 @@ def evren_yukle(yol=None) -> pd.DataFrame:
     eksik = [s for s in CSV_SUTUNLARI if s not in tablo.columns]
     if eksik:
         raise ValueError(f"{hedef}: rev.7 evren tablosu bicimi degil; eksik sutunlar: {eksik}")
+    return _normallestir(bool_sutunlarini_ayristir(tablo, hedef))
+
+
+def bool_sutunlarini_ayristir(tablo: pd.DataFrame, kaynak) -> pd.DataFrame:
+    """`haric` ve `donem_funding_yok` sutunlarinin metinden bool'a ayristirilmasi (RESULTS §14.48, D-B2).
+
+    Kural tasir: `haric` sembolu calisma evreninden cikarir, `donem_funding_yok` donemi funding'siz sayar. Bu yuzden
+    yukleyiciden (`evren_yukle`, GUVENLIK) ayrilip SABIT'e alindi. Yalnizca tam "True" ve "False" metni kabul edilir;
+    bos metin, "true", "1" ya da baska her deger `ValueError` verir (mesajda `kaynak` ve sutun adi). Saf: girdiyi
+    degistirmez, kopya dondurur. Davranis `evren_yukle`nin eski govdesiyle birebir aynidir."""
+    tablo = tablo.copy()
     for sutun in _BOOL_SUTUNLARI:
         deger = tablo[sutun].astype(str).map({"True": True, "False": False})
         if deger.isna().any():
-            raise ValueError(f"{hedef}: {sutun!r} sutununda True/False disi deger var.")
+            raise ValueError(f"{kaynak}: {sutun!r} sutununda True/False disi deger var.")
         tablo[sutun] = deger.astype(bool)
-    return _normallestir(tablo)
+    return tablo
 
 
 def evren_onbellekle_dogrula(yol=None, onbellek=None) -> None:
