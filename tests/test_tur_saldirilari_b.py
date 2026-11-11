@@ -293,7 +293,8 @@ def test_git_durumu_git_calismiyorsa_sessizce_yanlis_commit_uydurmaz(monkeypatch
     sonuc = calistir.git_durumu()
     assert sonuc["bilinmiyor"] is True
     assert sonuc["commit"] == "bilinmiyor"
-    assert sonuc["degisiklikler"] == []
+    # RESULTS §14.48 (D-C2): dosya listesi ("degisiklikler") kaldirildi; yalnizca sayi, git yokken None.
+    assert sonuc["kirli_sayisi"] is None
 
 
 def test_ortam_kaydi_git_bilinmiyorken_cokmez_ve_acikca_isaretler():

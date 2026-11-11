@@ -849,35 +849,52 @@ def fiyat_farki_listeleme_yasi(detaylar: list[dict]) -> pd.DataFrame:
 def git_durumu() -> dict:
     """Commit ve calisma agaci durumu. Kosunun BASINDA, hicbir cikti yazilmadan
     cagrilir; boylece kosunun kendi ciktilari kirlilik sayilmaz (denetci bulgusu
-    D-B2). git yoksa "bilinmiyor"."""
+    D-B2).
+
+    Agac temizligi bu betikte HESAPLANMAZ (RESULTS §14.48, D-C2): tek kaynak
+    `split._agac_kirlilikleri`dir ve buraya acik sarmalayicisi `split.agac_kirli_sayisi`
+    ile, yalnizca SAYI olarak gelir; dosya adi hicbir ciktiya yazilmaz. Ayni hukmu
+    kesif kaydi ve onay kosusu da verir (izlenen degisiklik, assume-unchanged /
+    skip-worktree isareti, `.gitignore` disindaki izlenmeyen dosya).
+
+    Doner: {"commit", "kirli_sayisi" (int; 0 = temiz), "bilinmiyor" (bool)}. git yoksa ya
+    da commit veya agac okunamazsa "bilinmiyor" True ve "kirli_sayisi" None."""
+    from data import split as split_modulu
+
     try:
         commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=KOK, capture_output=True,
                                 text=True, check=True).stdout.strip()
-        durum = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=KOK,
-                               capture_output=True, text=True, check=True).stdout
     except (OSError, subprocess.CalledProcessError):
-        return {"commit": "bilinmiyor", "degisiklikler": [], "bilinmiyor": True}
-    return {"commit": commit, "degisiklikler": sorted(s for s in durum.splitlines() if s.strip()),
-            "bilinmiyor": False}
+        return {"commit": "bilinmiyor", "kirli_sayisi": None, "bilinmiyor": True}
+    kirli = split_modulu.agac_kirli_sayisi()
+    return {"commit": commit, "kirli_sayisi": kirli, "bilinmiyor": kirli is None}
 
 
 def ortam_kaydi(git: dict, baslangic: pd.Timestamp, bitis: pd.Timestamp) -> pd.DataFrame:
     """Kosuyu ureten ortam: Python, paket surumleri, git commit'i ve kosu zamani (UTC).
 
-    `git`: kosu basinda alinan `git_durumu()`. Calisma agaci kirliyse degisen
-    dosyalar da yazilir; ciktilar hangi koddan uretildigi izlenebilsin.
+    `git`: kosu basinda alinan `git_durumu()`. Calisma agaci kirliyse yalnizca kirli
+    kayit SAYISI yazilir, dosya adi yazilmaz (RESULTS §14.48, D-C2).
+
+    Anlam degisikligi (§14.48): `calisma_agaci` alani D-C2 commit'inden once betigin kendi
+    `git status --porcelain --untracked-files=all` sonucundan (`.git/info/exclude` ve
+    yerel ignore ayarlarina uyan, isaretli dosyalari gormeyen) uretiliyordu ve kirli
+    dosya adlari `calisma_agaci_degisiklikleri` satirina yaziliyordu. Bundan sonra
+    alan `split._agac_kirlilikleri` hukmudur ve o satirin yerini
+    `calisma_agaci_kirli_sayisi` alir. Eski ciktilardaki "temiz" bu yuzden daha gevsek
+    bir olcutle verilmistir.
     """
     import importlib.metadata as md
     import platform
 
     if git["bilinmiyor"]:
-        agac = "bilinmiyor (git yok)"
+        agac, sayi = "bilinmiyor (git yok)", ""
     else:
-        agac = "temiz" if not git["degisiklikler"] else "kirli"
+        agac, sayi = ("temiz" if git["kirli_sayisi"] == 0 else "kirli"), str(git["kirli_sayisi"])
     satirlar = [
         {"bilesen": "git_commit", "surum": git["commit"]},
         {"bilesen": "calisma_agaci", "surum": agac},
-        {"bilesen": "calisma_agaci_degisiklikleri", "surum": " | ".join(git["degisiklikler"])},
+        {"bilesen": "calisma_agaci_kirli_sayisi", "surum": sayi},
         {"bilesen": "kosu_baslangic_utc", "surum": baslangic.strftime("%Y-%m-%d %H:%M:%S")},
         {"bilesen": "kosu_bitis_utc", "surum": bitis.strftime("%Y-%m-%d %H:%M:%S")},
         {"bilesen": "python", "surum": platform.python_version()},
@@ -1263,7 +1280,7 @@ def _kos(argumanlar: argparse.Namespace) -> None:
     etiket = "ornek" if argumanlar.ornek else "tam"
     log_yolu = _kaydedici_kur(etiket)
     _gunluk.info(f"git: {git['commit']}, calisma agaci "
-                 f"{'temiz' if not git['degisiklikler'] else 'kirli: ' + ' | '.join(git['degisiklikler'])}")
+                 f"{'bilinmiyor' if git['bilinmiyor'] else 'temiz' if git['kirli_sayisi'] == 0 else 'kirli: ' + str(git['kirli_sayisi']) + ' kayit'}")
 
     # Istege bagli eski tablo karsilastirmasi (denetci bulgusu D-B1): git gecmisi
     # gerektirdigi icin varsayilan kosunun parcasi degil. Istenirse YUKLEMEDEN ONCE

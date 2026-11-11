@@ -1692,6 +1692,14 @@ def _agac_kirlilikleri() -> list[str] | None:
     return sorted(kirli)
 
 
+def agac_kirli_sayisi() -> int | None:
+    """Agac temizliginin TEK kaynaginin (`_agac_kirlilikleri`) analiz kodu icin acik sarmalayicisi (RESULTS §14.48,
+    D-C2). Yalnizca SAYI doner (0 = temiz), dosya adi donmez; git okunamazsa None. F1 denetim betiklerinin ortam
+    kaydi (`calistir.git_durumu`) bunu kullanir; kesif kaydi ve onay kosusuyla ayni hukmu verir."""
+    kirli = _agac_kirlilikleri()
+    return None if kirli is None else len(kirli)
+
+
 def _bag_ortami() -> dict[str, str]:
     """Butun git cagrilarinin ortami (beyaz liste + sabit degiskenler)."""
     izinli = set(_GIT_ORTAM_BEYAZ_LISTESI)
