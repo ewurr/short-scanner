@@ -4483,6 +4483,110 @@ Getiri, sinyal değeri ya da olay sayısı raporlanmaz. Bu turda kilitli dosyala
 
 **Commit'ler:** `19fb2f5` (D-B2, S-38), `59cba66` (D-B1, S-31–S-33), `721f54c` (D-B4), `dfc6c4e` (D-B3, S-40), `016e877` (D-C2–D-C4, S-39), `8356cf2` (kapanış D-B1), bu kayıt ve tam bar tabanı.
 
+### §14.47 Hipotez ızgarası ve eşitlik tabanı (2026-11-11)
+
+Getiri, sinyal değeri ya da olay sayısı raporlanmaz. Bu turda kilitli dosyalara dokunulmadı, onay koşusu açılmadı, kapının kural fonksiyonları ve `_skaler_referans` değişmedi. SABIT ve GUVENLIK listeleri değişmedi. Bu bir kapatma turudur; ajan çalışmadı.
+
+**§14.46'nın düzeltilmesi.**
+- §14.46'daki iki ifade yanlıştı: "uygunluk ile pozisyon planı 1d dönem üyeliğinde tutarsız" ve "üç delist sembol".
+- Doğrusu şu: eşitlik betiğinin 1d ızgarası türetilmiş seri yerine takvimden kuruluyordu. Kapı, uygunluk, 1d türetmesi ve dizi kuralları aynı `donem_ici_mi` yüklemini kullanıyor; ön-kayıt satır 40, 43 ve 280 ile uyumlu.
+- Etkilenen dönemler delist dönemleri değil, "günün ortasında bölünen" dönemlerdir. Örneğin AERGOUSDT'nin 2025-04-16'da başlayan ikinci bir dönemi var.
+- §14.46'nın metni değiştirilmedi.
+
+**Teşhis özeti** (`rapor_donem_sonu_teshis.md`, depo dışında). **Hüküm: (A).** Ön-kayıt bu durumu mekanik olarak belirliyor.
+- Satır 40 (§2 "1 günlük barlar"): "dönemin kısmi ilk ve son günleri 1d serisinde yer almaz. Bu seri tektir: H3'ün sinyal pencereleri, bütün hipotezlerin uygunluk hacmi ve K1/K2 havuzlarının 1d barları aynı seriden gelir."
+- Satır 43 (§2 dönem dışı veri): dönem dışındaki hiçbir bar hiçbir hesaba girmez.
+- Satır 280 (§6 rev.8 dönem içi tanımı): 1d bar, ancak altı 4h barının tamamı dönem içindeyse dönem içidir.
+- Sonuç: dönemin yarım son günü H3 ızgarasında bir bar değildir. Takvim ızgarası bu günü kapıya veriyordu; kapı ve referans onu aynı programlama hatasıyla reddediyordu (`pencere.DonemDisiSinyal`, §14.46'daki 12 + 12 beklenmeyen hata).
+- Ön-kayıt revizyonu gerekmiyor. Seçim yalnızca uygulamada yapıldı.
+
+**Kapsam** (teşhis; yalnızca dönem sınırı zaman damgaları ve A/B grubu, onay verisi okunmadı):
+- 690 hariç olmayan sembol-dönemin 165'inde yarım son gün var (B saati 20:00 değil). Dağılım: 44 KESIF (A grubu), 30 C1 aralığı (B grubu, KESIF zaman aralığı), 91 C2 aralığı (A+B).
+- Her etkilenen sembol-dönemde tam bir yarım gün var: B'nin günü.
+- Yarım ilk günler takvim ızgarasında da `ceil("D")` ile dışarıda kalıyordu.
+- 4h tarafında sorun yok: 690 dönemin hepsinde başlangıç ve B 4h ızgarasına hizalı.
+
+**Yardımcı: `data/pozisyon.py :: hipotez_izgarasi_barlari(hipotez, *, kume, sembol, donem_no) -> DatetimeIndex`** (`1b3b2ac`; sözleşme açıklaması `c6c7eaa`).
+- **Yer:** `pozisyon.py`, çünkü yardımcı kapının veri yolunu (`_karar_verisi`) ve bağlam denetimlerini (`onay_baglami_dogrula`, `kesif_baglami_dogrula`, `grup_dogrula`, `donem_kaydi`, `kume_sinirlari`) olduğu gibi çağırıyor. Erişim denetimi, küme ve dönem kesimi, mevcutluk ve 1d türetmesi kapıyla aynı yerden geliyor. Yeni kural yok.
+- **4h (H1, H2):** dönem ∩ küme içindeki mevcut 4h barların açılışları; dönem başı ile B arası, iki uç dahil.
+- **1d (H3):** türetilmiş 1d serisinin (`klines.gunluge_cevir`) açılışları. Yarım ilk ve son günler, ayrıca altı barından biri eksik olan günler dışarıda kalır.
+- **Sözleşme:** ızgara yalnızca mevcut barları içerir. Mevcut bar, satırı bulunan ve fiyat ile hacim hücrelerinin tamamı sayı olan bardır (satır 40, rev.11 / rev.12). Dönem içi boşluklar ızgarada yer almaz. Bu yüzden ızgara eşit aralıklı değildir.
+- **Bağlam:** karar noktasıyla aynı. KESIF açık keşif koşusu ister, C1/C2 aynı (hipotez, küme) çiftinin açık onay koşusunu ister. Yardımcı yalnızca zaman damgası döndürür.
+- Analiz kodu taramasında izinlidir (`test_analiz_kodunda_yardimci_hicbir_taramaya_takilmaz`). `_skaler_referans` bu yardımcıya dayanmaz. Sınıflandırma testi yalnızca referansın erişebildiği adları taradığı için yardımcıyı görmez; SABIT ve GUVENLIK listeleri değişmez.
+- **F2 gereksinimi:** F2 koşucusu ve P2b'nin `kapi_serisi`'si sinyal ızgarasını yalnızca bu yardımcıdan alır.
+- **P2c gereksinimi:** Dizi kuralları bekleme süresini, H1 izleme penceresini ve ufukları ızgara zamanıyla ölçer; hipotez ızgarası yardımcısının listesindeki sırayla değil. Aksi hâlde dönem içi bir boşluk bu süreleri sessizce uzatır.
+- **Kapının eksik bardaki olağan reddi** ayrıca sınanıyor:
+  - `tests/test_ks2_kapi_veri.py::test_4h_sinyal_bari_eksikse_olay_olusmaz` (4h, gerekçe `sinyal_bari_yok`);
+  - `::test_1d_sinyal_gunu_eksikse_olay_olusmaz` (1d);
+  - `tests/test_ks3_kapi.py::test_sinif_hiyerarsisi` (`SinyalBariYok` ⊂ `OlayOlusmaz`).
+  - Yardımcının boşlukları dışladığı `tests/test_hipotez_izgarasi.py`'deki iki testte sınanıyor: `test_4h_izgarasi_donem_basi_ile_B_arasinda_iki_uc_dahil` ve `test_1d_izgarasi_takvim_izgarasindan_yalniz_yarim_ve_eksik_gunlerle_ayrilir`.
+
+**Eşitlik betiği** (`1851fd3`):
+- `esitlik_kapi.bar_izgarasi` takvimden ızgara kurmuyor, yardımcıyı çağırıyor.
+- Betiğin sentetik dünyasına yarım son günlü bir dönem eklendi (`tests/test_esitlik_izgarasi.py`).
+- Analiz kodu taramasına `TAKVIM_IZGARASI_DESENI` eklendi (`tests/tarama_yardimcisi.py`). Desen, 1d adımlı `date_range` çağrılarını yakalar: `freq` değeri "D", "1D", "24h" ya da `Timedelta(days=1)` olabilir.
+  - Genel `IZINLI_ALTLAR` muafiyeti bu desene uygulanmaz; `analysis/00_veri_denetimi/` de taranır.
+  - Açık dosya muafiyeti listesi **boş**. `a1_olcumu.py`, `rev9_*` ve `rev11_uygulama.py` deseni kullanmıyor: 1d günlerini `gunluge_cevir`'den alıyorlar, `a1_olcumu.py` ise yalnızca 4h ızgarası kuruyor (satır 156, `freq=ADIM`). Bu, bu turda dosyalar okunarak doğrulandı.
+  - Teşhis raporu bu betiklerin (`a1_olcumu.py:196`, `rev9_hazirlik.py:863`, `rev9_uygulama.py:147`, `rev11_uygulama.py:151`) "aynı takvim ızgarası deseni" kullandığını yazmıştı. O satırlar ızgara kurmuyor; yalnızca `DonemDisiSinyal`'i ayrı bir gerekçe olarak yakalıyor. Raporun ifadesi bu ölçüde düzeltilir.
+  - Sınır: değişkenle verilen `freq`, `pd.offsets.Day`, `resample("D")` ve `.floor("D").unique()` yakalanmaz.
+
+**Reddedilen seçenek 3** (kapının yarım günü olağan ret saymasını sağlamak: seri denetimini plandan önce yapmak ya da `DonemDisiSinyal`'i `OlayOlusmaz` sınıfına almak):
+- Çağıranın dönem dışı bar verdiğini gösteren sesli koruma sessizleşir; ön-kayıt bunu istemiyor.
+- Kapı referanstan ayrışır. Referansın yeniden dondurulması "referans P2a öncesi davranıştır" sözleşmesini değiştirir.
+- Tutarlılık için `dizi.olay_dizisi`'nin de değişmesi gerekir.
+- Sorun kapıda değil, ızgarayı kuran tarafta.
+
+**Yeni eşitlik tabanı.**
+- **Tam bar** (`--bar tum --isci 7`, ilk yapılandırmalar `H1:theta=0.2,delta=0.08`, `H2:phi=0.0003,k=3`, `H3:nu=0.5,tau=0.15`):
+  - Dosyalar: `esitlik_kapi_izgara_tum_tam.csv` ve `esitlik_kapi_izgara_tum_kesif_kaydi_tam.csv`.
+  - Keşif kaydı: `head_commit` `1851fd3`, `agac_temiz` True.
+  - 8 sembol, 120 birim, **391612 bar karşılaştırıldı**. **0 uyuşmayan, 0 + 0 beklenmeyen hata, 0 hatalı birim.**
+  - §14.46'da 392404 bar, 0 uyuşmayan ve 12 + 12 beklenmeyen hata vardı.
+  - Önceki dosya (`esitlik_kapi_p2b0_tum_tam.csv`) silinmedi.
+- **Karşılaştırılan bar farkı, §14.46'ya göre** (her satır dört rolün her birinde; K1, K2, olay ve funding_satiri aynı farkı gösterir):
+
+| sembol | dönem | H1 / H2 (4h) | H3 (1d) | neden |
+|---|---|---|---|---|
+| AERGOUSDT | 0 | 0 | −1 | yarım son gün 2025-03-27 |
+| ALPACAUSDT | 0 | 0 | −1 | yarım son gün 2025-04-30 |
+| BNXUSDT | 1 | 0 | −1 | yarım son gün 2025-03-17 |
+| BNXUSDT | 0 | −30 | −5 | dönem içi boşluklar |
+| SOLUSDT | 0 | −30 | −5 | dönem içi boşluklar |
+| XRPUSDT | 0 | −30 | −5 | dönem içi boşluklar |
+| diğerleri (1000000MOGUSDT, 1000WHYUSDT, 1000XECUSDT, AERGOUSDT d1) | | 0 | 0 | |
+
+- **Yarım günler:** üç yarım gün beklendiği gibi ızgaradan çıktı. §14.46'daki 12 + 12 beklenmeyen hata kayboldu.
+- **Beklenmeyen fark: dönem içi boşluklar.** Tur istemi "H1 ve H2'de sayılar §14.46 ile aynı" bekliyordu. Bu beklenti boşlukları hesaba katmamıştı.
+  - Eski takvim ızgarası seride olmayan barları da kapıya soruyordu; iki taraf da olağan retle (`SinyalBariYok`) eşit yanıt veriyordu.
+  - Yeni ızgara bu barları içermiyor. Bu, yardımcının sözleşmesinin gereği.
+  - Fark `bosluklar_tam.csv` ile birebir eşleşiyor:
+    - SOLUSDT ve XRPUSDT: 2022-02-26 00:00 – 2022-02-28 20:00 (18 bar) ve 2022-04-01 00:00 – 2022-04-02 20:00 (12 bar). Toplam 30 bar, 3 + 2 = 5 gün.
+    - BNXUSDT dönem 0: 2022-04-17 (6 bar), 2022-06-09 (6 bar), 2022-08-10 – 2022-08-12 (18 bar). Toplam 30 bar, 1 + 1 + 3 = 5 gün.
+    - BNXUSDT'nin 2023-02-01 – 2023-02-22 boşluğu dönem bölen boşluktur (`donem_bolen` True); iki dönemin arasında kalır ve fark yaratmaz.
+  - Toplam fark 792 bar: H1 ve H2'de her biri 4 rol × 3 birim × 30 = 360; H3'te 4 × (3 × 1 + 3 × 5) = 72.
+  - `funding_satiri` kapsamı bu birimlerde 2 ya da 3 azaldı (çıkan barların funding satırı kurulabiliyordu). K1 ve K2 kapsamı değişmedi.
+  - **Sonuç:** taban artık eksik barlarda kapının ret davranışını eşitlik üzerinden sınamıyor. Bu davranış yukarıdaki sentetik testlerde sınanıyor. F2 koşucusu da aynı ızgarayı kullanacağı için tabanın kapsadığı bölge, F2'nin kapıya soracağı bölgeyle aynı. Araştırma tarafı sapmayı kabul etti.
+- **Örnek kipi** (`--bar ornek --yapilandirma hepsi --isci 4 --etiket izgara_ornek`):
+  - Dosyalar: `esitlik_kapi_izgara_ornek_tam.csv` ve `esitlik_kapi_izgara_ornek_kesif_kaydi_tam.csv`.
+  - Keşif kaydı: `head_commit` `1851fd3`, `agac_temiz` True.
+  - Kip `ornek_2000+sinir`. 8 sembol, 10 sembol-dönem, 1080 birim, **1570160 bar karşılaştırıldı**. **0 uyuşmayan, 0 + 0 beklenmeyen hata, 0 hatalı birim.**
+  - **Sapma:** istem "kalan 8 yapılandırma" diyordu. Komut `--yapilandirma hepsi` olduğu için hipotez başına 9 yapılandırmanın tamamı koşuldu, yani 27 yapılandırma ve ilk yapılandırmalar dahil. Sonuç bundan etkilenmez: fazladan 3 yapılandırma örnek kipinde ek bir sınama sağlar.
+  - Koşu araştırma tarafının kendi terminalinde, 4 işçiyle yapıldı. Ekran çıktısı ve çıkış kodu kayboldu; sonuç CSV'den okundu.
+  - **Çıkış kodu CSV'den çıkarıldı:** betiğin kuralına göre uyuşmazlık ve beklenmeyen hata toplamları 0 olduğunda çıkış 0'dır.
+- **Koşu ortamı:**
+  - Claude Code'un arka plan koşuları bellek baskısında durduruldu; bu, örnek kipi koşusunu iki kez kesti.
+  - Uzun koşular (eşitlik betiği, parçalı tam takım) bundan sonra araştırma tarafının terminalinde yapılır.
+  - Ara dizinler (`D:\Projeler\prompts\esitlik_ara_izgara*`) depo dışında kalır ve silinmedi.
+
+**Testler:**
+- Parçalı tam takım (`tools/parcali_takim.py --grup 8`, `1851fd3` üzerinde, araştırma tarafının terminalinde): **5291 passed, 195 xfailed, 0 failed, 0 XPASS, 7 skipped**.
+- xfail sayısı §14.46 ile aynı (195). Geçen testteki +60, bu turun yeni testleri.
+- `c6c7eaa` yalnızca bir açıklamayı değiştiriyor. Sonrasında hedefli testler koşuldu: `test_hipotez_izgarasi`, `test_esitlik_izgarasi`, `test_skaler_referans*`, `test_ks2_kapi_veri`, `test_sizinti_perf2b0`, `test_f1_config_kapsami` ve tarama testleri. Hepsi geçti.
+
+**F1 kapanışına bırakılan:** `pencere.DonemDisiSinyal` açıklamasının kapıdaki sırayla çelişmesi (KS3 D-C1). Sınıf SABIT'te ve SHA açıklamayı da kapsıyor; düzeltme yeniden sabitleme ister.
+
+**Commit'ler:** `1b3b2ac` (yardımcı), `1851fd3` (eşitlik betiği ve tarama), `c6c7eaa` (sözleşme açıklaması), `4037fad` (eşitlik tabanı CSV'leri), bu kayıt.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
