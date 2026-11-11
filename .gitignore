@@ -8,7 +8,7 @@ logs/
 analysis/**/indirme_*.log
 # Kosu kilidi (analysis betikleri)
 analysis/**/.*.kilit
-# Claude Code calisma durumu (RESULTS §14.46): agac temizligi yalnizca commit edilen .gitignore'a uyar,
+# Claude Code calisma durumu (RESULTS §14.46, §14.48): agac temizligi yalnizca agactaki .gitignore'lara uyar,
 # .git/info/exclude'u yok sayar; bu girdiler oradan buraya tasindi.
 .claude/scheduled_tasks.lock
 .claude/scheduled_tasks.json

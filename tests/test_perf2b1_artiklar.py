@@ -162,3 +162,37 @@ def test_D_C2_calistir_kendi_agac_hesabini_yapmaz():
     # Komut satiri olarak (tirnakli arguman) yok; aciklamadaki tarihsel anma serbest.
     assert '"--porcelain"' not in metin and '"ls-files"' not in metin and '"status"' not in metin
     assert "agac_kirli_sayisi" in metin
+
+
+# --- D-C3 ------------------------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("dizin", [".pytest_cache", ".mypy_cache", "venv_yerel", "derin/alt"])
+def test_D_C3_kendini_dislayan_izlenmeyen_gitignore_dizini_gizler_SINIR(tmp_path, dizin):
+    """KAYITLI SINIR (RESULTS §14.48): `--exclude-per-directory=.gitignore` agactaki her `.gitignore`u uygular,
+    izlenmeyenleri de. Izlenmeyen bir dizine `*` iceren `.gitignore` konursa (pytest, mypy ve venv onbellekleri boyle
+    yapar) dizindeki betik kirli sayilmaz. Bu test sinirin VAR oldugunu belgeler; kapanirsa test kirmizi olur ve
+    yorum ile kayit guncellenir."""
+    depo = gecici_depo(tmp_path)
+    hedef = depo / dizin
+    hedef.mkdir(parents=True)
+    (hedef / ".gitignore").write_text("*\n", encoding="utf-8")
+    (hedef / "gizli_betik.py").write_text("x = 1\n", encoding="utf-8")
+    assert split._agac_kirlilikleri() == []
+    assert split._kesif_kaydi_kur(None).agac_temiz is True
+
+
+def test_D_C3_kendini_dislamayan_izlenmeyen_gitignore_gizlemez(tmp_path):
+    """Karsit vaka: izlenmeyen `.gitignore` kendini dislamiyorsa kendisi kirli sayilir."""
+    depo = gecici_depo(tmp_path)
+    (depo / "alt").mkdir()
+    (depo / "alt" / ".gitignore").write_text("baska.txt\n", encoding="utf-8")
+    (depo / "alt" / "betik.py").write_text("x = 1\n", encoding="utf-8")
+    assert split._agac_kirlilikleri() == ["izlenmeyen:alt/.gitignore", "izlenmeyen:alt/betik.py"]
+
+
+def test_D_C3_yorum_sinirin_adini_tasir():
+    from inspect import getsource
+    metin = (_KOK / "data" / "split.py").read_text(encoding="utf-8")
+    assert "SINIR (RESULTS §14.48, D-C3)" in metin and ".pytest_cache/" in metin
+    assert "YALNIZCA commit edilen" not in metin
+    assert getsource(split._agac_kirlilikleri)  # tek kaynak yerinde

@@ -1664,9 +1664,15 @@ _GIT_SABIT_ORTAM = {"GIT_NO_REPLACE_OBJECTS": "1", "GIT_CONFIG_NOSYSTEM": "1", "
 # Agac temizligi (S-25, S-26): izlenmeyen dosyalar komut satiriyla gosterilir; depo yapilandirmasi
 # (`status.showUntrackedFiles=no`) bunu kapatamaz. `--ignored` kullanilmaz: `.gitignore`daki onbellek kirli sayilmaz.
 _DURUM_KOMUTU = ("-c", "status.showUntrackedFiles=all", "status", "--porcelain", "--untracked-files=all")
-# Izlenmeyen dosyalar YALNIZCA commit edilen `.gitignore` dosyalarina gore suzulur (RESULTS §14.46; S-31, S-32, S-33):
-# `--exclude-standard` verilmedigi icin `.git/info/exclude`, yerel `core.excludesFile` (dogrudan ya da `include.path`
-# ile) ve `$HOME/.config/git/ignore` yok sayilir (git 2.41 ile sinandi; `tests/test_agac_temizligi_tek_kaynak.py`).
+# Izlenmeyen dosyalar YALNIZCA calisma agacindaki `.gitignore` dosyalarina gore suzulur (RESULTS §14.46; S-31, S-32,
+# S-33): `--exclude-standard` verilmedigi icin `.git/info/exclude`, yerel `core.excludesFile` (dogrudan ya da
+# `include.path` ile) ve `$HOME/.config/git/ignore` yok sayilir (git 2.41 ile sinandi;
+# `tests/test_agac_temizligi_tek_kaynak.py`).
+# SINIR (RESULTS §14.48, D-C3): "commit edilen `.gitignore`" DEGIL. `--exclude-per-directory` agactaki HER `.gitignore`u
+# uygular, izlenmeyen olanlari da. Izlenmeyen bir dizine `*` iceren bir `.gitignore` konursa dizin kendisiyle birlikte
+# gorunmez olur; `pytest`, `venv`, `mypy` gibi araclarin onbellek dizinleri tam olarak bunu yapar (`.pytest_cache/`
+# `.gitignore`u `*`). Bu dizinlere konan bir betik kirli sayilmaz. Kazayla olmaz: bir dosyanin bu dizinlere yazilmasini
+# ya da kendini dislayan bir `.gitignore` yazilmasini ister (`tests/test_perf2b1_artiklar.py`, D-C3).
 _IZLENMEYEN_KOMUTU = ("ls-files", "--others", "--exclude-per-directory=.gitignore")
 
 
