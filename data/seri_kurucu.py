@@ -307,14 +307,28 @@ class TepePenceresiTanimsiz(ValueError):
     `sinyal.TepePenceresiKurulamaz`). Cagiran yalnizca tanimli teyit barlarini sorar."""
 
 
+def _capalar(capa, teyitler: pd.DatetimeIndex):
+    """Tek capa (butun teyitler icin ayni pump bari) ya da teyit basina bir capa (ayni uzunlukta dizi)."""
+    if isinstance(capa, (pd.DatetimeIndex, np.ndarray, list, tuple, pd.Series)):
+        c = pd.DatetimeIndex(capa)
+        if len(c) != len(teyitler):
+            raise ValueError("capa dizisi teyit barlariyla ayni uzunlukta olmali.")
+        if len(c) and c.tz is None:
+            raise TypeError("capa saat dilimsiz (tz-naive); tum zaman damgalari UTC olmali.")
+        return c.tz_convert("UTC") if len(c) else c
+    return pencere_modulu.utc_zamani(capa, "pump_bari")
+
+
 def h1_tepe_bar_sayilari(capa, teyitler: pd.DatetimeIndex) -> np.ndarray:
     """Her teyit bari icin tepe penceresinin bar sayisi: pump bari dahil, teyit barinin bir oncesine kadar (§5 H1
     madde 2 rev.11); 1..`config.H1_IZLEME_BAR`. Disinda kalan teyit icin skaler yol `TepePenceresiKurulamaz` verir;
-    burada ayni sinif (`data.sinyal`deki) yukseltilir: degeri NaN'a cevirmek bir hata yolunu sessizlestirirdi."""
+    burada ayni sinif (`data.sinyal`deki) yukseltilir: degeri NaN'a cevirmek bir hata yolunu sessizlestirirdi.
+    `capa`: tek pump bari ya da teyit basina bir pump bari."""
     from data import sinyal as sinyal_modulu  # yalnizca sinif (dayanilan)
 
-    pump = pencere_modulu.utc_zamani(capa, "pump_bari")
-    fark = pd.DatetimeIndex(teyitler) - pump
+    teyitler = pd.DatetimeIndex(teyitler)
+    pump = _capalar(capa, teyitler)
+    fark = teyitler - pump
     if bool((fark % _DORT_SAAT != pd.Timedelta(0)).any()):
         raise sinyal_modulu.TepePenceresiKurulamaz("teyit bari pump barinin 4h izgarasinda degil.")
     sayi = np.asarray(fark // _DORT_SAAT, dtype=np.int64)
@@ -327,7 +341,8 @@ def h1_tepe_bar_sayilari(capa, teyitler: pd.DatetimeIndex) -> np.ndarray:
 def h1_tepe(mumlar_4h, capa, teyitler, *, kume_baslangic, donem_baslangic) -> np.ndarray:
     """Tepe `max(high[pump .. teyit-1])` her teyit bari icin (§5 H1 madde 2 rev.11; G18). Pencere pump barini ICERIR,
     teyit barini ICERMEZ, en cok 12 bar; tamlik, donem ve kume kurali her pencerede (pump bari donem/kume disindaysa
-    NaN). Pencere uzunlugu teyide gore degistigi icin her uzunluk ayri gruplanir."""
+    NaN). Pencere uzunlugu teyide gore degistigi icin her uzunluk ayri gruplanir. `capa`: tek pump bari ya da teyit
+    basina bir pump bari (ayni uzunlukta dizi)."""
     z = _utc_izgara(teyitler, config.BAR_4H)
     sayi = h1_tepe_bar_sayilari(capa, z)
     seri = mum_serisi(mumlar_4h, "high")

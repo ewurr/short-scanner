@@ -622,6 +622,21 @@ def test_G18_tepe_tamligi_ve_teyit_barinin_kendi_high_i():
     assert ayni(v[0], temel[0]) and ayni(v[0], s[0])
 
 
+def test_G18_teyit_basina_capa_dizisi_skalerle_ayni():
+    """Esitlik betiginin sabit capa kurali (t - (1 + i mod 12) x 4h): her teyidin kendi pump bari; pencere ici eksik
+    bar bazi tepeleri NaN yapar."""
+    m = mumlar(bozuk=[U("2024-05-03 04:00")])
+    z = izgara_4h(m)
+    z = z[(z > U("2024-05-01")) & (z < U("2024-05-06"))]
+    capa = pd.DatetimeIndex([x - H(1 + i % 12) for i, x in enumerate(z)])
+    s = {"kume_baslangic": None, "donem_baslangic": BAS}
+    v = sk.h1_tepe(m, capa, z, **s)
+    r = [ref.h1_tepe(m, c, x, **s) for c, x in zip(capa, z)]
+    assert uyusmayan(v, r) == 0 and np.isnan(v).any() and np.isfinite(v).any()
+    with pytest.raises(ValueError):
+        sk.h1_tepe(m, capa[:-1], z, **s)
+
+
 def test_G18_capa_donem_ve_kume_icinde_olmali():
     m = mumlar(oncesi_gun=10)
     pump = BAS - H(1)
