@@ -954,6 +954,13 @@ def hipotez_izgarasi_barlari(hipotez: str, *, kume: str, sembol: str, donem_no: 
 
     Yeni kural YOKTUR: seri kapinin veri yolundan (`_karar_verisi`) okunur; erisim denetimi, kume ve donem kesimi,
     bar duzeyli mevcutluk ve 1d turetmesi `olay_karari` ile `sinyal_kosulu`nun kullandigi ayni yerden gelir.
+
+    SOZLESME: izgara YALNIZCA MEVCUT barlari icerir -- satiri bulunan ve fiyat/hacim hucrelerinin tamami sayi olan bar
+    (on-kayit §2 satir 40, rev.11/rev.12 bar duzeyli mevcutluk). Donem ici BOSLUKLAR (satiri olmayan ya da hucresi
+    bozuk 4h barlar; 1d'de boyle bir bari iceren gunler) izgarada YER ALMAZ. Izgara bu yuzden esit aralikli degildir:
+    ardisik iki elemanin farki 4 saatten (1d'de 1 gunden) buyuk olabilir. Sure olcen her kural (bekleme, H1 izleme
+    penceresi, ufuklar) izgara ZAMANIYLA olcer, bu listedeki SIRA ile degil (RESULTS §14.47, P2c gereksinimi).
+    Kapi seride olmayan bir bari olagan ret ile reddeder (`SinyalBariYok`, `OlayOlusmaz`); izgara onu hic sormaz.
       - 4h (H1, H2): donem ∩ kume icindeki mevcut, hucresi tam 4h barlarin acilislari (donem basi ile B arasinda,
         iki uc dahil).
       - 1d (H3): turetilmis 1d serisinin (`klines.gunluge_cevir`) acilislari. On-kayit §2 "1 gunluk barlar" (satir
