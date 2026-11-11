@@ -245,6 +245,8 @@ SKALER_REFERANS_IZINLI_DOSYALAR = frozenset({
     "data/_skaler_referans.py",
     "analysis/00_veri_denetimi/esitlik_kapi.py",
     "analysis/00_veri_denetimi/esitlik_ornegi_sec.py",
+    # RESULTS §14.48: seri kurucularinin gercek veri deger esitligi (performans 2b-1).
+    "analysis/00_veri_denetimi/esitlik_seri.py",
 })
 
 
@@ -295,6 +297,31 @@ def takvim_izgarasi_ihlalleri(kok: Path = KOK) -> list[str]:
     for yol in sorted(kok.rglob("*.py")):
         goreli = yol.relative_to(kok).as_posix()
         if goreli.startswith(TAKVIM_IZGARASI_DISARIDA) or goreli in TAKVIM_IZGARASI_IZINLI_DOSYALAR:
+            continue
+        if derli.search(_oku(yol)):
+            bulunan.append(goreli)
+    return bulunan
+
+
+# Vektorel seri kuruculari (RESULTS §14.48; performans 2b-1): `data.seri_kurucu` analiz kodunda YASAKTIR. Kullananlar
+# kapi (P2b-2), testler ve gercek veri deger esitligi betigidir (acik dosya adiyla). Seri kuruculari saf olsa da analiz
+# kodunun onlari kapidan bagimsiz cagirmasi, kapinin uygunluk, plan ve funding tamligi kararlarini atlayan ikinci bir
+# sinyal yolu acardi. Modulun adi ayirt edici secildi (`seri` Turkce metinde siradan bir kelimedir); desen yalnizca
+# `seri_kurucu` adini yakalar. Genel `IZINLI_ALTLAR` muafiyeti UYGULANMAZ: `analysis/00_veri_denetimi/` de taranir.
+# Sinir: adi parcalayip `importlib` ile kurulan ice aktarma yakalanmaz.
+SERI_KURUCU_DESENI = r"\bseri_kurucu\b"
+SERI_KURUCU_DISARIDA = ("data/", "tests/", ".claude/")
+SERI_KURUCU_IZINLI_DOSYALAR: frozenset[str] = frozenset({"analysis/00_veri_denetimi/esitlik_seri.py"})
+SERI_KURUCU_UZANTILARI = (".py", ".ipynb", ".pyw")
+
+
+def seri_kurucu_ihlalleri(kok: Path = KOK) -> list[str]:
+    """`data/`, `tests/` ve `.claude/` disinda, acik muafiyeti olmayan ve `seri_kurucu` adini anan dosyalar."""
+    derli = re.compile(SERI_KURUCU_DESENI)
+    bulunan = []
+    for yol in sorted(y for u in SERI_KURUCU_UZANTILARI for y in kok.rglob(f"*{u}")):
+        goreli = yol.relative_to(kok).as_posix()
+        if goreli.startswith(SERI_KURUCU_DISARIDA) or goreli in SERI_KURUCU_IZINLI_DOSYALAR:
             continue
         if derli.search(_oku(yol)):
             bulunan.append(goreli)
