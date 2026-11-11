@@ -196,3 +196,102 @@ def test_D_C3_yorum_sinirin_adini_tasir():
     assert "SINIR (RESULTS §14.48, D-C3)" in metin and ".pytest_cache/" in metin
     assert "YALNIZCA commit edilen" not in metin
     assert getsource(split._agac_kirlilikleri)  # tek kaynak yerinde
+
+
+# --- D-C4 ------------------------------------------------------------------------------------------------------
+
+def _head(depo) -> str:
+    return git(depo, "rev-parse", "HEAD").strip()
+
+
+def _kayda_satir(depo):
+    with (depo / "ONAY_KAYDI.md").open("a", encoding="utf-8", newline="") as d:
+        d.write("| deneme |\n")
+
+
+@pytest.mark.parametrize("eksik", [("user.name",), ("user.email",), ("user.name", "user.email")])
+def test_D_C4_kimlik_eksikse_kayit_commit_edilmez_ve_mesaj_hangisini_soyler(tmp_path, eksik):
+    """`user.name` eksikken git 2.41 Windows'ta commit isletim sistemi adiyla YAPILIRDI; artik denenmez."""
+    depo = gecici_depo(tmp_path)
+    for a in eksik:
+        git(depo, "config", "--unset", a)
+    _kayda_satir(depo)
+    head = _head(depo)
+    with pytest.raises(split.OnayKaydiCommitsiz) as hata:
+        split._kaydi_commit_et("deneme")
+    mesaj = str(hata.value)
+    assert f"Deponun yerel yapilandirmasinda {'/'.join(eksik)} yok" in mesaj
+    if len(eksik) == 1:
+        diger = ({"user.name", "user.email"} - set(eksik)).pop()
+        assert f"{diger} yok" not in mesaj and f"/{diger}" not in mesaj
+    assert _head(depo) == head, "commit yapilmamali"
+
+
+def test_D_C4_kimlik_tamsa_kayit_commit_edilir(tmp_path):
+    depo = gecici_depo(tmp_path)
+    _kayda_satir(depo)
+    head = _head(depo)
+    split._kaydi_commit_et("deneme")
+    assert _head(depo) != head
+    assert git(depo, "log", "-1", "--format=%an <%ae>").strip() == "Test <test@example.invalid>"
+
+
+@pytest.mark.parametrize("eksik", ["user.name", "user.email"])
+def test_D_C4_kosu_acilisi_kimlik_eksikse_reddeder(tmp_path, eksik):
+    depo = gecici_depo(tmp_path)
+    git(depo, "config", "--unset", eksik)
+    with pytest.raises(split.OnayOrtamiHatasi,
+                       match=rf"Onay kosusu acilmadi: Deponun yerel yapilandirmasinda {eksik} yok"):
+        split._kimlik_denetle()
+
+
+def test_D_C4_kosu_acilisinda_kimlik_denetimi_itme_denemesinden_ve_kayittan_once():
+    """Kimlik denetimi `onay_kosusu`nda yerel ortam denetiminden sonra, ag islemlerinden, itme denemesi commit'inden
+    ve BASLADI satirindan ONCE cagrilir: eksik kimlikte kosu acilmaz, satir yazilmaz, cift harcanmaz."""
+    import ast
+    import inspect
+    import textwrap
+    agac = ast.parse(textwrap.dedent(inspect.getsource(split.onay_kosusu)))
+    cagrilar = [d for d in ast.walk(agac) if isinstance(d, ast.Call) and isinstance(d.func, ast.Name)]
+    satir = {}
+    for d in cagrilar:
+        satir[d.func.id] = min(satir.get(d.func.id, d.lineno), d.lineno)
+    assert satir["_kosu_ortami"] < satir["_kimlik_denetle"] < satir["_uzak_adresi_denetle"]
+    assert satir["_kimlik_denetle"] < satir["_itme_denemesi"] < satir["_onay_kaydet"]
+
+
+def _hazir(tmp_path):
+    depo = gecici_depo(tmp_path)
+    git(depo, "config", "credential.helper", f"store --file={(tmp_path / 'kimlik').as_posix()}")
+    return depo
+
+
+def test_D_C4_git_hazirlik_uzak_adresi_denetler_tamam(tmp_path, capsys):
+    _hazir(tmp_path)
+    assert split.git_hazirlik() == 0
+    assert "uzak adres: TAMAM" in capsys.readouterr().out
+
+
+def test_D_C4_git_hazirlik_yanlis_uzak_adreste_basarisiz(tmp_path, capsys):
+    depo = _hazir(tmp_path)
+    baska = tmp_path / "baska.git"
+    git(tmp_path, "init", "-q", "--bare", str(baska))
+    git(depo, "remote", "set-url", "--push", "origin", str(baska))   # okuma dogru, itme baska depoya
+    assert split.git_hazirlik() == 1
+    cikti = capsys.readouterr().out
+    assert "uzak adres: BASARISIZ" in cikti and "git-hazirlik: EKSIK" in cikti
+
+
+@pytest.mark.parametrize("ad", ["agac_kirli_sayisi", "_KIMLIK_ANAHTARLARI", "_yerel_kimlik_eksikleri",
+                                "_kimlik_mesaji", "_kimlik_denetle"])
+def test_D_C4_yeni_adlar_korunur(ad):
+    with pytest.raises(split.OnayKorumasi):
+        setattr(split, ad, None)
+
+
+@pytest.mark.parametrize("ad", ["_KIMLIK_ANAHTARLARI", "_yerel_kimlik_eksikleri", "_kimlik_mesaji", "_kimlik_denetle"])
+def test_D_C4_kimlik_adlari_analiz_kodunda_taramaya_takilir(tmp_path, ad):
+    from tarama_yardimcisi import ONAY_ATLATMA_DESENI, ihlaller
+    (tmp_path / "study").mkdir()
+    (tmp_path / "study" / "k.py").write_text(f"from data import split\nsplit.{ad}\n", encoding="utf-8")
+    assert ihlaller(ONAY_ATLATMA_DESENI, kok=tmp_path) == ["study/k.py"]

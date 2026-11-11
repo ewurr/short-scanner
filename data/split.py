@@ -1077,20 +1077,50 @@ def _kayit_commitli_denetle() -> None:
             "commit edin (silinen satirlar commit edilmis kayittan geri alinmali).")
 
 
+_KIMLIK_ANAHTARLARI = ("user.name", "user.email")
+
+
+def _yerel_kimlik_eksikleri() -> list[str]:
+    """Deponun YEREL yapilandirmasinda bos ya da tanimsiz kimlik anahtarlari (`user.name`, `user.email`).
+
+    RESULTS §14.48 (D-C4): git ortami global ve sistem yapilandirmasini okumaz (`_GIT_SABIT_ORTAM`), yani kimlik
+    yalnizca yerel yapilandirmadan gelir. `user.email` eksikse git commit'i reddeder; `user.name` eksikse git 2.41
+    Windows'ta isletim sistemi kullanici adina DUSER ve commit sessizce yapilir (§14.46). Onay kaydinin yazari bu
+    yuzden git'e birakilmaz: iki anahtar da burada acikca denetlenir."""
+    return [a for a in _KIMLIK_ANAHTARLARI if not (_git("config", "--local", "--get", a) or "").strip()]
+
+
+def _kimlik_mesaji(eksik: list[str]) -> str:
+    return (f"Deponun yerel yapilandirmasinda {'/'.join(eksik)} yok (git ortami global ve sistem yapilandirmasini "
+            "okumaz; `git config --local user.name ...` / `git config --local user.email ...` ile ekleyin, "
+            "`python -m data.split git-hazirlik` ile denetleyin).")
+
+
+def _kimlik_denetle() -> None:
+    """Onay kosusu acilmadan (kayda satir yazilmadan, itme denemesi commit'inden once) yerel kimlik tam olmali; degilse
+    `OnayOrtamiHatasi`: kosu acilmaz, cift harcanmaz. Sahte git kipinde bir sey yapmaz (RESULTS §14.48, D-C4)."""
+    if _sahte_git():
+        return
+    eksik = _yerel_kimlik_eksikleri()
+    if eksik:
+        raise OnayOrtamiHatasi(f"Onay kosusu acilmadi: {_kimlik_mesaji(eksik)}")
+
+
 def _kaydi_commit_et(mesaj: str) -> None:
     """Kayit dosyasini (yalnizca onu) commit eder; sonra HEAD'deki onay satirlari calisma agacindakilerle ayni
-    olmali. Olmazsa `OnayKaydiCommitsiz`. Sahte git kipinde bir sey yapmaz."""
+    olmali. Olmazsa `OnayKaydiCommitsiz`. Sahte git kipinde bir sey yapmaz.
+
+    Yerel `user.name` ya da `user.email` eksikse commit DENENMEZ (RESULTS §14.48, D-C4): `user.name` eksikken git
+    commit'i isletim sistemi kullanici adiyla yapardi. Hata hangisinin eksik oldugunu soyler."""
     if _sahte_git():
         return
     goreli = _kayit_goreli()
+    eksik = _yerel_kimlik_eksikleri()
+    if eksik:
+        raise OnayKaydiCommitsiz(f"Onay kaydi commit edilemedi ({mesaj}). {_kimlik_mesaji(eksik)} Kayit satiri "
+                                 "calisma agacinda; elle commit edilmeden yeni kosu acilmaz.")
     if _git("add", "--", goreli) is None or _git("commit", "--only", "--quiet", "-m", mesaj, "--", goreli) is None:
-        # D-B4 (RESULTS §14.46): git ortami global/sistem yapilandirmasini okumaz; kimlik yalnizca deponun yerel
-        # yapilandirmasindan gelir. Eksikse hata bunu acikca soyler.
-        eksik = [a for a in ("user.name", "user.email") if not (_git("config", "--local", "--get", a) or "").strip()]
-        neden = (f" Deponun yerel yapilandirmasinda {'/'.join(eksik)} yok (git ortami global ve sistem yapilandirmasini "
-                 "okumaz; `git config --local user.name ...` ile ekleyin, `python -m data.split git-hazirlik` ile "
-                 "denetleyin)." if eksik else "")
-        raise OnayKaydiCommitsiz(f"Onay kaydi commit edilemedi ({mesaj}).{neden} Kayit satiri calisma agacinda; elle "
+        raise OnayKaydiCommitsiz(f"Onay kaydi commit edilemedi ({mesaj}). Kayit satiri calisma agacinda; elle "
                                  "commit edilmeden yeni kosu acilmaz.")
     _kayit_commitli_denetle()
 
@@ -1452,6 +1482,7 @@ def onay_kosusu(hipotez: str, kume: str):
             "yapilandirma yoktur ve onay verisi harcanmaz (on-kayit §8 madde 4-5).")
     _kayit_commitli_denetle()
     ortam = _kosu_ortami()  # yerel denetimler once: ag islemi yalnizca temiz, izlenen bir ortamda
+    _kimlik_denetle()  # D-C4 (§14.48): user.name ya da user.email eksikse kosu acilmaz
     _uzak_adresi_denetle()
     _uzagi_getir()
     _itilmemis_denetle()
@@ -1735,6 +1766,7 @@ def git_hazirlik() -> int:
     """Tani komutu (`python -m data.split git-hazirlik`; RESULTS §14.46, D-B4). Onay kosusunun git islemlerinin bu
     makinede calisip calismayacagini, onay kosusuyla AYNI beyaz listeli ortamla sinar:
       - `git config --local --get` ile `user.name`, `user.email` (maskeli yazilir), `credential.helper`;
+      - uzak adres denetimi (`_uzak_adresi_denetle`, onay kosusununkiyle ayni; RESULTS §14.48, D-C4);
       - `git fetch` (onay kosusunun refspec'iyle; yalnizca `refs/remotes/origin/main` guncellenir);
       - `git push --dry-run origin main` (hicbir sey itilmez; kimlik bilgisi yardimcisi sinanir).
     Onay kosusu ACMAZ, kayda dokunmaz, commit yapmaz. Analiz kodunda adi taramayla yasaktir
@@ -1749,6 +1781,13 @@ def git_hazirlik() -> int:
             print(f"  {anahtar}: YOK (deponun yerel yapilandirmasinda)")
         else:
             print(f"  {anahtar}: {_eposta_maskele(deger) if anahtar == 'user.email' else deger}")
+    # D-C4 (§14.48): onay kosusunun uzak adres denetimi de (beklenen depo; `insteadOf`, `pushurl` dahil).
+    try:
+        _uzak_adresi_denetle()
+        print("  uzak adres: TAMAM")
+    except OnayUzakHatasi as hata:
+        tamam = False
+        print(f"  uzak adres: BASARISIZ: {hata}")
     for ad, komut in (("fetch", ("fetch", "--quiet", "--no-tags", UZAK_DEPO, f"+refs/heads/{UZAK_DAL}:{_UZAK_REF}")),
                       ("push --dry-run", ("push", "--dry-run", UZAK_DEPO, UZAK_DAL))):
         kod, son = _git_tani(*komut, sure=_AG_SURESI)
@@ -2078,6 +2117,8 @@ _KORUNAN_ADLAR = frozenset({
     "_IZLENMEYEN_KOMUTU", "_agac_kirlilikleri",
     # Git hazirlik tanisi (RESULTS §14.46, D-B4).
     "git_hazirlik", "_git_tani", "_eposta_maskele",
+    # Performans 2b-1 (RESULTS §14.48): agac temizliginin acik sarmalayicisi (D-C2) ve yerel kimlik denetimi (D-C4).
+    "agac_kirli_sayisi", "_KIMLIK_ANAHTARLARI", "_yerel_kimlik_eksikleri", "_kimlik_mesaji", "_kimlik_denetle",
 })
 
 

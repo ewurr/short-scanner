@@ -135,6 +135,8 @@ ONAY_ATLATMA_DESENI = (
     r"|\b_PYTEST_OTURUMU\b|\b_pytest_oturumu_kur\b|\b_IZLENMEYEN_KOMUTU\b|\b_agac_kirlilikleri\b"
     # RESULTS §14.46 (D-B4): git hazirlik tanisi analiz kodundan cagrilmaz (komut adi ve fonksiyonlar).
     r"|\bgit[-_]hazirlik\b|\b_git_tani\b|\b_eposta_maskele\b"
+    # RESULTS §14.48 (D-C4): onay acilisinin ve kayit commit'inin yerel kimlik denetimi.
+    r"|\b_KIMLIK_ANAHTARLARI\b|\b_yerel_kimlik_eksikleri\b|\b_kimlik_mesaji\b|\b_kimlik_denetle\b"
 )
 
 # Onbellege dogrudan erisim (onay kaydi kapanis turu; §14.25 tablo satir 1, kazayla olabilir): C1/C2 verisi
