@@ -27,6 +27,7 @@ Sozlesme (performans 2b-0; denetci D-B2, D-B3, D-C4, D-C7, sizinti S-17, S-18, S
     kalir): kesif kaydinin acilis/kapanis zamani kosunun toplam suresini tasir. Uyusmazlik ya da beklenmeyen hata
     varsa betik 1 ile cikar; olay rolunun hata ayiklamasi ayrica ve depo disinda yapilir.
   - `genel_tohum` (D-C4): `config.TOHUM` her satira yazilir (birim tohumu `tohum` ondan turetilir).
+  - `numpy_surumu`, `pandas_surumu` (D-C6, RESULTS §14.48): satiri ureten surecin surumleri her satira yazilir.
   - `kapsam_bar`: K1 ve K2 rollerinde iki tarafin AYNI onayli pozisyonu verdigi bar sayisi; `funding_satiri` biriminde
     planin kurulabildigi bar sayisi. Kontrol rolleri sinyal kosuluna bakmaz (on-kayit §6 rev.12), bu yuzden bu sayi olay
     bilgisi tasimaz. OLAY ROLUNDE bos birakilir: olay rolunde onay sayisi olay sayisidir ve yazilmaz.
@@ -82,6 +83,7 @@ from data import universe as universe_modulu  # noqa: E402
 
 ORNEK = BU_DIZIN / "esitlik_ornegi.csv"
 SUTUNLAR = ["sembol", "donem_no", "hipotez", "yapilandirma", "rol", "bar_kumesi", "genel_tohum", "tohum",
+            "numpy_surumu", "pandas_surumu",
             "karsilastirilan_bar",
             "uyusmayan_bar", "beklenmeyen_hata_referans", "beklenmeyen_hata_yeni", "kapsam_bar", "ilk_20_uyusmayan",
             "ilk_20_beklenmeyen", "sure_s", "hata"]
@@ -347,7 +349,9 @@ def _kos(birim, izgara, siralar, hipotez, y, kimlik) -> Sayac:
 
 def _bos_satir(sembol, donem_no, hipotez, yk, rol) -> dict:
     return {"sembol": sembol, "donem_no": donem_no, "hipotez": hipotez, "yapilandirma": yk, "rol": rol,
-            "bar_kumesi": "", "genel_tohum": config.TOHUM, "tohum": "", "karsilastirilan_bar": 0, "uyusmayan_bar": 0, "beklenmeyen_hata_referans": 0,
+            "bar_kumesi": "", "genel_tohum": config.TOHUM, "tohum": "",
+            # D-C6 (RESULTS §14.48): satiri ureten surecin numpy / pandas surumu (kayan nokta sonucu onlara bagli).
+            "numpy_surumu": np.__version__, "pandas_surumu": pd.__version__, "karsilastirilan_bar": 0, "uyusmayan_bar": 0, "beklenmeyen_hata_referans": 0,
             "beklenmeyen_hata_yeni": 0, "kapsam_bar": "", "ilk_20_uyusmayan": "", "ilk_20_beklenmeyen": "",
             "sure_s": 0.0, "hata": ""}
 

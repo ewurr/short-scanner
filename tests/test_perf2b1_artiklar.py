@@ -295,3 +295,19 @@ def test_D_C4_kimlik_adlari_analiz_kodunda_taramaya_takilir(tmp_path, ad):
     (tmp_path / "study").mkdir()
     (tmp_path / "study" / "k.py").write_text(f"from data import split\nsplit.{ad}\n", encoding="utf-8")
     assert ihlaller(ONAY_ATLATMA_DESENI, kok=tmp_path) == ["study/k.py"]
+
+
+# --- D-C6 ------------------------------------------------------------------------------------------------------
+
+def test_D_C6_esitlik_betigi_her_satira_numpy_ve_pandas_surumunu_yazar():
+    import numpy as np
+
+    spec = importlib.util.spec_from_file_location("_perf2b1_esitlik", _KOK / "analysis/00_veri_denetimi/esitlik_kapi.py")
+    ek = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = ek
+    spec.loader.exec_module(ek)
+    assert {"numpy_surumu", "pandas_surumu"} <= set(ek.SUTUNLAR)
+    for rol in ("K1", "TOPLAM_SURE", "HATA"):
+        satir = ek._bos_satir("XUSDT", 0, "H1", "y", rol)
+        assert satir["numpy_surumu"] == np.__version__ and satir["pandas_surumu"] == pd.__version__
+    assert set(ek._bos_satir("XUSDT", 0, "H1", "y", "K1")) <= set(ek.SUTUNLAR)
