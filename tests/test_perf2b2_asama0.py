@@ -258,3 +258,26 @@ def test_D_C3_seri_birim_hatasi_skalerde_en_az_bir_barda_ayni_sinifla_karsilanir
     assert any(type(s) is pencere.ZamanDizisiHatasi for s in sonraki), "skaler en az bir barda ayni sinifla dusmeli"
     assert all(not isinstance(s, BaseException) for s in onceki) and len(onceki) > 0
     assert all(isinstance(s, (float, pencere.ZamanDizisiHatasi)) for s in sonuclar)
+
+
+# --- D-C8: seri_kurucu yalnizca kapi modulunden ---------------------------------------------------------------------
+
+def test_D_C8_data_icinde_yalnizca_kapi_modulu_seri_kurucuyu_anabilir(tmp_path):
+    from tarama_yardimcisi import seri_kurucu_ihlalleri
+
+    (tmp_path / "data").mkdir()
+    for ad, icerik in (("pozisyon.py", "from data import seri_kurucu\n"),
+                       ("seri_kurucu.py", "# seri_kurucu modulunun kendisi\n"),
+                       ("ornekleme.py", "from data import seri_kurucu as sk\n"),
+                       ("dizi.py", "from data.seri_kurucu import h1_dip\n"),
+                       ("sinyal.py", "x = 1  # seri metni serbest\n")):
+        (tmp_path / "data" / ad).write_text(icerik, encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_x.py").write_text("from data import seri_kurucu\n", encoding="utf-8")
+    assert seri_kurucu_ihlalleri(kok=tmp_path) == ["data/dizi.py", "data/ornekleme.py"]
+
+
+def test_D_C8_depoda_mevcut_ihlal_yok():
+    from tarama_yardimcisi import seri_kurucu_ihlalleri
+
+    assert seri_kurucu_ihlalleri() == []

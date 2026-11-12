@@ -312,13 +312,19 @@ def takvim_izgarasi_ihlalleri(kok: Path = KOK) -> list[str]:
 # `seri_kurucu` adini yakalar. Genel `IZINLI_ALTLAR` muafiyeti UYGULANMAZ: `analysis/00_veri_denetimi/` de taranir.
 # Sinir: adi parcalayip `importlib` ile kurulan ice aktarma yakalanmaz.
 SERI_KURUCU_DESENI = r"\bseri_kurucu\b"
-SERI_KURUCU_DISARIDA = ("data/", "tests/", ".claude/")
-SERI_KURUCU_IZINLI_DOSYALAR: frozenset[str] = frozenset({"analysis/00_veri_denetimi/esitlik_seri.py"})
+#
+# D-C8 (RESULTS §14.49): `data/` artik toptan muaf DEGILDIR. Plan "yalnizca kapi kullanir" der; `data/` icinde seri
+# kurucularini yalnizca kapi modulu (`data/pozisyon.py`) ve modulun kendisi anabilir. Baska bir veri katmani modulu
+# (ör. `data/ornekleme.py`) onlari ice aktarirsa kapidan bagimsiz ikinci bir sinyal yolu olur; tarama onu yakalar.
+SERI_KURUCU_DISARIDA = ("tests/", ".claude/")
+SERI_KURUCU_IZINLI_DOSYALAR: frozenset[str] = frozenset({"data/pozisyon.py", "data/seri_kurucu.py",
+                                                         "analysis/00_veri_denetimi/esitlik_seri.py"})
 SERI_KURUCU_UZANTILARI = (".py", ".ipynb", ".pyw")
 
 
 def seri_kurucu_ihlalleri(kok: Path = KOK) -> list[str]:
-    """`data/`, `tests/` ve `.claude/` disinda, acik muafiyeti olmayan ve `seri_kurucu` adini anan dosyalar."""
+    """`tests/` ve `.claude/` disinda, acik muafiyeti olmayan ve `seri_kurucu` adini anan dosyalar (`data/` icinde
+    yalnizca kapi modulu ve modulun kendisi muaftir; D-C8)."""
     derli = re.compile(SERI_KURUCU_DESENI)
     bulunan = []
     for yol in sorted(y for u in SERI_KURUCU_UZANTILARI for y in kok.rglob(f"*{u}")):
