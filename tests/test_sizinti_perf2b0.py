@@ -66,6 +66,12 @@ def _kopya_kur(tmp_path, monkeypatch) -> Path:
     (kok / "data").mkdir(parents=True)
     for yol in (GERCEK_KOK / "data").glob("*.py"):
         (kok / "data" / yol.name).write_text(yol.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+    # RESULTS §14.48 (ana oturum, gerileme duzeltmesi): GUVENLIK gerekce satirlari RESULTS'ta durur. Kopya kok onu
+    # tasimazsa gerekceli bir GUVENLIK degisikligi (D-B2, `evren_yukle`) tabani kirmizi gosterir ve saldirilar atlanir.
+    # Saldirilarin kendisi degismedi; yalnizca kopya kok gercek kokun RESULTS'unu da tasir.
+    sonuc = kok.joinpath(*dpd.RESULTS_YOLU)
+    sonuc.parent.mkdir(parents=True)
+    sonuc.write_bytes(GERCEK_KOK.joinpath(*dpd.RESULTS_YOLU).read_bytes())
     monkeypatch.setattr(dpd, "KOK", kok)
     monkeypatch.setattr(dpd, "_BILGI", {})
     return kok
