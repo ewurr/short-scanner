@@ -105,3 +105,73 @@ def test_D_B1_kaydirilmis_dilim_testi_kirmiziya_dondurur(monkeypatch, kaydirma):
     assert _dilim_uyusmazligi(f, z) == 0
     monkeypatch.setattr(sk, "_funding_dilimi", functools.partial(sk._funding_dilimi, **kaydirma))
     assert _dilim_uyusmazligi(f, z) > 0, kaydirma
+
+
+# --- D-B2: uygunluk ve 1d pencerelerinde G3 ------------------------------------------------------------------------
+
+T_UYGUN_4H = U("2024-06-01 12:00")
+T_UYGUN_1D = U("2024-06-01")
+
+
+def _uygunluk_iki_taraf(g, z, bar, *, donem_bas=BAS, kume_bas=None):
+    esik = config.ASGARI_HACIM_4H if bar == config.BAR_4H else config.ASGARI_HACIM_1D
+    yas = config.ASGARI_LISTELEME_YASI_GUN
+    tablo = sk.uygunluk(g, z, bar, donem_baslangic=donem_bas, donem_bitis=tsk.SON, kume_baslangic=kume_bas,
+                        asgari_hacim=esik, asgari_listeleme_yasi_gun=yas)
+    gh = ref.gunluk_hacim_serisi(g)
+    medyan = [ref.medyan_hacim(gh, t, donem_baslangic=donem_bas, kume_baslangic=kume_bas,
+                               pencere_gun=config.HACIM_PENCERESI_GUN) for t in z]
+    uygun = [ref.uygunluk_karari(gh, t, bar, donem_baslangic=donem_bas, donem_bitis=tsk.SON, kume_baslangic=kume_bas,
+                                 asgari_hacim=esik, asgari_listeleme_yasi_gun=yas) for t in z]
+    return tablo, medyan, uygun
+
+
+@pytest.mark.parametrize("bar,t", [(config.BAR_4H, T_UYGUN_4H), (config.BAR_1D, T_UYGUN_1D)])
+def test_D_B2_uygunluk_hacim_penceresinin_her_konumunda_tek_eksik_gun(bar, t):
+    """Hacim penceresi t'nin gunu HARIC onceki 30 tam gundur (on-kayit §2 "Uygunluk penceresi ve t günü"). 30 konumun
+    her birinde tek gun eksikken (gunun 08:00 bari silinir; gun 1d serisinden duser) iki tarafta medyan NaN ve bar
+    uygun degil. Pencerenin hemen disindaki iki gun (t'nin gunu ve t-31) medyani hesaplanamaz yapmaz."""
+    gun = t.floor("D")
+    for j in range(1, config.HACIM_PENCERESI_GUN + 1):
+        g = tsk.gunluk(tsk.mumlar(eksik=[gun - G(j) + H(2)]))
+        tablo, medyan, uygun = _uygunluk_iki_taraf(g, pd.DatetimeIndex([t]), bar)
+        assert np.isnan(medyan[0]) and np.isnan(tablo["medyan_hacim"].iloc[0]), j
+        assert uygun == [False] and list(tablo["uygun"]) == [False], j
+    disarida = [config.HACIM_PENCERESI_GUN + 1] + ([0] if bar == config.BAR_4H else [])
+    for j in disarida:
+        g = tsk.gunluk(tsk.mumlar(eksik=[gun - G(j) + H(2)]))
+        tablo, medyan, uygun = _uygunluk_iki_taraf(g, pd.DatetimeIndex([t]), bar)
+        assert np.isfinite(medyan[0]) and ayni(tablo["medyan_hacim"].iloc[0], medyan[0]), j
+        assert list(tablo["uygun"]) == uygun, j
+
+
+@pytest.mark.parametrize("bar", [config.BAR_4H, config.BAR_1D])
+def test_D_B2_uygunlukta_kume_basi_ve_donem_basi_maskesi_seride_oncesi_veri_varken(bar):
+    """Seride kume ve donem oncesi 60 gunluk veri VAR (1d serisi de o gunleri tasir). Hacim penceresi kume basini
+    ya da donem basini asarsa medyan NaN; sinirla ayni gun baslayan pencere gecer. Iki maske ayri ayri."""
+    m = tsk.mumlar(oncesi_gun=60)
+    g = tsk.gunluk(m, bas=BAS - G(60))
+    ilk_tam = BAS + G(config.HACIM_PENCERESI_GUN)          # penceresi tam BAS'ta baslayan gun
+    gunler = [ilk_tam - G(1), ilk_tam, ilk_tam + G(1)]
+    z = pd.DatetimeIndex(gunler if bar == config.BAR_1D else [x + H(3) for x in gunler])
+    for sinir in ({"donem_bas": BAS - G(60), "kume_bas": BAS}, {"donem_bas": BAS, "kume_bas": None}):
+        tablo, medyan, uygun = _uygunluk_iki_taraf(g, z, bar, **sinir)
+        assert uyusmayan(tablo["medyan_hacim"], medyan) == 0, sinir
+        assert list(tablo["uygun"]) == uygun, sinir
+        assert np.isnan(medyan[0]) and np.isfinite(medyan[1]) and np.isfinite(medyan[2]), sinir
+
+
+@pytest.mark.parametrize("ad", list(tsk.PENCERELER_1D))
+def test_D_B2_h3_1d_pencerelerinde_donem_basi_ve_kume_basi_maskesi(ad):
+    """H3'un 1d pencereleri; seride donem ve kume oncesi veri VAR. Pencere basi sinirdan bir gun once ise NaN, sinirla
+    ayni gun ise hesaplanir; donem basi ve kume basi ayri ayri sinanir."""
+    m = tsk.mumlar(oncesi_gun=60)
+    g = tsk.gunluk(m, bas=BAS - G(60))
+    n, ofset = tsk.PENCERELER_1D[ad]
+    t = BAS + G(n - 1 + ofset)                  # pencere basi = BAS
+    z = pd.DatetimeIndex([t - G(1), t, t + G(1)])
+    for sinir in ({"kume_bas": BAS, "donem_bas": BAS - G(60)}, {"kume_bas": None, "donem_bas": BAS}):
+        v = tsk._vektor_1d(g, z, **sinir)[ad]
+        s = tsk._skaler_1d(g, z, **sinir)[ad]
+        assert uyusmayan(v, s) == 0, sinir
+        assert np.isnan(v[0]) and np.isfinite(v[1]) and np.isfinite(v[2]), sinir
