@@ -86,8 +86,12 @@ CIKIS_KAPI_DISI_DESENI = (
     r"|pozisyon_funding_ayrintisi|funding_tamlik_ayrintisi"
     # Performans 2a (D-C6): tek tamlik ve toplu cagri ic adimlari.
     r"|_pozisyon_tamlik_satiri|_planlar_tamlik_satirlari|_satirdan_toplam"
+    # Performans 2b-2 (RESULTS §14.49): tek seri kapinin ic adimlari. Analiz kodu kapiyi yalnizca `kapi_serisi` ya da
+    # `olay_karari` ile cagirir; cekirdek, vektorel kosul ve seri nesnesinin ic verisi yasak.
+    r"|_kapi_satirlari|_olay_kosulu_serisi|_kosul_dizisi|_olay_degerleri|_gecersizlik_tabani|_kapi_baglami"
     r"|" + "|".join(UYGUNLUK_ADLARI) + r")\s*\(|\b(CikisSonucu|PozisyonPlani|OnaylanmisPozisyon)\s*\("
     r"|_PLAN_GIZLI|_plan_imzasi|_ONAY_GIZLI|\beligibility\b|\b_TamlikSatiri\b|\b_ic_sutunlar\b"
+    r"|_SERI_GIZLI|_SERI_BELLEGI|_KapiSerisi__"
 )
 """Olayin ya da kontrolun olusup olusmadigina yalnizca `pozisyon.olay_karari` karar
 verir (on-kayit §4 rev.8 "Olayin kumede olusma olcutu": tek karar noktasi, funding

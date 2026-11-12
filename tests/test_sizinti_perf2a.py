@@ -349,7 +349,10 @@ def test_onay_kosusu_bitince_plan_serisi_bellekten_dusmus_ve_yeniden_acilamaz(tm
     assert not any(a[2] == "C1" for a in kume_bellegi._BELLEK)
 
 
-@bulgu("S-19", "plan onbellegi anahtar-plan tutarliligini dogrulamaz: t1 anahtarina konan t2 plani t1 karari olarak doner")
+# P2b-2 (RESULTS §14.49; bilerek guncellendi): S-19 KAPANDI. Kapinin cekirdegi (`pozisyon._kapi_satirlari`) onbellekten
+# donen planin sorulan anahtara ait oldugunu denetler; tutarsizsa ValueError (G10). Strict xfail isareti kaldirildi,
+# test govdesi degismedi. Sinir: bu govdede karar, bozmadan once kurulmus seriden de gelebilir; denetimin kendisi
+# onbellek bosaltilarak `tests/test_perf2b2_kapi_serisi.py::test_S19_plan_onbellegi_tutarsizligi_seriyi_durdurur`da sinanir.
 def test_plan_onbellegi_anahtar_plan_tutarliligini_dogrulamaz():
     """Dayanak: CLAUDE.md §3.6 (sinyal t barinda, islem t+1) ve plan v2 karar 5. `_PlanSerisi.al` kayitli plani anahtarin
     zamaniyla karsilastirmaz; paylasilan seriye (kopyasi kendisi) konan baska bir imzali plan, sorulan t yerine o planin

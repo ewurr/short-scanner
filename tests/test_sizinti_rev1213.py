@@ -349,14 +349,20 @@ def test_kontrol_barinda_kosul_ve_deger_kuruculari_cagrilmaz(monkeypatch, hipote
     for ad in ("sinyal_degerleri", "kosullar_saglandi", "h1_pump_saglandi", "h1_pump_degerleri",
                "gecersizlik_seviyesi"):
         monkeypatch.setattr(sinyal, ad, yasak(ad))
-    gercek = sinyal.capasiz_pencere_degerleri
+    # P2b-2 (RESULTS §14.49; bilerek guncellendi): kapi seridir. Olay rolunun degerleri, vektorel kosulu ve
+    # gecersizlik tabani kapinin kendi ic adimlaridir; onlar da yasaklanir. Capasiz pencereler seri kurucusundan
+    # (`seri_kurucu.capasiz_pencereler`) gelir ve seri kurulumunda TAM BIR KEZ cagrilir (eski olcut: skaler
+    # `sinyal.capasiz_pencere_degerleri` bar basina bir kez).
+    for ad in ("_olay_degerleri", "_kosul_dizisi", "_gecersizlik_tabani"):
+        monkeypatch.setattr(pozisyon, ad, yasak(ad))
+    gercek = pozisyon.seri_kurucu_modulu.capasiz_pencereler
     cagrilar = []
 
     def izle(*a, **k):
         cagrilar.append(a[0])
         return gercek(*a, **k)
 
-    monkeypatch.setattr(sinyal, "capasiz_pencere_degerleri", izle)
+    monkeypatch.setattr(pozisyon.seri_kurucu_modulu, "capasiz_pencereler", izle)
     p = _karar(hipotez, _duz(DB, B), FUND, t, **kontrol(hipotez, rol))
     assert p.rol == rol and cagrilar == [hipotez]
     assert math.isnan(p.gecersizlik_seviyesi)

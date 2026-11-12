@@ -44,9 +44,31 @@ def getir(anahtar: tuple, denetim, yukle) -> tuple:
     return tuple(cerceve.copy() for cerceve in deger)
 
 
+# Donem isareti (performans 2b-2, plan v3 G11; RESULTS §14.49): kesif ve onay kosularinin acilisi ve kapanisi `temizle`
+# cagirir ve her cagri sayaci artirir. Kapinin seri nesnesi (`pozisyon.KapiSerisi`) kuruldugu isareti tasir; isaret
+# degismisse okuma reddedilir. Seri onbellegi de `temizle`de dusurulur (`_TEMIZLEYICILER`; kapi modulu kaydeder).
+_DONEM_ISARETI = [0]
+_TEMIZLEYICILER: list = []
+
+
 def temizle() -> None:
     with _KILIT:
         _BELLEK.clear()
+        _DONEM_ISARETI[0] += 1
+    for temizleyici in tuple(_TEMIZLEYICILER):
+        temizleyici()
+
+
+def donem_isareti() -> int:
+    """Donem isaretinin bugunku degeri: `temizle` her cagrildiginda artar (kosu acilisi ve kapanisi)."""
+    with _KILIT:
+        return _DONEM_ISARETI[0]
+
+
+def temizleyici_ekle(temizleyici) -> None:
+    """`temizle` ile birlikte cagrilacak argumansiz bir fonksiyon (ör. kapinin seri onbellegi). Ayni fonksiyon bir kez."""
+    if temizleyici not in _TEMIZLEYICILER:
+        _TEMIZLEYICILER.append(temizleyici)
 
 
 def girdi_sayisi() -> int:

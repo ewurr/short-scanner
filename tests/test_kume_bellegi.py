@@ -255,18 +255,27 @@ def _karar(sembol, t, hipotez, rol, capa):
 @pytest.mark.parametrize("sembol", SEMBOLLER)
 @pytest.mark.parametrize("hipotez", ["H1", "H2", "H3"])
 def test_onbellekli_ve_onbelleksiz_ayni_karari_verir(gercek_veri, sembol, hipotez):
-    """Her cagri once bellek bosken (onbelleksiz yol, tam yukleme), sonra bellekten; sonuclar birebir ayni."""
-    for t in _ornek_barlar(sembol, hipotez):
-        capa = t - pd.Timedelta(hours=24) if hipotez == "H1" else None
-        cagrilar = [lambda r=rol, c=(capa if rol == "olay" else None): _karar(sembol, t, hipotez, r, c)
-                    for rol in ("olay", "K1", "K2")]
-        cagrilar.append(lambda: pozisyon.sinyal_kosulu(t, hipotez=hipotez, yapilandirma=sinyal.izgara(hipotez)[0],
-                                                       capa=None, kume="KESIF", sembol=sembol, donem_no=0))
-        for cagri in cagrilar:
-            kume_bellegi.temizle()
-            onbelleksiz = _sonuc(cagri)
-            assert kume_bellegi.girdi_sayisi() > 0
-            assert _sonuc(cagri) == onbelleksiz
+    """Her cagri once bellek bosken (onbelleksiz yol, tam yukleme), sonra bellekten; sonuclar birebir ayni.
+
+    P2b-2 (RESULTS §14.49; bilerek guncellendi): kapi seridir; bellek bosken yapilan ILK cagri butun izgaranin serisini
+    (ve veriyi) kurar, ayni rolun sonraki barlari o soguk kurulumun satirlaridir. Bu yuzden bellek rol (ve kosul)
+    basina BIR KEZ bosaltilir: soguk tur bes bari sorar, sicak tur ayni bes bari bellekten sorar ve sonuclar birebir
+    ayni olmali. Eskiden bellek her bardan once bosaltiliyordu; seri kapida bu, her bar icin butun izgarayi yeniden
+    kurmak demekti (gercek veride saatler). Olculen ayni: onbelleksiz ve onbellekli yol ayni karar."""
+    barlar = _ornek_barlar(sembol, hipotez)
+
+    def cagri(rol, t):
+        if rol == "kosul":
+            return pozisyon.sinyal_kosulu(t, hipotez=hipotez, yapilandirma=sinyal.izgara(hipotez)[0], capa=None,
+                                          kume="KESIF", sembol=sembol, donem_no=0)
+        capa = t - pd.Timedelta(hours=24) if (hipotez == "H1" and rol == "olay") else None
+        return _karar(sembol, t, hipotez, rol, capa)
+
+    for rol in ("olay", "K1", "K2", "kosul"):
+        kume_bellegi.temizle()
+        onbelleksiz = [_sonuc(lambda: cagri(rol, t)) for t in barlar]
+        assert kume_bellegi.girdi_sayisi() > 0
+        assert [_sonuc(lambda: cagri(rol, t)) for t in barlar] == onbelleksiz, rol
 
 
 def test_mae_ve_pozisyon_fundingi_bellekten_gecer(gercek_veri, monkeypatch):

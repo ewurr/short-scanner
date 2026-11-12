@@ -141,21 +141,29 @@ def test_gunluk_yerine_4h_cerceve_hata_verir():
 
 
 def test_karar_noktasi_uygunlugu_tek_uygulamadan_cagirir(monkeypatch):
-    """Casus: `eligibility.uygunluk_karari` False donerse karar reddeder; cagri sinyal zamani,
-    izgara ve on-kayit esikleriyle yapilir."""
+    """Casus: kapinin uygunluk uygulamasi "uygun degil" derse karar reddeder; cagri sinyal zamani, izgara ve on-kayit
+    esikleriyle yapilir.
+
+    P2b-2 (RESULTS §14.49; bilerek guncellendi): kapi seridir; uygunluk `seri_kurucu.uygunluk`tan (skaler
+    `eligibility.uygunluk_karari` ile bit duzeyinde ayni; G6, G7) butun aday barlar icin TEK cagriyla gelir. Casus o
+    cagriyi kaydeder ve her bara "uygun degil" doner. Olculen ayni kaldi: sinyal zamani cagrinin izgarasinda, bar
+    turu, on-kayit esikleri ve kapiya verilen gercek kume basi aynen iletilir."""
     cagri = []
+    asil = pozisyon.seri_kurucu_modulu.uygunluk
 
-    def casus(hacim, t, bar, **kw):
-        cagri.append((t, bar, kw["asgari_hacim"], kw["asgari_listeleme_yasi_gun"], kw["kume_baslangic"]))
-        return False
+    def casus(gunluk, izgara, bar, **kw):
+        cagri.append((pd.DatetimeIndex(izgara), bar, kw["asgari_hacim"], kw["asgari_listeleme_yasi_gun"],
+                      kw["kume_baslangic"]))
+        return asil(gunluk, izgara, bar, **kw).assign(uygun=False)
 
-    monkeypatch.setattr(eligibility, "uygunluk_karari", casus)
+    monkeypatch.setattr(pozisyon.seri_kurucu_modulu, "uygunluk", casus)
     with pytest.raises(pozisyon.UygunDegil):
         _karar()
     # F1 kapanis turu 2: kapi kume sinirini None kabul etmez; beklenen deger, kapiya verilen gercek kume
     # basinin (KESIF) uygunluga aynen iletilmesidir (onceden verilen None'in yankisiydi).
-    assert cagri == [(T_SINYAL, config.BAR_4H, config.ASGARI_HACIM_4H, config.ASGARI_LISTELEME_YASI_GUN,
-                      kume_sinirlari(T_SINYAL)["kume_baslangic"])]
+    assert cagri and all(c[1:] == (config.BAR_4H, config.ASGARI_HACIM_4H, config.ASGARI_LISTELEME_YASI_GUN,
+                                   kume_sinirlari(T_SINYAL)["kume_baslangic"]) for c in cagri)
+    assert any(T_SINYAL in c[0] for c in cagri)
 
 
 def test_kontrol_bari_ayni_kapidan_gecer():
@@ -187,7 +195,10 @@ def _cagrilar(modul, ad):
 def test_veri_katmaninda_uygunluk_karari_yalnizca_karar_noktasinda_ve_uygun_muda():
     from data import funding, klines, pencere as pencere_modulu, split, universe
 
-    assert _cagrilar(pozisyon, "uygunluk_karari") == ["olay_karari"]
+    # P2b-2 (RESULTS §14.49; bilerek guncellendi): kapinin uygunlugu seri kurucusundan (`seri_kurucu.uygunluk`, skaler
+    # `uygunluk_karari` ile bit duzeyinde ayni; G6, G7) ve YALNIZCA karar cekirdeginde (`_kapi_satirlari`) cagrilir.
+    assert _cagrilar(pozisyon, "uygunluk_karari") == []
+    assert _cagrilar(pozisyon, "uygunluk") == ["_kapi_satirlari"]
     assert _cagrilar(eligibility, "uygunluk_karari") == ["uygun_mu"]
     for modul in (funding, klines, pencere_modulu, split, universe):
         assert not _cagrilar(modul, "uygunluk_karari") and not _cagrilar(modul, "uygun_mu"), modul.__name__
@@ -197,7 +208,7 @@ def test_veri_katmaninda_uygunluk_karari_yalnizca_karar_noktasinda_ve_uygun_muda
     # gercek kapiyi cagirmak hem cok yavas olur hem testi veri kurulumuna gomer. Dikis iki
     # koruma altindadir ve ikisi burada da dogrulanir: yalnizca pytest icinde cagrilabilir ve adi
     # analiz kodunda gecemez (`tarama_yardimcisi.ONAY_ATLATMA_DESENI`).
-    assert _cagrilar(pozisyon, "OnaylanmisPozisyon") == ["olay_karari", "_test_onayi"]
+    assert sorted(_cagrilar(pozisyon, "OnaylanmisPozisyon")) == ["_kapi_satirlari", "_test_onayi"]   # P2b-2: cekirdek
     assert "_test_onayi" in tarama_ONAY_ATLATMA_DESENI
     with pytest.MonkeyPatch.context() as yama:
         yama.delenv("PYTEST_CURRENT_TEST", raising=False)

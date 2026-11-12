@@ -134,11 +134,15 @@ def test_kapi_pozisyon_tamligini_bir_kez_hesaplar(dunya_ic, monkeypatch):
     for hipotez in ("H2", "H3"):
         tanim = pencere.hipotez_ufuklari(hipotez)
         for t in ornek_barlar(kimlik, 40, 3, tanim.bar):
+            # P2b-2 (RESULTS §14.49; bilerek guncellendi): kapi seridir. Tamlik butun barlar icin TEK toplu cagrida
+            # hesaplanir; olcut, bu pozisyonun penceresinin (giris, funding penceresi sonu) cagrilarin icinde TAM BIR
+            # KEZ gecmesidir. Seri onbellegi her bardan once dusurulur, boylece her olcum kendi kurulumunu gorur.
+            kume_bellegi.temizle()
             cagrilar.clear()
             sonuc = karar_cagrisi(pozisyon, hipotez, kimlik, t)
             if isinstance(sonuc, pozisyon.OnaylanmisPozisyon):
-                pencere_ = ([sonuc.plan.giris], [funding.funding_penceresi_sonu(sonuc.plan)])
-                assert sum(c == pencere_ for c in cagrilar) == 1
+                pencere_ = (sonuc.plan.giris, funding.funding_penceresi_sonu(sonuc.plan))
+                assert sum(c == pencere_ for girisler, sonlar in cagrilar for c in zip(girisler, sonlar)) == 1
                 break
         else:
             pytest.fail(f"{hipotez}: ornekte onayli pozisyon yok")
@@ -176,9 +180,14 @@ def test_plan_yapilandirmalar_ve_h1_h2_arasinda_paylasilir_karar_degismez(dunya_
         a = karar_cagrisi(pozisyon, "H1", kimlik, t)
         assert sonuc_esit(a, karar_cagrisi(ref, "H1", kimlik, t))
     assert sayac["n"] == ilk
-    # H3 (1d) ayri bar turu: ayri anahtar.
-    karar_cagrisi(pozisyon, "H3", kimlik, barlar[-1].floor("D"))
-    assert sayac["n"] == ilk + 1
+    # H3 (1d) ayri bar turu: ayri anahtar. P2b-2 (RESULTS §14.49; bilerek guncellendi): kapi seridir; ilk H3 cagrisi
+    # 1d izgarasinin her bari icin BIR plan kurar (izgara disindaki bir gun sorulursa o gun icin bir plan daha).
+    gun = barlar[-1].floor("D")
+    izgara_1d = pozisyon.hipotez_izgarasi_barlari("H3", kume="KESIF", **kimlik)
+    karar_cagrisi(pozisyon, "H3", kimlik, gun)
+    assert sayac["n"] == ilk + len(izgara_1d) + (0 if gun in izgara_1d else 1)
+    karar_cagrisi(pozisyon, "H3", kimlik, izgara_1d[3])
+    assert sayac["n"] == ilk + len(izgara_1d) + (0 if gun in izgara_1d else 1), "ayni seri: yeni plan kurulmaz"
 
 
 def test_plan_reddi_ayni_sinif_ve_mesajla_yeniden_firlatilir(dunya_ic, monkeypatch):
@@ -187,10 +196,15 @@ def test_plan_reddi_ayni_sinif_ve_mesajla_yeniden_firlatilir(dunya_ic, monkeypat
     sayac = _plan_sayaci(monkeypatch)
     bas, _, _ = pozisyon.donem_kaydi(kimlik["sembol"], 0)
     t = bas + pd.Timedelta(days=60) - H4          # giris bari 60. gunun ilk bari: dunyada eksik (3 gunluk bosluk)
-    hatalar = [karar_cagrisi(pozisyon, "H2", kimlik, t) for _ in range(2)]
+    hatalar = [karar_cagrisi(pozisyon, "H2", kimlik, t)]
+    # P2b-2 (RESULTS §14.49; bilerek guncellendi): ilk cagri serinin izgarasindaki her bar icin bir plan kurar (t
+    # izgarada); ikinci cagri hicbir plani yeniden kurmaz. Eski olcut "sayac == 1" bar basina kapinindi.
+    ilk = sayac["n"]
+    assert ilk == len(pozisyon.hipotez_izgarasi_barlari("H2", kume="KESIF", **kimlik))
+    hatalar.append(karar_cagrisi(pozisyon, "H2", kimlik, t))
     assert all(isinstance(h, pencere.GirisBariYok) for h in hatalar)
     assert hatalar[0].args == hatalar[1].args and hatalar[0] is not hatalar[1]
-    assert sayac["n"] == 1
+    assert sayac["n"] == ilk
     assert sonuc_esit(hatalar[1], karar_cagrisi(ref, "H2", kimlik, t))
 
 
@@ -199,9 +213,12 @@ def test_donem_disi_sinyal_programlama_hatasi_saklanmaz(dunya_ic, monkeypatch):
     kimlik, _ = dunya_ic
     sayac = _plan_sayaci(monkeypatch)
     bas, _, _ = pozisyon.donem_kaydi(kimlik["sembol"], 0)
-    for _ in range(2):
-        assert isinstance(karar_cagrisi(pozisyon, "H2", kimlik, bas - 10 * H4), pencere.DonemDisiSinyal)
-    assert sayac["n"] == 2
+    assert isinstance(karar_cagrisi(pozisyon, "H2", kimlik, bas - 10 * H4), pencere.DonemDisiSinyal)
+    # P2b-2 (RESULTS §14.49; bilerek guncellendi): ilk cagri seriyi de kurar (izgaranin her bari icin bir plan); donem
+    # disi bar izgarada olmadigi icin cekirdek onu tek basina sorar. Olcut: ikinci cagri plani YENIDEN dener (+1).
+    ilk = sayac["n"]
+    assert isinstance(karar_cagrisi(pozisyon, "H2", kimlik, bas - 10 * H4), pencere.DonemDisiSinyal)
+    assert sayac["n"] == ilk + 1
 
 
 def test_plan_serisi_karar_girdisinin_parcasi_anahtar_kume_adini_tasir(dunya_ic):
@@ -239,11 +256,12 @@ def test_temizle_plan_serisini_dusurur(dunya_ic, monkeypatch):
     sayac = _plan_sayaci(monkeypatch)
     t = ornek_barlar(kimlik, 3, 1)[-5]
     karar_cagrisi(pozisyon, "H2", kimlik, t)
+    ilk = sayac["n"]                # P2b-2 (RESULTS §14.49; bilerek guncellendi): seri, izgaranin her bari icin bir plan
     karar_cagrisi(pozisyon, "H2", kimlik, t)
-    assert sayac["n"] == 1
+    assert sayac["n"] == ilk > 0
     kume_bellegi.temizle()        # onay kosusunun acilisi ve kapanisi bunu cagirir (split.onay_kosusu)
     karar_cagrisi(pozisyon, "H2", kimlik, t)
-    assert sayac["n"] == 2
+    assert sayac["n"] == 2 * ilk
 
 
 def test_onay_kosusu_acilis_ve_kapanista_kume_bellegini_temizler():

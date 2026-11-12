@@ -7,8 +7,11 @@ listeleme yasi dahil uygunluk filtresi, olaylar ve kontroller icin ayni karar no
 ayni cagriyla uygulanir. Uygunluk degerinin hesaplanabilmis olmasi yeterli degildir;
 esigi de gecmelidir. ... Boylece brut ve net olay kumeleri her zaman aynidir."
 
-`olay_karari` bu karar noktasidir; olaylar ve kontroller (K1, K2) ayni fonksiyonu cagirir,
-ayri bir kontrol yolu yoktur. Sirasiyla:
+P2b-2'den (RESULTS §14.49) beri karar noktasi TEK SERI KAPIDIR: `kapi_serisi` bir (sembol, donem, kume)
+biriminin hipotez izgarasindaki butun barlarina ayni cekirdekle (`_kapi_satirlari`) karar verir; `olay_karari`
+onun t satirini okuyan ince sarmalayicidir. Olaylar ve kontroller (K1, K2) ayni yoldan gecer, ayri bir kontrol
+yolu yoktur. Bar basina skaler karar govdesi yalnizca dondurulmus skaler referansta yasar. Adimlar ve sirasi
+(cekirdekte vektorel; ret gerekcesi ve mesaji skalerle birebir):
   0. Hipotez -> izgara -> ufuk bagi (`pencere.hipotez_baglamini_dogrula`; F1 kapanis turu),
      yapilandirmanin izgarada olmasi (`sinyal.yapilandirma_dogrula`) ve ROL (on-kayit §6 rev.11).
   1. `pencere.pozisyon_plani`: sinyal kumede ve donem ici, giris bari, cikis (donem
@@ -59,8 +62,11 @@ Getiri HESAPLAMAZ (F2 kodu degildir); fiyat ve funding degerlerini tasir ama rap
 from __future__ import annotations
 
 import functools
+import hashlib
 import math
 import sys
+import threading
+from collections import OrderedDict
 from types import MappingProxyType
 from dataclasses import dataclass, field, replace
 
@@ -73,6 +79,7 @@ from data import funding as funding_modulu
 from data import klines as klines_modulu
 from data import kume_bellegi
 from data import pencere as pencere_modulu
+from data import seri_kurucu as seri_kurucu_modulu
 from data import sinyal as sinyal_modulu
 from data import split as split_modulu
 from data import universe as universe_modulu
@@ -576,17 +583,27 @@ def _pozitif_fiyat(deger: float, ad: str) -> float:
 def _mae_tepesi(mumlar_4h: pd.DataFrame, zamanlar: pd.DatetimeIndex, plan, p1: float) -> float:
     """MAE'nin H'si (on-kayit §4 rev.8): giris anindan once acilmayan, cikis anindan sonra kapanmayan donem
     ici 4h barlarin en yuksek high'i ile P1'in buyugu. Secilen high'lar sonlu VE POZITIF olmali
-    (`_pozitif_fiyat`; koruma turu madde 2b)."""
-    kapanislar = zamanlar + pencere_modulu.ADIM_4H
-    secim = (np.asarray(pencere_modulu.ayni_ya_da_sonra(zamanlar, plan.giris), dtype=bool)
-             & np.asarray(pencere_modulu.ayni_ya_da_once(kapanislar, plan.cikis_ani), dtype=bool)
-             & np.asarray(pencere_modulu.donem_ici_4h_maskesi(
-                 zamanlar, donem_baslangic=plan.donem_baslangic, donem_bitis=plan.donem_bitis), dtype=bool))
+    (`_pozitif_fiyat`; koruma turu madde 2b).
+
+    Secim SIRALI dizide kenar aramasiyla yapilir (performans 2b-2, RESULTS §14.49; ayni kural, ayni toleransli
+    yuklemler): `zamanlar` kesin artandir (`_mum_zamanlari`), bu yuzden dort kosulun her biri bir onek ya da sonek ve
+    secim tek parcali bir araliktir. Kenarlar tamsayi nanosaniyede kesin esdegerdir:
+      - `ayni_ya_da_sonra(z, g)` <=> `g - z < tol` <=> `z > g - tol` (`ayni_an_basi(g)`, sag kenar);
+      - `ayni_ya_da_once(z + 4h, c)` <=> `z + 4h < c + tol` <=> `z < ayni_an_sonu(c) - 4h` (sol kenar);
+      - donem uyeligi (`donem_ici_4h_maskesi`): `z > ayni_an_basi(donem basi)` ve `z < ayni_an_sonu(B)`.
+    Onceki bicim her pozisyon icin butun seri uzerinde maske kuruyordu (bar basina O(n)); sonuc ve hata yolu ayni:
+    secilen high'lar sirayla denetlenir, ilk bozuk degerde ayni mesajla `VeriHatasi`."""
+    adim = pencere_modulu.ADIM_4H
+    alt = max(int(zamanlar.searchsorted(pencere_modulu.ayni_an_basi(plan.giris), side="right")),
+              int(zamanlar.searchsorted(pencere_modulu.ayni_an_basi(plan.donem_baslangic), side="right")))
+    ust = min(int(zamanlar.searchsorted(pencere_modulu.ayni_an_sonu(plan.cikis_ani) - adim, side="left")),
+              int(zamanlar.searchsorted(pencere_modulu.ayni_an_sonu(plan.donem_bitis), side="left")))
     tepe = p1
-    if secim.any():
-        yuksekler = mumlar_4h["high"].to_numpy(dtype=float)[secim]
-        for deger in yuksekler:
-            _pozitif_fiyat(float(deger), "pozisyon penceresindeki high")
+    if ust > alt:
+        yuksekler = mumlar_4h["high"].to_numpy(dtype=float)[alt:ust]
+        bozuk = ~np.isfinite(yuksekler) | (yuksekler <= 0) | (yuksekler < sys.float_info.min)
+        if bozuk.any():
+            _pozitif_fiyat(float(yuksekler[int(np.nonzero(bozuk)[0][0])]), "pozisyon penceresindeki high")
         tepe = max(float(np.max(yuksekler)), p1)
     return tepe
 
@@ -639,180 +656,67 @@ def olay_karari(
     asgari_hacim,
     asgari_listeleme_yasi_gun,
 ) -> OnaylanmisPozisyon:
-    """TEK KARAR NOKTASI (on-kayit §4 rev.8, rev.9). Olay ya da kontrol olusursa
-    `OnaylanmisPozisyon`, olusmazsa `OlayOlusmaz` alt sinifi (ret gerekcesi:
-    `pencere.ret_gerekcesi`). Olaylar ve kontroller ayni cagriyi kullanir.
+    """TEK KARAR NOKTASININ bar basina okuyucusu (on-kayit §4 rev.8, rev.9; performans 2b-2, plan v3 G1). Olay ya da
+    kontrol olusursa `OnaylanmisPozisyon`, olusmazsa `OlayOlusmaz` alt sinifi (ret gerekcesi: `pencere.ret_gerekcesi`).
+    Olaylar ve kontroller ayni cagriyi kullanir.
 
-    Fiyat, funding ve 1d cerceveleri cagirandan alinmaz: kapi `sembol` ve `kume` ile yukler
-    (`_kume_verisi`), 1d serisini 4h barlardan turetir (`klines.gunluge_cevir`). `sinyal_zamani` UTC
-    olmali; sinyal bari hipotezin izgarasinda donem ici seride bulunmali (`SinyalBariYok`). Sonlu
-    olmayan fiyat ya da funding toplami acik hatadir.
+    INCE SARMALAYICI (P2b-2): karar `kapi_serisi`dedir; bu fonksiyon onun t SATIRINI okur. Bar basina skaler karar
+    govdesi `data/`dan kalkti; yalnizca dondurulmus skaler referansta yasar. Imza, istisnalar ve
+    donus degeri P2b-2 oncesiyle aynidir:
+      - Girdi denetimleri (hipotez -> izgara -> ufuk bagi, yapilandirma, rol, capa, birincil ufuk once, UTC sinyal
+        zamani, kume adi, onay ve kesif baglami, donem kaydi, grup, uygunluk esikleri) skalerdeki sirayla burada yapilir.
+      - t, seri kurulabildiyse ve t serinin bir satiriysa (hipotez izgarasinin bari; H1 olay rolunde capanin izleme
+        penceresinde) satir ONBELLEKTEKI seriden okunur.
+      - Aksi halde (t izgarada degil, tolerans payiyla verilmis, ya da serinin kurulumu `OlayOlusmaz` disi bir hatayla
+        durdu: G10) ayni karar cekirdegi (`_kapi_satirlari`) YALNIZCA t icin kosar. Ikinci bir karar yolu yoktur: iki
+        durumda da karar ayni fonksiyondan gelir; tek fark sorulan bar kumesidir.
 
-    SINYAL DEGERLERI CAGIRANDAN ALINMAZ (Rev.11 madde 4): kapi hipotezin butun sinyal degerlerini
-    `data.sinyal`in pencere kuruculariyla kendisi hesaplar. `yapilandirma`: hipotezin izgarasindaki
-    bir parametre demeti (on-kayit §5 rev.11; izgarada olmayan demet `sinyal.YapilandirmaHatasi`).
-    `rol`: "olay", "K1" ya da "K2" (modul aciklamasindaki "Rol" basligi). `capa`: yalnizca H1'in
-    olay rolunde pump bari, baska her durumda `None` (`_capa_dogrula`).
-    `asgari_hacim`, `asgari_listeleme_yasi_gun`:
-    uygunluk esikleri, on-kayit §2 degerleri olmalidir (`eligibility.esikleri_dogrula`).
-    `hipotez` ("H1", "H2", "H3") zorunludur: `bar`, `ufuk` ve `birincil_ufuk` hipotezden tureyen on-kayit
-    degerleriyle uyumlu olmalidir (`pencere.hipotez_baglamini_dogrula`; F2 kodu bunlari
-    `pencere.hipotez_ufuklari`ndan okur). Onayli pozisyon hipotezi imzali tasir.
-    Butun sinirlar ve esikler zorunlu anahtar sozcuktur; varsayilan yoktur. `kume`: kumenin ADI
-    ("KESIF", "C1", "C2"); sinirlari kapi `split.kume_araligi`ndan kendisi okur (`kume_sinirlari`),
-    cagiran sinir vermez. `sembol`, `donem_no`: evren tablosundaki listeleme donemi (`donem_id`);
-    donem sinirlari kapida tablodan okunur (`donem_kaydi`), cagiran sinir vermez. Sembolun A/B grubu
-    (bolme tablosu) kumenin gruplarindan biri olmalidir (`grup_dogrula`).
+    Fiyat, funding ve 1d cerceveleri cagirandan alinmaz: kapi `sembol` ve `kume` ile yukler. `yapilandirma`: hipotezin
+    izgarasindaki bir parametre demeti. `rol`: "olay", "K1" ya da "K2". `capa`: yalnizca H1'in olay rolunde pump bari,
+    baska her durumda `None` (`_capa_dogrula`). `asgari_hacim`, `asgari_listeleme_yasi_gun`: on-kayit §2 degerleri
+    olmalidir (`eligibility.esikleri_dogrula`). `kume`: kumenin ADI; sinirlari kapi okur. `sembol`, `donem_no`: evren
+    tablosundaki listeleme donemi; sembolun A/B grubu kumenin gruplarindan biri olmalidir (`grup_dogrula`).
     """
-    # Hipotez -> izgara -> ufuk bagi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis
-    # turu, denetci D-B2): izgara ve ufuklar hipotezden turer; uyumsuz eslesme calisma aninda hata.
+    # Hipotez -> izgara -> ufuk bagi (on-kayit §4 "Ufuk degerlerinin baglanmasi", rev.10; F1 kapanis turu, D-B2).
     pencere_modulu.hipotez_baglamini_dogrula(hipotez, bar, ufuk, birincil_ufuk)
-    # Yapilandirma ve rol (on-kayit §5, §6 rev.11): "Olay ya da kontrol ureten her cagri, hipotezi
-    # ve yapilandirmayi birlikte alir; izgarada bulunmayan bir parametre demeti hata verir."
+    # Yapilandirma ve rol (on-kayit §5, §6 rev.11).
     gecerli_yapilandirma = sinyal_modulu.yapilandirma_dogrula(hipotez, yapilandirma)
     yapilandirma_kimligi = sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli_yapilandirma)
     rol = _rol_dogrula(rol)
     capa = _capa_dogrula(hipotez, rol, capa)
-    # Olayin olusup olusmadigi BIRINCIL ufukta belirlenir (kapi sertlestirme turu 3, denetci KS2 D-B3; on-kayit
-    # §4 "Ufuk degerlerinin baglanmasi": "Ikincil ufuklar yalnizca raporlanir; onay kararlari birincil ufka
-    # gore verilir"). Ikincil ufuk istenirse ayni cagri once birincil ufukla degerlendirilir; orada olay
-    # olusmazsa ayni ret gerekcesi yukari cikar ve hicbir ikincil ufukta onay verilmez. Birincil ufukta olusan
-    # olayin ikincil cikisi ayrica kendi ufuk uzunluguyla kurallara tabidir (on-kayit §3 "Kume siniri ve ufuk").
+    # Olayin olusup olusmadigi BIRINCIL ufukta belirlenir (kapi sertlestirme turu 3, KS2 D-B3): ikincil ufuk istenirse
+    # once birincil ufuk sorulur; orada olay olusmazsa ayni ret gerekcesi yukari cikar.
     if ufuk != birincil_ufuk:
         olay_karari(sinyal_zamani, birincil_ufuk, bar, hipotez=hipotez, yapilandirma=gecerli_yapilandirma,
                     rol=rol, capa=capa, birincil_ufuk=birincil_ufuk, kume=kume, sembol=sembol,
                     donem_no=donem_no, asgari_hacim=asgari_hacim,
                     asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
     sinyal_zamani = _utc_sinyal_zamani(sinyal_zamani)
-    # Kume sinirlari cagirandan alinmaz; kume adindan kapida okunur (kapi sertlestirme turu, denetci F1K2
-    # D-B1; on-kayit §3 "Kume siniri ve geriye bakis": "kod duzeyinde ayrica dogrulanir"). Serbest sinir
-    # cifti, karisik sinir (ör. KESIF basi + C2 sonu) ya da None verilemez.
-    kume_baslangic, kume_bitis = kume_sinirlari(kume)
-    # Onay baglami (kapi sertlestirme turu 3, denetci KS2 D-B1): C1/C2 pozisyonu yalnizca ayni (hipotez, kume)
-    # ciftinin acik onay kosusunda; acik kosu varken baska pozisyon yok. Uyusmazlik `split.OnayUyusmazligi`.
+    # Kume ve donem sinirlari cagirandan alinmaz; baglam ve grup denetimleri skalerdeki sirayla (F1K2 D-B1, D-B2;
+    # KS2 D-B1; RESULTS §14.42).
+    kume_sinirlari(kume)
     split_modulu.onay_baglami_dogrula(hipotez, kume, yapilandirma_kimligi)
-    # KESIF karar noktasi acik bir kesif kosusu ister (RESULTS §14.42, denetci D-C1).
     split_modulu.kesif_baglami_dogrula(kume)
-    # Donem sinirlari da cagirandan alinmaz; commit edilmis evren tablosundan sembol ve donem numarasiyla
-    # okunur (kapi sertlestirme turu, denetci F1K2 D-B2; on-kayit §2 "Listeleme donemi", "Evren tablosunun
-    # sabitlenmesi": "analiz bu dosyadan okur"). Sembolun grubu kumeye ait olmali (on-kayit §3 "Coin bolmesi").
-    donem_baslangic, donem_bitis, donem_funding_yok = donem_kaydi(sembol, donem_no)
+    donem_kaydi(sembol, donem_no)
     grup_dogrula(sembol, kume)
-    # Uygunluk girdileri her cagrida denetlenir (programlama hatasi, ret gerekcesi degil).
+    # Uygunluk girdileri her cagrida denetlenir (programlama hatasi, ret gerekcesi degil). Esikler on-kayit degerleri
+    # oldugu icin seri ayni esiklerle kurulur (`eligibility.hacim_esigi`, `config.ASGARI_LISTELEME_YASI_GUN`).
     eligibility_modulu.esikleri_dogrula(bar, asgari_hacim=asgari_hacim,
                                         asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
-    # Veri kapida yuklenir (kapi sertlestirme turu 2, denetci KS D-B1, KS D-B2): cagiran cerceve vermez.
-    # Kesim ve 1d turetmesi `_karar_verisi`dedir: donem kurali TEK mekanizmada durur (P-C1) ve
-    # `sinyal_kosulu` ayni fonksiyonu cagirir, yani dizi durumu ile kapinin onayi ayni veriden gelir.
-    # 1d serisi tektir ve donem ici 4h barlardan turetilir (on-kayit §2 rev.8 "1 gunluk barlar": "Bu seri
-    # tektir: H3'un sinyal pencereleri, butun hipotezlerin uygunluk hacmi ve K1/K2 havuzlarinin 1d barlari
-    # ayni seriden gelir").
-    mumlar_4h, funding, gunluk_mumlar, plan_serisi = _karar_girdisi(
-        sembol, kume, kume_baslangic=kume_baslangic, kume_bitis=kume_bitis,
-        donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
-    zamanlar = _mum_zamanlari(mumlar_4h)
-    gunluk_hacim = _gunluk_hacim(gunluk_mumlar)
-
-    # Plan (sembol, kume, donem) verisi icin (bar, ufuk, birincil ufuk, t) basina bir kez kurulur ve yapilandirmalar
-    # arasinda paylasilir (performans 2a; `_PlanSerisi`). Kural ve girdiler `pencere.pozisyon_plani`ninkiyle aynidir.
-    plan = plan_serisi.al(
-        (bar, int(ufuk), int(birincil_ufuk), sinyal_zamani),
-        lambda: pencere_modulu.pozisyon_plani(
-            zamanlar, sinyal_zamani, ufuk, bar, birincil_ufuk=birincil_ufuk, kume_baslangic=kume_baslangic,
-            kume_bitis=kume_bitis, donem_baslangic=donem_baslangic, donem_bitis=donem_bitis))
-    # Sinyal bari t seride olmali (kapi sertlestirme turu 2, denetci KS D-B3): plan yalnizca t+1'i arar.
-    # 4h: t acilisli donem ici bar; 1d: t gunu turetilmis 1d serisinde (alti 4h barin tamami donem ici).
-    if bar == config.BAR_4H:
-        t_bari = pencere_modulu.ayni_andaki_bar(zamanlar, plan.sinyal_zamani)
-    else:
-        t_bari = pencere_modulu.ayni_andaki_bar(pd.DatetimeIndex(gunluk_mumlar["open_time"]), plan.sinyal_zamani)
-    if t_bari is None:
-        raise SinyalBariYok(f"{sembol}: sinyal bari {plan.sinyal_zamani} ({bar}) donem ici seride yok; olay ya da "
-                            "kontrol olusmaz.")
-    # Sinyal degerleri KAPIDA hesaplanir (Rev.11 madde 4; on-kayit §5 "Pencere sinirlari"). Kume ve
-    # donem sinirlari plandan okunur; pencerelerin tamlik, donem ve kume kurallari `data.sinyal`
-    # uzerinden `data.pencere`nin tek kapisindan gecer. H2'nin funding penceresi de burada, gercek
-    # funding serisinden kurulur (`funding.funding_ortalamasi`).
-    # Kontrol barinda CAPASIZ sinyal pencereleri hesaplanabilir olmali (on-kayit §6 "Kontrol barinda
-    # sinyal pencereleri", rev.12): "hesaplanamiyorsa o bar kontrol olamaz ... her iki kontrol kumesi
-    # icin gecerlidir". Kosullar aranmaz; yalnizca hesaplanabilirlik. H1'in tepe penceresi capali
-    # oldugu icin kontrol barinda aranmaz.
-    if rol in KONTROL_ROLLERI:
-        capasiz = sinyal_modulu.capasiz_pencere_degerleri(
-            hipotez, gecerli_yapilandirma, plan.sinyal_zamani, mumlar_4h=mumlar_4h,
-            gunluk=gunluk_mumlar, funding=funding, kume_baslangic=plan.kume_baslangic,
-            kume_bitis=plan.kume_bitis, donem_baslangic=plan.donem_baslangic)
-        capasiz_eksik = sinyal_modulu.capasiz_hesaplanamayan(hipotez, capasiz)
-        if capasiz_eksik:
-            raise SinyalPenceresiTamDegil(
-                f"Kontrol barinda capasiz sinyal penceresi tam degil: {capasiz_eksik} (on-kayit §6 "
-                f"rev.12); {plan.sinyal_zamani} barinda kontrol olusmaz.")
-    # Sinyal KOSULLARI yalnizca olay rolunde hesaplanir (on-kayit §6, rev.12): "Kontrol barinda
-    # sinyal kosullari hicbir amacla hesaplanmaz. K2'nin 'o anda olay uretmemis' sarti, kosullarin
-    # saglanip saglanmadigina degil, o barin ayni yapilandirmanin olusmus olay kumesinde bulunup
-    # bulunmadigina gore uygulanir (§6 'Ornekleme kurallari'). Kontrol barinda hesaplanan tek sey,
-    # capasiz pencerelerin hesaplanabilirligidir." Bu yuzden rev.11'in `OlayUretmis` ret gerekcesi ve
-    # H1'in K2 istisnasi konusuz kalmistir: uc hipotez ayni yolu kullanir.
-    gecersizlik = float("nan")   # kontrol barinda tanimsiz (asagida yalnizca olay rolunde kurulur)
-    if rol == "olay":
-        degerler = sinyal_modulu.sinyal_degerleri(
-            hipotez, gecerli_yapilandirma, plan.sinyal_zamani, mumlar_4h=mumlar_4h,
-            gunluk=gunluk_mumlar, funding=funding, capa=capa, kume_baslangic=plan.kume_baslangic,
-            kume_bitis=plan.kume_bitis, donem_baslangic=plan.donem_baslangic)
-        hesaplanamayan = sinyal_modulu.hesaplanamayan(hipotez, degerler)
-        if hesaplanamayan:
-            raise SinyalPenceresiTamDegil(
-                f"Sinyal penceresi tam degil: {hesaplanamayan} (on-kayit §2 'Tamlik sarti'); "
-                f"{plan.sinyal_zamani} barinda olay olusmaz.")
-        if not sinyal_modulu.kosullar_saglandi(hipotez, gecerli_yapilandirma, degerler):
-            raise SinyalKosuluSaglanmadi(
-                f"{hipotez} kosullari {plan.sinyal_zamani} barinda saglanmadi (on-kayit §5); olay olusmaz.")
-        # Gecersizlik seviyesi (on-kayit §5 H1 madde 5, H2 madde 4, H3 madde 4 rev.13): olay basina
-        # kayit, F4 icin. Tabani (H1'de tepe, H2/H3'te `max(high[t-30..t])`) olayin kosullarinin
-        # zaten kullandigi penceredir, bu yuzden kosullari saglayan bir barda her zaman hesaplanir;
-        # hesaplanamazsa acik hatadir (kapi sertlestirme turu 2 ile ayni tutum, `_sonlu`).
-        gecersizlik = _sonlu(sinyal_modulu.gecersizlik_seviyesi(
-            hipotez, plan.sinyal_zamani, mumlar_4h=mumlar_4h, gunluk=gunluk_mumlar, capa=capa,
-            kume_baslangic=plan.kume_baslangic, donem_baslangic=plan.donem_baslangic),
-            "gecersizlik seviyesi")
-    # Uygunluk (on-kayit §4 rev.9): esik gecilmeli, hesaplanabilmis olmasi yetmez.
-    if not eligibility_modulu.uygunluk_karari(
-            gunluk_hacim, plan.sinyal_zamani, bar, donem_baslangic=plan.donem_baslangic,
-            donem_bitis=plan.donem_bitis, kume_baslangic=plan.kume_baslangic, asgari_hacim=asgari_hacim,
-            asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun):
-        raise UygunDegil(f"Sinyal bari {plan.sinyal_zamani} ({bar}) uygun degil: listeleme yasi ya da medyan "
-                         "hacim esigi gecilmiyor (on-kayit §2 'Uygunluk').")
-    # On-kayit §2 "Funding'i bulunmayan donemler": hic funding kaydi olmayan donem hicbir hipotezde olay ya da
-    # kontrol uretmez. Cagiranin verdigi funding cercevesinden bagimsiz olarak tablodaki bayraktan uygulanir.
-    if donem_funding_yok:
-        raise FundingTamDegil(f"{sembol} donem {donem_no}: evren tablosunda funding kaydi yok (on-kayit §2 "
-                              "'Funding'i bulunmayan donemler'); olay ya da kontrol olusmaz.")
-    # Tek tamlik (performans 2a, D-C6): satir bir kez hesaplanir, toplam ayni satirin diliminden alinir
-    # (`funding._satirdan_toplam`; skaler `_plan_fundingi` ile ayni kayitlar, ayni indirgeme).
-    tamlik = funding_modulu._pozisyon_tamlik_satiri(funding, plan)
-    ayrinti = tamlik.satir
-    if not bool(ayrinti["tam"]):
-        raise FundingTamDegil(f"Pozisyonun funding'i tam degil: giris {plan.giris}, cikis {plan.cikis_ani} "
-                              f"({plan.cikis_turu}); olay brut dahil hicbir hesapta olusmaz.")
-    toplam = funding_modulu._satirdan_toplam(funding, plan, tamlik)
-    if math.isnan(toplam):
-        raise FundingTamDegil(f"Pozisyonun funding'i hesaplanamadi (oran NaN): giris {plan.giris}.")
-    # Sonlu olmayan degerler (kapi sertlestirme turu 2): +-inf funding toplami, fiyat ve MAE penceresi.
-    _sonlu(toplam, "funding toplami")
-    p0 = _pozitif_fiyat(_bar_degeri(mumlar_4h, zamanlar, plan.giris, "open"), "P0")
-    p1 = _pozitif_fiyat(_bar_degeri(mumlar_4h, zamanlar, plan.cikis.zaman, plan.cikis.fiyat_alani), "P1")
-    _mae_tepesi(mumlar_4h, zamanlar, plan, p1)
-    sonuc = OnaylanmisPozisyon(plan, p0, p1, toplam, kuyruk_kismi=bool(ayrinti["kuyruk_kismi"]),
-                               son_esitlik_affi=bool(ayrinti["son_esitlik_affi"]),
-                               capa_aralik_saat=float(ayrinti["capa_aralik_saat"]),
-                               son_aralik_saat=float(ayrinti["son_aralik_saat"]), tek_ritim=bool(ayrinti["tek_ritim"]),
-                               funding_ritmi_saat=float(ayrinti["funding_ritmi_saat"]),
-                               karisik_ritim=bool(ayrinti["karisik_ritim"]),
-                               ritim_sinifi=ayrinti["ritim_sinifi"],
-                               gecersizlik_seviyesi=gecersizlik, hipotez=hipotez,
-                               yapilandirma=yapilandirma_kimligi, rol=rol, capa=capa, sembol=sembol,
-                               kume=kume, donem_no=int(donem_no))
-    return replace(sonuc, _imza=_imza(sonuc))
+    ikincil = None if ufuk == birincil_ufuk else int(ufuk)
+    try:
+        seri = kapi_serisi(hipotez, gecerli_yapilandirma, rol, kume=kume, sembol=sembol, donem_no=donem_no,
+                           capa=capa, ufuk=ikincil)
+    except pencere_modulu.OlayOlusmaz:
+        raise
+    except Exception:  # noqa: BLE001 - G10: seri kurulumu durdu; t satiri ayni cekirdekten tek basina kurulur
+        seri = None
+    if seri is not None and seri.icerir(sinyal_zamani):
+        return seri.sonuc(sinyal_zamani)
+    baglam = _kapi_baglami(hipotez, gecerli_yapilandirma, rol, kume=kume, sembol=sembol, donem_no=donem_no,
+                           ufuk=ikincil)
+    sonuc = _kapi_satirlari(baglam, pd.DatetimeIndex([sinyal_zamani]), None if capa is None else [capa])[0]
+    return _sonucu_ver(sonuc)
 
 
 def _test_onayi(*, hipotez: str, yapilandirma, t, rol: str = "olay", capa=None,
@@ -978,6 +882,650 @@ def hipotez_izgarasi_barlari(hipotez: str, *, kume: str, sembol: str, donem_no: 
         zamanlar = pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(gunluk_mumlar["open_time"]),
                                                        "hipotez_izgarasi_barlari (1d)")
     return pd.DatetimeIndex(zamanlar, name=None, copy=True)
+
+
+# =====================================================================================================================
+# TEK SERI KAPI (performans 2b-2; plan v3 G1, G8, G9, G10, G11, G13, G19, G20; RESULTS §14.49)
+# =====================================================================================================================
+#
+# `kapi_serisi` olay, K1 ve K2 rollerine (H1'in capali olay rolu dahil) AYNI cekirdekle (`_kapi_satirlari`) karar verir.
+# Bar basina skaler karar govdesi `data/`da yoktur; `olay_karari` bu serinin t satirini okuyan ince sarmalayicidir.
+#
+# Cekirdegin adimlari skalerin sirasiyla (G19): sinyal bari (plan + t barinin varligi) -> capasiz / sinyal tamligi ->
+# kosul (yalnizca olay rolunde; G8) -> uygunluk -> funding'siz donem -> funding tamligi -> fiyat (P0, P1, MAE). Her bar
+# ILK basarisiz adiminin ret sinifini ve mesajini (skalerle birebir) tasir; sonraki adimlar o bar icin hesaplanmaz.
+#   - Pencereler, hesaplanabilirlik ve uygunluk `data.seri_kurucu`dan (G3, G6, G7; bit duzeyinde skalerle ayni).
+#   - Plan skaler `pencere.pozisyon_plani` ile, bar basina, P2a'nin plan onbellegiyle (`_PlanSerisi`; vektorlestirilmez).
+#   - Funding tamligi ve toplami P2a'nin TOPLU yolundan (`funding._planlar_tamlik_satirlari`, `_satirdan_toplam`).
+#   - Kosul (olay rolu): seri degerleri ve yapilandirmanin esiklerinden vektorel (`_kosul_dizisi`). G1 gecici istisnasi:
+#     skaler `sinyal_kosulu` dizi kurallari icin P2c'ye kadar kalir; ikisinin esitligi gercek veride ayrica sinanir (G14).
+#   - G10: `OlayOlusmaz` disindaki her istisna (`VeriHatasi` dahil) seri kurulumunu DURDURUR; hicbir zaman ret koduna
+#     ya da 0 bitine donusmez.
+#
+# Cikti `KapiSerisi`: imzali, degistirilemez; verisi yalnizca okuma yontemlerinden verilir ve her okuma erisim
+# denetimini (onay ve kesif baglami, grup, kume erisimi, donem isareti, satir imzasi) yeniden calistirir (G11).
+
+_SERI_GIZLI = object()
+SERI_AZAMI_GIRDI = 32
+_SERI_BELLEGI: OrderedDict = OrderedDict()
+_SERI_KILIDI = threading.Lock()
+
+
+class SeriEskidi(RuntimeError):
+    """Seri kuruldugu donem isaretinden SONRA okunmak istendi (kesif ya da onay kosusu acildi veya kapandi; G11).
+    Programlama hatasidir: seri yeniden kurulmalidir."""
+
+
+class KontrolAdayiHatasi(RuntimeError):
+    """Ornekleme adayinin (biti 1 olan K2/K1 bari) onayli pozisyonu kurulamadi (G9): SERT hatadir, yeniden cekim
+    yapilmaz."""
+
+
+@dataclass(frozen=True)
+class _KapiBaglami:
+    """Bir seri biriminin kimligi ve kapinin kurulum denetimlerinden gecmis girdileri (cagiran sinir vermez)."""
+
+    hipotez: str
+    yapilandirma: MappingProxyType
+    yapilandirma_kimligi: str
+    rol: str
+    bar: str
+    ufuk: int
+    birincil_ufuk: int
+    kume: str
+    kume_baslangic: pd.Timestamp
+    kume_bitis: pd.Timestamp
+    sembol: str
+    donem_no: object
+    donem_baslangic: pd.Timestamp
+    donem_bitis: pd.Timestamp
+    donem_funding_yok: bool
+
+    @property
+    def onay(self) -> bool:
+        return self.kume in config.ONAY_KUMELERI
+
+
+def _kapi_baglami(hipotez, yapilandirma, rol, *, kume, sembol, donem_no, ufuk=None) -> _KapiBaglami:
+    """Kurulum denetimleri, skalerdeki sirayla: hipotez -> izgara -> ufuk bagi, yapilandirma, rol, kume adi, onay ve
+    kesif baglami, donem kaydi, grup uyeligi (G9, G11). `ufuk` None ise birincil ufuk."""
+    tanim = pencere_modulu.hipotez_ufuklari(hipotez)
+    ufuk_degeri = tanim.birincil if ufuk is None else ufuk
+    pencere_modulu.hipotez_baglamini_dogrula(hipotez, tanim.bar, ufuk_degeri, tanim.birincil)
+    gecerli = sinyal_modulu.yapilandirma_dogrula(hipotez, yapilandirma)
+    kimlik = sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli)
+    rol = _rol_dogrula(rol)
+    kume_baslangic, kume_bitis = kume_sinirlari(kume)
+    split_modulu.onay_baglami_dogrula(hipotez, kume, kimlik)
+    split_modulu.kesif_baglami_dogrula(kume)
+    donem_baslangic, donem_bitis, donem_funding_yok = donem_kaydi(sembol, donem_no)
+    grup_dogrula(sembol, kume)
+    return _KapiBaglami(hipotez, gecerli, kimlik, rol, tanim.bar, int(ufuk_degeri), int(tanim.birincil), kume,
+                        kume_baslangic, kume_bitis, sembol, donem_no, donem_baslangic, donem_bitis,
+                        bool(donem_funding_yok))
+
+
+def _ret(hata: pencere_modulu.OlayOlusmaz) -> tuple:
+    """Ret satiri: (isaret, sinif, argumanlar). Okumada AYNI sinif ve AYNI mesajla yeni bir nesne kurulur."""
+    return ("ret", type(hata), hata.args)
+
+
+def _sonucu_ver(sonuc):
+    """Satirin sonucu: onayli pozisyon doner ya da ret yukseltilir (yeni nesne, ayni sinif ve mesaj)."""
+    if isinstance(sonuc, OnaylanmisPozisyon):
+        return sonuc
+    _, sinif, argumanlar = sonuc
+    raise sinif(*argumanlar)
+
+
+def _sonlu_dizi(d) -> np.ndarray:
+    return np.isfinite(np.asarray(d, dtype=float))
+
+
+# --- Olay rolunun sinyal degerleri ve vektorel kosul -----------------------------------------------------------------
+
+def _olay_degerleri(b: _KapiBaglami, z: pd.DatetimeIndex, capalar, m4, gunluk, funding) -> dict[str, np.ndarray]:
+    """Olay rolunun `sinyal.DEGER_ADLARI` degerleri, `z`nin her bari icin (seri kuruculari; skalerle bit duzeyinde ayni).
+    H1'de `capalar` bar basina pump bari (ayni uzunlukta); tepe penceresinin bar sayisi once skalerin TEK kuraliyla
+    (`sinyal.h1_tepe_bar_sayisi`) denetlenir: tanimsiz teyit skalerle ayni sinif ve mesajla `TepePenceresiKurulamaz`."""
+    sinir = {"kume_baslangic": b.kume_baslangic, "donem_baslangic": b.donem_baslangic}
+    if b.hipotez == "H1":
+        c = pd.DatetimeIndex(capalar)
+        for pump, teyit in zip(c, z):
+            sinyal_modulu.h1_tepe_bar_sayisi(pump, teyit)
+        essiz = c.unique().sort_values()
+        sira = essiz.get_indexer(c)
+        return {
+            "pump_dip": seri_kurucu_modulu.h1_dip(m4, essiz, **sinir)[sira],
+            "pump_hacim_6": seri_kurucu_modulu.h1_hacim_6(m4, essiz, **sinir)[sira],
+            "pump_hacim_medyani_180": seri_kurucu_modulu.h1_hacim_medyani_180(m4, essiz, **sinir)[sira],
+            "tepe": seri_kurucu_modulu.h1_tepe(m4, c, z, **sinir),
+            "pump_kapanis": seri_kurucu_modulu.kapanis(m4, essiz, config.BAR_4H)[sira],
+            "kapanis": seri_kurucu_modulu.kapanis(m4, z, config.BAR_4H),
+            "yuksek": seri_kurucu_modulu.yuksek(m4, z, config.BAR_4H),
+        }
+    if b.hipotez == "H2":
+        return {
+            "funding_24s": seri_kurucu_modulu.h2_funding_24s(funding, z, kume_baslangic=b.kume_baslangic,
+                                                             kume_bitis=b.kume_bitis,
+                                                             donem_baslangic=b.donem_baslangic),
+            "kapanis_30_once": seri_kurucu_modulu.kapanis_30_once(m4, z, config.BAR_4H, **sinir),
+            "kirilim_dip": seri_kurucu_modulu.h2_kirilim_dip(m4, z, b.yapilandirma["k"], **sinir),
+            "kapanis": seri_kurucu_modulu.kapanis(m4, z, config.BAR_4H),
+        }
+    return {
+        "hacim_medyani_30g": seri_kurucu_modulu.h3_hacim_medyani_30g(gunluk, z, **sinir),
+        "hacim_medyani_120_31": seri_kurucu_modulu.h3_hacim_medyani_120_31(gunluk, z, **sinir),
+        "sma50": seri_kurucu_modulu.h3_sma50(gunluk, z, **sinir),
+        "kapanis_30_once": seri_kurucu_modulu.kapanis_30_once(gunluk, z, config.BAR_1D, **sinir),
+        "kapanis": seri_kurucu_modulu.kapanis(gunluk, z, config.BAR_1D),
+    }
+
+
+def _kosul_dizisi(hipotez: str, yapilandirma, degerler: dict[str, np.ndarray]) -> np.ndarray:
+    """Hipotezin §5 kosullari, her bar icin (VEKTOREL KOSUL; skaler `sinyal.kosullar_saglandi` ile ayni esitsizlikler,
+    ayni esik yonleri, ayni sabitler). Degerlerin TAMAMI sonlu olmali (cagiran tam barlari verir). Once FIYAT degerleri
+    sinanir: sifir, negatif ya da altnormal bir fiyat skalerin tek fonksiyonuyla (`sinyal._pozitif`, ayni ad ve mesaj)
+    `VeriHatasi` verir (G10: seri durur). Elemanter islemler (bolme, carpma, karsilastirma) IEEE 754 cift duyarlikta
+    Python float'iyla bit duzeyinde aynidir; skaler sabitler (`1 - δ` gibi) once Python float'i olarak kurulur."""
+    d = {a: np.asarray(degerler[a], dtype=float) for a in sinyal_modulu.DEGER_ADLARI[hipotez]}
+    n = len(next(iter(d.values()))) if d else 0
+    if n:
+        bozuk = np.zeros(n, dtype=bool)
+        for a in sinyal_modulu.FIYAT_DEGERLERI[hipotez]:
+            bozuk |= (d[a] <= 0) | (d[a] < sys.float_info.min)
+        if bozuk.any():
+            j = int(np.nonzero(bozuk)[0][0])
+            for a in sinyal_modulu.FIYAT_DEGERLERI[hipotez]:
+                sinyal_modulu._pozitif(float(d[a][j]), f"{hipotez} sinyal degeri {a}")
+    y = yapilandirma
+    if hipotez == "H1":
+        teta = float(y["theta"])
+        delta_carpani = 1 - float(y["delta"])
+        pump = (d["pump_kapanis"] / d["pump_dip"] - 1 >= teta) \
+            & (d["pump_hacim_6"] >= config.H1_HACIM_CARPANI * d["pump_hacim_medyani_180"])
+        teyit = (d["kapanis"] <= d["tepe"] * delta_carpani) & (d["yuksek"] < d["tepe"])
+        return np.asarray(pump & teyit, dtype=bool)
+    if hipotez == "H2":
+        return np.asarray((d["funding_24s"] >= float(y["phi"]))
+                          & (d["kapanis"] / d["kapanis_30_once"] - 1 >= config.H2_YUKSELIS_ESIGI)
+                          & (d["kapanis"] < d["kirilim_dip"]), dtype=bool)
+    nu_carpani = 1 - float(y["nu"])
+    eksi_tau = -float(y["tau"])
+    return np.asarray((d["hacim_medyani_30g"] <= nu_carpani * d["hacim_medyani_120_31"])
+                      & (d["kapanis"] < d["sma50"])
+                      & (d["kapanis"] / d["kapanis_30_once"] - 1 <= eksi_tau), dtype=bool)
+
+
+def _gecersizlik_tabani(b: _KapiBaglami, z: pd.DatetimeIndex, degerler: dict, secim: np.ndarray, m4, gunluk) -> np.ndarray:
+    """Gecersizlik seviyesinin tabani (skaler `sinyal.gecersizlik_seviyesi`): H1'de tepe (ayni pencere), H2'de 4h,
+    H3'te 1d `max(high[t-30..t])`."""
+    if b.hipotez == "H1":
+        return np.asarray(degerler["tepe"], dtype=float)[secim]
+    sinir = {"kume_baslangic": b.kume_baslangic, "donem_baslangic": b.donem_baslangic}
+    cerceve = m4 if b.hipotez == "H2" else gunluk
+    return seri_kurucu_modulu.yuksek_30_max(cerceve, z[secim], b.bar, **sinir)
+
+
+# --- Karar cekirdegi -----------------------------------------------------------------------------------------------
+
+def _kapi_satirlari(b: _KapiBaglami, sorgu: pd.DatetimeIndex, capalar=None) -> list:
+    """TEK KARAR CEKIRDEGI: `sorgu`nun her bari icin onayli pozisyon ya da ret satiri (`_ret`). `OlayOlusmaz` disindaki
+    her istisna yukari cikar (G10). `sorgu` UTC, kesin artan; `capalar` yalnizca H1 olay rolunde, `sorgu` ile ayni
+    uzunlukta pump barlari. Veri kapinin tek veri yolundan (`_karar_girdisi`); cagiran cerceve vermez."""
+    mumlar_4h, funding, gunluk_mumlar, plan_serisi = _karar_girdisi(
+        b.sembol, b.kume, kume_baslangic=b.kume_baslangic, kume_bitis=b.kume_bitis,
+        donem_baslangic=b.donem_baslangic, donem_bitis=b.donem_bitis)
+    zamanlar = _mum_zamanlari(mumlar_4h)
+    _gunluk_hacim(gunluk_mumlar)
+    gunluk_acilis = pd.DatetimeIndex(gunluk_mumlar["open_time"])
+    sorgu = pd.DatetimeIndex(sorgu)
+    n = len(sorgu)
+    sonuc: list = [None] * n
+    planlar: list = [None] * n
+    capali = b.hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and b.rol == "olay"
+    if capali and (capalar is None or len(capalar) != n):
+        raise TypeError(f"{b.hipotez} olay rolunde her sorgu bari icin bir capa (pump bari) zorunludur (on-kayit §5 H1).")
+
+    # 1. Sinyal bari: plan (P2a plan onbellegi) ve t barinin donem ici seride varligi (KS D-B3).
+    seri_t = zamanlar if b.bar == config.BAR_4H else gunluk_acilis
+    for i, t in enumerate(sorgu):
+        try:
+            plan = plan_serisi.al(
+                (b.bar, b.ufuk, b.birincil_ufuk, t),
+                lambda: pencere_modulu.pozisyon_plani(
+                    zamanlar, t, b.ufuk, b.bar, birincil_ufuk=b.birincil_ufuk, kume_baslangic=b.kume_baslangic,
+                    kume_bitis=b.kume_bitis, donem_baslangic=b.donem_baslangic, donem_bitis=b.donem_bitis))
+        except pencere_modulu.OlayOlusmaz as hata:
+            sonuc[i] = _ret(hata)
+            continue
+        # Plan onbellegi anahtar-plan tutarliligi (sizinti S-19; RESULTS §14.49): onbellekten donen imzali plan SORULAN
+        # anahtara ait olmali. Degilse programlama hatasidir (G10: seri durur); baska bir barin plani t'nin karari
+        # olarak donemez.
+        if (plan.sinyal_zamani != t or plan.bar != b.bar or plan.ufuk != b.ufuk or plan.birincil_ufuk != b.birincil_ufuk
+                or plan.kume_baslangic != b.kume_baslangic or plan.kume_bitis != b.kume_bitis
+                or plan.donem_baslangic != b.donem_baslangic or plan.donem_bitis != b.donem_bitis):
+            raise ValueError(f"Plan onbellegi tutarsiz: {t} anahtarina baska bir plan ({plan.sinyal_zamani}, ufuk "
+                             f"{plan.ufuk}) kayitli (sizinti S-19).")
+        if pencere_modulu.ayni_andaki_bar(seri_t, plan.sinyal_zamani) is None:
+            sonuc[i] = _ret(SinyalBariYok(f"{b.sembol}: sinyal bari {plan.sinyal_zamani} ({b.bar}) donem ici seride "
+                                          "yok; olay ya da kontrol olusmaz."))
+            continue
+        planlar[i] = plan
+
+    def kalan() -> np.ndarray:
+        return np.asarray([i for i in range(n) if sonuc[i] is None], dtype=np.int64)
+
+    gecersizlik = np.full(n, np.nan)
+    # 2-3. Sinyal pencereleri. Kontrol rolu: yalnizca capasiz pencerelerin hesaplanabilirligi (on-kayit §6 rev.12);
+    # KOSUL HESAPLANMAZ (G8). Olay rolu: butun degerlerin tamligi, kosul ve gecersizlik seviyesi.
+    aktif = kalan()
+    if len(aktif):
+        z = sorgu[aktif]
+        if b.rol in KONTROL_ROLLERI:
+            k = b.yapilandirma["k"] if b.hipotez == "H2" else None
+            pencereler = seri_kurucu_modulu.capasiz_pencereler(
+                b.hipotez, k, z, mumlar_4h=mumlar_4h, gunluk=gunluk_mumlar, funding=funding,
+                kume_baslangic=b.kume_baslangic, kume_bitis=b.kume_bitis, donem_baslangic=b.donem_baslangic)
+            adlar = sinyal_modulu.CAPASIZ_PENCERELER[b.hipotez]
+            sonlu = {a: _sonlu_dizi(pencereler[a]) for a in adlar}
+            for j, i in enumerate(aktif):
+                eksik = [a for a in adlar if not sonlu[a][j]]
+                if eksik:
+                    sonuc[i] = _ret(SinyalPenceresiTamDegil(
+                        f"Kontrol barinda capasiz sinyal penceresi tam degil: {eksik} (on-kayit §6 "
+                        f"rev.12); {planlar[i].sinyal_zamani} barinda kontrol olusmaz."))
+        else:
+            c = None if not capali else pd.DatetimeIndex([capalar[i] for i in aktif])
+            degerler = _olay_degerleri(b, z, c, mumlar_4h, gunluk_mumlar, funding)
+            adlar = sinyal_modulu.DEGER_ADLARI[b.hipotez]
+            sonlu = {a: _sonlu_dizi(degerler[a]) for a in adlar}
+            tam = np.ones(len(aktif), dtype=bool)
+            for j, i in enumerate(aktif):
+                eksik = [a for a in adlar if not sonlu[a][j]]
+                if eksik:
+                    tam[j] = False
+                    sonuc[i] = _ret(SinyalPenceresiTamDegil(
+                        f"Sinyal penceresi tam degil: {eksik} (on-kayit §2 'Tamlik sarti'); "
+                        f"{planlar[i].sinyal_zamani} barinda olay olusmaz."))
+            kosul = np.zeros(len(aktif), dtype=bool)
+            if tam.any():
+                kosul[tam] = _kosul_dizisi(b.hipotez, b.yapilandirma, {a: degerler[a][tam] for a in adlar})
+            for j, i in enumerate(aktif):
+                if tam[j] and not kosul[j]:
+                    sonuc[i] = _ret(SinyalKosuluSaglanmadi(
+                        f"{b.hipotez} kosullari {planlar[i].sinyal_zamani} barinda saglanmadi (on-kayit §5); olay "
+                        "olusmaz."))
+            # Gecersizlik seviyesi (on-kayit §5 rev.13; F4 kaydi): kosulu saglayan barlarda; hesaplanamazsa acik hata.
+            if kosul.any():
+                taban = _gecersizlik_tabani(b, z, degerler, kosul, mumlar_4h, gunluk_mumlar)
+                for deger, i in zip(taban, aktif[kosul]):
+                    if not math.isfinite(float(deger)):
+                        _sonlu(float("nan"), "gecersizlik seviyesi")
+                    sinyal_modulu._pozitif(float(deger), f"{b.hipotez} gecersizlik seviyesinin tabani")
+                    gecersizlik[i] = _sonlu(float(deger) * config.GECERSIZLIK_CARPANI, "gecersizlik seviyesi")
+
+    # 4. Uygunluk (on-kayit §4 rev.9): esik gecilmeli, hesaplanabilmis olmasi yetmez.
+    aktif = kalan()
+    if len(aktif):
+        tablo = seri_kurucu_modulu.uygunluk(
+            gunluk_mumlar, sorgu[aktif], b.bar, donem_baslangic=b.donem_baslangic, donem_bitis=b.donem_bitis,
+            kume_baslangic=b.kume_baslangic, asgari_hacim=eligibility_modulu.hacim_esigi(b.bar),
+            asgari_listeleme_yasi_gun=config.ASGARI_LISTELEME_YASI_GUN)
+        for uygun, i in zip(tablo["uygun"].to_numpy(dtype=bool), aktif):
+            if not uygun:
+                sonuc[i] = _ret(UygunDegil(f"Sinyal bari {planlar[i].sinyal_zamani} ({b.bar}) uygun degil: listeleme "
+                                           "yasi ya da medyan hacim esigi gecilmiyor (on-kayit §2 'Uygunluk')."))
+
+    # 5. Funding'i bulunmayan donem (on-kayit §2): tablodaki bayraktan.
+    aktif = kalan()
+    if len(aktif) and b.donem_funding_yok:
+        for i in aktif:
+            sonuc[i] = _ret(FundingTamDegil(f"{b.sembol} donem {b.donem_no}: evren tablosunda funding kaydi yok "
+                                            "(on-kayit §2 'Funding'i bulunmayan donemler'); olay ya da kontrol "
+                                            "olusmaz."))
+
+    # 6-7. Funding tamligi ve toplami (P2a toplu yolu), fiyatlar ve MAE penceresi.
+    aktif = kalan()
+    if len(aktif):
+        tamliklar = funding_modulu._planlar_tamlik_satirlari(funding, [planlar[i] for i in aktif])
+        for tamlik, i in zip(tamliklar, aktif):
+            plan = planlar[i]
+            ayrinti = tamlik.satir
+            if not bool(ayrinti["tam"]):
+                sonuc[i] = _ret(FundingTamDegil(f"Pozisyonun funding'i tam degil: giris {plan.giris}, cikis "
+                                                f"{plan.cikis_ani} ({plan.cikis_turu}); olay brut dahil hicbir "
+                                                "hesapta olusmaz."))
+                continue
+            toplam = funding_modulu._satirdan_toplam(funding, plan, tamlik)
+            if math.isnan(toplam):
+                sonuc[i] = _ret(FundingTamDegil(f"Pozisyonun funding'i hesaplanamadi (oran NaN): giris {plan.giris}."))
+                continue
+            _sonlu(toplam, "funding toplami")
+            p0 = _pozitif_fiyat(_bar_degeri(mumlar_4h, zamanlar, plan.giris, "open"), "P0")
+            p1 = _pozitif_fiyat(_bar_degeri(mumlar_4h, zamanlar, plan.cikis.zaman, plan.cikis.fiyat_alani), "P1")
+            _mae_tepesi(mumlar_4h, zamanlar, plan, p1)
+            poz = OnaylanmisPozisyon(plan, p0, p1, toplam, kuyruk_kismi=bool(ayrinti["kuyruk_kismi"]),
+                                     son_esitlik_affi=bool(ayrinti["son_esitlik_affi"]),
+                                     capa_aralik_saat=float(ayrinti["capa_aralik_saat"]),
+                                     son_aralik_saat=float(ayrinti["son_aralik_saat"]),
+                                     tek_ritim=bool(ayrinti["tek_ritim"]),
+                                     funding_ritmi_saat=float(ayrinti["funding_ritmi_saat"]),
+                                     karisik_ritim=bool(ayrinti["karisik_ritim"]),
+                                     ritim_sinifi=ayrinti["ritim_sinifi"],
+                                     gecersizlik_seviyesi=float(gecersizlik[i]), hipotez=b.hipotez,
+                                     yapilandirma=b.yapilandirma_kimligi, rol=b.rol,
+                                     capa=capalar[i] if capali else None, sembol=b.sembol,
+                                     kume=b.kume, donem_no=int(b.donem_no))
+            sonuc[i] = replace(poz, _imza=_imza(poz))
+    return sonuc
+
+
+# --- Seri nesnesi ve onbellek (G11) --------------------------------------------------------------------------------
+
+def _satir_imzasi(kimlik: tuple, isaret: int, zaman_ns: int, sonuc) -> int:
+    return hash((_SERI_GIZLI, kimlik, isaret, zaman_ns, sonuc))
+
+
+class KapiSerisi:
+    """`kapi_serisi`nin ciktisi: bir (kume, sembol, donem, hipotez, yapilandirma, rol, capa, bar turu, ufuk, birincil
+    ufuk) biriminin satirlari. Satir = barin onayli pozisyonu ya da ret sinifi ve mesaji (skalerle birebir).
+
+    IMZALI VE DEGISTIRILEMEZ (G11): yalnizca `kapi_serisi` kurar (gizli belirtec); her satirin imzasi kimlik, donem
+    isareti, zaman ve sonucu baglar. Nitelik atamasi ve silme reddedilir. VERI YALNIZCA OKUMA YONTEMLERINDEN verilir
+    (`icerir`, `sonuc`, `pozisyon`, `zamanlar`, `onay_bitleri`) ve her yontem HER CAGRIDA erisim denetimini calistirir:
+    onay ve kesif baglami, grup uyeligi, kume erisimi (`split.onay_erisimi_denetle`), donem isareti (kosu acildi ya da
+    kapandiysa `SeriEskidi`) ve okunan satirin imzasi. Kilit dikkatsiz bir kullanima karsi korur, kararli bir atlatmaya
+    (ör. `object.__setattr__`, gizli belirtece erisim) karsi degil (CLAUDE.md "Koruma katmani" ile ayni tutum)."""
+
+    __slots__ = ("_KapiSerisi__kimlik", "_KapiSerisi__isaret", "_KapiSerisi__zamanlar", "_KapiSerisi__sira",
+                 "_KapiSerisi__sonuclar", "_KapiSerisi__imzalar", "_KapiSerisi__baglam")
+
+    def __init__(self, gizli, baglam: _KapiBaglami, kimlik: tuple, isaret: int, zamanlar: pd.DatetimeIndex, sonuclar):
+        if gizli is not _SERI_GIZLI:
+            raise TypeError("KapiSerisi yalnizca `pozisyon.kapi_serisi` ile kurulur (imzali seri; G11).")
+        ns = tuple(int(x) for x in pd.DatetimeIndex(zamanlar).asi8)
+        sonuclar = tuple(sonuclar)
+        if len(ns) != len(sonuclar):
+            raise ValueError("KapiSerisi: zaman ve sonuc sayilari esit olmali.")
+        sett = object.__setattr__
+        sett(self, "_KapiSerisi__baglam", baglam)
+        sett(self, "_KapiSerisi__kimlik", kimlik)
+        sett(self, "_KapiSerisi__isaret", int(isaret))
+        sett(self, "_KapiSerisi__zamanlar", ns)
+        sett(self, "_KapiSerisi__sira", MappingProxyType({z: i for i, z in enumerate(ns)}))
+        sett(self, "_KapiSerisi__sonuclar", sonuclar)
+        sett(self, "_KapiSerisi__imzalar", tuple(_satir_imzasi(kimlik, int(isaret), z, s) for z, s in zip(ns, sonuclar)))
+
+    def __setattr__(self, ad, deger):
+        raise AttributeError("KapiSerisi degistirilemez (G11).")
+
+    def __delattr__(self, ad):
+        raise AttributeError("KapiSerisi degistirilemez (G11).")
+
+    def __reduce__(self):
+        raise TypeError("KapiSerisi kopyalanamaz ya da serilestirilemez (G11); alt surec kendi serisini kurar.")
+
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, bellek):
+        return self
+
+    def __len__(self) -> int:
+        self._denetle()
+        return len(self.__zamanlar)
+
+    def __repr__(self) -> str:
+        return f"KapiSerisi({self.__kimlik[:7]})"
+
+    @property
+    def kimlik(self) -> tuple:
+        """(kume, sembol, donem, hipotez, yapilandirma kimligi, rol, capa anahtari, bar turu, ufuk, birincil ufuk)."""
+        return self.__kimlik
+
+    def _denetle(self) -> None:
+        b = self.__baglam
+        if kume_bellegi.donem_isareti() != self.__isaret:
+            raise SeriEskidi(f"{self.__kimlik[:6]} serisi bir kosu acilisindan ya da kapanisindan once kuruldu; okuma "
+                             "reddedildi (G11 donem isareti). Seri yeniden kurulmalidir.")
+        split_modulu.onay_baglami_dogrula(b.hipotez, b.kume, b.yapilandirma_kimligi)
+        split_modulu.kesif_baglami_dogrula(b.kume)
+        grup_dogrula(b.sembol, b.kume)
+        split_modulu.onay_erisimi_denetle(b.kume, b.onay)
+
+    def _satir(self, i: int):
+        z, s = self.__zamanlar[i], self.__sonuclar[i]
+        if self.__imzalar[i] != _satir_imzasi(self.__kimlik, self.__isaret, z, s):
+            raise ValueError("KapiSerisi satiri degistirilmis (imza tutmuyor; G11).")
+        if isinstance(s, OnaylanmisPozisyon):
+            onay_dogrula(s)
+        return s
+
+    def _sira_no(self, t) -> int | None:
+        zaman = pencere_modulu.utc_zamani(t, "t")
+        return self.__sira.get(int(zaman.value))
+
+    def icerir(self, t) -> bool:
+        """t (kesin zaman esitligiyle) serinin bir satiri mi?"""
+        self._denetle()
+        return self._sira_no(t) is not None
+
+    def sonuc(self, t):
+        """t satirinin sonucu: onayli pozisyon doner ya da ret (skalerle ayni sinif ve mesaj) yukseltilir. t seride
+        yoksa KeyError."""
+        self._denetle()
+        i = self._sira_no(t)
+        if i is None:
+            raise KeyError(f"{t} bu serinin bir satiri degil.")
+        return _sonucu_ver(self._satir(i))
+
+    def pozisyon(self, t) -> OnaylanmisPozisyon:
+        """Ornekleme adayinin (biti 1 olan bar) onayli pozisyonu. Satir yoksa ya da ret ise `KontrolAdayiHatasi`: SERT
+        hata, yeniden cekim yapilmaz (G9)."""
+        self._denetle()
+        i = self._sira_no(t)
+        if i is None:
+            raise KontrolAdayiHatasi(f"{t} bu serinin bir satiri degil; aday kurulamadi (G9).")
+        s = self._satir(i)
+        if not isinstance(s, OnaylanmisPozisyon):
+            raise KontrolAdayiHatasi(f"{t} adayi onayli degil ({s[1].__name__}); aday kurulamadi (G9).")
+        return s
+
+    def zamanlar(self) -> pd.DatetimeIndex:
+        self._denetle()
+        return pd.DatetimeIndex(np.asarray(self.__zamanlar, dtype="int64"), tz="UTC") if self.__zamanlar else \
+            pd.DatetimeIndex([], tz="UTC")
+
+    def onay_bitleri(self) -> np.ndarray:
+        """Her satir icin 1 = onayli pozisyon, 0 = ret (kapinin BUTUN kosullari; G9). Her satirin imzasi denetlenir."""
+        self._denetle()
+        return np.asarray([isinstance(self._satir(i), OnaylanmisPozisyon) for i in range(len(self.__zamanlar))],
+                          dtype=bool)
+
+    def _ham_sonuclar(self) -> tuple:
+        """Ic kullanim (ikincil ufuk serisinin birincil ret satirlari): denetimli, imzasi dogrulanmis satirlar."""
+        self._denetle()
+        return tuple(self._satir(i) for i in range(len(self.__zamanlar)))
+
+
+def _seri_bellegini_temizle() -> None:
+    with _SERI_KILIDI:
+        _SERI_BELLEGI.clear()
+
+
+kume_bellegi.temizleyici_ekle(_seri_bellegini_temizle)
+
+
+def _seri_bellekten(anahtar: tuple, kur) -> KapiSerisi:
+    """Seri onbellegi: SABIT tanimlara (`_karar_girdisi`, `_PlanSerisi`, `_karar_verisi`) DOKUNMADAN, ayri bir anahtar
+    ve ayri bir LRU ile (G2, G11). Anahtar donem isaretini de tasir; kosu acilisi ve kapanisi (`kume_bellegi.temizle`)
+    onbellegi dusurur. Hata veren kurulum bellege yazilmaz (her cagrida yeniden olusur)."""
+    with _SERI_KILIDI:
+        seri = _SERI_BELLEGI.get(anahtar)
+        if seri is not None:
+            _SERI_BELLEGI.move_to_end(anahtar)
+    if seri is None:
+        seri = kur()
+        with _SERI_KILIDI:
+            if kume_bellegi.donem_isareti() == anahtar[-1]:
+                _SERI_BELLEGI[anahtar] = seri
+                _SERI_BELLEGI.move_to_end(anahtar)
+                while len(_SERI_BELLEGI) > SERI_AZAMI_GIRDI:
+                    _SERI_BELLEGI.popitem(last=False)
+    return seri
+
+
+def _capa_hazirla(b: _KapiBaglami, capa, izgara: pd.DatetimeIndex):
+    """(satir zamanlari, satir basina capalar, capa anahtari). Capa YALNIZCA H1'in olay rolunde (`_capa_dogrula`):
+      - tek pump bari: satirlar izgaranin o capanin izleme penceresindeki barlaridir (`(capa, capa + 12 x 4h]`, 4h
+        izgarasinda; on-kayit §5 H1 madde 3); pencere disindaki bar bu capanin teyit adayi degildir;
+      - izgarayla ayni uzunlukta dizi: teyit basina pump bari; satirlar izgaranin butun barlari. Tanimsiz bir teyit
+        (12 bardan uzak) skalerle ayni sinifla durur (G10)."""
+    capali = b.hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and b.rol == "olay"
+    if not capali:
+        _capa_dogrula(b.hipotez, b.rol, capa)
+        return izgara, None, None
+    if capa is None:
+        raise TypeError(f"{b.hipotez} olay rolunde capa (pump bari) zorunludur (on-kayit §5 H1).")
+    if isinstance(capa, (pd.DatetimeIndex, np.ndarray, list, tuple, pd.Series)):
+        c = pd.DatetimeIndex(capa)
+        if len(c) != len(izgara):
+            raise ValueError("capa dizisi hipotez izgarasiyla ayni uzunlukta olmali (teyit basina pump bari).")
+        if len(c) and (c.tz is None or bool(c.isna().any())):
+            raise TypeError("capa dizisi UTC zaman damgalarindan olusmali (NaT ve saat dilimsiz zaman verilemez).")
+        c = c.tz_convert("UTC") if len(c) else pd.DatetimeIndex([], tz="UTC")
+        anahtar = ("dizi", len(c), hashlib.sha256(np.asarray(c.asi8, dtype="int64").tobytes()).hexdigest())
+        return izgara, list(c), anahtar
+    tek = _capa_dogrula(b.hipotez, b.rol, capa)
+    fark = izgara - tek
+    adim = pencere_modulu.ADIM_4H
+    pencerede = np.asarray((fark % adim == pd.Timedelta(0)) & (fark >= adim)
+                           & (fark <= config.H1_IZLEME_BAR * adim), dtype=bool)
+    satirlar = izgara[pencerede]
+    return satirlar, [tek] * len(satirlar), ("tek", int(tek.value))
+
+
+def kapi_serisi(hipotez, yapilandirma, rol, *, kume, sembol, donem_no, capa=None, ufuk=None) -> KapiSerisi:
+    """TEK SERI KAPI (performans 2b-2; plan v3 G1). Bir (sembol, donem, kume) biriminin hipotez izgarasindaki BUTUN
+    barlari icin karar: her satir onayli pozisyon (`OnaylanmisPozisyon`) ya da ret sinifi ve mesaji; ikisi de skalerle
+    birebir ayni (dondurulmus skaler referansin `olay_karari`si). Olay, K1 ve K2 (H1'in capali olay rolu dahil)
+    ayni cekirdekten (`_kapi_satirlari`) gecer.
+
+    Imza (onerilen imza; `capa` H1 olay rolunde tek pump bari ya da izgarayla ayni uzunlukta dizi):
+      - `hipotez`, `yapilandirma`, `rol`: olay_karari ile ayni anlam.
+      - `kume`, `sembol`, `donem_no`: KIMLIK. Cagiran cerceve, sinir ya da izgara vermez; veriyi kapi `_karar_verisi` /
+        `_karar_girdisi` ile kendisi yukler, izgarayi hipotez izgarasi yardimcisindan alir (G20).
+      - `ufuk`: None = birincil ufuk; ikincil ufuk verilirse once BIRINCIL seri kurulur ve birincil ufukta reddedilen
+        bar ayni retle doner (skalerle ayni); onaylanan barlar ikincil ufkun kendi plani, funding'i ve fiyatlariyla
+        yeniden degerlendirilir. Ikincil seri birincil serinin POZISYONUNU okumaz (G11).
+    Esikler on-kayit degerleridir (`eligibility.hacim_esigi`, `config.ASGARI_LISTELEME_YASI_GUN`).
+
+    Kurulum ve HER okuma baglam ve grup denetiminden gecer (G9, G11). Onbellek anahtari: kume, sembol, donem, hipotez,
+    yapilandirma kimligi, rol, capa anahtari, bar turu, ufuk, birincil ufuk ve donem isareti. `OlayOlusmaz` disindaki her
+    istisna kurulumu durdurur ve yukari cikar (G10). Getiri hesaplamaz."""
+    b = _kapi_baglami(hipotez, yapilandirma, rol, kume=kume, sembol=sembol, donem_no=donem_no, ufuk=ufuk)
+    # Capa veri yuklenmeden once denetlenir (skalerdeki sira): kontrol rollerinde ve H2/H3'te verilemez; H1 olay rolunde
+    # zorunludur. Dizi bicimi izgara uzunluguyla `_capa_hazirla`da denetlenir.
+    if b.hipotez not in sinyal_modulu.CAPALI_HIPOTEZLER or b.rol != "olay" or capa is None \
+            or not isinstance(capa, (pd.DatetimeIndex, np.ndarray, list, tuple, pd.Series)):
+        _capa_dogrula(b.hipotez, b.rol, capa)
+    izgara = hipotez_izgarasi_barlari(b.hipotez, kume=b.kume, sembol=b.sembol, donem_no=b.donem_no)
+    satirlar, capalar, capa_anahtari = _capa_hazirla(b, capa, izgara)
+    isaret = kume_bellegi.donem_isareti()
+    kimlik = (b.kume, b.sembol, int(b.donem_no), b.hipotez, b.yapilandirma_kimligi, b.rol, capa_anahtari, b.bar,
+              b.ufuk, b.birincil_ufuk)
+    anahtar = ("kapi_serisi", *kimlik, isaret)
+
+    def kur() -> KapiSerisi:
+        if b.ufuk == b.birincil_ufuk:
+            return KapiSerisi(_SERI_GIZLI, b, kimlik, isaret, satirlar, _kapi_satirlari(b, satirlar, capalar))
+        birincil = kapi_serisi(b.hipotez, b.yapilandirma, b.rol, kume=b.kume, sembol=b.sembol, donem_no=b.donem_no,
+                               capa=capa, ufuk=None)
+        once = birincil._ham_sonuclar()
+        gecen = np.asarray([i for i, s in enumerate(once) if isinstance(s, OnaylanmisPozisyon)], dtype=np.int64)
+        sonuclar = list(once)
+        if len(gecen):
+            alt = _kapi_satirlari(b, satirlar[gecen], None if capalar is None else [capalar[i] for i in gecen])
+            for i, s in zip(gecen, alt):
+                sonuclar[i] = s
+        return KapiSerisi(_SERI_GIZLI, b, kimlik, isaret, satirlar, sonuclar)
+
+    return _seri_bellekten(anahtar, kur)
+
+
+# --- K2 bit dizisi ve ornekleme adayi (G9; bu turda yalnizca uretilir ve sinanir, kullanimi P2c) ----------------------
+
+def k2_bitleri(hipotez, yapilandirma, *, kume, sembol, donem_no, zamanlar) -> np.ndarray:
+    """K2 rolunun bit dizisi: istenen her bar zamani icin 1 = kapinin BUTUN kosullarindan gecen K2 bari (G9).
+
+    Kapsam: baglam (onay, kesif), grup uyeligi (ACIK denetim), plan, t barinin varligi, capasiz pencereler, uygunluk,
+    funding'li donem, funding tamligi ve toplamin sonlulugu, P0 ve P1'in pozitifligi, MAE penceresinin sonlulugu
+    (`kapi_serisi(..., rol="K2")`). Hipotez izgarasinda olmayan zaman 0'dir (izgara karar adayidir; G20).
+
+    Kumenin gruplarina ait olmayan sembolun biti (ör. KESIF'te B grubu) ACIK GRUP DENETIMIYLE 0'dir: veri hic
+    yuklenmez; `split.yukle`nin bos cerceve dondurmesine dayanilmaz. Baglam denetimleri bu durumda da calisir."""
+    gecerli = sinyal_modulu.yapilandirma_dogrula(hipotez, yapilandirma)
+    kimlik = sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli)
+    kume_sinirlari(kume)
+    split_modulu.onay_baglami_dogrula(hipotez, kume, kimlik)
+    split_modulu.kesif_baglami_dogrula(kume)
+    donem_kaydi(sembol, donem_no)
+    istenen = pd.DatetimeIndex(zamanlar)
+    if len(istenen) and istenen.tz is None:
+        raise TypeError("zamanlar saat dilimsiz (tz-naive); tum zaman damgalari UTC olmali.")
+    gruplar, _, _ = split_modulu.kume_tanimi(kume)
+    if _kayitlar()[1].get(sembol) not in gruplar:
+        return np.zeros(len(istenen), dtype=bool)
+    seri = kapi_serisi(hipotez, gecerli, "K2", kume=kume, sembol=sembol, donem_no=donem_no)
+    bitler = seri.onay_bitleri()
+    sira = seri.zamanlar().get_indexer(istenen.tz_convert("UTC") if len(istenen) else istenen)
+    return np.asarray([bool(bitler[i]) if i >= 0 else False for i in sira], dtype=bool)
+
+
+def k2_aday_pozisyonu(hipotez, yapilandirma, *, kume, sembol, donem_no, t) -> OnaylanmisPozisyon:
+    """Ornekleme adayinin (biti 1) onayli pozisyonu. Kurulumda ya da okumada cikan HER hata yukari cikar (G9: sert
+    hata, yeniden cekim yapilmaz); aday artik onayli degilse `KontrolAdayiHatasi`."""
+    seri = kapi_serisi(hipotez, yapilandirma, "K2", kume=kume, sembol=sembol, donem_no=donem_no)
+    return seri.pozisyon(t)
+
+
+def _olay_kosulu_serisi(hipotez, yapilandirma, *, kume, sembol, donem_no, capa=None) -> np.ndarray:
+    """Kapinin olay rolundeki VEKTOREL KOSULU, hipotez izgarasinin her barinda: True / False / None (None = degerlerden
+    biri hesaplanamadi ya da H1 tepe penceresi o (pump, teyit) cifti icin tanimsiz; skaler `sinyal_kosulu` ile ayni
+    sozlesme). YALNIZCA gercek veri esitlik betigi icindir (G1 gecici istisnasi, G14: vektorel kosul ile skaler
+    `sinyal_kosulu` her barda karsilastirilir); karar vermez. Degerler ve kosul cekirdegin kullandigi AYNI
+    fonksiyonlardan (`_olay_degerleri`, `_kosul_dizisi`). H1'de `capa`: izgarayla ayni uzunlukta pump barlari."""
+    b = _kapi_baglami(hipotez, yapilandirma, "olay", kume=kume, sembol=sembol, donem_no=donem_no)
+    izgara = hipotez_izgarasi_barlari(b.hipotez, kume=b.kume, sembol=b.sembol, donem_no=b.donem_no)
+    mumlar_4h, funding, gunluk_mumlar, _ = _karar_girdisi(
+        b.sembol, b.kume, kume_baslangic=b.kume_baslangic, kume_bitis=b.kume_bitis,
+        donem_baslangic=b.donem_baslangic, donem_bitis=b.donem_bitis)
+    _mum_zamanlari(mumlar_4h)
+    sonuc = np.full(len(izgara), None, dtype=object)
+    gecerli = np.ones(len(izgara), dtype=bool)
+    c = None
+    if b.hipotez in sinyal_modulu.CAPALI_HIPOTEZLER:
+        c = pd.DatetimeIndex(capa)
+        if len(c) != len(izgara):
+            raise ValueError("capa dizisi hipotez izgarasiyla ayni uzunlukta olmali.")
+        fark = izgara - c
+        adim = pencere_modulu.ADIM_4H
+        gecerli = np.asarray((fark % adim == pd.Timedelta(0)) & (fark >= adim)
+                             & (fark <= config.H1_IZLEME_BAR * adim), dtype=bool)
+    if not gecerli.any():
+        return sonuc
+    z = izgara[gecerli]
+    degerler = _olay_degerleri(b, z, None if c is None else c[gecerli], mumlar_4h, gunluk_mumlar, funding)
+    adlar = sinyal_modulu.DEGER_ADLARI[b.hipotez]
+    tam = np.logical_and.reduce([_sonlu_dizi(degerler[a]) for a in adlar])
+    kosul = np.zeros(len(z), dtype=bool)
+    if tam.any():
+        kosul[tam] = _kosul_dizisi(b.hipotez, b.yapilandirma, {a: degerler[a][tam] for a in adlar})
+    yerel = np.full(len(z), None, dtype=object)
+    yerel[tam] = [bool(x) for x in kosul[tam]]
+    sonuc[gecerli] = yerel
+    return sonuc
 
 
 def pozisyon_fiyatlari(pozisyon) -> tuple[float, float]:
