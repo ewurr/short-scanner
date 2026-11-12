@@ -100,3 +100,17 @@ def test_D_C9_hata_dali_b_seri_birim_hatasi_referansta_karsiligi_var(dunya):
     assert all(v["hata"] == "ValueError" for v in sayi.values())
     assert all(v["uyusmayan_bar"] == 0 for v in sayi.values())
     assert sayi["kapanis"]["beklenmeyen_hata_referans"] == 1
+
+
+class _OlaganRet(pencere.OlayOlusmaz):
+    gerekce = "test_olagan_ret"
+
+
+def test_D_C10_referansin_olay_olusmaz_alt_sinifi_birimi_cokertmez(dunya):
+    m, _, g = dunya
+    hedef_t = tes._izgara("H1", m, g)[-60:][3]
+    sayi, z = _kos_ref("H1", dunya, _ref_kopyasi(hedef_t, _OlaganRet))
+    assert all(v["hata"] == "" and v["karsilastirilan_bar"] == len(z) for v in sayi.values())
+    assert sayi["kapanis"]["uyusmayan_bar"] == 1 and sayi["kapanis"]["beklenmeyen_hata_referans"] == 0
+    assert all(v["uyusmayan_bar"] == 0 for ad, v in sayi.items() if ad not in ("kapanis", "yuksek"))
+    assert sayi["yuksek"]["uyusmayan_bar"] == 1, "bar_degeri high icin de ayni barda olagan ret verir"

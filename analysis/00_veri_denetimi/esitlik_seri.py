@@ -180,6 +180,12 @@ def birim_karsilastir(hipotez: str, y, izgara, m4, fr, g, sinirlar, *, seri=seri
                 sayi[ad]["beklenmeyen_hata_referans"] += 1
                 if vektor is not None:
                     sayi[ad]["uyusmayan_bar"] += 1      # referans hata verdi, seri deger verdi
+            elif isinstance(r[ad], BaseException):
+                # D-C10 (RESULTS §14.49): referansin `OlayOlusmaz` alt sinifi (olagan ret) bir deger degildir. Eskiden
+                # `ayni(deger, istisna)` TypeError verip BIRIMI cokertiyordu (kapali yon, cikis 1). Artik bar olarak
+                # siniflandirilir: beklenmeyen hata degildir; seri deger verdiyse uyusmayan bardir.
+                if vektor is not None:
+                    sayi[ad]["uyusmayan_bar"] += 1
             elif vektor is not None and not ayni(vektor[ad][i], r[ad]):
                 sayi[ad]["uyusmayan_bar"] += 1
     if vektor is None:
