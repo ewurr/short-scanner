@@ -281,3 +281,43 @@ def test_D_C8_depoda_mevcut_ihlal_yok():
     from tarama_yardimcisi import seri_kurucu_ihlalleri
 
     assert seri_kurucu_ihlalleri() == []
+
+
+# --- D-C5: pencerelerin dis uclari ----------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("k", list(config.IZGARA["H2"]["k"]))
+def test_D_C5_kirilim_dip_dis_uclari_her_k_icin(k):
+    """`min(low[t-k..t-1])`: t HARIC, t-1 ve t-k DAHIL, t-(k+1) DISARIDA; her izgara k'si icin (3, 6, 12)."""
+    t = tsk.T4
+    def tek(j):
+        m = tsk.mumlar(bozuk=[t - H(j)])
+        z = pd.DatetimeIndex([t])
+        return sk.h2_kirilim_dip(m, z, k, **tsk.SINIR)[0], ref.h2_kirilim_dip(m, t, k, **tsk.SINIR)
+    for j, nan_beklenir in ((0, False), (1, True), (k, True), (k + 1, False)):
+        v, s = tek(j)
+        assert ayni(v, s), (k, j)
+        assert bool(np.isnan(v)) == nan_beklenir, (k, j)
+
+
+@pytest.mark.parametrize("ad", ["kapanis_30_once", "yuksek_30_max"])
+def test_D_C5_1d_31_barlik_pencerelerde_t_eksi_31_disarida(ad):
+    """1d `[t-30 .. t]`: t ve t-30 DAHIL (eksikse NaN), t-31 DISARIDA (eksikligi degeri degistirmez)."""
+    t = tsk.T1
+    temel = tsk._vektor_1d(tsk.gunluk(tsk.mumlar()), pd.DatetimeIndex([t]))[ad][0]
+    for j, nan_beklenir in ((0, True), (30, True), (31, False)):
+        g = tsk.gunluk(tsk.mumlar(bozuk=[t - G(j) + H(2)]))
+        v = tsk._vektor_1d(g, pd.DatetimeIndex([t]))[ad][0]
+        s = tsk._skaler_1d(g, [t])[ad][0]
+        assert ayni(v, s) and bool(np.isnan(v)) == nan_beklenir, j
+        if not nan_beklenir:
+            assert ayni(v, temel), j
+
+
+@pytest.mark.parametrize("ad", list(tsk.PENCERELER_1D))
+def test_D_C5_1d_konum_testinde_tam_pencere_sonlu(ad):
+    """`test_G3_1d_her_konumda_tek_eksik_gun_iki_tarafta_NaN` yalnizca NaN'i sinar; eksiksiz pencere iki tarafta da
+    SONLU olmali (aksi halde her konumdaki NaN kurulumdan gelebilirdi)."""
+    g = tsk.gunluk(tsk.mumlar())
+    v = tsk._vektor_1d(g, pd.DatetimeIndex([tsk.T1]))[ad][0]
+    s = tsk._skaler_1d(g, [tsk.T1])[ad][0]
+    assert np.isfinite(v) and ayni(v, s)
