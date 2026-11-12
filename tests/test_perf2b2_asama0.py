@@ -346,3 +346,44 @@ def test_D_C6_seri_kurucusunda_ikinci_uyelik_kopyasi_yok():
     for k in config.IZGARA["H2"]["k"]:
         v = sk.h2_kirilim_dip(tsk.mumlar(), pd.DatetimeIndex([tsk.T4]), float(k), **tsk.SINIR)
         assert ayni(v[0], ref.h2_kirilim_dip(tsk.mumlar(), tsk.T4, k, **tsk.SINIR))
+
+
+# --- D-C11: ortam kaydinda commit de tek kaynaktan ------------------------------------------------------------------
+
+def _calistir_modulu():
+    import importlib.util
+    import sys
+
+    spec = importlib.util.spec_from_file_location("_p2b2_calistir", tsk.KOK / "analysis/00_veri_denetimi/calistir.py")
+    modul = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = modul
+    spec.loader.exec_module(modul)
+    return modul
+
+
+def test_D_C11_commit_ve_agac_ayni_depodan_ve_kesif_kaydiyla_ayni_yoldan(tmp_path, monkeypatch):
+    """Test deposu kipinde commit test deposunun HEAD'idir (eskiden `KOK`un HEAD'i okunuyordu, agac ise test deposundan).
+    Surecin `GIT_DIR` / `GIT_WORK_TREE` ortami beyaz listeyle suzulur; commit ve kirli sayisi bundan etkilenmez."""
+    import subprocess
+
+    from data import split
+    from onay_yardimcisi import gecici_depo
+
+    depo = gecici_depo(tmp_path)
+    beklenen = subprocess.run(["git", "rev-parse", "HEAD"], cwd=depo, capture_output=True, text=True,
+                              check=True).stdout.strip()
+    calistir = _calistir_modulu()
+    monkeypatch.setenv("GIT_DIR", str(tsk.KOK / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(tsk.KOK))
+    durum = calistir.git_durumu()
+    assert durum["commit"] == beklenen == split.head_commit()
+    assert durum["kirli_sayisi"] == 0 and durum["bilinmiyor"] is False
+
+
+def test_D_C11_git_durumu_kendi_git_cagrisini_yapmaz():
+    import ast
+
+    kaynak = (tsk.KOK / "analysis/00_veri_denetimi/calistir.py").read_text(encoding="utf-8")
+    tanim = next(d for d in ast.walk(ast.parse(kaynak)) if isinstance(d, ast.FunctionDef) and d.name == "git_durumu")
+    adlar = {d.attr for d in ast.walk(tanim) if isinstance(d, ast.Attribute)}
+    assert "run" not in adlar and "head_commit" in adlar and "agac_kirli_sayisi" in adlar

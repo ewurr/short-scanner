@@ -1869,10 +1869,18 @@ def _dosya_sha256(yol) -> str | None:
         return None
 
 
+def head_commit() -> str | None:
+    """HEAD commit'inin TEK okuma yolu (RESULTS §14.49, D-C11): bagin beyaz listeli ortami (`_bag_git`), replace
+    referanslari yok sayilarak, `_depo()`dan. Kesif kaydi (`_kesif_kaydi_kur`) ve F1 denetim betiklerinin ortam kaydi
+    (`calistir.git_durumu`) bunu kullanir; boylece commit ve agac temizligi ayni depodan ve ayni ortamla okunur. Doner:
+    40 haneli kucuk harf onaltilik ozet; okunamazsa None (kapali yon)."""
+    head = _bag_git("rev-parse", "HEAD")
+    return head.strip() if head is not None and re.fullmatch(r"[0-9a-f]{40}", head.strip()) else None
+
+
 def _kesif_kaydi_kur(manifest_sha256: str | None) -> KesifKaydi:
     # Bagin ortami (S-5, S-6; RESULTS §14.44): kayit da bagla ayni depodan, replace referanslari yok sayilarak okunur.
-    head = _bag_git("rev-parse", "HEAD")
-    head = head.strip() if head is not None and re.fullmatch(r"[0-9a-f]{40}", head.strip()) else None
+    head = head_commit()
     # Agac temizligi tek kaynaktan (RESULTS §14.46; D-B1): `_agac_kirlilikleri` (status + ls-files -v + .gitignore'a
     # gore izlenmeyenler). Kayitta yalnizca sayi tutulur, dosya adi tutulmaz.
     kirli = _agac_kirlilikleri()
@@ -2124,6 +2132,8 @@ _KORUNAN_ADLAR = frozenset({
     "git_hazirlik", "_git_tani", "_eposta_maskele",
     # Performans 2b-1 (RESULTS §14.48): agac temizliginin acik sarmalayicisi (D-C2) ve yerel kimlik denetimi (D-C4).
     "agac_kirli_sayisi", "_KIMLIK_ANAHTARLARI", "_yerel_kimlik_eksikleri", "_kimlik_mesaji", "_kimlik_denetle",
+    # Performans 2b-2 (RESULTS §14.49, D-C11): HEAD commit'inin tek okuma yolu.
+    "head_commit",
 })
 
 

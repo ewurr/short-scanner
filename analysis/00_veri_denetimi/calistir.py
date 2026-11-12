@@ -857,14 +857,17 @@ def git_durumu() -> dict:
     kesif kaydi ve onay kosusu da verir (izlenen degisiklik, assume-unchanged /
     skip-worktree isareti, `.gitignore` disindaki izlenmeyen dosya).
 
+    Commit de tek kaynaktan gelir (RESULTS §14.49, D-C11): `split.head_commit` (kesif kaydinin
+    okudugu yol; beyaz listeli ortam, ayni depo). Onceden commit bu betigin kendi `git rev-parse`
+    cagrisindan, surecin ortamiyla ve `KOK`tan okunuyordu; agac temizligi ise tek kaynaktan.
+    Iki deger farkli ortamdan (ve test deposu kipinde farkli depodan) gelebiliyordu.
+
     Doner: {"commit", "kirli_sayisi" (int; 0 = temiz), "bilinmiyor" (bool)}. git yoksa ya
     da commit veya agac okunamazsa "bilinmiyor" True ve "kirli_sayisi" None."""
     from data import split as split_modulu
 
-    try:
-        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=KOK, capture_output=True,
-                                text=True, check=True).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
+    commit = split_modulu.head_commit()
+    if commit is None:
         return {"commit": "bilinmiyor", "kirli_sayisi": None, "bilinmiyor": True}
     kirli = split_modulu.agac_kirli_sayisi()
     return {"commit": commit, "kirli_sayisi": kirli, "bilinmiyor": kirli is None}
