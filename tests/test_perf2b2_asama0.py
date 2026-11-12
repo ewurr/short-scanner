@@ -175,3 +175,53 @@ def test_D_B2_h3_1d_pencerelerinde_donem_basi_ve_kume_basi_maskesi(ad):
         s = tsk._skaler_1d(g, z, **sinir)[ad]
         assert uyusmayan(v, s) == 0, sinir
         assert np.isnan(v[0]) and np.isfinite(v[1]) and np.isfinite(v[2]), sinir
+
+
+# --- D-B3: uygunluk girdisinin dogrulamasi (kapiyla ayni fonksiyon) ------------------------------------------------
+
+def _uygunluk_cagir(g):
+    z = tsk.izgara_1d(tsk.gunluk(tsk.mumlar()))[:3]
+    return sk.uygunluk(g, z, config.BAR_1D, donem_baslangic=BAS, donem_bitis=tsk.SON, kume_baslangic=None,
+                       asgari_hacim=config.ASGARI_HACIM_1D, asgari_listeleme_yasi_gun=config.ASGARI_LISTELEME_YASI_GUN)
+
+
+def _bozuk_1d_cerceveleri():
+    m = tsk.mumlar()
+    g = tsk.gunluk(m)
+    nat = g.copy()
+    nat.loc[nat.index[5], "close_time"] = pd.NaT
+    kisa = g.copy()
+    kisa["close_time"] = pd.DatetimeIndex(kisa["open_time"]) + H(1) - pd.Timedelta(milliseconds=1)
+    return {"4h_cercevesi": m, "close_time_NaT": nat, "bar_suresi_4_saat": kisa,
+            "cerceve_degil": pd.Series([1.0]), "open_time_yok": g.drop(columns=["open_time"])}
+
+
+@pytest.mark.parametrize("ad", list(_bozuk_1d_cerceveleri()))
+def test_D_B3_uygunluk_girdisi_skalerle_ayni_sinif_ve_mesajla_reddedilir(ad):
+    """4h cercevesi (ya da NaT'li / 4 saatlik 1d cercevesi) verilince seri kurucusu skalerle (`_gunluk_hacim`) ayni sinif
+    ve AYNI mesajla duser. Oncesinde 4h cercevesi sessizce kabul ediliyordu (§14.48 D-B3)."""
+    g = _bozuk_1d_cerceveleri()[ad]
+    with pytest.raises(Exception) as skaler:
+        ref._gunluk_hacim(g)
+    with pytest.raises(Exception) as vektor:
+        _uygunluk_cagir(g)
+    assert type(vektor.value) is type(skaler.value) and str(vektor.value) == str(skaler.value), ad
+    if ad == "4h_cercevesi":
+        assert type(vektor.value) is pencere.VeriHatasi
+
+
+def test_D_B3_kapi_ve_seri_kurucusu_ayni_dogrulama_fonksiyonunu_cagirir():
+    """Dogrulama kopyalanmadi: `pozisyon._gunluk_hacim` ve `seri_kurucu.uygunluk` ayni fonksiyonu cagirir ve hata
+    metinleri `data/` icinde yalnizca `eligibility.py`de (ve dondurulmus referansta) yazilidir."""
+    import ast
+
+    from data import pozisyon
+
+    for modul, fonk in ((pozisyon, "_gunluk_hacim"), (sk, "uygunluk")):
+        kaynak = (tsk.KOK / "data" / f"{modul.__name__.rpartition('.')[2]}.py").read_text(encoding="utf-8")
+        tanim = next(d for d in ast.walk(ast.parse(kaynak)) if isinstance(d, ast.FunctionDef) and d.name == fonk)
+        cagrilar = {d.func.attr for d in ast.walk(tanim) if isinstance(d, ast.Call) and isinstance(d.func, ast.Attribute)}
+        assert "gunluk_cercevesini_dogrula" in cagrilar, (modul.__name__, fonk)
+    metin = "acilislar UTC gun basi degil"
+    sahipler = sorted(y.name for y in (tsk.KOK / "data").glob("*.py") if metin in y.read_text(encoding="utf-8"))
+    assert sahipler == ["_skaler_referans.py", "eligibility.py"], sahipler

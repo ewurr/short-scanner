@@ -513,6 +513,9 @@ def uygunluk(gunluk, izgara, bar: str, *, donem_baslangic, donem_bitis, kume_bas
     `donem_ici`, `uygun` (bool)."""
     eligibility_modulu.esikleri_dogrula(bar, asgari_hacim=asgari_hacim,
                                         asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
+    # Girdi bir 1d cercevesi olmali (D-B3, RESULTS §14.49): kapinin `_gunluk_hacim`i ile AYNI fonksiyon. Yanlislikla 4h
+    # cercevesi verilirse skalerle ayni sinif ve mesajla `VeriHatasi`.
+    eligibility_modulu.gunluk_cercevesini_dogrula(gunluk)
     z = _utc_izgara(izgara, bar)
     if donem_baslangic is None or donem_bitis is None:
         raise TypeError("donem sinirlari None olamaz (on-kayit §2 'Listeleme donemi').")

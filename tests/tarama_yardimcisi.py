@@ -77,7 +77,9 @@ HAM_ERISIM_DESENI = (
 # icindeki butun fonksiyonlar ve modulun kendisi: modul adiyla erisim (`eligibility.x`, takma adli
 # import) de yakalanir.
 UYGUNLUK_ADLARI = ("uygun_mu", "uygunluk_serisi", "uygunluk_karari", "esikleri_dogrula", "medyan_hacim",
-                   "hacim_esigi", "listeleme_yasi_gun", "gunluk_hacim_serisi")
+                   "hacim_esigi", "listeleme_yasi_gun", "gunluk_hacim_serisi",
+                   # RESULTS §14.49 (D-B3): uygunluk girdisinin tek dogrulamasi (kapi ve seri kurucusu cagirir).
+                   "close_time_nat_yok", "gunluk_cercevesini_dogrula")
 
 CIKIS_KAPI_DISI_DESENI = (
     r"\b(cikis_bari|ufuk_kumeye_sigar_mi|cikis_ani|pozisyon_plani|pozisyon_fundingi|_plan_fundingi|pozisyon_funding_tam_mi"

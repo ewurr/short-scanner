@@ -40,6 +40,38 @@ def gunluk_hacim_serisi(gunluk: pd.DataFrame) -> pd.Series:
     return seri.sort_index()
 
 
+def close_time_nat_yok(mumlar: pd.DataFrame, ad: str) -> None:
+    """`close_time` sutunu varsa hicbir satiri NaT olamaz. NaT ile yapilan sure karsilastirmasi her
+    zaman False doner; NaT'li bir 1d cercevesi 4h denetiminden (ya da tersi) sessizce gecerdi
+    (sizinti testcisinin Rev.10 hazirlik bulgusu 2; on-kayit §4 "Fiyat okuma tabani").
+
+    Tek uygulama (RESULTS §14.49, D-B3): kapinin 4h ve 1d girdi denetimleri (`pozisyon._close_time_nat_yok`) ve seri
+    kurucusunun uygunluk girdisi bu fonksiyonu cagirir; metin `pozisyon`dan tasindi, kopyalanmadi."""
+    if bool(pd.isna(mumlar["close_time"]).any()):
+        raise pencere_modulu.VeriHatasi(f"{ad}: close_time sutununda NaT var; bar suresi dogrulanamaz "
+                         "(on-kayit §4 'Fiyat okuma tabani').")
+
+
+def gunluk_cercevesini_dogrula(gunluk_mumlar: pd.DataFrame) -> None:
+    """Uygunluk hacminin girdisi bir 1d cercevesi mi? Sembolun 1d serisi (tek 1d yolu `klines.gunluge_cevir`) olmali;
+    1d olmayan cerceve (ör. 4h mumlari) acik hata verir: acilislar gun basi olmali, `close_time` varsa NaT olamaz ve bar
+    suresi 4 saati asmali.
+
+    Tek uygulama (RESULTS §14.49, D-B3): kapi (`pozisyon._gunluk_hacim`) ve seri kurucusu (`seri_kurucu.uygunluk`) AYNI
+    fonksiyonu cagirir; metin `pozisyon._gunluk_hacim`dan tasindi (hata siniflari ve mesajlari degismedi). Saf; yalnizca
+    hata yukseltir, karari degistirmez."""
+    if not isinstance(gunluk_mumlar, pd.DataFrame) or "open_time" not in gunluk_mumlar:
+        raise TypeError("gunluk_mumlar sembolun 1d mum cercevesi olmali (open_time, quote_volume).")
+    acilis = pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(gunluk_mumlar["open_time"]), "gunluk_mumlar")
+    if len(acilis) and not bool((acilis == acilis.floor("D")).all()):
+        raise pencere_modulu.VeriHatasi("gunluk_mumlar 1d serisi olmali: acilislar UTC gun basi degil (4h cercevesi verilmis olabilir).")
+    if "close_time" in gunluk_mumlar and len(acilis):
+        close_time_nat_yok(gunluk_mumlar, "gunluk_mumlar")
+        sure = pd.DatetimeIndex(gunluk_mumlar["close_time"]) - acilis
+        if bool((sure <= pencere_modulu.ADIM_4H).any()):
+            raise pencere_modulu.VeriHatasi("gunluk_mumlar 1d serisi olmali: bar suresi 4 saati asmiyor.")
+
+
 def medyan_hacim(
     gunluk_hacim: pd.Series,
     t,

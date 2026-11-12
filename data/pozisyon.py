@@ -236,28 +236,16 @@ def onay_dogrula(pozisyon) -> None:
 
 
 def _close_time_nat_yok(mumlar: pd.DataFrame, ad: str) -> None:
-    """`close_time` sutunu varsa hicbir satiri NaT olamaz. NaT ile yapilan sure karsilastirmasi her
-    zaman False doner; NaT'li bir 1d cercevesi 4h denetiminden (ya da tersi) sessizce gecerdi
-    (sizinti testcisinin Rev.10 hazirlik bulgusu 2; on-kayit §4 "Fiyat okuma tabani")."""
-    if bool(pd.isna(mumlar["close_time"]).any()):
-        raise pencere_modulu.VeriHatasi(f"{ad}: close_time sutununda NaT var; bar suresi dogrulanamaz "
-                         "(on-kayit §4 'Fiyat okuma tabani').")
+    """`close_time` sutununda NaT yok (tek uygulama `eligibility.close_time_nat_yok`; RESULTS §14.49, D-B3)."""
+    eligibility_modulu.close_time_nat_yok(mumlar, ad)
 
 
 def _gunluk_hacim(gunluk_mumlar: pd.DataFrame) -> pd.Series:
     """Uygunluk hacminin girdisi: sembolun 1d serisi (`klines.mumlari_yukle(s, "1d", ...)`,
     tek 1d yolu `klines.gunluge_cevir`). 1d olmayan cerceve (ör. 4h mumlari) acik hata verir:
-    acilislar gun basi olmali ve `close_time` varsa bar suresi 4 saati asmali."""
-    if not isinstance(gunluk_mumlar, pd.DataFrame) or "open_time" not in gunluk_mumlar:
-        raise TypeError("gunluk_mumlar sembolun 1d mum cercevesi olmali (open_time, quote_volume).")
-    acilis = pencere_modulu._zaman_dizisi_dogrula(pd.DatetimeIndex(gunluk_mumlar["open_time"]), "gunluk_mumlar")
-    if len(acilis) and not bool((acilis == acilis.floor("D")).all()):
-        raise pencere_modulu.VeriHatasi("gunluk_mumlar 1d serisi olmali: acilislar UTC gun basi degil (4h cercevesi verilmis olabilir).")
-    if "close_time" in gunluk_mumlar and len(acilis):
-        _close_time_nat_yok(gunluk_mumlar, "gunluk_mumlar")
-        sure = pd.DatetimeIndex(gunluk_mumlar["close_time"]) - acilis
-        if bool((sure <= pencere_modulu.ADIM_4H).any()):
-            raise pencere_modulu.VeriHatasi("gunluk_mumlar 1d serisi olmali: bar suresi 4 saati asmiyor.")
+    acilislar gun basi olmali ve `close_time` varsa bar suresi 4 saati asmali. Dogrulama
+    `eligibility.gunluk_cercevesini_dogrula`dadir; seri kurucusu ayni fonksiyonu cagirir (D-B3)."""
+    eligibility_modulu.gunluk_cercevesini_dogrula(gunluk_mumlar)
     return eligibility_modulu.gunluk_hacim_serisi(gunluk_mumlar)
 
 
