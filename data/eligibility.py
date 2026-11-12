@@ -57,7 +57,7 @@ def gunluk_cercevesini_dogrula(gunluk_mumlar: pd.DataFrame) -> None:
     1d olmayan cerceve (ör. 4h mumlari) acik hata verir: acilislar gun basi olmali, `close_time` varsa NaT olamaz ve bar
     suresi 4 saati asmali.
 
-    Tek uygulama (RESULTS §14.49, D-B3): kapi (`pozisyon._gunluk_hacim`) ve seri kurucusu (`seri_kurucu.uygunluk`) AYNI
+    Tek uygulama (RESULTS §14.49, D-B3): kapi (`pozisyon._gunluk_hacim`) ve seri kurucularinin uygunluk fonksiyonu AYNI
     fonksiyonu cagirir; metin `pozisyon._gunluk_hacim`dan tasindi (hata siniflari ve mesajlari degismedi). Saf; yalnizca
     hata yukseltir, karari degistirmez."""
     if not isinstance(gunluk_mumlar, pd.DataFrame) or "open_time" not in gunluk_mumlar:
