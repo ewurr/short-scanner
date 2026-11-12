@@ -114,8 +114,9 @@ def test_seri_hatasi_referansta_karsiligi_yoksa_butun_barlar_uyusmaz(dunya):
 
 
 def test_cikti_deger_tasimaz():
+    # P2b-2 (RESULTS §14.49; bilerek guncellendi): ornek kipinin birim tohumu icin `tohum` sutunu eklendi.
     assert set(es.SUTUNLAR) == {"sembol", "donem_no", "hipotez", "yapilandirma", "deger", "bar_kumesi", "genel_tohum",
-                                "numpy_surumu", "pandas_surumu", "karsilastirilan_bar", "uyusmayan_bar",
+                                "tohum", "numpy_surumu", "pandas_surumu", "karsilastirilan_bar", "uyusmayan_bar",
                                 "beklenmeyen_hata_referans", "hata"}
     satir = es._bos_satir("XUSDT", 0, "H1", "y", "dip")
     assert set(satir) == set(es.SUTUNLAR)

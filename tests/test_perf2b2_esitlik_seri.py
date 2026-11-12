@@ -114,3 +114,50 @@ def test_D_C10_referansin_olay_olusmaz_alt_sinifi_birimi_cokertmez(dunya):
     assert sayi["kapanis"]["uyusmayan_bar"] == 1 and sayi["kapanis"]["beklenmeyen_hata_referans"] == 0
     assert all(v["uyusmayan_bar"] == 0 for ad, v in sayi.items() if ad not in ("kapanis", "yuksek"))
     assert sayi["yuksek"]["uyusmayan_bar"] == 1, "bar_degeri high icin de ayni barda olagan ret verir"
+
+
+# --- P2b-2 bolum 4: butun yapilandirmalar ve ornek kipi ------------------------------------------------------------
+
+def test_P2b2_ornek_kipinde_referans_yalnizca_secilen_barlarda_sorulur(dunya):
+    m, f, g = dunya
+    z = tes._izgara("H2", m, g)
+    siralar = list(range(0, len(z), 13))
+    sayi = es.birim_karsilastir("H2", tes._y("H2"), z, m, f, g, tes.SINIRLAR, siralar=siralar)
+    assert all(v["karsilastirilan_bar"] == len(siralar) and v["uyusmayan_bar"] == 0 for v in sayi.values())
+    hedef = siralar[4]
+    bozuk = _bozuk_seri("kapanis", sira=int(np.count_nonzero(np.isfinite(seri_kurucu.kapanis(m, z, "4h")[:hedef]))))
+    sayi = es.birim_karsilastir("H2", tes._y("H2"), z, m, f, g, tes.SINIRLAR, seri=bozuk, siralar=siralar)
+    assert sayi["kapanis"]["uyusmayan_bar"] == 1
+
+
+@pytest.mark.parametrize("k", [6, 12])
+def test_P2b2_H2_k_6_ve_12_sifir_uyusmazlik(dunya, k):
+    """§14.48 gercek veride yalnizca ilk yapilandirmayi (k = 3) kanitlamisti; betik artik butun izgarayi kosar."""
+    from data import sinyal
+
+    m, f, g = dunya
+    y = next(x for x in sinyal.izgara("H2") if x["k"] == k)
+    z = tes._izgara("H2", m, g)[-300:]
+    sayi = es.birim_karsilastir("H2", y, z, m, f, g, tes.SINIRLAR)
+    assert all(v["uyusmayan_bar"] == 0 and v["hata"] == "" for v in sayi.values())
+
+
+def test_P2b2_sembol_isi_hepsi_ve_ornek_kipi_esitlik_kapi_kuraliyla(monkeypatch):
+    import esitlik_kapi as ek
+    from data import sinyal
+    from esitlik_yardimcisi import dunya as kapi_dunyasi
+
+    kimlik, _ = kapi_dunyasi(705, "2021-01-01", "2021-08-31 20:00")
+    monkeypatch.setattr(es, "_donemler", lambda sembol: [0])
+    monkeypatch.setattr(ek, "SINIR_DONEM", 3)
+    monkeypatch.setattr(ek, "SINIR_KUME", 3)
+    monkeypatch.setattr(ek, "SINIR_RITIM", 2)
+    satirlar = es.sembol_isi(kimlik["sembol"], ["H2"], "hepsi", "ornek", 20)
+    assert all(set(s) == set(es.SUTUNLAR) for s in satirlar)
+    yapilar = {s["yapilandirma"] for s in satirlar}
+    assert yapilar == {sinyal.yapilandirma_kimligi("H2", y) for y in sinyal.izgara("H2")}
+    for s in satirlar:
+        assert s["hata"] == "" and s["uyusmayan_bar"] == 0 and s["bar_kumesi"] == "ornek_20+sinir"
+        assert s["tohum"] == str(ek.tohum(kimlik["sembol"], 0, "H2", s["yapilandirma"], "deger"))
+    with pytest.raises(ValueError):
+        es.sembol_isi(kimlik["sembol"], ["H2"], "hepsi", "uyarlamali", 20)
