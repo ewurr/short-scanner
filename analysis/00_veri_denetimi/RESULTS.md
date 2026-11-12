@@ -4587,13 +4587,237 @@ Getiri, sinyal değeri ya da olay sayısı raporlanmaz. Bu turda kilitli dosyala
 
 **Commit'ler:** `1b3b2ac` (yardımcı), `1851fd3` (eşitlik betiği ve tarama), `c6c7eaa` (sözleşme açıklaması), `4037fad` (eşitlik tabanı CSV'leri), bu kayıt.
 
-### §14.48 Performans 2b-1 (2026-11-11)
+### §14.48 Performans 2b-1 (2026-11-12)
 
-*(Kayıt bu turun commit'leriyle birlikte büyür; tam metin tur sonunda yazılır.)*
+Bu tur performans planı v3'ün P2b-1 parçasıdır. Plan dosyası: `D:\Projeler\prompts\plan_performans_2_v3.md`, SHA256 `6faa5a9c6cf36fa7116a978f2db7ba5465996fb7be17fa3a43dd1adeed1c50ae`.
 
-**0. aşama, D-B2 — `GUVENLIK:` satırı:**
+Tur sınırı:
+- Kapıya bağlanılmadı: `olay_karari`, `sinyal_kosulu` ve kapının karar yolu değişmedi.
+- SABIT listesindeki hiçbir tanım değişmedi; listeye yalnızca bir ad eklendi.
+- `_skaler_referans` değişmedi.
+- Getiri, sinyal değeri ve olay sayısı raporlanmadı. Kilitli dosyalara dokunulmadı, onay koşusu açılmadı.
+
+**Faz kararı (plan v3, araştırma tarafı, 2026-11-11; olduğu gibi):**
+
+> - **P2b F1'de kalır.** P2b, iki parça hâlinde: P2b-1 seri kurucuları ve sentetik testler; P2b-2 `kapi_serisi`'ye geçiş ve gerçek veri eşitliği. P2b'den sonra F1 kapanış turu yapılır.
+> - **P2c ve P2d F2'nin ilk işidir.** P2c koşul serisi, dizi kuralları, olay kümesi ve K2 adaylığı; P2d süreç paralelliği. F2 planı bunlarla başlar.
+> - **Gerekçe.** Kapı F1'in ürünüdür ve P2b ile son hâlini alır. P2c ve P2d ise F2 koşucusunun kendisidir. Bu karar hiçbir sonuca erken bakılmasına yol açmaz: **F2'nin keşif koşusu, P2c ve P2d bitip gerçek veri eşitliğinden geçmeden yapılmaz.** P2c ve P2d'nin bu belgedeki gereksinimleri F2'de aynen geçerlidir.
+> - **Uzun koşular** (eşitlik betikleri, parçalı tam takım) araştırma tarafının terminalinde yapılır (§14.47).
+
+**G2'den bilinçli sapma (plan v3 G2, D-C1).** DAYANILAN'ın iki erişim denetimi adı GUVENLIK'te kalır: `onay_baglami_dogrula` ve `kesif_baglami_dogrula`. Bu adlar yalnızca hata yükseltir, kararı değiştiremez. Plan v2'nin G2'si bunları SABIT'e almayı öngörüyordu.
+
+#### 0. aşama: §14.46 artıkları
+
+**D-B2 (`4353836`).**
+- `universe.evren_yukle`'deki `haric` ve `donem_funding_yok` bool ayrıştırması kural taşıdığı için `universe.bool_sutunlarini_ayristir` adlı ayrı bir fonksiyona çıkarıldı.
+- Davranış birebir aynı: yalnızca tam "True" ve "False" metni kabul edilir. Boş ya da başka bir değer verilirse aynı mesajla `ValueError` yükselir.
+- Yeni fonksiyon SABIT'te. `evren_yukle` yükleyici olarak GUVENLIK'te kalıyor; SHA'sı değiştiği için aşağıdaki gerekçe satırı yazıldı.
+- GUVENLIK politikası SHA değişikliğine yalnızca güvenlik düzeltmesinde izin verir. Bu değişiklik bir yeniden yapılandırmadır ve plan v3 G2'nin açık isteğine dayanır; politikadan bu ölçüde ayrılır (denetçi D-C14).
 
 GUVENLIK: data.universe.evren_yukle 67f080fd74bd — D-B2 (plan v3 G2): bool ayristirmasi `bool_sutunlarini_ayristir`a (SABIT) cikarildi; yukleyicinin davranisi birebir ayni, govdede yalnizca cagri kaldi
+
+**D-C2 (`3bba106`).**
+- `calistir.git_durumu` ağaç temizliğini kendisi hesaplamıyor. Değer tek kaynaktan (`split._agac_kirlilikleri`), onun açık sarmalayıcısı `split.agac_kirli_sayisi` üzerinden yalnızca SAYI olarak geliyor.
+- `ortam_kaydi` kirli dosya adı yazmıyor. `calisma_agaci_degisiklikleri` satırının yerini `calisma_agaci_kirli_sayisi` aldı.
+- **`calisma_agaci` alanının anlamı değişti.** D-C2'den önceki çıktılarda bu alan betiğin kendi `git status --porcelain --untracked-files=all` sonucuydu. O ölçüt `.git/info/exclude`'a ve yerel ignore ayarlarına uyuyordu, assume-unchanged ve skip-worktree işaretli dosyaları görmüyordu. Önceki çıktılardaki "temiz" hükmü bu yüzden daha gevşek bir ölçütle verilmiştir. Bundan sonra alan, keşif kaydı ve onay koşusuyla aynı hükmü verir.
+- Mevcut bir testin tek bir doğrulaması yeni sözlük biçimine uyarlandı (`tests/test_tur_saldirilari_b.py`: `degisiklikler` alanı yerine `kirli_sayisi`).
+
+**D-C3 (`5796782`).**
+- `split.py`'deki yorum ve §14.46'daki "yalnızca commit edilen `.gitignore`" ifadesi yanlıştı (§14.46'nın metni değiştirilmedi). `--exclude-per-directory=.gitignore` ağaçtaki HER `.gitignore`'u uygular, izlenmeyenleri de.
+- **Sınır:** izlenmeyen bir dizine `*` içeren bir `.gitignore` konursa dizin kendisiyle birlikte görünmez olur. pytest, venv ve mypy önbellek dizinleri tam olarak bunu yapar; örneğin `.pytest_cache/.gitignore` `*` içerir. Bu dizinlere konan bir betik kirli sayılmaz.
+- Bu turda depoda denendi: hem `ls-files --others` hem `git status` dizini görmedi.
+- Sınır kazayla oluşmaz: dosyanın bu dizinlere yazılmasını ya da kendini dışlayan bir `.gitignore` yazılmasını gerektirir.
+- Sınırın varlığını belgeleyen test: `test_D_C3_kendini_dislayan_izlenmeyen_gitignore_dizini_gizler_SINIR`. Sınır kapanırsa test kırmızı olur. `.gitignore`'daki yorum da düzeltildi.
+
+**D-C4 (`d214943`).**
+- `git-hazirlik` uzak adres denetimini de çalıştırıyor (`_uzak_adresi_denetle`, onay koşusununkiyle aynı).
+- Yeni `_kimlik_denetle`, `onay_kosusu`'nda yerel ortam denetiminden sonra çağrılıyor: ağ işlemlerinden, itme denemesi commit'inden ve BASLADI satırından önce. Yerel `user.name` ya da `user.email` eksikse koşu açılmıyor, satır yazılmıyor, çift harcanmıyor.
+- `_kaydi_commit_et` iki anahtarı da commit'ten önce denetliyor. Bu gerekli, çünkü git 2.41 Windows'ta `user.name` eksikken commit işletim sistemi adıyla yapılırdı. Hata mesajı hangi anahtarın eksik olduğunu söylüyor.
+- Yeni adlar (`agac_kirli_sayisi`, `_KIMLIK_ANAHTARLARI`, `_yerel_kimlik_eksikleri`, `_kimlik_mesaji`, `_kimlik_denetle`) korunuyor. Özel olanlar `ONAY_ATLATMA_DESENI`'nde.
+- Komut bir kez çalıştırıldı. Sonuç `git-hazirlik: TAMAM`; ayrıntılar:
+  - `user.name` var, `user.email` `e***@gmail.com`, `credential.helper` `manager`;
+  - uzak adres TAMAM, fetch TAMAM (çıkış 0), `push --dry-run` TAMAM (çıkış 0).
+
+**D-C5 (`ead0745`).** `ortam_karari` açıklaması güncellendi. `durum` girdisi `git status --porcelain` çıktısı değil, tek kaynağın kirli kayıtlarıdır.
+
+**D-C6 (`0336e71`).** `esitlik_kapi.py` her satıra `numpy_surumu` ve `pandas_surumu` yazıyor.
+
+#### Seri kurucuları: `data/seri_kurucu.py` (`b80698f`, `8de7d63`)
+
+**Yer ve ad.**
+- `data/` altında, çünkü kapının (P2b-2) ileride kullanacağı veri katmanı kodu.
+- Ad `seri_kurucu` seçildi, `seri` değil: "seri" Türkçe metinde sıradan bir kelime, tarama deseni ayırt edici bir ad ister.
+- Analiz kodunda yasak (`tests/tarama_yardimcisi.SERI_KURUCU_DESENI`, `seri_kurucu_ihlalleri`). Genel `IZINLI_ALTLAR` muafiyeti bu desene uygulanmaz. Tek açık istisna `analysis/00_veri_denetimi/esitlik_seri.py`; bu dosya `SKALER_REFERANS_IZINLI_DOSYALAR`'a da eklendi.
+
+**Saflık kuralı.**
+- Veri yüklemez. Girdiler kapının bugünkü veri yolunun çıktısıdır: `_karar_verisi` çerçeveleri, hipotez ızgarası yardımcısının ızgarası, dönem ve küme sınırları.
+- Hiçbir yükleyiciyi, `kume_bellegi`'ni ya da erişim denetimini çağırmaz; yeni bir veri erişim yolu açmaz.
+- Yalnızca saf yardımcıları kullanır: `pencere`'nin tolerans ve dönem yüklemleri, `klines.hucreleri_tam_mi` (G4), `funding.sinyal_penceresi_ayrintisi` (P2a) ve `eligibility`'nin eşik denetimi.
+- AST testi bunu sınıyor (`test_saflik_*`).
+
+**Kapsam.**
+- Bütün sinyal pencereleri:
+  - H1: `dip`, `hacim_6`, iç içe 6'lı toplamla 180'lik medyan;
+  - H2: `kirilim_dip`, `kapanis_30_once`, funding 24 saat ortalaması;
+  - H3: `hacim_medyani_30g`, `hacim_medyani_120_31`, `sma50`, `kapanis_30_once`.
+- Bar değerleri (`kapanis`, `yuksek`) ve `yuksek_30_max`.
+- H1 tepe penceresi: tek çapa ya da teyit başına çapa.
+- Çapasız pencerelerin hesaplanabilirliği.
+- Uygunluk: UTC gün başına hacim medyanı, bar başına listeleme yaşı, dönem üyeliği ve `uygun`.
+- Plan ve funding tamlığı kapsam dışı.
+
+**Doğruluk yöntemi (G3, G6).**
+- Seri, bar ızgarasının düzenli kopyasına kesin zaman eşitliğiyle yerleştirilir.
+- Tamlık açık sayım maskesiyle kurulur: kümülatif tamsayı toplamı beklenen bar sayısına eşit olmalı.
+- Dönem başı ve küme başı iki ayrı toleranslı maskedir.
+- İndirgeme yalnızca tam pencerelerin C-sıralı 2B kopyası üzerinde, skalerin pandas indirgemesiyle aynı numpy çekirdeğiyle yapılır (`add.reduce`, `median`, `min`, `max`).
+- `rolling`, `shift`, `iloc` ve NaN atlayan indirgeme kullanılmaz.
+- Bu eşdeğerlik numpy 2.4.4 ve pandas 2.3.3 ortamında (bottleneck yok) ölçüldü. G6 testleri bunu her koşuda yeniden sınıyor (denetçi D-C2: deneysel bir varsayım).
+
+**Referans karşılaştırma tablosu.**
+
+| seri kurucusu (`data/seri_kurucu.py`) | dondurulmuş referans (`data/_skaler_referans.py`) |
+|---|---|
+| `h1_dip` | `h1_dip` |
+| `h1_hacim_6` | `h1_hacim_6` |
+| `h1_hacim_medyani_180` (`ic_ice_serisi`) | `h1_hacim_medyani_180` (`ic_ice_pencere_degeri`) |
+| `h1_tepe`, `h1_tepe_bar_sayilari` | `h1_tepe`, `h1_tepe_bar_sayisi` |
+| `kapanis_30_once` (4h, 1d) | `kapanis_30_once` |
+| `yuksek_30_max` (4h, 1d) | `yuksek_30_max` |
+| `h2_kirilim_dip` | `h2_kirilim_dip` |
+| `h2_funding_24s` | `h2_funding_24s` (`funding_ortalamasi`) |
+| `h3_hacim_medyani_30g`, `h3_hacim_medyani_120_31`, `h3_sma50` | aynı adlar |
+| `kapanis`, `yuksek` (`bar_degeri_serisi`) | `bar_degeri(..., "close" / "high")` |
+| `pencere_serisi` (çekirdek) | `pencere_dilimi` + `pencere_degeri` (+ `ofsetli_pencere_degeri`) |
+| `capasiz_pencereler`, `capasiz_hesaplanabilir` | `capasiz_pencere_degerleri`, `capasiz_hesaplanamayan` |
+| `uygunluk`: `medyan_hacim`, `listeleme_yasi_gun`, `uygun` | `medyan_hacim`, `listeleme_yasi_gun`, `uygunluk_karari` |
+
+**Bilinçli sapma: G5'in hata yolu (denetçi D-C3).**
+- Funding'in zaman dizisi denetimi, ızgaranın son kapanışına kadarki kayıtları kapsar.
+- İlk ve son kapanış arasında sırasız bir damga varsa skaler yol erken barlarda değer verir, seri yolu birimi `ZamanDizisiHatasi` ile durdurur (G10: birim hatası).
+- Değere sızma yoktur, çünkü hata hiçbir değer üretmeden durur. Ama G5'in "hata yolu yalnızca t kapanışına kadarki kayıtlara bağlıdır" metninden bir sapmadır.
+
+#### Sentetik testler
+
+**`tests/test_seri_kurucu.py`.** Tohumlar `config.TOHUM + i`.
+- **G6:**
+  - `test_G6_rastgele_4h_dunyada_her_pencere_bit_duzeyinde_ayni` (3 tohum);
+  - `test_G6_rastgele_1d_dunyada_her_pencere_bit_duzeyinde_ayni` (3 tohum);
+  - `test_G6_funding_24s_bit_duzeyinde_ayni` (3 tohum);
+  - `test_G6_funding_ritmi_degisse_de_ayni` (8 ve 4 saat);
+  - `test_G6_uygunluk_bit_duzeyinde_ayni`;
+  - `test_G6_capasiz_hesaplanabilirlik_referansla_ayni`.
+- **G3:**
+  - `test_G3_4h_her_konumda_tek_eksik_bar_iki_tarafta_NaN` (eksik ve bozuk hücre);
+  - `test_G3_1d_her_konumda_tek_eksik_gun_iki_tarafta_NaN`;
+  - `test_G3_4h_pencere_uclari_adiyla`: `[t-30..t]` 31 bar, `[t-184..t]`, dip t'yi dışlar, `[t-5..t]`;
+  - `test_G3_1d_pencere_uclari_adiyla`: `[t-49..t]`, `[t-120..t-31]`, `[t-29..t]`;
+  - `test_G3_t_eksi_30_gunu_hicbir_hacim_penceresine_girmez`;
+  - `test_G3_donem_basi_ve_kume_basi_ayri_maskeler`;
+  - `test_G3_kaynak_rolling_shift_iloc_kullanmaz`;
+  - `test_G3_tekrarli_zaman_damgasi_iki_tarafta_ayni_hata`.
+- **G5:**
+  - `test_G5_toleransin_hemen_disindaki_bozuk_oran_t_yi_etkilemez` (1 dk, 1 dk 1 sn, 1 saat);
+  - `test_G5_tolerans_icindeki_kayit_dahil_edilir`;
+  - `test_G5_sirasiz_zaman_damgasi_skalerle_ayni_hata`;
+  - `test_G5_saat_dilimsiz_odeme_zamani_iki_tarafta_ayni_hata`.
+- **G17:** `test_G17_sonlu_olmayan_oran_ortalamayi_NaN_yapar` (NaN, +∞, −∞, metin).
+- **G7:**
+  - `test_G7_donem_12de_basladiginda_listeleme_yasi_bar_basina`;
+  - `test_G7_t_gunu_hacim_penceresinin_disinda`;
+  - `test_G7_esik_disi_deger_skalerle_ayni_hatayi_verir`.
+- **G13** (seride küme dışı veri var):
+  - `test_G13_1_kesif_sonu_ve_c2_basi_iki_yuzu`;
+  - `test_G13_2_funding_tolerans_payi_kume_sonunu_asar`;
+  - `test_G13_3_h2_funding_penceresi_kume_basini_asar`;
+  - `test_G13_4_sonraki_kumenin_ilk_kaydi_tolerans_icinde_okunmaz`;
+  - `test_G13_5_c2_sonu_ve_son_barin_bir_saniye_sonraki_kapanisi`.
+  - G13.2'nin "birincil ufkun küme sonunu aşması" kısmı plan ve çıkış işidir ve bu modülde değildir. O vaka P2b-2'de kapının seri yolunda sınanır (denetçi D-C4).
+- **G16:** `test_G16_t_den_sonraki_degisiklik_t_satirini_degistirmez`. Değiştirilen girdiler: fiyat, hacim, varlık, bozuk hücre, funding oranı.
+- **G18:**
+  - `test_G18_tepe_bir_ile_on_iki_bar_arasi_skalerle_ayni`;
+  - `test_G18_tanimsiz_teyit_iki_tarafta_ayni_sinif`;
+  - `test_G18_tepe_tamligi_ve_teyit_barinin_kendi_high_i`;
+  - `test_G18_teyit_basina_capa_dizisi_skalerle_ayni`;
+  - `test_G18_capa_donem_ve_kume_icinde_olmali`.
+- **G20:** `test_G20_izgara_bicimi_denetlenir`, `test_G20_yardimcinin_izgarasi_kuruculara_verilir`.
+- **Saflık ve tarama:**
+  - `test_saflik_yukleyici_bellek_ve_erisim_denetimi_cagirmaz`;
+  - `test_saflik_veri_cercevesi_girdisini_degistirmez`;
+  - `test_tarama_analiz_kodunda_seri_kurucu_yasak`;
+  - `test_tarama_depoda_seri_kurucu_ihlali_yok`.
+
+**`tests/test_esitlik_seri.py`** (betiğin kendi sınaması):
+- `test_bozulmamis_seri_sifir_uyusmazlik`;
+- `test_bilerek_bozulmus_tek_deger_tek_uyusmazlik`: bir barda bir ULP;
+- `test_bilerek_cevrilmis_uygunluk_yakalanir`;
+- `test_seri_hatasi_referansta_karsiligi_yoksa_butun_barlar_uyusmaz`;
+- `test_cikti_deger_tasimaz`;
+- `test_h1_capa_kurali_esitlik_kapi_ile_ayni`.
+
+**`tests/test_perf2b1_artiklar.py`:** 0. aşamanın D-B2, D-C2, D-C3, D-C4 ve D-C6 testleri.
+
+#### Gerçek veri değer eşitliği (`esitlik_seri.py`, `0aa7076`)
+
+- **Koşu:** araştırma tarafının terminalinde, 4 işçiyle, `--etiket p2b1`, çıkış 0.
+- **Keşif kaydı:** `head_commit` `8de7d63`, `agac_temiz` True. Satırlarda numpy 2.4.4, pandas 2.3.3, genel tohum 20260911.
+- **Kapsam:** 8 sembol, 10 sembol-dönem, her hipotezin ilk yapılandırması, hipotez ızgarası yardımcısının bütün barları. Izgara boyları §14.47'nin tam bar tabanıyla aynı (örneğin SOLUSDT 10847 / 1807, XRPUSDT 12358 / 2059).
+- **Karşılaştırılan değerler, bar başına, bit düzeyinde:**
+  - sinyal pencereleri: H1 için 6, H2 için 5, H3 için 6 değer;
+  - çapasız hesaplanabilirlik;
+  - uygunluk: medyan, yaş ve `uygun`.
+- **Sonuç: 933841 bar-değer karşılaştırıldı; 0 uyuşmayan, 0 beklenmeyen hata (referans), 0 hatalı birim.**
+- Çıktı değer, uyuşmayan barın zamanı ve süre taşımaz; rol ve koşul içermez.
+- **Kanıtlamadığı** (denetçi):
+  - H2'de k = 6 ve 12;
+  - hücresi bozuk bar (gerçek veride yok);
+  - küme maskesinin kesimden bağımsızlığı (veri küme başında kesik);
+  - gerçek çapalarla H1 (P2c);
+  - funding'in hata yolları;
+  - koşul sonucu ve C1/C2.
+
+#### Takım
+
+- **Parçalı tam takım** (`tools/parcali_takim.py --grup 8`, `8de7d63` üzerinde, eşitlik CSV'leri izlenmeyen dosyayken, araştırma tarafının terminalinde, çıkış 0): **5435 passed, 189 xfailed, 0 failed, 0 XPASS, 18 skipped**.
+- **xfail'in 195'ten sapması bu turun bir gerilemesiydi ve düzeltildi (`b4ca92f`).**
+  - `test_sizinti_perf2b0.py`'nin sabitleme saldırıları `data/`'yı geçici bir köke kopyalıyordu, ama `RESULTS.md`'yi kopyalamıyordu.
+  - D-B2'nin gerekçeli GUVENLIK değişikliği bu yüzden geçici kökte "gerekçesiz" göründü. Saldırı ön koşulu ("taban: sabitleme testi zaten kırmızı") kurulamadı ve 11 test atlandı; bunların 6'sı strict xfail'di.
+  - Yalnızca yardımcı uyarlandı: kopya kök artık RESULTS'u da taşıyor. Saldırıların kendisi değişmedi.
+  - Düzeltme sonrası dosya: 26 passed, 11 xfailed, 1 skipped. Kalan atlama önceki turlarda da vardı.
+  - **xfail 189 + 6 = 195** (§14.46 ve §14.47 ile aynı), **skipped 18 − 11 = 7**, XPASS 0.
+  - Tam takım düzeltmeden sonra yeniden koşulmadı; değişiklik yalnızca bu test dosyasının yardımcısı.
+- **Hedefli testler** her commit'ten önce koşuldu. Onay yolunu kullanan 25 dosyada 1004 passed, 86 xfailed. Seri, referans ve tarama testlerinde 216 passed.
+
+#### Metodoloji denetçisi (yalnızca denetçi çalıştı; bulgu politikası §14.46)
+
+- **Dur koşulu oluşmadı:** onay koşusu olmadan C1/C2 verisini okutan yeni bir yol yok. **D-A bulgusu yok.**
+- Denetçinin açık bıraktığı noktalar ana oturumda `git diff 28f2c14..8de7d63` ile doğrulandı:
+  - `_skaler_referans.py` ve `test_skaler_referans.py` değişmedi;
+  - SABIT sözlüğüne yalnızca `bool_sutunlarini_ayristir` eklendi;
+  - D-B2 testinin karşılaştırma tabanı, 28f2c14'teki gövdenin birebir kopyası.
+
+**P2b-2'nin 0. aşamasında, kapı seri kurucularına bağlanmadan önce kapanır (araştırma tarafının kararı):**
+- **D-B1:** çok barlı ızgarada funding geleceğe bakış ve dilim testi. Bugünkü G5 ve G16 testleri tek barlık ızgarayla koşuyor. Vektörel yol funding'i ızgaranın son kapanışında kestiği için erken barları yalnızca oran dilimi koruyor, ve bu mekanizma sınanmıyor.
+- **D-B2:** uygunluk hacmi penceresinde her konumda tek eksik gün testi; ayrıca uygunluk ve 1d pencerelerinde küme başı maskesi testi.
+- **D-B3:** `seri_kurucu.uygunluk` skalerle aynı 1d çerçeve doğrulamasını yapacak (`_gunluk_hacim`: gün başı açılış, `close_time` NaT değil, bar süresi 4 saatten uzun). Bugün yanlışlıkla 4h çerçevesi verilirse hata vermiyor.
+- **C notu, G5'in hata yolu** (D-C3, yukarıdaki sapma).
+- **C notu, taramanın bütün `data/` dizinini muaf tutması** (D-C8): plan "yalnızca kapı kullanır" diyor, tarama ise kapı dışındaki veri katmanı modüllerini görmüyor.
+
+**Kayıtta kalan C bulguları:**
+- D-C1: bu kayıtla kapandı.
+- D-C2: bit eşitliğinin numpy varsayımı; ortam denetlenmiyor, sürüm sütunları izlemeye yarıyor.
+- D-C4: G13.2'nin ufuk kısmı P2b-2'de.
+- D-C5: `kirilim_dip`'in dış uçları, k = 3/6 konum testi ve 1d 31 barlık pencerelerin t-31 ucu eksik.
+- D-C6: ızgara üyeliği denetiminin `seri_kurucu.h2_kirilim_dip`'te ikinci bir kopyası var.
+- D-C7: G7'nin tanımı ön-kayıttan aynen alıntı değil.
+- D-C9: bozma testi dört değeri ve iki hata dalını kapsamıyor.
+- D-C10: referansın `OlayOlusmaz` alt sınıfı eşitlik biriminde TypeError'a dönüşür; kapalı yöndedir, çıkış 1 olur.
+- D-C11: ortam kaydında commit ve ağaç durumu iki ayrı git çağrısından geliyor.
+- D-C12: `git-hazirlik` çıktısında `user.name` açık, yanlış uzak adres de olduğu gibi basılıyor.
+- D-C13: keşif kaydından toplam süre çıkarılabiliyor; olay bilgisi taşımıyor.
+- D-C14: GUVENLIK politikasıyla çelişki, yukarıda anıldı.
+
+**Commit'ler:** `4353836` (D-B2), `3bba106` (D-C2), `5796782` (D-C3), `d214943` (D-C4), `ead0745` (D-C5), `0336e71` (D-C6), `b80698f` (seri kurucuları), `8de7d63` (eşitlik betiği), `0aa7076` (eşitlik CSV'leri), `b4ca92f` (gerileme düzeltmesi), bu kayıt.
 
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
