@@ -39,6 +39,14 @@ Sozlesme (performans 2b-0; denetci D-B2, D-B3, D-C4, D-C7, sizinti S-17, S-18, S
     Kip (`bar_kumesi`) ve birimin tohumu (`tohum`; `tum` kipinde bos) her satira yazilir.
   - Agac temizligi bu betikte HESAPLANMAZ: `split.kesif_kosusu`nun `KesifKaydi.agac_temiz` degeri kullanilir (bag
     ortami, `ls-files -v` bayraklari ve izlenmeyen dosyalar orada denetlenir). Deger True degilse kosu baslamaz.
+  - P2b-2 ekleri (plan v3 G1 gecici istisnasi ve G14; RESULTS §14.49; `--kosul-ve-onay-yolu`, varsayilan acik):
+      * `kosul` birimi (olay rolu kosulduysa): kapinin olay rolundeki VEKTOREL kosulu (`pozisyon._olay_kosulu_serisi`,
+        izgaranin tamami) ile dizi kurallarinin okudugu skaler `sinyal_kosulu` her barda karsilastirilir (True / False /
+        None, tur dahil). `uyusmayan_bar` = kosul uyusmazligi. Olay rolune aittir: kapsam, zaman damgasi ve sure
+        yazilmaz. Vektorel kosul `OlayOlusmaz` disi bir hatayla durursa birim hatasidir (`hata` = `seri:<Sinif>`);
+        skalerde ayni birimde en az bir beklenmeyen hata yoksa butun barlar uyusmayan sayilir (G10).
+      * `ONAY_YOLU` satiri, her (sembol, hipotez) icin: olay rolunde EN AZ BIR barda iki taraf da onay verdi mi
+        (`onay_yolu` = "evet" / "hayir"). Sayi yazilmaz.
 
 H1'in olay rolu capa ister: t barinin capasi, barin izgaradaki sirasi i ile `t - (1 + i mod 12) x 4 saat`tir (sabit, kosula
 bakilmadan; boylece karsilastirilan bar sayisi sinyal kosulunun sonucuna bagli degildir ve olay sayisi sizmaz).
@@ -86,11 +94,13 @@ SUTUNLAR = ["sembol", "donem_no", "hipotez", "yapilandirma", "rol", "bar_kumesi"
             "numpy_surumu", "pandas_surumu",
             "karsilastirilan_bar",
             "uyusmayan_bar", "beklenmeyen_hata_referans", "beklenmeyen_hata_yeni", "kapsam_bar", "ilk_20_uyusmayan",
-            "ilk_20_beklenmeyen", "sure_s", "hata"]
+            "ilk_20_beklenmeyen", "sure_s", "hata", "onay_yolu"]
 SAYI_ALANLARI = ("karsilastirilan_bar", "uyusmayan_bar", "beklenmeyen_hata_referans", "beklenmeyen_hata_yeni")
 ROLLER = ("olay", "K1", "K2")
 KONTROL_ROLLERI = ("K1", "K2")
 FUNDING_SATIRI = "funding_satiri"
+KOSUL = "kosul"            # P2b-2: vektorel kosul ile skaler `sinyal_kosulu` (olay rolune ait birim)
+ONAY_YOLU = "ONAY_YOLU"    # P2b-2: (sembol, hipotez) basina onay yolunun sinandiginin kaniti (evet / hayir)
 BAR_KIPLERI = ("tum", "ornek")
 KUME = "KESIF"
 H4 = pd.Timedelta(hours=4)
@@ -141,6 +151,8 @@ class Sayac:
         self.beklenmeyen_yeni = 0
         self.beklenmeyen_ilk: list[str] = []
         self.kapsam = 0
+        self.iki_taraf_onay = False     # olay rolu: en az bir barda iki taraf da onay verdi (yalnizca evet/hayir)
+        self.birim_hatasi = ""          # seri duzeyindeki hata (G10): yalnizca sinif adi
 
     def bar(self, t, esit: bool, referans_sonuclari=(), yeni_sonuclari=(), kapsam: bool = False) -> None:
         self.karsilastirilan += 1
@@ -208,8 +220,40 @@ def karsilastir(barlar, siralar, hipotez: str, yapilandirma, rol: str, kimlik: d
     for t, sira in zip(barlar, siralar):
         a = karar(kapi, hipotez, yapilandirma, rol, t, kimlik, sira)
         b = karar(ref, hipotez, yapilandirma, rol, t, kimlik, sira)
-        sayac.bar(t, sonuc_esit(a, b), (b,), (a,),
+        esit = sonuc_esit(a, b)
+        sayac.bar(t, esit, (b,), (a,),
                   kapsam=rol in KONTROL_ROLLERI and isinstance(a, pozisyon_modulu.OnaylanmisPozisyon))
+        if esit and isinstance(a, pozisyon_modulu.OnaylanmisPozisyon) and isinstance(b, pozisyon_modulu.OnaylanmisPozisyon):
+            sayac.iki_taraf_onay = True
+    return sayac
+
+
+def _kosul_esit(v, s) -> bool:
+    """Kosul sonucu: ayni deger VE ayni tur (True / False / None); hata hicbir degere esit degildir."""
+    if isinstance(s, BaseException):
+        return False
+    return type(v) is type(s) and v == s
+
+
+def kosul_karsilastir(barlar, siralar, hipotez: str, yapilandirma, kimlik: dict, izgara, *,
+                      kapi=pozisyon_modulu) -> Sayac:
+    """G1 gecici istisnasi (P2b-2): kapinin olay rolundeki VEKTOREL kosulu (izgaranin tamami, tek cagri) ile dizi
+    kurallarinin okudugu skaler `sinyal_kosulu`, her barda. H1'de capa betigin sabit kuralidir (`h1_capasi`). Vektorel
+    kosul durursa birim hatasidir (G10): skalerde ayni birimde en az bir beklenmeyen hata yoksa butun barlar uyusmaz.
+    Deger dondurmez."""
+    capali = hipotez in sinyal_modulu.CAPALI_HIPOTEZLER
+    capalar = [h1_capasi(t, i) for i, t in enumerate(izgara)] if capali else None
+    vektor = _cagir(kapi._olay_kosulu_serisi, hipotez, dict(yapilandirma), kume=KUME, **kimlik, capa=capalar)
+    sayac = Sayac()
+    if isinstance(vektor, BaseException):
+        sayac.birim_hatasi = f"seri:{type(vektor).__name__}"
+    for t, sira in zip(barlar, siralar):
+        s = _cagir(kapi.sinyal_kosulu, t, hipotez=hipotez, yapilandirma=dict(yapilandirma),
+                   capa=h1_capasi(t, sira) if capali else None, kume=KUME, **kimlik)
+        esit = beklenmeyen(s) if sayac.birim_hatasi else _kosul_esit(vektor[sira], s)
+        sayac.bar(t, esit, (s,), ())
+    if sayac.birim_hatasi and sayac.beklenmeyen_referans == 0:
+        sayac.uyusmayan = [pd.Timestamp(t) for t in barlar]
     return sayac
 
 
@@ -336,14 +380,17 @@ def _donemler(sembol: str) -> list[int]:
     return sonuc
 
 
-def _birim_etiketleri(roller, funding_satiri: bool):
-    return list(roller) + ([FUNDING_SATIRI] if funding_satiri else [])
+def _birim_etiketleri(roller, funding_satiri: bool, kosul: bool = False):
+    return (list(roller) + ([KOSUL] if kosul and "olay" in roller else [])
+            + ([FUNDING_SATIRI] if funding_satiri else []))
 
 
 def _kos(birim, izgara, siralar, hipotez, y, kimlik) -> Sayac:
     barlar = [izgara[i] for i in siralar]
     if birim == FUNDING_SATIRI:
         return funding_karsilastir(barlar, hipotez, kimlik)
+    if birim == KOSUL:
+        return kosul_karsilastir(barlar, siralar, hipotez, y, kimlik, izgara)
     return karsilastir(barlar, siralar, hipotez, y, birim, kimlik)
 
 
@@ -353,7 +400,7 @@ def _bos_satir(sembol, donem_no, hipotez, yk, rol) -> dict:
             # D-C6 (RESULTS §14.48): satiri ureten surecin numpy / pandas surumu (kayan nokta sonucu onlara bagli).
             "numpy_surumu": np.__version__, "pandas_surumu": pd.__version__, "karsilastirilan_bar": 0, "uyusmayan_bar": 0, "beklenmeyen_hata_referans": 0,
             "beklenmeyen_hata_yeni": 0, "kapsam_bar": "", "ilk_20_uyusmayan": "", "ilk_20_beklenmeyen": "",
-            "sure_s": 0.0, "hata": ""}
+            "sure_s": 0.0, "hata": "", "onay_yolu": ""}
 
 
 def sembol_isi(sembol: str, ayar: dict) -> list[dict]:
@@ -364,6 +411,9 @@ def sembol_isi(sembol: str, ayar: dict) -> list[dict]:
         raise ValueError(f"bar kipi {BAR_KIPLERI} degerlerinden biri olmali.")
     satirlar = []
     bas_sure = time.perf_counter()
+    ekler = bool(ayar.get("kosul_ve_onay_yolu", False))
+    birimler = _birim_etiketleri(ayar["roller"], ayar["funding_satiri"], kosul=ekler)
+    onay_yolu = {h: False for h in ayar["hipotezler"]}
     for donem_no in _donemler(sembol):
         kimlik = {"sembol": sembol, "donem_no": donem_no}
         for hipotez in ayar["hipotezler"]:
@@ -371,7 +421,7 @@ def sembol_isi(sembol: str, ayar: dict) -> list[dict]:
             yapilandirmalar = izgara_y[:1] if ayar["yapilandirma"] == "ilk" else izgara_y
             for y in yapilandirmalar:
                 yk = sinyal_modulu.yapilandirma_kimligi(hipotez, y)
-                for birim in _birim_etiketleri(ayar["roller"], ayar["funding_satiri"]):
+                for birim in birimler:
                     t0 = time.perf_counter()
                     satir = _bos_satir(sembol, donem_no, hipotez, yk, birim)
                     try:
@@ -386,15 +436,24 @@ def sembol_isi(sembol: str, ayar: dict) -> list[dict]:
                             satir["bar_kumesi"] = f"ornek_{ayar['n']}+sinir"
                             satir["tohum"] = str(birim_tohumu)
                         sayac = _kos(birim, izgara, siralar, hipotez, y, kimlik)
-                        satir.update(sayac.alanlar(kapsam_yazilir=birim != "olay", zaman_yazilir=birim != "olay"))
+                        olay_birimi = birim in ("olay", KOSUL)
+                        satir.update(sayac.alanlar(kapsam_yazilir=not olay_birimi, zaman_yazilir=not olay_birimi))
+                        satir["hata"] = sayac.birim_hatasi
+                        if birim == "olay" and sayac.iki_taraf_onay:
+                            onay_yolu[hipotez] = True
                     except Exception as hata:  # noqa: BLE001 - yalnizca sinif adi yazilir, mesaj yazilmaz
                         satir["hata"] = type(hata).__name__
                     # Birim suresi yazilmaz (S-39, D-C2; denetci kapanis D-B1): yalnizca sembol toplami (TOPLAM_SURE).
                     satir["sure_s"] = ""
                     satirlar.append(satir)
+    if ekler and "olay" in ayar["roller"]:
+        for hipotez in ayar["hipotezler"]:
+            satir = _bos_satir(sembol, -1, hipotez, "", ONAY_YOLU)
+            satir.update(sure_s="", onay_yolu="evet" if onay_yolu[hipotez] else "hayir")
+            satirlar.append(satir)
     toplam = _bos_satir(sembol, -1, "", "", "TOPLAM_SURE")
     # Olay rolu kosulduysa toplam sure de yazilmaz (denetci kapanis D-B1): iki kosunun farki olay suresini vermesin.
-    olay_var = "olay" in _birim_etiketleri(ayar["roller"], ayar["funding_satiri"])
+    olay_var = "olay" in birimler
     toplam.update(bar_kumesi=kip, sure_s="" if olay_var else round(time.perf_counter() - bas_sure, 1))
     satirlar.append(toplam)
     return satirlar
@@ -494,6 +553,9 @@ def ozet(tablo: pd.DataFrame) -> dict:
     """Komut satiri ozeti: yalnizca sayilar."""
     sayilar = {a: int(pd.to_numeric(tablo[a], errors="coerce").fillna(0).sum()) for a in SAYI_ALANLARI}
     sayilar["hatali_birim"] = int((tablo["hata"].fillna("") != "").sum())
+    kosul = tablo["rol"] == KOSUL
+    sayilar["kosul_uyusmayan"] = int(pd.to_numeric(tablo.loc[kosul, "uyusmayan_bar"], errors="coerce").fillna(0).sum())
+    sayilar["onay_yolu_hayir"] = int((tablo.loc[tablo["rol"] == ONAY_YOLU, "onay_yolu"] == "hayir").sum())
     return sayilar
 
 
@@ -504,6 +566,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--yapilandirma", choices=("ilk", "hepsi"), default="ilk")
     ap.add_argument("--rol", nargs="+", default=list(ROLLER), choices=list(ROLLER))
     ap.add_argument("--funding-satiri", action=argparse.BooleanOptionalAction, default=True)
+    ap.add_argument("--kosul-ve-onay-yolu", action=argparse.BooleanOptionalAction, default=True,
+                    help="P2b-2: vektorel kosul ile sinyal_kosulu (kosul birimi) ve ONAY_YOLU satirlari")
     ap.add_argument("--n", type=int, default=2000)
     ap.add_argument("--isci", type=int, default=max(1, (multiprocessing.cpu_count() or 2) - 1))
     ap.add_argument("--sembol", nargs="*", default=None, help="ornegin alt kumesi (varsayilan: butun ornek)")
@@ -514,7 +578,8 @@ def main(argv: list[str] | None = None) -> int:
     ornek = list(pd.read_csv(ORNEK, usecols=["sembol"])["sembol"])
     semboller = ornek if arg.sembol is None else [s for s in ornek if s in set(arg.sembol)]
     ayar = {"hipotezler": arg.hipotez, "yapilandirma": arg.yapilandirma, "roller": arg.rol,
-            "funding_satiri": arg.funding_satiri, "bar": arg.bar, "n": arg.n}
+            "funding_satiri": arg.funding_satiri, "bar": arg.bar, "n": arg.n,
+            "kosul_ve_onay_yolu": arg.kosul_ve_onay_yolu}
     from calistir import csv_yaz, kosu_kilidi
 
     try:
@@ -533,7 +598,8 @@ def main(argv: list[str] | None = None) -> int:
     karsi, uyus = sayilar["karsilastirilan_bar"], sayilar["uyusmayan_bar"]
     hata = sayilar["beklenmeyen_hata_referans"] + sayilar["beklenmeyen_hata_yeni"] + sayilar["hatali_birim"]
     print(f"karsilastirilan bar: {karsi}, uyusmayan bar: {uyus}, beklenmeyen hata (iki taraf) + hatali birim: {hata} "
-          "(ayrintisi CSV'de)")
+          f"(kosul uyusmazligi: {sayilar['kosul_uyusmayan']}; onay yolu 'hayir' olan (sembol, hipotez): "
+          f"{sayilar['onay_yolu_hayir']}; ayrintisi CSV'de)")
     return 0 if (uyus == 0 and hata == 0) else 1
 
 

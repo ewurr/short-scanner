@@ -154,7 +154,10 @@ def test_olay_rolunde_uyusmazlik_ya_da_beklenmeyen_hata_cikis_kodu_1(monkeypatch
     pd.DataFrame({"sembol": ["X"]}).to_csv(tmp_path / "ornek.csv", index=False)
     monkeypatch.setattr(calistir, "csv_yaz", lambda tablo, yol: yazilan.append(tablo))
     monkeypatch.setattr(calistir, "kosu_kilidi", lambda ad: contextlib.nullcontext())
-    assert ek.main(["--bar", "tum", "--rol", "olay", "--hipotez", "H2", "--no-funding-satiri", "--isci", "1"]) == kod
+    # P2b-2 (RESULTS §14.49; bilerek guncellendi): `kosul` birimi ve ONAY_YOLU satirlari varsayilan acik; sahte dunya
+    # yalnizca `karar`i sahteler, bu yuzden ekler kapatilir (eklerin cikis kodu `test_perf2b2_esitlik_kapi.py`de).
+    assert ek.main(["--bar", "tum", "--rol", "olay", "--hipotez", "H2", "--no-funding-satiri", "--isci", "1",
+                    "--no-kosul-ve-onay-yolu"]) == kod
     assert yazilan and list(yazilan[0].columns) == ek.SUTUNLAR
     for z in _IZGARA:
         assert z.isoformat() not in yazilan[0].to_csv(index=False)

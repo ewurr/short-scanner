@@ -1376,34 +1376,39 @@ def _seri_bellekten(anahtar: tuple, kur) -> KapiSerisi:
     return seri
 
 
-def _capa_hazirla(b: _KapiBaglami, capa, izgara: pd.DatetimeIndex):
-    """(satir zamanlari, satir basina capalar, capa anahtari). Capa YALNIZCA H1'in olay rolunde (`_capa_dogrula`):
+def _capa_anahtari(b: _KapiBaglami, capa):
+    """(capa anahtari, bicimlenmis capa). Capa veri yuklenmeden once denetlenir (skalerdeki sira): kontrol rollerinde ve
+    H2/H3'te verilemez; H1 olay rolunde zorunludur (`_capa_dogrula`). Dizi bicimi UTC olmali, NaT tasiyamaz. Anahtar
+    izgarayi gerektirmez; onbellek isabetinde izgara ve veri yeniden kurulmaz."""
+    capali = b.hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and b.rol == "olay"
+    if not capali or capa is None or not isinstance(capa, (pd.DatetimeIndex, np.ndarray, list, tuple, pd.Series)):
+        tek = _capa_dogrula(b.hipotez, b.rol, capa)
+        return (None if tek is None else ("tek", int(tek.value))), tek
+    c = pd.DatetimeIndex(capa)
+    if len(c) and (c.tz is None or bool(c.isna().any())):
+        raise TypeError("capa dizisi UTC zaman damgalarindan olusmali (NaT ve saat dilimsiz zaman verilemez).")
+    c = c.tz_convert("UTC") if len(c) else pd.DatetimeIndex([], tz="UTC")
+    return ("dizi", len(c), hashlib.sha256(np.asarray(c.asi8, dtype="int64").tobytes()).hexdigest()), c
+
+
+def _capa_satirlari(b: _KapiBaglami, capa, izgara: pd.DatetimeIndex):
+    """(satir zamanlari, satir basina capalar). Capa YALNIZCA H1'in olay rolunde:
       - tek pump bari: satirlar izgaranin o capanin izleme penceresindeki barlaridir (`(capa, capa + 12 x 4h]`, 4h
         izgarasinda; on-kayit §5 H1 madde 3); pencere disindaki bar bu capanin teyit adayi degildir;
       - izgarayla ayni uzunlukta dizi: teyit basina pump bari; satirlar izgaranin butun barlari. Tanimsiz bir teyit
         (12 bardan uzak) skalerle ayni sinifla durur (G10)."""
-    capali = b.hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and b.rol == "olay"
-    if not capali:
-        _capa_dogrula(b.hipotez, b.rol, capa)
-        return izgara, None, None
     if capa is None:
-        raise TypeError(f"{b.hipotez} olay rolunde capa (pump bari) zorunludur (on-kayit §5 H1).")
-    if isinstance(capa, (pd.DatetimeIndex, np.ndarray, list, tuple, pd.Series)):
-        c = pd.DatetimeIndex(capa)
-        if len(c) != len(izgara):
+        return izgara, None
+    if isinstance(capa, pd.DatetimeIndex):
+        if len(capa) != len(izgara):
             raise ValueError("capa dizisi hipotez izgarasiyla ayni uzunlukta olmali (teyit basina pump bari).")
-        if len(c) and (c.tz is None or bool(c.isna().any())):
-            raise TypeError("capa dizisi UTC zaman damgalarindan olusmali (NaT ve saat dilimsiz zaman verilemez).")
-        c = c.tz_convert("UTC") if len(c) else pd.DatetimeIndex([], tz="UTC")
-        anahtar = ("dizi", len(c), hashlib.sha256(np.asarray(c.asi8, dtype="int64").tobytes()).hexdigest())
-        return izgara, list(c), anahtar
-    tek = _capa_dogrula(b.hipotez, b.rol, capa)
-    fark = izgara - tek
+        return izgara, list(capa)
+    fark = izgara - capa
     adim = pencere_modulu.ADIM_4H
     pencerede = np.asarray((fark % adim == pd.Timedelta(0)) & (fark >= adim)
                            & (fark <= config.H1_IZLEME_BAR * adim), dtype=bool)
     satirlar = izgara[pencerede]
-    return satirlar, [tek] * len(satirlar), ("tek", int(tek.value))
+    return satirlar, [capa] * len(satirlar)
 
 
 def kapi_serisi(hipotez, yapilandirma, rol, *, kume, sembol, donem_no, capa=None, ufuk=None) -> KapiSerisi:
@@ -1426,18 +1431,17 @@ def kapi_serisi(hipotez, yapilandirma, rol, *, kume, sembol, donem_no, capa=None
     istisna kurulumu durdurur ve yukari cikar (G10). Getiri hesaplamaz."""
     b = _kapi_baglami(hipotez, yapilandirma, rol, kume=kume, sembol=sembol, donem_no=donem_no, ufuk=ufuk)
     # Capa veri yuklenmeden once denetlenir (skalerdeki sira): kontrol rollerinde ve H2/H3'te verilemez; H1 olay rolunde
-    # zorunludur. Dizi bicimi izgara uzunluguyla `_capa_hazirla`da denetlenir.
-    if b.hipotez not in sinyal_modulu.CAPALI_HIPOTEZLER or b.rol != "olay" or capa is None \
-            or not isinstance(capa, (pd.DatetimeIndex, np.ndarray, list, tuple, pd.Series)):
-        _capa_dogrula(b.hipotez, b.rol, capa)
-    izgara = hipotez_izgarasi_barlari(b.hipotez, kume=b.kume, sembol=b.sembol, donem_no=b.donem_no)
-    satirlar, capalar, capa_anahtari = _capa_hazirla(b, capa, izgara)
+    # zorunludur. Dizi bicimi izgara uzunluguyla `_capa_satirlari`nda (kurulumda) denetlenir; onbellek isabetinde
+    # izgara ve veri yeniden kurulmaz.
+    capa_anahtari, capa_bicimli = _capa_anahtari(b, capa)
     isaret = kume_bellegi.donem_isareti()
     kimlik = (b.kume, b.sembol, int(b.donem_no), b.hipotez, b.yapilandirma_kimligi, b.rol, capa_anahtari, b.bar,
               b.ufuk, b.birincil_ufuk)
     anahtar = ("kapi_serisi", *kimlik, isaret)
 
     def kur() -> KapiSerisi:
+        izgara = hipotez_izgarasi_barlari(b.hipotez, kume=b.kume, sembol=b.sembol, donem_no=b.donem_no)
+        satirlar, capalar = _capa_satirlari(b, capa_bicimli, izgara)
         if b.ufuk == b.birincil_ufuk:
             return KapiSerisi(_SERI_GIZLI, b, kimlik, isaret, satirlar, _kapi_satirlari(b, satirlar, capalar))
         birincil = kapi_serisi(b.hipotez, b.yapilandirma, b.rol, kume=b.kume, sembol=b.sembol, donem_no=b.donem_no,
