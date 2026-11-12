@@ -30,7 +30,8 @@ def test_hazir_depoda_tani_tamam_ve_kayda_dokunmaz(tmp_path, capsys):
     head = _head(depo)
     assert split.git_hazirlik() == 0
     cikti = capsys.readouterr().out
-    assert "user.name: Test" in cikti and "credential.helper: store" in cikti
+    # D-C12 (RESULTS §14.49): user.name yazilmaz, yalnizca "var"; bilerek guncellendi (eski beklenti "user.name: Test").
+    assert "user.name: var" in cikti and "user.name: Test" not in cikti and "credential.helper: store" in cikti
     assert "fetch: TAMAM" in cikti and "push --dry-run: TAMAM" in cikti
     # E-posta maskelenir.
     assert "test@example.invalid" not in cikti and "t***@example.invalid" in cikti

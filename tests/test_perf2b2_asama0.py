@@ -387,3 +387,42 @@ def test_D_C11_git_durumu_kendi_git_cagrisini_yapmaz():
     tanim = next(d for d in ast.walk(ast.parse(kaynak)) if isinstance(d, ast.FunctionDef) and d.name == "git_durumu")
     adlar = {d.attr for d in ast.walk(tanim) if isinstance(d, ast.Attribute)}
     assert "run" not in adlar and "head_commit" in adlar and "agac_kirli_sayisi" in adlar
+
+
+# --- D-C12: git-hazirlik ciktisinda kimlik bilgisi yok ---------------------------------------------------------------
+
+@pytest.mark.parametrize("adres,beklenen", [
+    ("https://kullanici:gizli_belirtec@github.com/x/y.git", "https://***@github.com/x/y.git"),
+    ("https://gizli_belirtec@github.com/x/y.git", "https://***@github.com/x/y.git"),
+    ("ssh://git:gizli@ornek.org:22/y.git", "ssh://***@ornek.org:22/y.git"),
+    ("gizli_kullanici@ornek.org:x/y.git", "***@ornek.org:x/y.git"),
+    ("https://github.com/x/y.git", "https://github.com/x/y.git"),
+    ("C:/depolar/y.git", "C:/depolar/y.git"),
+])
+def test_D_C12_adres_kimliksiz(adres, beklenen):
+    from data import split
+
+    assert split._adres_kimliksiz(adres) == beklenen
+
+
+def test_D_C12_git_hazirlik_user_name_ve_yanlis_adresteki_kimligi_yazmaz(tmp_path, capsys):
+    from data import split
+    from onay_yardimcisi import gecici_depo, git
+
+    depo = gecici_depo(tmp_path)
+    git(depo, "config", "credential.helper", f"store --file={(tmp_path / 'kimlik').as_posix()}")
+    git(depo, "config", "user.name", "GizliAdSoyad")
+    git(depo, "remote", "set-url", "--push", "origin", "https://kullanici:gizli_belirtec@ornek.invalid/y.git")
+    assert split.git_hazirlik() == 1
+    cikti = capsys.readouterr().out
+    assert "user.name: var" in cikti and "GizliAdSoyad" not in cikti
+    assert "uzak adres: BASARISIZ" in cikti and "https://***@ornek.invalid/y.git" in cikti
+    assert "gizli_belirtec" not in cikti and "kullanici:" not in cikti
+
+
+@pytest.mark.parametrize("ad", ["head_commit", "_adres_kimliksiz"])
+def test_D_C11_D_C12_yeni_adlar_korunur(ad):
+    from data import split
+
+    with pytest.raises(split.OnayKorumasi):
+        setattr(split, ad, None)

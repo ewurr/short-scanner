@@ -1222,10 +1222,28 @@ def _uzak_adresi_denetle() -> None:
         def dogru(a: str) -> bool:
             return uzak_adresi_normal(a) == config.UZAK_DEPO_ADRESI.lower()
         beklenen = config.UZAK_DEPO_ADRESI
-    yanlis = [a for a in adresler if not dogru(a)]
+    # D-C12 (RESULTS §14.49): yanlis adres hata mesajina KIMLIK BILGISI silinerek yazilir (`_adres_kimliksiz`); mesaj
+    # `git-hazirlik` ciktisina ve onay kosusunun hata yoluna cikar.
+    yanlis = [_adres_kimliksiz(a) for a in adresler if not dogru(a)]
     if yanlis:
         raise OnayUzakHatasi(f"`{UZAK_DEPO}` beklenen depoya ({beklenen}) gitmiyor: {yanlis}. Onay kaydi yalnizca "
                              "beklenen uzak depoya itilir; kosu acilmaz.")
+
+
+def _adres_kimliksiz(adres: str) -> str:
+    """Uzak adresteki kimlik bilgisini (kullanici adi, parola, belirtec) siler (RESULTS §14.49, D-C12). URL bicimi
+    (`sema://kullanici:belirtec@makine/yol`) ve scp bicimi (`kullanici@makine:yol`) icin `@` oncesi `***` olur; kimlik
+    bilgisi olmayan adres oldugu gibi doner. Yalnizca mesaj icindir; denetimin kendisi tam adresle yapilir."""
+    sema, ayirac, kalan = adres.partition("://")
+    if ayirac:
+        yetki, bolu, yol = kalan.partition("/")
+        if "@" in yetki:
+            yetki = "***@" + yetki.rpartition("@")[2]
+        return f"{sema}://{yetki}{bolu}{yol}"
+    on, at, makine = adres.partition("@")
+    if at and ":" in makine and "/" not in on and "\\" not in on:
+        return f"***@{makine}"
+    return adres
 
 
 def _itme_denemesi(kimlik: str) -> None:
@@ -1784,6 +1802,9 @@ def git_hazirlik() -> int:
         if not deger:
             tamam = False
             print(f"  {anahtar}: YOK (deponun yerel yapilandirmasinda)")
+        elif anahtar == "user.name":
+            # D-C12 (RESULTS §14.49): ad yazilmaz, yalnizca varligi ("var / yok").
+            print(f"  {anahtar}: var")
         else:
             print(f"  {anahtar}: {_eposta_maskele(deger) if anahtar == 'user.email' else deger}")
     # D-C4 (§14.48): onay kosusunun uzak adres denetimi de (beklenen depo; `insteadOf`, `pushurl` dahil).
@@ -2132,8 +2153,8 @@ _KORUNAN_ADLAR = frozenset({
     "git_hazirlik", "_git_tani", "_eposta_maskele",
     # Performans 2b-1 (RESULTS §14.48): agac temizliginin acik sarmalayicisi (D-C2) ve yerel kimlik denetimi (D-C4).
     "agac_kirli_sayisi", "_KIMLIK_ANAHTARLARI", "_yerel_kimlik_eksikleri", "_kimlik_mesaji", "_kimlik_denetle",
-    # Performans 2b-2 (RESULTS §14.49, D-C11): HEAD commit'inin tek okuma yolu.
-    "head_commit",
+    # Performans 2b-2 (RESULTS §14.49, D-C11, D-C12): HEAD commit'inin tek okuma yolu; uzak adres maskesi.
+    "head_commit", "_adres_kimliksiz",
 })
 
 
