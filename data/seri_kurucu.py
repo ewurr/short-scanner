@@ -411,10 +411,20 @@ def h2_funding_24s(funding: pd.DataFrame, izgara, *, kume_baslangic, kume_bitis,
     ilk = a["ilk"].to_numpy(dtype=np.int64)
     son = a["son"].to_numpy(dtype=np.int64)
     for j in np.nonzero(hesap)[0]:
-        dilim = oran[ilk[j]:son[j] + 1]
+        dilim = _funding_dilimi(oran, int(ilk[j]), int(son[j]))
         if np.isfinite(dilim).all():
             sonuc[j] = np.add.reduce(dilim) / len(dilim)
     return sonuc
+
+
+def _funding_dilimi(oran: np.ndarray, ilk: int, son: int, *, ilk_kaydirma: int = 0, son_kaydirma: int = 0) -> np.ndarray:
+    """t penceresinin oran dilimi: `[ilk, son]` (iki uc dahil; `funding.sinyal_penceresi_ayrintisi`nin sira numaralari).
+
+    G5'in erken barlardaki korumasi bu dilimdir: t'nin degeri yalnizca t'nin penceresindeki kayitlara baglidir, cunku
+    funding'in geri kalani (izgaranin son kapanisina kadar) burada okunmaz. Kaydirma parametreleri YALNIZCA bozma kaniti
+    icindir (RESULTS §14.49, D-B1): testler dilimi kaynagi degistirmeden kaydirip uc testinin kirmiziya dondugunu
+    gosterir. Kapi ve seri kurucusu varsayilanlarla (0, 0) cagirir."""
+    return oran[ilk + ilk_kaydirma:son + son_kaydirma + 1]
 
 
 def h3_hacim_medyani_30g(gunluk, izgara, *, kume_baslangic, donem_baslangic) -> np.ndarray:
