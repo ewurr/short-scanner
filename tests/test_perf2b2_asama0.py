@@ -321,3 +321,28 @@ def test_D_C5_1d_konum_testinde_tam_pencere_sonlu(ad):
     v = tsk._vektor_1d(g, pd.DatetimeIndex([tsk.T1]))[ad][0]
     s = tsk._skaler_1d(g, [tsk.T1])[ad][0]
     assert np.isfinite(v) and ayni(v, s)
+
+
+# --- D-C6: izgara uyeligi tek kaynaktan -----------------------------------------------------------------------------
+
+@pytest.mark.parametrize("k", [4, 3.5, True, "3", None, 0])
+def test_D_C6_izgara_disi_k_skalerin_parametre_denetimiyle_ayni_hatayi_verir(k):
+    from data import sinyal
+
+    m = tsk.mumlar()
+    z = pd.DatetimeIndex([tsk.T4])
+    with pytest.raises(Exception) as skaler:
+        sinyal._izgara_degeri("H2", "k", k)
+    with pytest.raises(Exception) as vektor:
+        sk.h2_kirilim_dip(m, z, k, **tsk.SINIR)
+    assert type(vektor.value) is type(skaler.value) is sinyal.YapilandirmaHatasi
+    assert str(vektor.value) == str(skaler.value)
+
+
+def test_D_C6_seri_kurucusunda_ikinci_uyelik_kopyasi_yok():
+    """`config.IZGARA` seri kurucusunun kaynaginda gecmez: uyelik yalnizca `sinyal._izgara_degeri`den."""
+    metin = (tsk.KOK / "data" / "seri_kurucu.py").read_text(encoding="utf-8")
+    assert "config.IZGARA" not in metin and "_izgara_degeri" in metin
+    for k in config.IZGARA["H2"]["k"]:
+        v = sk.h2_kirilim_dip(tsk.mumlar(), pd.DatetimeIndex([tsk.T4]), float(k), **tsk.SINIR)
+        assert ayni(v[0], ref.h2_kirilim_dip(tsk.mumlar(), tsk.T4, k, **tsk.SINIR))

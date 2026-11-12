@@ -369,11 +369,13 @@ def yuksek_30_max(mumlar, izgara, bar: str, *, kume_baslangic, donem_baslangic) 
 
 
 def h2_kirilim_dip(mumlar_4h, izgara, k, *, kume_baslangic, donem_baslangic) -> np.ndarray:
-    """`min(low[t-k..t-1])` (§5 H2 madde 3; t HARIC). `k` izgara degeri olmali."""
-    if isinstance(k, bool) or not any(isinstance(k, (int, float, np.integer, np.floating)) and float(k) == float(a)
-                                      for a in config.IZGARA["H2"]["k"]):
-        from data import sinyal as sinyal_modulu
-        raise sinyal_modulu.YapilandirmaHatasi(f"H2.k = {k!r} izgarada yok; on-kayit §5: {config.IZGARA['H2']['k']}.")
+    """`min(low[t-k..t-1])` (§5 H2 madde 3; t HARIC). `k` izgara degeri olmali.
+
+    Izgara uyeligi TEK kaynaktan (D-C6, RESULTS §14.49): `sinyal._izgara_degeri` (skaler yolun parametre denetimi); ayni
+    sinif (`YapilandirmaHatasi`) ve ayni mesaj. Onceki ikinci kopya kaldirildi."""
+    from data import sinyal as sinyal_modulu  # yalnizca saf parametre denetimi (dayanilan)
+
+    k = sinyal_modulu._izgara_degeri("H2", "k", k)
     z = _utc_izgara(izgara, config.BAR_4H)
     return pencere_serisi(mum_serisi(mumlar_4h, "low"), _t_haric_sonlar(z, config.BAR_4H), int(k), config.BAR_4H,
                           islev="min", kume_baslangic=kume_baslangic, donem_baslangic=donem_baslangic)
