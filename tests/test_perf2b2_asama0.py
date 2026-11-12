@@ -225,3 +225,36 @@ def test_D_B3_kapi_ve_seri_kurucusu_ayni_dogrulama_fonksiyonunu_cagirir():
     metin = "acilislar UTC gun basi degil"
     sahipler = sorted(y.name for y in (tsk.KOK / "data").glob("*.py") if metin in y.read_text(encoding="utf-8"))
     assert sahipler == ["_skaler_referans.py", "eligibility.py"], sahipler
+
+
+# --- D-C3: G5'in hata yolu (arastirma tarafinin karari: sapma kabul edildi) -----------------------------------------
+
+@pytest.mark.parametrize("bozma", ["sirasiz", "tekrarli"])
+def test_D_C3_seri_birim_hatasi_skalerde_en_az_bir_barda_ayni_sinifla_karsilanir(bozma):
+    """Izgaranin ortasinda funding zaman dizisi bozuk (sirasiz ya da tekrarli damga). Seri yolu birimi
+    `ZamanDizisiHatasi` ile durdurur (G10: birim hatasi; deger uretmez). Kabul edilen sapmanin kosulu (RESULTS §14.49):
+    ayni girdide skaler yol bozukluktan SONRAKI en az bir barda ayni sinifla duser, bozukluktan onceki barlarda deger
+    verir. Boylece G10'un "birim hatasi = skalerde en az bir beklenmeyen hata" kurali saglanir."""
+    z = _uzun_izgara()
+    f = tsk.fonlama()
+    orta = z[30] + H(1)
+    i = int(np.searchsorted(pd.DatetimeIndex(f["odeme_zamani"]), orta))
+    f2 = f.copy()
+    if bozma == "sirasiz":
+        f2.loc[[i, i + 1], "odeme_zamani"] = f.loc[[i + 1, i], "odeme_zamani"].to_numpy()
+    else:
+        f2.loc[i + 1, "odeme_zamani"] = f.loc[i, "odeme_zamani"]
+    with pytest.raises(pencere.ZamanDizisiHatasi):
+        sk.h2_funding_24s(f2, z, **S_FUNDING)
+    sonuclar = []
+    for t in z:
+        try:
+            sonuclar.append(ref.h2_funding_24s(f2, t, **S_FUNDING))
+        except Exception as hata:  # noqa: BLE001 - yalnizca sinif sinanir
+            sonuclar.append(hata)
+    bozuk_an = pd.Timestamp(f2["odeme_zamani"].iloc[i])
+    sonraki = [s for t, s in zip(z, sonuclar) if t + H(1) >= bozuk_an]
+    onceki = [s for t, s in zip(z, sonuclar) if t + H(1) < bozuk_an - pd.Timedelta(hours=1)]
+    assert any(type(s) is pencere.ZamanDizisiHatasi for s in sonraki), "skaler en az bir barda ayni sinifla dusmeli"
+    assert all(not isinstance(s, BaseException) for s in onceki) and len(onceki) > 0
+    assert all(isinstance(s, (float, pencere.ZamanDizisiHatasi)) for s in sonuclar)
