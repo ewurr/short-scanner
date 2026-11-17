@@ -242,12 +242,24 @@ def test_erisim_denetimi_plan_isabetinde_de_calisir(dunya_ic, monkeypatch):
     class Yasak(PermissionError):
         pass
 
-    def denetim(kume):
-        def f():
-            raise Yasak("erisim yok")
-        return f
+    def denetim(kume, onay=None):
+        raise Yasak("erisim yok")
 
-    monkeypatch.setattr(pozisyon, "_erisim_denetimi", denetim)
+    # P2b-2 (RESULTS §14.49, bilerek guncellendi): ikinci cagri artik seri onbelleginden okunur ve okuma denetimini
+    # `KapiSerisi._denetle` dogrudan `split.onay_erisimi_denetle` ile yapar (`_erisim_denetimi` sarmalayicisi
+    # cagrilmaz). Amac ayni: onbellek isabetinde de kume erisim denetimi calisir. `split` kendi adlarinin disaridan
+    # atanmasini reddettigi icin (OnayKorumasi) yama, pozisyon'un `split` referansina gercek module devreden bir
+    # vekille yapilir; vekil yalnizca `onay_erisimi_denetle`'yi degistirir.
+    class Vekil:
+        def __init__(self, modul):
+            self._modul = modul
+
+        def __getattr__(self, ad):
+            return getattr(self._modul, ad)
+
+        onay_erisimi_denetle = staticmethod(denetim)
+
+    monkeypatch.setattr(pozisyon, "split_modulu", Vekil(pozisyon.split_modulu))
     assert isinstance(karar_cagrisi(pozisyon, "H2", kimlik, t), Yasak)
 
 

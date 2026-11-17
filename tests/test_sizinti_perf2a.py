@@ -197,12 +197,21 @@ def test_esitlik_betigi_print_cagrilari_yalnizca_sayi_ve_adlari_yazar():
     argumanlarinda gecen degiskenler izinli listeyle sinirli: yeni bir degisken yazdirilirsa kirmizi olur."""
     agac = ast.parse((KOK / "analysis" / "00_veri_denetimi" / "esitlik_kapi.py").read_text(encoding="utf-8"))
     izinli = {"s", "sembol", "karsi", "uyus", "hata", "sys"}
+    # P2b-2 (RESULTS §14.49, bilerek guncellendi): ozet satiri `ozet()` sozlugunden iki SAYIM okur (kosul birimi
+    # uyusmazligi; onay yolu 'hayir' olan (sembol, hipotez) sayisi). `sayilar` yalnizca bu iki sabit anahtarla
+    # indislenmisse izinlidir; baska bir anahtar ya da `sayilar`in kendisi yazdirilirsa test kirmizi kalir.
+    sayim_anahtarlari = {"kosul_uyusmayan", "onay_yolu_hayir"}
     bulunan = 0
     for dugum in ast.walk(agac):
         if isinstance(dugum, ast.Call) and isinstance(dugum.func, ast.Name) and dugum.func.id == "print":
             bulunan += 1
-            adlar = {n.id for a in [*dugum.args, *[k.value for k in dugum.keywords]] for n in ast.walk(a)
-                     if isinstance(n, ast.Name)}
+            argumanlar = [*dugum.args, *[k.value for k in dugum.keywords]]
+            izinli_indis = {id(n.value) for a in argumanlar for n in ast.walk(a)
+                            if isinstance(n, ast.Subscript) and isinstance(n.value, ast.Name)
+                            and n.value.id == "sayilar" and isinstance(n.slice, ast.Constant)
+                            and n.slice.value in sayim_anahtarlari}
+            adlar = {n.id for a in argumanlar for n in ast.walk(a)
+                     if isinstance(n, ast.Name) and id(n) not in izinli_indis}
             assert adlar <= izinli, f"print izinsiz degisken yazdiriyor: {sorted(adlar - izinli)}"
     assert bulunan >= 3
 
