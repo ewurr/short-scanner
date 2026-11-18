@@ -132,9 +132,52 @@ def test_G1_olay_karari_ve_kapi_serisi_her_rolde_her_barda_referansla_ayni(dunya
                 if tek.icerir(t):
                     assert ayni(_seri_sonucu(tek, t), r), (pump, n)
                 siniflar.add(type(r).__name__)
-    if not (hipotez == "H3" and rol == "olay"):
-        assert "OnaylanmisPozisyon" in siniflar, siniflar
+    # F1-K1 D-B2: H3 olay rolu muafiyeti kalkti; bu dunyada da onay olusur (ayrintili sinama asagida, D-B2 testi).
+    assert "OnaylanmisPozisyon" in siniflar, siniflar
     assert len(siniflar - {"OnaylanmisPozisyon"}) >= 2, siniflar
+
+
+@pytest.mark.parametrize("yi", [0, 2, 4])
+def test_D_B2_H3_olay_rolunde_onayli_pozisyonun_butun_alanlari_referansla_ayni(monkeypatch, yi):
+    """F1-K1, D-B2 (RESULTS §14.49): H3 olay rolunde ONAY olusan sentetik dunya (donem sonu 2021-11-26: 120 gunluk
+    hacim penceresinden sonra son 50 gunde hacim ve fiyat duser). Izgaranin BUTUN barlarinda ince sarmalayici ve seri
+    satiri referansla ayni; onayli pozisyonun butun alanlari (plan, P0, P1, funding toplami ve ayrintisi, gecersizlik
+    seviyesi, bayraklar; `_deger_esit` dataclass alanlarinin hepsini gezer) karsilastirilir.
+
+    `_gecersizlik_tabani`nin 1d dali: onayli satirlar icin taban 1 gunluk cerceveden (`max(high[t-30..t])`, 1d)
+    hesaplanir; casus bunu kanitlar. Bozma: dal bilerek kaydirilirsa (taban x 1.0001) onayli bar uyusmaz olur, yani
+    karsilastirma gecersizlik alanini gercekten okur."""
+    kimlik, _ = dunya(611, BAS, "2021-11-26 20:00")
+    y = _y("H3", yi)
+    izgara = _izgara("H3", kimlik)
+    dal = []
+    asil = pozisyon._gecersizlik_tabani
+
+    def casus(b, z, degerler, secim, m4, gunluk):
+        if b.hipotez == "H3" and np.asarray(secim).any():
+            dal.append((b.bar, len(gunluk)))
+        return asil(b, z, degerler, secim, m4, gunluk)
+
+    monkeypatch.setattr(pozisyon, "_gecersizlik_tabani", casus)
+    seri = _seri("H3", kimlik, "olay", y=y)
+    onayli = 0
+    for t in izgara:
+        r = karar_cagrisi(ref, "H3", kimlik, t, rol="olay", yapilandirma=y)
+        assert ayni(karar_cagrisi(pozisyon, "H3", kimlik, t, rol="olay", yapilandirma=y), r), t
+        assert ayni(_seri_sonucu(seri, t), r), t
+        if isinstance(r, pozisyon.OnaylanmisPozisyon):
+            onayli += 1
+            assert math.isfinite(r.gecersizlik_seviyesi)
+    assert onayli >= 3, "kurulum: H3 olay rolunde onay olusmali"
+    assert dal and all(bar == config.BAR_1D for bar, _ in dal), dal
+
+    kume_bellegi.temizle()
+    monkeypatch.setattr(pozisyon, "_gecersizlik_tabani",
+                        lambda b, z, d, s, m4, g: asil(b, z, d, s, m4, g) * 1.0001)
+    bozuk = _seri("H3", kimlik, "olay", y=y)
+    farkli = sum(not ayni(_seri_sonucu(bozuk, t), karar_cagrisi(ref, "H3", kimlik, t, rol="olay", yapilandirma=y))
+                 for t in bozuk.zamanlar()[bozuk.onay_bitleri()])
+    assert farkli >= 3
 
 
 def test_G1_ikincil_ufuk_her_barda_referansla_ayni(dunya_g1):
@@ -383,6 +426,7 @@ def test_G11_anahtar_alanlarinin_her_biri_ayri_girdi_uretir(dunya_g1):
     # Anahtar donem isaretini de tasir.
     assert all(a[-1] == kume_bellegi.donem_isareti() for a in anahtarlar)
     assert _seri("H2", kimlik, "K1") is seriler["temel"]
+
 
 
 def test_G11_ikincil_ufuk_birincil_serinin_satirini_okumaz(dunya_g1):
