@@ -298,4 +298,8 @@ def test_olay_olusmaz_disindaki_hata_saklanmaz(dunya_ic, monkeypatch):
     monkeypatch.setattr(pencere, "pozisyon_plani", bazen_hata)
     assert isinstance(karar_cagrisi(pozisyon, "H2", kimlik, t), RuntimeError)
     durum["bozuk"] = False
+    # F1-K1 D-B1 (bilerek guncellendi): seri kapinin HATA bellegi ayni donem isaretinde hatayi bilerek tutar. Burada
+    # sinanan P2a plan onbellegidir: yalnizca seri bellegi bosaltilir, plan ve veri bellegi korunur; plan onbellegi
+    # hatayi saklamadiysa karar referansla ayni olur.
+    pozisyon._seri_bellegini_temizle()
     assert sonuc_esit(karar_cagrisi(pozisyon, "H2", kimlik, t), karar_cagrisi(ref, "H2", kimlik, t))

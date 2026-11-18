@@ -1088,7 +1088,11 @@ def test_H1_capa_dizisi_ve_tek_capa_serileri_ayni_satiri_verir(dunya_a):
 def test_seri_kurulumu_hata_verince_geri_dusus_yolu_ayni_karari_uretir(dunya_a, monkeypatch, hipotez, rol):
     """Dayanak: plan v3 G10/G1 ('ikinci bir karar yolu yoktur'); `olay_karari` geri dusus yolu. Saldiri: `kapi_serisi`
     `OlayOlusmaz` disi bir hatayla durur; tek bar cekirdegi (`_kapi_satirlari([t])`) seri yolundan FARKLI karar uretmemeli:
-    ayni sinif, ayni mesaj, ayni pozisyon alanlari (ornek barlar + son barlar)."""
+    ayni sinif, ayni mesaj, ayni pozisyon alanlari (ornek barlar + son barlar).
+
+    F1-K1 (D-B1) ile bilerek guncellendi: geri dusus yolu KALKTI. Seri kurulumunun hatasi `olay_karari`'dan oldugu gibi
+    (ayni sinif, ayni mesaj) yukselir ve tek bar cekirdegi hic calismaz; boylece seri yolundan farkli bir karar uretecek
+    ikinci yol da yoktur. Saldirinin amaci (seri hatasinda farkli karar yok) korunur."""
     kimlik, _ = dunya_a
     y = _y(hipotez, 4)
     izgara = _izgara(hipotez, kimlik)
@@ -1099,19 +1103,22 @@ def test_seri_kurulumu_hata_verince_geri_dusus_yolu_ayni_karari_uretir(dunya_a, 
     def capasi(t):
         return _capa(t, sira[t]) if capali else None
 
-    normal = {t: karar_cagrisi(pozisyon, hipotez, kimlik, t, rol=rol, capa=capasi(t), yapilandirma=y) for t in ornek}
     cagri = []
 
     def bozuk(*a, **k):
         cagri.append(1)
         raise RuntimeError("bilerek: seri kurulumu durdu")
 
+    def cekirdek_yasak(*a, **k):
+        raise AssertionError("seri hatasindan sonra tek bar cekirdegi calismamali (D-B1)")
+
     kume_bellegi.temizle()
     monkeypatch.setattr(pozisyon, "kapi_serisi", bozuk)
+    monkeypatch.setattr(pozisyon, "_kapi_satirlari", cekirdek_yasak)
     for t in ornek:
         geri = karar_cagrisi(pozisyon, hipotez, kimlik, t, rol=rol, capa=capasi(t), yapilandirma=y)
-        assert ayni(geri, normal[t]), (t, _ozet(geri), _ozet(normal[t]))
-    assert cagri, "kurulum: geri dusus yolu hic calismadi"
+        assert ayni(geri, RuntimeError("bilerek: seri kurulumu durdu")), (t, _ozet(geri))
+    assert len(cagri) == len(ornek), "kurulum: her cagri seri kurulumuna gitmeli"
 
 
 @pytest.mark.parametrize("rol", ["K1", "olay"])

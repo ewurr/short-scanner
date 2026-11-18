@@ -301,6 +301,9 @@ def test_G9_orneklenen_adayin_sonradan_kurulumu_hata_verirse_sert_hata(k2_dunyas
         yama.setattr(pozisyon, "_veri_yukle", bozuk)
         with pytest.raises(pencere.VeriHatasi):
             pozisyon.k2_aday_pozisyonu("H2", _y("H2"), kume="KESIF", **kimlik, t=t)
+    # F1-K1 D-B1 (bilerek guncellendi): hata veren kurulum ayni donem isaretinde hata belleginde kalir; yama kalktiktan
+    # sonra saglam seri ancak yeni bir donem isaretinde (kosu acilisi/kapanisi) kurulur.
+    kume_bellegi.temizle()
     seri = _seri("H2", kimlik, "K2")
     ret_t = next(x for x, b in zip(seri.zamanlar(), seri.onay_bitleri()) if not b)
     with pytest.raises(pozisyon.KontrolAdayiHatasi):
@@ -317,10 +320,12 @@ def test_G10_veri_hatasi_seriyi_durdurur_ret_koduna_donusmez(k2_dunyasi):
     for rol in ("K1", "K2"):
         with pytest.raises(pencere.VeriHatasi):
             pozisyon.kapi_serisi("H2", _y("H2"), rol, kume="KESIF", **yeni)
-    # Bar basina okuyucu: bozuk barda skalerle ayni hata; baska barda skalerle ayni karar (cekirdegin tek bar kosusu).
+    # Bar basina okuyucu: bozuk barda skalerle ayni hata. Baska barda da AYNI sinif (F1-K1, D-B1: geri dusus yolu
+    # kalkti; seri hatasi birimi durdurur, G10). Skaler o barda karar verir: fark gercek veri esitliginde birim hatasidir.
     assert ayni(karar_cagrisi(pozisyon, "H2", yeni, t), karar_cagrisi(ref, "H2", yeni, t))
     baska = _izgara("H2", yeni)[len(_izgara("H2", yeni)) // 3]
-    assert ayni(karar_cagrisi(pozisyon, "H2", yeni, baska), karar_cagrisi(ref, "H2", yeni, baska))
+    assert type(karar_cagrisi(pozisyon, "H2", yeni, baska)) is pencere.VeriHatasi
+    assert not isinstance(karar_cagrisi(ref, "H2", yeni, baska), pencere.VeriHatasi)
     # Hicbir satir VeriHatasi'ni ret olarak tasimaz: saglam dunyanin serisinde ret siniflari yalnizca OlayOlusmaz.
     seri = _seri("H2", kimlik, "K1")
     for x in seri.zamanlar():
@@ -535,7 +540,7 @@ KARAR_ADIMLARI = {"pozisyon_plani", "uygunluk_karari", "uygunluk", "capasiz_penc
 # cagiran fonksiyon yoktur.
 IZINLI_CAGIRANLAR = {
     ("pozisyon", "_kapi_satirlari"): "TEK karar cekirdegi",
-    ("pozisyon", "olay_karari"): "ince sarmalayici: cekirdegin tek bar kosusu (G10, izgara disi t)",
+    ("pozisyon", "olay_karari"): "ince sarmalayici: cekirdegin tek bar kosusu (yalnizca seri satiri olmayan t; F1-K1 D-B1)",
     ("pozisyon", "kapi_serisi"): "seri kurulumu: cekirdegi cagirir",
     ("pozisyon", "kur"): "`kapi_serisi` icindeki kurulum kapanisi (ayni fonksiyonun parcasi)",
     ("pozisyon", "_olay_kosulu_serisi"): "esitlik betigi icin vektorel kosul (G1 istisnasi, karar vermez)",

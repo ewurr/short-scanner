@@ -39,6 +39,10 @@ Sozlesme (performans 2b-0; denetci D-B2, D-B3, D-C4, D-C7, sizinti S-17, S-18, S
     Kip (`bar_kumesi`) ve birimin tohumu (`tohum`; `tum` kipinde bos) her satira yazilir.
   - Agac temizligi bu betikte HESAPLANMAZ: `split.kesif_kosusu`nun `KesifKaydi.agac_temiz` degeri kullanilir (bag
     ortami, `ls-files -v` bayraklari ve izlenmeyen dosyalar orada denetlenir). Deger True degilse kosu baslamaz.
+  - Birim hatasi (G10; F1-K1, denetci D-B1): `olay_karari` seri kurulumunun hatasini yakalamaz. Yeni taraftaki
+    beklenmeyen hata ayni barin seri kurulumunda da ayni sinifla cikiyorsa birim hatasidir (`hata` = `seri:<Sinif>`;
+    `karsilastir`). Birim hatasi ancak skaler tarafta ayni birimde en az bir beklenmeyen hata varsa uyusan sayilir;
+    yoksa birimin butun barlari uyusmayandir.
   - P2b-2 ekleri (plan v3 G1 gecici istisnasi ve G14; RESULTS §14.49; `--kosul-ve-onay-yolu`, varsayilan acik):
       * `kosul` birimi (olay rolu kosulduysa): kapinin olay rolundeki VEKTOREL kosulu (`pozisyon._olay_kosulu_serisi`,
         izgaranin tamami) ile dizi kurallarinin okudugu skaler `sinyal_kosulu` her barda karsilastirilir (True / False /
@@ -212,19 +216,45 @@ def karar(modul, hipotez: str, yapilandirma, rol: str, t, kimlik: dict, sira: in
                   rol=rol, capa=capa, birincil_ufuk=tanim.birincil, kume=KUME, **kimlik, **_esikler(tanim.bar))
 
 
+def _seri_hatasi(kapi, hipotez: str, yapilandirma, rol: str, t, kimlik: dict, sira: int, hata) -> bool:
+    """Yeni taraftaki beklenmeyen hata SERI duzeyinde mi (G10; F1-K1, denetci D-B1)? Barin birimi icin seri kurulumu
+    ayni sinifla duserse evet. Kapinin hata bellegi sayesinde seri yeniden kurulmaz (`pozisyon._seri_bellekten`)."""
+    capa = h1_capasi(t, sira) if (hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and rol == "olay") else None
+    seri = _cagir(kapi.kapi_serisi, hipotez, dict(yapilandirma), rol, kume=KUME, **kimlik, capa=capa)
+    return beklenmeyen(seri) and type(seri) is type(hata)
+
+
 def karsilastir(barlar, siralar, hipotez: str, yapilandirma, rol: str, kimlik: dict, *, kapi=pozisyon_modulu,
                 ref=None) -> Sayac:
-    """Kapi karari: sonuc sinifi, ret mesaji ve onayli pozisyonun butun alanlari. Deger dondurmez."""
+    """Kapi karari: sonuc sinifi, ret mesaji ve onayli pozisyonun butun alanlari. Deger dondurmez.
+
+    Birim hatasi (G10; F1-K1, denetci D-B1): `olay_karari` seri kurulumunun hatasini oldugu gibi yukseltir. Yeni taraf
+    bir barda beklenmeyen hata verir ve ayni bar icin seri kurulumu ayni sinifla duserse bu bar basina bir hata degil
+    BIRIM hatasidir (`hata` = `seri:<Sinif>`); yeni taraf o bardan sonra karsilastirilmaz, `beklenmeyen_hata_yeni`
+    artmaz. Kalan barlarda yalnizca skaler taraf kosar (beklenmeyen hatalari sayilir). Birim hatasi, skaler tarafta
+    ayni birimde en az bir beklenmeyen hata varsa uyusan sayilir (hatadan sonraki barlar uyusmayan sayilmaz); yoksa
+    birimin BUTUN barlari uyusmayandir. Hatadan once olagan yoldan karsilastirilmis barlarin (yalnizca H1 olay rolunde
+    olabilir: bar basina capa, bar basina seri) uyusmazliklari korunur."""
     ref = _referans_modulu(ref)
     sayac = Sayac()
+    hata_oncesi: list[pd.Timestamp] = []
     for t, sira in zip(barlar, siralar):
-        a = karar(kapi, hipotez, yapilandirma, rol, t, kimlik, sira)
         b = karar(ref, hipotez, yapilandirma, rol, t, kimlik, sira)
+        if not sayac.birim_hatasi:
+            a = karar(kapi, hipotez, yapilandirma, rol, t, kimlik, sira)
+            if beklenmeyen(a) and _seri_hatasi(kapi, hipotez, yapilandirma, rol, t, kimlik, sira, a):
+                sayac.birim_hatasi = f"seri:{type(a).__name__}"
+                hata_oncesi = list(sayac.uyusmayan)
+        if sayac.birim_hatasi:
+            sayac.bar(t, True, (b,), ())
+            continue
         esit = sonuc_esit(a, b)
         sayac.bar(t, esit, (b,), (a,),
                   kapsam=rol in KONTROL_ROLLERI and isinstance(a, pozisyon_modulu.OnaylanmisPozisyon))
         if esit and isinstance(a, pozisyon_modulu.OnaylanmisPozisyon) and isinstance(b, pozisyon_modulu.OnaylanmisPozisyon):
             sayac.iki_taraf_onay = True
+    if sayac.birim_hatasi:
+        sayac.uyusmayan = hata_oncesi if sayac.beklenmeyen_referans else [pd.Timestamp(t) for t in barlar]
     return sayac
 
 

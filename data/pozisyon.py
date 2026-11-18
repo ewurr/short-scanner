@@ -665,11 +665,16 @@ def olay_karari(
     donus degeri P2b-2 oncesiyle aynidir:
       - Girdi denetimleri (hipotez -> izgara -> ufuk bagi, yapilandirma, rol, capa, birincil ufuk once, UTC sinyal
         zamani, kume adi, onay ve kesif baglami, donem kaydi, grup, uygunluk esikleri) skalerdeki sirayla burada yapilir.
-      - t, seri kurulabildiyse ve t serinin bir satiriysa (hipotez izgarasinin bari; H1 olay rolunde capanin izleme
-        penceresinde) satir ONBELLEKTEKI seriden okunur.
-      - Aksi halde (t izgarada degil, tolerans payiyla verilmis, ya da serinin kurulumu `OlayOlusmaz` disi bir hatayla
-        durdu: G10) ayni karar cekirdegi (`_kapi_satirlari`) YALNIZCA t icin kosar. Ikinci bir karar yolu yoktur: iki
-        durumda da karar ayni fonksiyondan gelir; tek fark sorulan bar kumesidir.
+      - Once t'nin birimi icin seri kurulur (ya da onbellekten okunur). Seri kurulumu `OlayOlusmaz` disi bir hatayla
+        durursa hata OLDUGU GIBI yukari cikar (G10: seri hatasi birimi durdurur; F1-K1, denetci D-B1 ve D-C7). Bar tek
+        basina yeniden hesaplanmaz: bu, birimin butun barlarinda ayni hatayi verir ve gercek veri esitliginde birim
+        hatasi olarak gorunur (`esitlik_kapi.karsilastir`).
+      - t serinin bir satiriysa (hipotez izgarasinin bari; H1 olay rolunde capanin izleme penceresinde) satir
+        ONBELLEKTEKI seriden okunur.
+      - t serinin satiri degilse (izgarada degil, tolerans payiyla verilmis, ya da H1'de capanin izleme penceresi
+        disinda) ayni karar cekirdegi (`_kapi_satirlari`) YALNIZCA t icin kosar; bu yol yalnizca seri BASARIYLA
+        kurulduktan sonra calisir. Ikinci bir karar yolu yoktur: karar ayni fonksiyondan gelir; tek fark sorulan bar
+        kumesidir.
 
     Fiyat, funding ve 1d cerceveleri cagirandan alinmaz: kapi `sembol` ve `kume` ile yukler. `yapilandirma`: hipotezin
     izgarasindaki bir parametre demeti. `rol`: "olay", "K1" ya da "K2". `capa`: yalnizca H1'in olay rolunde pump bari,
@@ -704,14 +709,10 @@ def olay_karari(
     eligibility_modulu.esikleri_dogrula(bar, asgari_hacim=asgari_hacim,
                                         asgari_listeleme_yasi_gun=asgari_listeleme_yasi_gun)
     ikincil = None if ufuk == birincil_ufuk else int(ufuk)
-    try:
-        seri = kapi_serisi(hipotez, gecerli_yapilandirma, rol, kume=kume, sembol=sembol, donem_no=donem_no,
-                           capa=capa, ufuk=ikincil)
-    except pencere_modulu.OlayOlusmaz:
-        raise
-    except Exception:  # noqa: BLE001 - G10: seri kurulumu durdu; t satiri ayni cekirdekten tek basina kurulur
-        seri = None
-    if seri is not None and seri.icerir(sinyal_zamani):
+    # G10 (F1-K1, denetci D-B1): seri kurulumunun hatasi yakalanmaz; birimi durdurur ve oldugu gibi yukari cikar.
+    seri = kapi_serisi(hipotez, gecerli_yapilandirma, rol, kume=kume, sembol=sembol, donem_no=donem_no,
+                       capa=capa, ufuk=ikincil)
+    if seri.icerir(sinyal_zamani):
         return seri.sonuc(sinyal_zamani)
     baglam = _kapi_baglami(hipotez, gecerli_yapilandirma, rol, kume=kume, sembol=sembol, donem_no=donem_no,
                            ufuk=ikincil)
@@ -908,6 +909,7 @@ def hipotez_izgarasi_barlari(hipotez: str, *, kume: str, sembol: str, donem_no: 
 _SERI_GIZLI = object()
 SERI_AZAMI_GIRDI = 32
 _SERI_BELLEGI: OrderedDict = OrderedDict()
+_SERI_HATALARI: OrderedDict = OrderedDict()     # hata veren kurulumlar (F1-K1, D-B1): ayni anahtar yeniden kurulmaz
 _SERI_KILIDI = threading.Lock()
 
 
@@ -1352,6 +1354,7 @@ class KapiSerisi:
 def _seri_bellegini_temizle() -> None:
     with _SERI_KILIDI:
         _SERI_BELLEGI.clear()
+        _SERI_HATALARI.clear()
 
 
 kume_bellegi.temizleyici_ekle(_seri_bellegini_temizle)
@@ -1360,13 +1363,37 @@ kume_bellegi.temizleyici_ekle(_seri_bellegini_temizle)
 def _seri_bellekten(anahtar: tuple, kur) -> KapiSerisi:
     """Seri onbellegi: SABIT tanimlara (`_karar_girdisi`, `_PlanSerisi`, `_karar_verisi`) DOKUNMADAN, ayri bir anahtar
     ve ayri bir LRU ile (G2, G11). Anahtar donem isaretini de tasir; kosu acilisi ve kapanisi (`kume_bellegi.temizle`)
-    onbellegi dusurur. Hata veren kurulum bellege yazilmaz (her cagrida yeniden olusur)."""
+    onbellegi dusurur.
+
+    Hata veren kurulum (F1-K1, denetci D-B1; G10): hata seri bellegine YAZILMAZ (kismi seri yoktur), ayri bir LRU'da
+    (`_SERI_HATALARI`, ayni anahtar ve ayni sinir) tutulur. Ayni anahtarla sonraki cagri seriyi yeniden kurmaz, AYNI hata
+    nesnesini yeniden yukseltir; boylece birimin her bari seriyi yeniden kurmaya calismaz. Hata bellegi seri bellegiyle
+    ayni donem isareti kuralina uyar: anahtar isareti tasir, yalnizca isaret degismemisse yazilir ve kosu acilisi /
+    kapanisi (`_seri_bellegini_temizle`) onu da dusurur. `MemoryError` tutulmaz (ortamin durumudur, birimin degil)."""
     with _SERI_KILIDI:
         seri = _SERI_BELLEGI.get(anahtar)
+        hata = None
         if seri is not None:
             _SERI_BELLEGI.move_to_end(anahtar)
+        else:
+            hata = _SERI_HATALARI.get(anahtar)
+            if hata is not None:
+                _SERI_HATALARI.move_to_end(anahtar)
+    if hata is not None:
+        raise hata.with_traceback(None)
     if seri is None:
-        seri = kur()
+        try:
+            seri = kur()
+        except MemoryError:
+            raise
+        except Exception as kurulum_hatasi:
+            with _SERI_KILIDI:
+                if kume_bellegi.donem_isareti() == anahtar[-1]:
+                    _SERI_HATALARI[anahtar] = kurulum_hatasi
+                    _SERI_HATALARI.move_to_end(anahtar)
+                    while len(_SERI_HATALARI) > SERI_AZAMI_GIRDI:
+                        _SERI_HATALARI.popitem(last=False)
+            raise
         with _SERI_KILIDI:
             if kume_bellegi.donem_isareti() == anahtar[-1]:
                 _SERI_BELLEGI[anahtar] = seri
