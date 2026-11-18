@@ -20,7 +20,8 @@ import config
 from data import _skaler_referans as ref
 from data import kume_bellegi, pencere, pozisyon, sinyal, split
 from esitlik_yardimcisi import H4, dunya, karar_cagrisi
-from kapi_yardimcisi import SENTETIK_VERI, veri
+from kapi_yardimcisi import SENTETIK_DONEMLER, SENTETIK_VERI, veri
+from onay_yardimcisi import gecici_kayit, kosu
 from tarama_yardimcisi import KOK
 from uygunluk_yardimcisi import esikler
 
@@ -427,6 +428,46 @@ def test_G11_anahtar_alanlarinin_her_biri_ayri_girdi_uretir(dunya_g1):
     assert all(a[-1] == kume_bellegi.donem_isareti() for a in anahtarlar)
     assert _seri("H2", kimlik, "K1") is seriler["temel"]
 
+
+def _tek_alan_farki(a: tuple, b: tuple) -> list[int]:
+    return [i for i, (x, y) in enumerate(zip(a, b)) if x != y]
+
+
+def test_D_C2_G11_anahtarin_donem_alani_tek_basina_ayri_girdi_uretir(dunya_g1, monkeypatch):
+    """F1-K1 D-C2: ayni sembolun ikinci (dar) donemi; kimlik YALNIZCA donem alaninda (2) farkli, ayri girdi, ayri nesne;
+    donem 0 girdisi bozulmaz."""
+    kimlik, _ = dunya_g1
+    sembol = kimlik["sembol"]
+    monkeypatch.setitem(SENTETIK_DONEMLER, (sembol, 1), (U("2021-03-01"), U("2021-06-30 20:00"), False))
+    kume_bellegi.temizle()
+    s0 = _seri("H2", kimlik, "K1")
+    s1 = pozisyon.kapi_serisi("H2", _y("H2"), "K1", kume="KESIF", sembol=sembol, donem_no=1)
+    assert s1 is not s0 and _tek_alan_farki(s0.kimlik, s1.kimlik) == [2]
+    anahtarlar = list(pozisyon._SERI_BELLEGI)
+    assert len(anahtarlar) == len(set(anahtarlar)) == 2
+    assert _tek_alan_farki(*anahtarlar) == [3]                 # anahtar: ("kapi_serisi", kume, sembol, donem, ...)
+    assert _seri("H2", kimlik, "K1") is s0
+
+
+def test_D_C2_G11_anahtarin_kume_alani_tek_basina_ayri_girdi_uretir(tmp_path):
+    """F1-K1 D-C2: KESIF ile C2'yi kesen bir donem; ayni sembol, donem, hipotez, yapilandirma ve rol icin C2 serisi SAHTE
+    bir onay kosusunda kurulur (gercek ONAY_KAYDI.md'ye yazilmaz). Kimlik ve anahtar YALNIZCA kume alaninda farkli; C2
+    serisi KESIF anahtarini okumaz ve KESIF serisinin satirlarini tasimaz."""
+    yol = tmp_path / "onay_gecici.md"
+    yol.write_text("bas\n", encoding="utf-8")
+    gecici_kayit(yol)
+    kimlik, _ = dunya(614, "2025-03-01", "2026-01-31 20:00")
+    kume_bellegi.temizle()
+    kesif = _seri("H2", kimlik, "K1")
+    kesif_kimlik, kesif_zaman = kesif.kimlik, kesif.zamanlar()
+    kesif_anahtar = next(iter(pozisyon._SERI_BELLEGI))
+    with kosu("H2", "C2"):
+        c2 = pozisyon.kapi_serisi("H2", _y("H2"), "K1", kume="C2", **kimlik)
+        assert c2 is not kesif and _tek_alan_farki(kesif_kimlik, c2.kimlik) == [0]
+        c2_anahtar = next(iter(pozisyon._SERI_BELLEGI))
+        assert _tek_alan_farki(kesif_anahtar[:-1], c2_anahtar[:-1]) == [1]
+        assert not set(c2.zamanlar()) & set(kesif_zaman)
+        assert len(c2.zamanlar()) > 0 and len(kesif_zaman) > 0
 
 
 def test_G11_ikincil_ufuk_birincil_serinin_satirini_okumaz(dunya_g1):
