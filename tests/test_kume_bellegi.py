@@ -276,6 +276,52 @@ def test_onbellekli_ve_onbelleksiz_ayni_karari_verir(gercek_veri, sembol, hipote
         onbelleksiz = [_sonuc(lambda: cagri(rol, t)) for t in barlar]
         assert kume_bellegi.girdi_sayisi() > 0
         assert [_sonuc(lambda: cagri(rol, t)) for t in barlar] == onbelleksiz, rol
+    # F1-K1 D-B3 (RESULTS §14.49): yukaridaki karsilastirma seri kapida ayni seri nesnesini kendisiyle karsilastirir.
+    # Bagimsiz kurulum: seri bellegi TAMAMEN bosaltilir, veri bellegi korunur; yeni seri onbellekten okunan seriyle
+    # her satirda karsilastirilir.
+    for rol in ("olay", "K1", "K2"):
+        capa = None
+        if hipotez == "H1" and rol == "olay":
+            capa = barlar[2] - pd.Timedelta(hours=24)
+        _bagimsiz_seri_her_satirda_ayni(hipotez, rol, kume="KESIF", sembol=sembol, donem_no=0, capa=capa)
+
+
+def _bagimsiz_seri_her_satirda_ayni(hipotez, rol, **kimlik):
+    """Onbellekten okunan seri ile seri bellegi bosaltilarak (veri bellegi korunarak) bagimsiz kurulan seri her satirda
+    ayni (satir zamanlari, sonuc sinifi, ret mesaji ve onayli pozisyonun butun alanlari). Ayni nesne kendisiyle
+    karsilastirilmaz. Doner: karsilastirilan satir sayisi."""
+    y = sinyal.izgara(hipotez)[0]
+    ilk = pozisyon.kapi_serisi(hipotez, y, rol, **kimlik)
+    onbellekten = pozisyon.kapi_serisi(hipotez, y, rol, **kimlik)
+    assert onbellekten is ilk, "kurulum: ikinci cagri onbellekten okunmali"
+    veri_girdisi = kume_bellegi.girdi_sayisi()
+    assert veri_girdisi > 0
+    pozisyon._seri_bellegini_temizle()
+    assert len(pozisyon._SERI_BELLEGI) == 0 and kume_bellegi.girdi_sayisi() == veri_girdisi
+    bagimsiz = pozisyon.kapi_serisi(hipotez, y, rol, **kimlik)
+    assert bagimsiz is not onbellekten
+    assert kume_bellegi.girdi_sayisi() == veri_girdisi        # veri bellegi korundu (yeniden yuklenmedi)
+    zamanlar = onbellekten.zamanlar()
+    assert zamanlar.equals(bagimsiz.zamanlar())
+    for t in zamanlar:
+        assert _sonuc(lambda: onbellekten.sonuc(t)) == _sonuc(lambda: bagimsiz.sonuc(t)), (rol, t)
+    assert (onbellekten.onay_bitleri() == bagimsiz.onay_bitleri()).all()
+    return len(zamanlar)
+
+
+@pytest.mark.parametrize("hipotez", ["H1", "H2", "H3"])
+@pytest.mark.parametrize("rol", ["olay", "K1", "K2"])
+def test_D_B3_bagimsiz_kurulan_seri_onbellektekiyle_her_satirda_ayni_sentetik(hipotez, rol):
+    """F1-K1 D-B3, gercek onbellek gerektirmeyen bicim (sentetik dunya; her zaman kosar)."""
+    from esitlik_yardimcisi import dunya
+
+    kimlik, _ = dunya(631, "2021-01-01", "2021-11-26 20:00")
+    kume_bellegi.temizle()
+    capa = None
+    if hipotez == "H1" and rol == "olay":
+        izgara = pozisyon.hipotez_izgarasi_barlari("H1", kume="KESIF", **kimlik)
+        capa = [t - pd.Timedelta(hours=4) * (1 + i % config.H1_IZLEME_BAR) for i, t in enumerate(izgara)]
+    assert _bagimsiz_seri_her_satirda_ayni(hipotez, rol, kume="KESIF", **kimlik, capa=capa) > 100
 
 
 def test_mae_ve_pozisyon_fundingi_bellekten_gecer(gercek_veri, monkeypatch):
