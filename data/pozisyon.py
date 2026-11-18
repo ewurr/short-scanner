@@ -1505,8 +1505,11 @@ def k2_bitleri(hipotez, yapilandirma, *, kume, sembol, donem_no, zamanlar) -> np
     istenen = pd.DatetimeIndex(zamanlar)
     if len(istenen) and istenen.tz is None:
         raise TypeError("zamanlar saat dilimsiz (tz-naive); tum zaman damgalari UTC olmali.")
-    gruplar, _, _ = split_modulu.kume_tanimi(kume)
-    if _kayitlar()[1].get(sembol) not in gruplar:
+    # Grup kurali tek kaynaktan (F1-K1, denetci D-C3): `grup_dogrula`nin YALNIZCA grup reddi (ValueError) 0 bitine
+    # doner; baska her hata (G10) yukari cikar.
+    try:
+        grup_dogrula(sembol, kume)
+    except ValueError:
         return np.zeros(len(istenen), dtype=bool)
     seri = kapi_serisi(hipotez, gecerli, "K2", kume=kume, sembol=sembol, donem_no=donem_no)
     bitler = seri.onay_bitleri()
