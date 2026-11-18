@@ -19,6 +19,7 @@ import pandas as pd
 import pytest
 
 import config
+from data import _skaler_referans as ref
 from data import pencere, pozisyon
 from kapi_yardimcisi import veri
 from sinyal_yardimcisi import kontrol
@@ -35,9 +36,9 @@ FUND = pd.DataFrame({"odeme_zamani": pd.date_range(DB, B + H(4), freq="8h"), "ar
 T_SINYAL = T("2025-03-10 04:00")
 
 
-def _karar(mum=MUM, hipotez="H1"):
+def _karar(mum=MUM, hipotez="H1", modul=pozisyon):
     tanim = pencere.hipotez_ufuklari(hipotez)
-    return pozisyon.olay_karari(T_SINYAL, tanim.birincil, tanim.bar, hipotez=hipotez,
+    return modul.olay_karari(T_SINYAL, tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, kume="KESIF",
                                 **veri(mum, FUND, DB, B, uygun_bas=DB), **kontrol(hipotez),
                                 **esikler(tanim.bar))
@@ -102,12 +103,18 @@ def test_mae_penceresindeki_pozitif_olmayan_high_onay_vermez():
 
 
 def test_pencere_disindaki_pozitif_olmayan_high_onayi_etkilemez():
-    """Yanlis pozitif denetimi: pozisyon penceresinin DISINDAKI bozuk high onayi dusurmemeli."""
+    """Yanlis pozitif denetimi: pozisyon penceresinin DISINDAKI bozuk high bu barin onayini dusurmemeli.
+
+    F1-K1 (D-B1, G10): bar basina kural skaler referansta denetlenir. Kapinin sarmalayicisi `olay_karari` ayni birimin
+    serisini kurar; uzak barlardan birinin penceresi bozuk high'i icerdigi icin seri kurulumu `VeriHatasi` verir ve
+    birim durur (eski geri dusus yolu bu hatayi gizliyordu)."""
     plan = _temiz_plan()
     m = MUM.copy()
     uzak = m["open_time"] > plan.cikis.zaman + H(40)
     m.loc[uzak, "high"] = 0.0
-    assert _karar(m).p0 > 0
+    assert _karar(m, modul=ref).p0 > 0
+    with pytest.raises(pencere.VeriHatasi):
+        _karar(m)
 
 
 def test_saglam_dunyada_onay_ve_mae_hesaplanir():

@@ -21,6 +21,7 @@ import pandas as pd
 import pytest
 
 import config
+from data import _skaler_referans as ref
 from data import ornekleme, pencere, pozisyon, sinyal
 from kapi_yardimcisi import veri
 from kume_yardimcisi import kume_adi
@@ -65,9 +66,9 @@ def _aralik_ayarla(mumlar, bas, son, **alanlar):
     return m
 
 
-def _karar(hipotez, mumlar, fund, db, b, t, **ek):
+def _karar(hipotez, mumlar, fund, db, b, t, modul=pozisyon, **ek):
     tanim = pencere.hipotez_ufuklari(hipotez)
-    return pozisyon.olay_karari(t, tanim.birincil, tanim.bar, hipotez=hipotez,
+    return modul.olay_karari(t, tanim.birincil, tanim.bar, hipotez=hipotez,
                                 birincil_ufuk=tanim.birincil, kume=kume_adi(t),
                                 **veri(mumlar, fund, db, b, uygun_bas=db, hacim=6 * HACIM),
                                 **ek, **esikler(tanim.bar))
@@ -150,7 +151,11 @@ def test_kosul_degerlendirmesi_hata_verecek_veride_bile_kontrol_olusur(rol):
     pencere (sonlu bir sayi olan 0.0) hesaplanabilir sayilir ve kontrol olusur.
 
     Rev.11'de ayni bar K2 rolunde `VeriHatasi` verirdi -- yani bu test kosulun hesaplanmadigini
-    dolayli degil DOGRUDAN gosterir."""
+    dolayli degil DOGRUDAN gosterir.
+
+    F1-K1 (D-B1, G10): bar basina kural skaler referansta denetlenir. Kapinin sarmalayicisi `olay_karari` ayni birimin
+    serisini kurar; t-30 bari baska bir satirin girisi (P1) oldugu icin seri kurulumu `VeriHatasi` verir ve birim
+    durur. Bu hata kosuldan degil fiyat denetiminden gelir (eski geri dusus yolu onu gizliyordu)."""
     # `close[t-30]` TAM t-30 barindadir (iki uclu oran); sifir fiyat oradadir.
     sifirli = _ayarla(_duz(DB, B), T2 - 30 * H4, close=0.0, open=0.0, high=0.0, low=0.0)
     degerler = sinyal.sinyal_degerleri("H2", yapilandirma("H2"), T2, mumlar_4h=sifirli,
@@ -160,7 +165,9 @@ def test_kosul_degerlendirmesi_hata_verecek_veride_bile_kontrol_olusur(rol):
                                        donem_baslangic=DB)
     with pytest.raises(pencere.VeriHatasi):
         sinyal.kosullar_saglandi("H2", yapilandirma("H2"), degerler)
-    assert _karar("H2", sifirli, FUND, DB, B, T2, **kontrol("H2", rol)).rol == rol
+    assert _karar("H2", sifirli, FUND, DB, B, T2, modul=ref, **kontrol("H2", rol)).rol == rol
+    with pytest.raises(pencere.VeriHatasi, match="pozitif bir fiyat"):
+        _karar("H2", sifirli, FUND, DB, B, T2, **kontrol("H2", rol))
 
 
 # --- 3. Eleme ornekleme adiminda (uc hipotezde ayni) ------------------------------------------
