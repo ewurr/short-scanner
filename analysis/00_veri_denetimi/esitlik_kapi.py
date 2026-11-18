@@ -613,7 +613,7 @@ def main(argv: list[str] | None = None) -> int:
     from calistir import csv_yaz, kosu_kilidi
 
     try:
-        with kosu_kilidi(f"esitlik_kapi_{arg.etiket}"):
+        with kosu_kilidi(f"esitlik_kapi_{arg.etiket}", bayat_alinir=True):
             tablo, kayitlar = kos(semboller, ayar, arg.isci, ara_dizin)
             csv_yaz(tablo, BU_DIZIN / f"esitlik_kapi_{arg.etiket}_tam.csv")
             csv_yaz(pd.DataFrame(kayitlar), BU_DIZIN / f"esitlik_kapi_{arg.etiket}_kesif_kaydi_tam.csv")

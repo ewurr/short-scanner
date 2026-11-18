@@ -153,7 +153,8 @@ def test_olay_rolunde_uyusmazlik_ya_da_beklenmeyen_hata_cikis_kodu_1(monkeypatch
     monkeypatch.setattr(ek, "ORNEK", tmp_path / "ornek.csv")
     pd.DataFrame({"sembol": ["X"]}).to_csv(tmp_path / "ornek.csv", index=False)
     monkeypatch.setattr(calistir, "csv_yaz", lambda tablo, yol: yazilan.append(tablo))
-    monkeypatch.setattr(calistir, "kosu_kilidi", lambda ad: contextlib.nullcontext())
+    # F1-K1 §3 (bilerek guncellendi): esitlik betigi kilidi `bayat_alinir=True` ile ister; sahte kilit anahtar sozcugu kabul eder.
+    monkeypatch.setattr(calistir, "kosu_kilidi", lambda ad, **k: contextlib.nullcontext())
     # P2b-2 (RESULTS §14.49; bilerek guncellendi): `kosul` birimi ve ONAY_YOLU satirlari varsayilan acik; sahte dunya
     # yalnizca `karar`i sahteler, bu yuzden ekler kapatilir (eklerin cikis kodu `test_perf2b2_esitlik_kapi.py`de).
     assert ek.main(["--bar", "tum", "--rol", "olay", "--hipotez", "H2", "--no-funding-satiri", "--isci", "1",

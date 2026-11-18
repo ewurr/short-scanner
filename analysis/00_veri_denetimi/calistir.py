@@ -114,8 +114,80 @@ class KosuKilidiHatasi(RuntimeError):
     """Ayni betigin baska bir kosusu suruyor (ya da kilit birakilmadan sonlandi)."""
 
 
+def surec_baslangici(pid: int) -> str | None:
+    """Surecin baslangic zamani belirteci (pid yeniden kullanilmasina karsi); surec yasamiyorsa None, yasiyor ama
+    baslangic zamani okunamiyorsa "bilinmiyor" (F1-K1, RESULTS §14.50: bayat kosu kilidi).
+
+    Windows: `OpenProcess` + `GetExitCodeProcess` (259 = STILL_ACTIVE) + `GetProcessTimes` (olusturma FILETIME).
+    Linux: `/proc/<pid>/stat` 22. alani. Diger POSIX: `os.kill(pid, 0)`; baslangic "bilinmiyor". Ek bagimlilik yoktur."""
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return None
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        tutamac = k32.OpenProcess(0x1000, False, pid)        # PROCESS_QUERY_LIMITED_INFORMATION
+        if not tutamac:
+            return "bilinmiyor" if ctypes.get_last_error() == 5 else None   # 5: erisim reddi -> surec var
+        try:
+            kod = wintypes.DWORD()
+            if not k32.GetExitCodeProcess(tutamac, ctypes.byref(kod)):
+                return "bilinmiyor"
+            if kod.value != 259:
+                return None
+            olusma, cikis, cekirdek, kullanici = (wintypes.FILETIME() for _ in range(4))
+            if not k32.GetProcessTimes(tutamac, ctypes.byref(olusma), ctypes.byref(cikis), ctypes.byref(cekirdek),
+                                       ctypes.byref(kullanici)):
+                return "bilinmiyor"
+            return str((olusma.dwHighDateTime << 32) | olusma.dwLowDateTime)
+        finally:
+            k32.CloseHandle(tutamac)
+    stat = Path(f"/proc/{pid}/stat")
+    if stat.parent.parent.exists() and Path("/proc/self/stat").exists():
+        try:
+            metin = stat.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return None
+        return metin.rpartition(")")[2].split()[19]
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return None
+    except PermissionError:
+        return "bilinmiyor"
+    return "bilinmiyor"
+
+
+def _kilit_sahibi(metin: str) -> tuple[int | None, str | None]:
+    """Kilit dosyasindan (pid, surec baslangici). Eski bicimde (yalnizca pid) baslangic None."""
+    alanlar = dict(p.split("=", 1) for p in metin.split() if "=" in p)
+    try:
+        pid = int(alanlar.get("pid", ""))
+    except ValueError:
+        pid = None
+    return pid, alanlar.get("surec_baslangici")
+
+
+def kilit_bayat_mi(metin: str) -> bool:
+    """Kilidin sahibi yasamiyor mu? Sahibi okunamiyorsa (pid yok) bayat SAYILMAZ (temkinli). Sahibi yasiyorsa ve kilit
+    baslangic zamanini tasiyorsa, bugunku baslangic zamani farkliysa pid yeniden kullanilmistir: bayat. Baslangic
+    zamanlarindan biri bilinmiyorsa yasayan sahip bayat sayilmaz."""
+    pid, kayitli = _kilit_sahibi(metin)
+    if pid is None:
+        return False
+    simdiki = surec_baslangici(pid)
+    if simdiki is None:
+        return True
+    if kayitli in (None, "bilinmiyor") or simdiki == "bilinmiyor":
+        return False
+    return simdiki != kayitli
+
+
 @contextlib.contextmanager
-def kosu_kilidi(ad: str, dizin: Path | None = None):
+def kosu_kilidi(ad: str, dizin: Path | None = None, *, bayat_alinir: bool = False):
     """Kosu duzeyinde kilit: ayni betigin iki kosusu ayni anda calisamaz.
 
     Eszamanli iki kosu ayni cikti dosyalarina yazar; Windows'ta ayni hedefe
@@ -124,22 +196,47 @@ def kosu_kilidi(ad: str, dizin: Path | None = None):
     atomik olarak (O_EXCL) olusturur; dosya varsa ikinci kosu hicbir sey
     yazmadan `KosuKilidiHatasi` ile baslamayi reddeder. Kosu hata ile bitse de
     kilit `finally` icinde birakilir. Kilit dosyasi git'e girmez (.gitignore).
+
+    Kilit sahibinin sureci numarasini (`pid`) ve surecin baslangic zamanini (`surec_baslangici`) yazar (F1-K1,
+    RESULTS §14.50). `bayat_alinir=True` (esitlik betikleri): kilit varsa ve sahibi yasamiyorsa (ya da pid yeniden
+    kullanilmis: baslangic zamani farkli) kilit BAYATTIR; bir uyari yazilarak alinir. Sahibi yasiyorsa bugunku gibi
+    `KosuKilidiHatasi`. Alma adimi: bayat dosya once kosuya ozel bir ada tasinir, tasinan dosyanin icerigi okunan
+    bayat icerikle ayni mi diye bakilir (arada baska bir kosu kilidi yenilediyse geri konur ve kosu reddedilir), sonra
+    kilit yeniden O_EXCL ile olusturulur.
     """
     yol = (CIKTI_DIZINI if dizin is None else Path(dizin)) / f".{ad}.kilit"
-    try:
-        tanitici = os.open(yol, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError:
+    for deneme in (0, 1):
         try:
-            sahibi = yol.read_text(encoding="utf-8").strip()
-        except OSError:
-            sahibi = "okunamadi"
-        raise KosuKilidiHatasi(
-            f"{ad} zaten calisiyor: kilit dosyasi {yol} var ({sahibi}). Eszamanli kosu "
-            "desteklenmez; iki kosu ayni cikti dosyalarina yazar. Calisan bir kosu yoksa "
-            "(onceki kosu zorla sonlandirildiysa) kilit dosyasini elle silin."
-        ) from None
+            tanitici = os.open(yol, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            break
+        except FileExistsError:
+            try:
+                sahibi = yol.read_text(encoding="utf-8").strip()
+            except OSError:
+                sahibi = "okunamadi"
+            if bayat_alinir and deneme == 0 and sahibi != "okunamadi" and kilit_bayat_mi(sahibi):
+                tasinan = yol.with_name(f"{yol.name}.bayat.{os.getpid()}")
+                try:
+                    os.replace(yol, tasinan)
+                    ayni = tasinan.read_text(encoding="utf-8").strip() == sahibi
+                except OSError:
+                    ayni = False
+                if ayni:
+                    tasinan.unlink(missing_ok=True)
+                    print(f"UYARI: {ad} icin bayat kosu kilidi alindi (sahibi yasamiyor: {sahibi}).",
+                          file=sys.stderr, flush=True)
+                    continue
+                if tasinan.exists() and not yol.exists():
+                    with contextlib.suppress(OSError):
+                        os.replace(tasinan, yol)
+            raise KosuKilidiHatasi(
+                f"{ad} zaten calisiyor: kilit dosyasi {yol} var ({sahibi}). Eszamanli kosu "
+                "desteklenmez; iki kosu ayni cikti dosyalarina yazar. Calisan bir kosu yoksa "
+                "(onceki kosu zorla sonlandirildiysa) kilit dosyasini elle silin."
+            ) from None
     with os.fdopen(tanitici, "w", encoding="utf-8") as dosya:
-        dosya.write(f"pid={os.getpid()} baslangic_utc={pd.Timestamp.now(tz='UTC'):%Y-%m-%d %H:%M:%S}\n")
+        dosya.write(f"pid={os.getpid()} surec_baslangici={surec_baslangici(os.getpid()) or 'bilinmiyor'} "
+                    f"baslangic_utc={pd.Timestamp.now(tz='UTC'):%Y-%m-%d_%H:%M:%S}\n")
     try:
         yield yol
     finally:
