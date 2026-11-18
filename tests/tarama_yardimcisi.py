@@ -315,7 +315,9 @@ def takvim_izgarasi_ihlalleri(kok: Path = KOK) -> list[str]:
 # sinyal yolu acardi. Modulun adi ayirt edici secildi (`seri` Turkce metinde siradan bir kelimedir); desen yalnizca
 # `seri_kurucu` adini yakalar. Genel `IZINLI_ALTLAR` muafiyeti UYGULANMAZ: `analysis/00_veri_denetimi/` de taranir.
 # Sinir: adi parcalayip `importlib` ile kurulan ice aktarma yakalanmaz.
-SERI_KURUCU_DESENI = r"\bseri_kurucu\b"
+# F1-K1 (sizinti S-P2b2-2): desen sozcuk sinirina DAYANMAZ; `seri_kurucu` gecen her ad yakalanir (`_seri_kurucu`,
+# `seri_kurucu_modulu` ve benzeri takma adlar dahil; `_` sozcuk karakteri oldugu icin `\b` onlari gormuyordu).
+SERI_KURUCU_DESENI = r"seri_kurucu"
 #
 # D-C8 (RESULTS §14.49): `data/` artik toptan muaf DEGILDIR. Plan "yalnizca kapi kullanir" der; `data/` icinde seri
 # kurucularini yalnizca kapi modulu (`data/pozisyon.py`) ve modulun kendisi anabilir. Baska bir veri katmani modulu

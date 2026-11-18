@@ -355,14 +355,14 @@ def test_kontrol_barinda_kosul_ve_deger_kuruculari_cagrilmaz(monkeypatch, hipote
     # `sinyal.capasiz_pencere_degerleri` bar basina bir kez).
     for ad in ("_olay_degerleri", "_kosul_dizisi", "_gecersizlik_tabani"):
         monkeypatch.setattr(pozisyon, ad, yasak(ad))
-    gercek = pozisyon.seri_kurucu_modulu.capasiz_pencereler
+    gercek = pozisyon._seri_kurucu.capasiz_pencereler
     cagrilar = []
 
     def izle(*a, **k):
         cagrilar.append(a[0])
         return gercek(*a, **k)
 
-    monkeypatch.setattr(pozisyon.seri_kurucu_modulu, "capasiz_pencereler", izle)
+    monkeypatch.setattr(pozisyon._seri_kurucu, "capasiz_pencereler", izle)
     p = _karar(hipotez, _duz(DB, B), FUND, t, **kontrol(hipotez, rol))
     assert p.rol == rol and cagrilar == [hipotez]
     assert math.isnan(p.gecersizlik_seviyesi)

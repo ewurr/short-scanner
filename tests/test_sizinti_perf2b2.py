@@ -918,12 +918,6 @@ def _tum_taramalar(kok):
     return bulunan
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "S-P2b2-2: `pozisyon.seri_kurucu_modulu` (kapinin ice aktarma takma adi) analiz kodundan erisilebilir ve HICBIR tarama "
-    "deseni onu gormez: SERI_KURUCU_DESENI `\\bseri_kurucu\\b` ad `seri_kurucu_modulu` icinde sinir bulamaz (`_` sozcuk "
-    "karakteridir), CIKIS_KAPI_DISI_DESENI listesinde de yoktur. Analiz kodu seri kuruculariyla (uygunluk, pencere, tepe) "
-    "kapinin plan/uygunluk/funding karari disinda ikinci bir sinyal yolu kurabilir. Orta-dusuk onem (tarama ikincil "
-    "savunma; calisma aninda engel yok)."))
 @pytest.mark.parametrize("govde", [
     "from data import pozisyon\nx = pozisyon.seri_kurucu_modulu.kapanis(m, z, '4h')\n",
     "from data.pozisyon import seri_kurucu_modulu as sk\nsk.h2_funding_24s(f, z, kume_baslangic=a, kume_bitis=b, "
@@ -931,7 +925,9 @@ def _tum_taramalar(kok):
 ])
 def test_seri_kurucuya_kapinin_takma_adi_uzerinden_erisim_taramada_yakalanmali(tmp_path, govde):
     """Dayanak: RESULTS §14.49 D-C8 ('seri kuruculari analiz kodunda yasaktir'). Saldiri: adi `seri_kurucu_modulu` olarak
-    anarak yasagi dolanmak. Beklenen: en az bir tarama dosyayi isaretler. Gozlenen: hicbiri."""
+    anarak yasagi dolanmak. Beklenen: en az bir tarama dosyayi isaretler. Gozlenen: hicbiri.
+
+    F1-K1: kapandi (takma ad `pozisyon._seri_kurucu`, desen sozcuk sinirina dayanmiyor); strict xfail isareti kaldirildi."""
     (tmp_path / "analysis" / "h2").mkdir(parents=True)
     (tmp_path / "analysis" / "h2" / "x.py").write_text(govde, encoding="utf-8")
     sonuc = _tum_taramalar(tmp_path)

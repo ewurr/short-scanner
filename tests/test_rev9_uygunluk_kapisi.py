@@ -149,14 +149,14 @@ def test_karar_noktasi_uygunlugu_tek_uygulamadan_cagirir(monkeypatch):
     cagriyi kaydeder ve her bara "uygun degil" doner. Olculen ayni kaldi: sinyal zamani cagrinin izgarasinda, bar
     turu, on-kayit esikleri ve kapiya verilen gercek kume basi aynen iletilir."""
     cagri = []
-    asil = pozisyon.seri_kurucu_modulu.uygunluk
+    asil = pozisyon._seri_kurucu.uygunluk
 
     def casus(gunluk, izgara, bar, **kw):
         cagri.append((pd.DatetimeIndex(izgara), bar, kw["asgari_hacim"], kw["asgari_listeleme_yasi_gun"],
                       kw["kume_baslangic"]))
         return asil(gunluk, izgara, bar, **kw).assign(uygun=False)
 
-    monkeypatch.setattr(pozisyon.seri_kurucu_modulu, "uygunluk", casus)
+    monkeypatch.setattr(pozisyon._seri_kurucu, "uygunluk", casus)
     with pytest.raises(pozisyon.UygunDegil):
         _karar()
     # F1 kapanis turu 2: kapi kume sinirini None kabul etmez; beklenen deger, kapiya verilen gercek kume

@@ -79,7 +79,7 @@ from data import funding as funding_modulu
 from data import klines as klines_modulu
 from data import kume_bellegi
 from data import pencere as pencere_modulu
-from data import seri_kurucu as seri_kurucu_modulu
+from data import seri_kurucu as _seri_kurucu
 from data import sinyal as sinyal_modulu
 from data import split as split_modulu
 from data import universe as universe_modulu
@@ -998,29 +998,29 @@ def _olay_degerleri(b: _KapiBaglami, z: pd.DatetimeIndex, capalar, m4, gunluk, f
         essiz = c.unique().sort_values()
         sira = essiz.get_indexer(c)
         return {
-            "pump_dip": seri_kurucu_modulu.h1_dip(m4, essiz, **sinir)[sira],
-            "pump_hacim_6": seri_kurucu_modulu.h1_hacim_6(m4, essiz, **sinir)[sira],
-            "pump_hacim_medyani_180": seri_kurucu_modulu.h1_hacim_medyani_180(m4, essiz, **sinir)[sira],
-            "tepe": seri_kurucu_modulu.h1_tepe(m4, c, z, **sinir),
-            "pump_kapanis": seri_kurucu_modulu.kapanis(m4, essiz, config.BAR_4H)[sira],
-            "kapanis": seri_kurucu_modulu.kapanis(m4, z, config.BAR_4H),
-            "yuksek": seri_kurucu_modulu.yuksek(m4, z, config.BAR_4H),
+            "pump_dip": _seri_kurucu.h1_dip(m4, essiz, **sinir)[sira],
+            "pump_hacim_6": _seri_kurucu.h1_hacim_6(m4, essiz, **sinir)[sira],
+            "pump_hacim_medyani_180": _seri_kurucu.h1_hacim_medyani_180(m4, essiz, **sinir)[sira],
+            "tepe": _seri_kurucu.h1_tepe(m4, c, z, **sinir),
+            "pump_kapanis": _seri_kurucu.kapanis(m4, essiz, config.BAR_4H)[sira],
+            "kapanis": _seri_kurucu.kapanis(m4, z, config.BAR_4H),
+            "yuksek": _seri_kurucu.yuksek(m4, z, config.BAR_4H),
         }
     if b.hipotez == "H2":
         return {
-            "funding_24s": seri_kurucu_modulu.h2_funding_24s(funding, z, kume_baslangic=b.kume_baslangic,
+            "funding_24s": _seri_kurucu.h2_funding_24s(funding, z, kume_baslangic=b.kume_baslangic,
                                                              kume_bitis=b.kume_bitis,
                                                              donem_baslangic=b.donem_baslangic),
-            "kapanis_30_once": seri_kurucu_modulu.kapanis_30_once(m4, z, config.BAR_4H, **sinir),
-            "kirilim_dip": seri_kurucu_modulu.h2_kirilim_dip(m4, z, b.yapilandirma["k"], **sinir),
-            "kapanis": seri_kurucu_modulu.kapanis(m4, z, config.BAR_4H),
+            "kapanis_30_once": _seri_kurucu.kapanis_30_once(m4, z, config.BAR_4H, **sinir),
+            "kirilim_dip": _seri_kurucu.h2_kirilim_dip(m4, z, b.yapilandirma["k"], **sinir),
+            "kapanis": _seri_kurucu.kapanis(m4, z, config.BAR_4H),
         }
     return {
-        "hacim_medyani_30g": seri_kurucu_modulu.h3_hacim_medyani_30g(gunluk, z, **sinir),
-        "hacim_medyani_120_31": seri_kurucu_modulu.h3_hacim_medyani_120_31(gunluk, z, **sinir),
-        "sma50": seri_kurucu_modulu.h3_sma50(gunluk, z, **sinir),
-        "kapanis_30_once": seri_kurucu_modulu.kapanis_30_once(gunluk, z, config.BAR_1D, **sinir),
-        "kapanis": seri_kurucu_modulu.kapanis(gunluk, z, config.BAR_1D),
+        "hacim_medyani_30g": _seri_kurucu.h3_hacim_medyani_30g(gunluk, z, **sinir),
+        "hacim_medyani_120_31": _seri_kurucu.h3_hacim_medyani_120_31(gunluk, z, **sinir),
+        "sma50": _seri_kurucu.h3_sma50(gunluk, z, **sinir),
+        "kapanis_30_once": _seri_kurucu.kapanis_30_once(gunluk, z, config.BAR_1D, **sinir),
+        "kapanis": _seri_kurucu.kapanis(gunluk, z, config.BAR_1D),
     }
 
 
@@ -1066,7 +1066,7 @@ def _gecersizlik_tabani(b: _KapiBaglami, z: pd.DatetimeIndex, degerler: dict, se
         return np.asarray(degerler["tepe"], dtype=float)[secim]
     sinir = {"kume_baslangic": b.kume_baslangic, "donem_baslangic": b.donem_baslangic}
     cerceve = m4 if b.hipotez == "H2" else gunluk
-    return seri_kurucu_modulu.yuksek_30_max(cerceve, z[secim], b.bar, **sinir)
+    return _seri_kurucu.yuksek_30_max(cerceve, z[secim], b.bar, **sinir)
 
 
 # --- Karar cekirdegi -----------------------------------------------------------------------------------------------
@@ -1126,7 +1126,7 @@ def _kapi_satirlari(b: _KapiBaglami, sorgu: pd.DatetimeIndex, capalar=None) -> l
         z = sorgu[aktif]
         if b.rol in KONTROL_ROLLERI:
             k = b.yapilandirma["k"] if b.hipotez == "H2" else None
-            pencereler = seri_kurucu_modulu.capasiz_pencereler(
+            pencereler = _seri_kurucu.capasiz_pencereler(
                 b.hipotez, k, z, mumlar_4h=mumlar_4h, gunluk=gunluk_mumlar, funding=funding,
                 kume_baslangic=b.kume_baslangic, kume_bitis=b.kume_bitis, donem_baslangic=b.donem_baslangic)
             adlar = sinyal_modulu.CAPASIZ_PENCERELER[b.hipotez]
@@ -1170,7 +1170,7 @@ def _kapi_satirlari(b: _KapiBaglami, sorgu: pd.DatetimeIndex, capalar=None) -> l
     # 4. Uygunluk (on-kayit §4 rev.9): esik gecilmeli, hesaplanabilmis olmasi yetmez.
     aktif = kalan()
     if len(aktif):
-        tablo = seri_kurucu_modulu.uygunluk(
+        tablo = _seri_kurucu.uygunluk(
             gunluk_mumlar, sorgu[aktif], b.bar, donem_baslangic=b.donem_baslangic, donem_bitis=b.donem_bitis,
             kume_baslangic=b.kume_baslangic, asgari_hacim=eligibility_modulu.hacim_esigi(b.bar),
             asgari_listeleme_yasi_gun=config.ASGARI_LISTELEME_YASI_GUN)
