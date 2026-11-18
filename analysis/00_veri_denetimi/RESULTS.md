@@ -4950,6 +4950,7 @@ Başlangıç belleği 108 / 149 MB.
 - **Tabandan farklar:** dosya 190 → 194 (`test_perf2b2_asama0.py`, `test_perf2b2_esitlik_kapi.py`, `test_perf2b2_esitlik_seri.py`, `test_perf2b2_kapi_serisi.py`); **xfail 195 → 194**: S-19 (plan anahtarı ile plan tutarsızlığı) kapandı, kapıya plan tutarlılık denetimi eklendi ve `test_sizinti_perf2a.py`'deki strict xfail işareti kaldırıldı; atlanan 7 (aynı); XPASS 0.
 - Sızıntı testçisinin dosyası xfail'e 4 ekler: beklenen **198 xfail, 7 skipped, 0 XPASS, 0 failed**, 195 dosya.
 - **Kapanış takımı** bu kaydın commit'inden sonra, push'tan önce koşulur; sonucu ayrı bir kayıt commit'iyle bu maddenin altına yazılır.
+  - **Sonuç** (`--grup 8`, `63d26f7`, ağaç temiz, araştırma tarafının terminalinde): 195 dosya, **5660 passed, 198 xfailed, 0 failed, 0 XPASS, 7 skipped**, çıkış 0; toplam 4970 s, tepe bellek 1774 MB (grup 4). Beklenenle birebir; geçen sayısındaki +101 = sızıntı testçisi dosyasının 99'u + uyarlanan iki testin geçmeye dönmesi.
 
 **Bilerek güncellenen mevcut testler** (bar başına sayaç ya da iç ad beklentileri seri kapıya uyarlandı, amaç korundu):
 - `test_p2a_funding_plan.py`: 5 test (`cf15ca1`) + 1 test (`307da1c`);
