@@ -1233,17 +1233,26 @@ def _uzak_adresi_denetle() -> None:
 def _adres_kimliksiz(adres: str) -> str:
     """Uzak adresteki kimlik bilgisini (kullanici adi, parola, belirtec) siler (RESULTS §14.49, D-C12). URL bicimi
     (`sema://kullanici:belirtec@makine/yol`) ve scp bicimi (`kullanici@makine:yol`) icin `@` oncesi `***` olur; kimlik
-    bilgisi olmayan adres oldugu gibi doner. Yalnizca mesaj icindir; denetimin kendisi tam adresle yapilir."""
+    bilgisi olmayan adres oldugu gibi doner. Yalnizca mesaj icindir; denetimin kendisi tam adresle yapilir.
+
+    F1-K1 (denetci D-C11): sorgu dizgisi (`?access_token=...`) ve parca (`#...`) da belirtec tasiyabilir; ikisinin
+    icerigi de `***` olur (ayirac korunur, anahtar adlari dahil hicbir icerik yazilmaz)."""
+    adres, soru, sorgu = adres.partition("?")
+    if not soru:
+        adres, diyez, parca = adres.partition("#")
+        ek = "#***" if diyez else ""
+    else:
+        ek = "?***"
     sema, ayirac, kalan = adres.partition("://")
     if ayirac:
         yetki, bolu, yol = kalan.partition("/")
         if "@" in yetki:
             yetki = "***@" + yetki.rpartition("@")[2]
-        return f"{sema}://{yetki}{bolu}{yol}"
+        return f"{sema}://{yetki}{bolu}{yol}{ek}"
     on, at, makine = adres.partition("@")
     if at and ":" in makine and "/" not in on and "\\" not in on:
-        return f"***@{makine}"
-    return adres
+        return f"***@{makine}{ek}"
+    return adres + ek
 
 
 def _itme_denemesi(kimlik: str) -> None:

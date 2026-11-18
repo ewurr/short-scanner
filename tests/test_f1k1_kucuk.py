@@ -1,6 +1,7 @@
 """F1-K1 §2: §14.49'un kucuk duzeltmeleri (madde kodlari test adlarinda).
 
 - D-C3: `k2_bitleri` grup kuralini kendisi yazmaz, `grup_dogrula`yi cagirir.
+- D-C11: `split._adres_kimliksiz` sorgu dizgisindeki ve parcadaki belirteci de siler.
 Aga cikmaz; sentetik dunya.
 """
 
@@ -67,3 +68,22 @@ def test_D_C3_k2_bitleri_kaynaginda_ikinci_grup_kurali_yok():
         {d.id for d in ast.walk(agac) if isinstance(d, ast.Name)}
     assert "grup_dogrula" in adlar
     assert "kume_tanimi" not in adlar and "_kayitlar" not in adlar
+
+
+# --- D-C11 -----------------------------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("adres,beklenen", [
+    ("https://github.com/x/y.git?access_token=gizli_belirtec", "https://github.com/x/y.git?***"),
+    ("https://github.com/x/y.git?a=1&access_token=gizli_belirtec#parca", "https://github.com/x/y.git?***"),
+    ("https://kullanici:gizli@github.com/x/y.git?access_token=gizli_belirtec", "https://***@github.com/x/y.git?***"),
+    ("https://github.com/x/y.git#gizli_belirtec", "https://github.com/x/y.git#***"),
+    ("https://gizli@github.com/x/y.git#access_token=gizli_belirtec", "https://***@github.com/x/y.git#***"),
+    ("gizli_kullanici@ornek.org:x/y.git?access_token=gizli_belirtec", "***@ornek.org:x/y.git?***"),
+    ("https://github.com/x/y.git", "https://github.com/x/y.git"),
+])
+def test_D_C11_adres_kimliksiz_sorgu_ve_parca_belirtecini_siler(adres, beklenen):
+    from data import split
+
+    sonuc = split._adres_kimliksiz(adres)
+    assert sonuc == beklenen
+    assert "gizli" not in sonuc and "access_token" not in sonuc
