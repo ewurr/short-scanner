@@ -70,6 +70,10 @@ KILITLI = (
     "data/exchange_info_anlik.json",
     "ONAY_KAYDI.md",
     "CLAUDE.md",
+    # Dondurulmus onbellegin kesif manifesti (yol, boy, SHA256); kesif kosusu buna
+    # baglanir (on-kayit §3, RESULTS §14.51). Kod onu `onbellek_manifest.py` ile
+    # uretir; arac cagrisiyla elle degistirilmesi reddedilir.
+    "data/onbellek_manifest.csv",
     # F2'nin kilitledigi yapilandirma: her hipotezin kendi dosyasi, olusturuldugu
     # andan itibaren (CLAUDE.md §5, on-kayit §8 madde 5). Desen bilerek
     # `analysis/` altina baglidir: depo kokundeki bir KILIT.md KORUNMAZ, cunku

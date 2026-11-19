@@ -1191,20 +1191,21 @@ hook = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = hook          # dataclass modulun kayitli olmasini bekler
 _SPEC.loader.exec_module(hook)
 
-ALTI = ("PREREGISTRATION.md", "data/split.csv", "data/universe.csv", "data/exchange_info_anlik.json",
-        "ONAY_KAYDI.md", "CLAUDE.md")
+# F1-K2: `data/onbellek_manifest.csv` listeye girdi (RESULTS §14.51); tam yol sayisi altidan yediye cikti.
+TAM_YOLLAR = ("PREREGISTRATION.md", "data/split.csv", "data/universe.csv", "data/exchange_info_anlik.json",
+              "ONAY_KAYDI.md", "CLAUDE.md", "data/onbellek_manifest.csv")
 DESEN = "analysis/*/KILIT.md"
 KILIT = "analysis/h1/KILIT.md"
 YAZMA_SABLONLARI = ("echo x > {}", "rm {}", "cp a {}", "mv a {}", "tee {}", "sed -i s/a/b/ {}")
 
 
-def test_hook_kilitli_liste_alti_tam_yol_ve_bir_desen():
-    assert tuple(hook.KILITLI) == (*ALTI, DESEN)
+def test_hook_kilitli_liste_yedi_tam_yol_ve_bir_desen():
+    assert tuple(hook.KILITLI) == (*TAM_YOLLAR, DESEN)
 
 
-@pytest.mark.parametrize("yol", ALTI)
-def test_hook_alti_tam_yol_girdisinin_korumasi_her_yazimda_durur(yol):
-    """Altı tam yol girdisinin koruması aynen durmalı: yalın ad, ./, .. dolambaclari, mutlak yol, buyuk harf."""
+@pytest.mark.parametrize("yol", TAM_YOLLAR)
+def test_hook_tam_yol_girdisinin_korumasi_her_yazimda_durur(yol):
+    """Her tam yol girdisinin koruması aynen durmalı: yalın ad, ./, .. dolambaclari, mutlak yol, buyuk harf."""
     bicimler = [yol, "./" + yol, "alt/../" + yol, (KOK / yol).as_posix(), yol.upper(), "'" + yol + "'",
                 '"' + yol + '"']
     kacan = []
