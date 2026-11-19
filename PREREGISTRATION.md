@@ -1,6 +1,6 @@
 # PREREGISTRATION.md — Short Öngörü Hipotezleri
 
-**Durum:** Sürüm 13 (2026-10-10). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
+**Durum:** Sürüm 14 (2026-11-19). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
 **Kapsam:** F2 (keşif) ve F3 (onay). Taktik (F4) ve ileri-zaman testi (F5) ayrı revizyonla eklenir.
 
 Bu belge commit edildikten sonra aşağıdaki hiçbir tanım, eşik veya tarih sınırı
@@ -123,6 +123,20 @@ dosyasına sembol, varlık anahtarı ve grup sütunlarıyla yazılır ve commit 
 C1 ve C2 verisine keşif sırasında hiçbir biçimde bakılmaz. Olay sayıları dahil. Bu kural veriye erişimin her yolunu kapsar, önbellek dahil (rev.13): onay kümesi verisinin bellekte ya da diskte tutulan bir kopyası, açık bir onay koşusu olmadan okunabilir hâle gelirse kural delinmiş olur. Bu yüzden kümeye göre kesilmiş veri diske yazılmaz, bellekte tutulan her kopya için erişim denetimi kopyanın her okunuşunda yeniden uygulanır, ve onay koşusunun açılışı ile kapanışı bu kopyaları geçersiz kılar.
 
 **Koşuların ağ erişimi (rev.13).** F2 ve F3 koşuları ağa çıkmaz: veri koşudan önce indirilir ve koşu dondurulmuş yerel önbellekten okur. Gerekçe tekrarlanabilirliktir — koşu sırasında yapılan bir ağ isteği sonucu borsanın o anki durumuna bağlar ve aynı koşunun sonradan yeniden üretilmesini garanti edilemez hâle getirir.
+
+**Ağ erişiminin kapsamı (rev.14).** Yasak, piyasa verisi kaynaklarına (Binance ve başka her veri sağlayıcısı) yapılan her isteği kapsar. Onay koşusunun tek atış kaydı için projenin kendi git deposunun uzak sunucusuyla yapılan işlemler (uzak dalın alınması, kayıt satırlarının itilmesi) bu yasağın dışındadır, çünkü sonuca hiçbir girdi sağlamazlar. Yasak kodda zorlanır: koşu açık olduğu sürece veri katmanının ağa çıkan her yolu süreç düzeyinde reddedilir. Ret alt süreçlere de geçer.
+
+**Dondurulmuş önbellek (rev.14).** Önbelleğin donmuşluğu `data/onbellek_manifest.csv` ile sabitlenir. Manifest iki katmanlıdır:
+- **Keşif katmanı:** A grubunun C2 öncesi aylarına ait her dosya için yol, boyut ve SHA256 depoda açık durur.
+- **Onay katmanı:** B grubunun bütün ayları ve A grubunun C2 ayları için depoda yalnızca dosya sayısı ve birleşik SHA256 bulunur. Dosya başına ayrıntı listesi depo dışında tutulur ve yalnızca açık bir onay koşusu içinde okunabilir. Bu ayrım, onay kümelerine ait ay adlarının ve dosya boylarının depoda açık durmaması içindir.
+
+**Kuruluş.** Manifest 2026-10-31'de kurulmuştur (RESULTS §14.41): keşif katmanında 19.947 dosya; onay katmanında 44.556 dosya ve birleşik SHA256 `7611f6f2fe138a3f518ba7f879d697aef1eb6a8bcb6fbac1647125413f227f24`; manifest dosyasının SHA256'sı `8de2bb354e0b852856960b43463eaf24598b487fdec8a55d384ee9a307e15eec`. Onay katmanı F1'de, keşif başlamadan önce, onay dosyalarının baytları çözümlenmeden yalnızca özetlenerek kurulmuştur. Bundan sonra onay katmanı yalnızca açık bir onay koşusu içinde yeniden kurulabilir.
+
+**Doğrulama.** Keşif koşusunun açılışında keşif katmanı, onay koşusunun açılışında iki katman da doğrulanır. Uyuşmazlık varsa koşu açılmaz. Keşif koşusu hiçbir onay dosyasını açmaz.
+
+**Okuma.** Koşu yalnızca manifestteki dosyaları okur. Her dosyanın süreç içindeki ilk okunuşunda SHA256'sı manifestle karşılaştırılır.
+
+**Yazma yasağı.** Koşu açık olduğu sürece önbelleğe yazılmaz.
 
 **Küme sınırı ve ufuk.** Bir olayın birincil ufku, ait olduğu kümenin tarih
 aralığına tam olarak sığmalıdır. Sığmayan olay o kümede hiç oluşmaz; kırpılmış
@@ -299,6 +313,7 @@ K2 piyasa yönünü ayıklar ve bu projede **en önemli kontroldür**.
    - K2 farkı > 0
    - ortalama net getiri > 0
 5. Seçim, onay koşusundan önce `analysis/<hipotez>/KILIT.md` dosyasıyla commit edilir. Dosyanın yolu bu ön-kayıtta yazılı olandır ve oluşturulduğu andan itibaren kilitli dosyalar arasına girer (rev.13). Dosya şu alanları taşır: hipotez; hüküm (yapılandırma seçildi / hipotez kapandı) ve kapandıysa gerekçesi; seçildiyse yapılandırmanın kimliği ve bütün parametre değerleri; analize giren ve oluşmuş olay sayıları; K2 farkı; keşif koşusunun commit hash'i ve UTC zamanı; tohum. Onay koşusu, koştuğu hipotezin yapılandırmasını bu dosyadan okur; dosyada kaydı olmayan ya da hükmü "hipotez kapandı" olan bir hipotez için onay koşusu açılmaz. Dosya da yalnızca ekleme kuralına tabidir: bir hipotezin kaydı yazıldıktan sonra değiştirilmez.
+6. **Keşif koşusunun bağı (rev.14).** F2 koşusu, keşif koşusu bağlamı içinde çalışır. Bu bağlam açılırken manifestin, `data/split.csv`'nin ve `data/universe.csv`'nin çalışma ağacındaki baytları HEAD'deki hâlleriyle aynı olmalıdır; değilse koşu açılmaz. Kapanışta aynı dosyalar ve keşif katmanı yeniden doğrulanır. Sonuç dosyalarına yazılanlar: HEAD commit'i, manifestin SHA256'sı, ağacın temiz olup olmadığı, HEAD'in `origin/main` ile eşit olup olmadığı, açılış ve kapanış zamanı. F2'nin `KILIT.md`'ye giren sonuçları temiz ağaçta ve HEAD = `origin/main` iken üretilmiş olmalıdır.
 
 ## 9. Onay kuralları (F3)
 
@@ -314,6 +329,38 @@ de** aşağıdaki koşulların tamamını sağlarsa **GEÇTİ** sayılır:
 
 Her koşunun sonucu, sonuç ne olursa olsun `ONAY_KAYDI.md` dosyasına eklenir.
 Başarısız bir hipotez için onay yeniden koşulamaz.
+
+**Hükmü veren uygulama (rev.14).** Onay koşusunda kapı kararı ve sinyal koşulu **dondurulmuş skaler referanstan** alınır: `data/_skaler_referans.py`, SHA256 `933983b51bd74ef23fb843bc6d1f5e5d9509240b47cdfc1b9bed3de202f7e1a9` (RESULTS §14.44). Test istatistiği ve geçme ölçütleri bu kararlardan hesaplanır. Dizi kuralları, kontrol örneklemesi ve istatistik, keşifte kullanılan kodun aynısıdır.
+
+**Gölge denetimi.** Aynı koşu içinde kapının seri yolu (`kapi_serisi`) gölge olarak çalışır. Her olay ve kontrol barında iki yolun kararı, ret sınıfı ve onaylı pozisyonun bütün alanları karşılaştırılır.
+
+**Uyuşmazlık.** İki yol herhangi bir barda ya da birimde ayrışırsa:
+- hüküm yine skaler referansın kararlarından verilir; koşu geçerlidir ve o küme için onay tamamlanmış sayılır;
+- uyuşmazlık yüzünden ikinci bir onay koşusu yapılmaz;
+- uyuşmazlık bir **uygulama bulgusu** olarak `ONAY_KAYDI.md`'ye ve RESULTS'a yazılır: kaç barda, hangi rolde, hangi sınıfta;
+- raporda, seri yoldaki bu hatanın F2'deki yapılandırma seçimini etkilemiş olabileceği açıkça anılır. F2'nin seçimi `KILIT.md` ile onay koşusundan önce kilitlendiği için onay sınamasının geçerliliği korunur: sınanan, önceden seçilmiş tek yapılandırmadır.
+
+**Gerekçe.** Skaler referans, F1 boyunca adım adım kurulup denetlenmiş ve dondurulmuş asıl uygulamadır. Seri yol onun hızlandırılmış karşılığıdır ve keşifte her bar için skaler referansla birebir aynı sonucu verdiği gösterilmiştir. Karşılaştırma tabanı ve kaynağı RESULTS §14.47–§14.49:
+- kapı kararlarında, koşul karşılaştırması hariç, 391.612 bar (tam bar, ilk yapılandırmalar) ve 1.570.160 bar (örnek kipi, 27 yapılandırma);
+- koşul karşılaştırmasında 97.903 ve 392.576 bar;
+- seri değerlerinde 933.841 ve 3.762.423 bar-değer;
+- hepsinde uyuşmayan 0.
+
+İki yol ayrışırsa güvenilen taraf referanstır; bu yüzden hükmü baştan referans verir. Bu düzen, bir uygulama hatasının hipotezin onay hakkını yakmasını da, aynı onay verisine ikinci kez bakılmasını da önler.
+
+Bu madde, RESULTS §14.44'teki "F3'te vektörel yol birincil, skaler referans gölge" kararının yerini alır. O kararın gerekçesi, seçimi keşifte seri yolun yapmış olmasıydı; iki yolun keşifte birebir aynı olduğu gösterildiği için bu gerekçe hükmü hangi yolun vereceğini belirlemez.
+
+**Tek süreç.** Onay koşusu tek süreçte çalışır; onay izni alt süreçlere geçmez.
+
+**Kesinti ve devam.** Onay koşusu kesilirse (güç kesintisi, sistem yeniden başlaması, süreç sonlanması), **aynı koşu** kaldığı yerden sürdürülebilir. Şartlar:
+- aynı commit, aynı ayarlar ve aynı tohumla;
+- sembol başına tutulan ara kayıttan;
+- ara kayıt yalnızca o sembolün kararlarını ve örneklemesini taşır, hiçbir istatistik taşımaz;
+- ara kayıt depo dışında tutulur ve onay verisidir: yalnızca aynı onay koşusunun içinden, onay izniyle okunabilir.
+
+Test istatistiği ve geçme ölçütleri ancak bütün semboller tamamlandıktan sonra, tek seferde hesaplanır. Bu yüzden sürdürme ikinci bir koşu sayılmaz: kesinti anına kadar hiçbir sonuç hesaplanmamış ve görülmemiştir. Her kesinti ve devam, zamanıyla birlikte `ONAY_KAYDI.md`'ye yazılır.
+
+Commit, ayar ya da tohum değişmişse devam edilemez. Bu durumda hüküm **"TAMAMLANAMADI"** olarak yazılır ve o kümenin onay hakkı **harcanmış** sayılır; onay yeniden koşulamaz. Gerekçe: ara kayıt, kesintiye kadarki pozisyonları taşır. Yarım kalan bir koşunun terk edilip yeniden başlatılabilmesi, kısmi sonuca bakıp koşuyu bırakma yolunu açardı.
 
 ## 10. Raporlanacak ek bilgiler (eşik değil)
 
@@ -342,6 +389,7 @@ Başarısız bir hipotez için onay yeniden koşulamaz.
 | 11 | 2026-10-09 | Pencere sınırları ve tamlık kapsamı, kontrolün tanımı ve örnekleme kuralları, ızgara parametrelerinin bağlanması, bekleme süresi, H1 tek izleme, H3 ilk gün, funding oranı ve küme sonu kaydı, sinyal penceresi sınırı, r tanımı; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
 | 12 | 2026-10-10 | Bekleme süresinin üst ucu, H1'de izlemeyi bitiren bar, K1'in tam ufuk eşitliği, kontrol barında sinyal tamlığı, K2'nin ölçütü, hacim birimi, bar düzeyli hücre ölçütü, dizi kurallarının gerekliliği, geçerli oranın kapsamı; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
 | 13 | 2026-10-10 | İzleme penceresinin dönem ve küme sınırı, H3 dizisinin koşulla tanımlı olması, H3 geçersizlik seviyesi, kontrol havuzlarında adaylığın örneklemeden önce belirlenmesi, K2 farkının olay başına ağırlıklandırılması, p-değerinin alt tohumu, raporlanacak kalemler ve sıfır olaylı yapılandırma, olay sayısının kapsamı, berabere kalma, aday bulunmaması, KILIT.md'nin alanları, ikincil ufukların kapsamı, sağlamlık kontrolünün kontrol tarafı, önbellek ve ağ; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
+| 14 | 2026-11-19 | Koşuların ağ erişiminin kapsamı, dondurulmuş önbelleğin tanımı, keşif koşusunun bağı, onay koşusunun yürütülmesi; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
 
 ### Revizyon 8 — ayrıntı
 
@@ -410,3 +458,16 @@ Bekleme süresinin üst ucu, izlemeyi bitiren bar ve K1'in tam eşitliği için 
 Beş karar ayrıca gerekçe ister. **K2 farkının ağırlıklandırması**, §7'nin yeniden örneklemesi olay başına bir kontrol çektiği için olay başına olmak zorundadır; havuzların birleştirilmesi gözlenen istatistiği dağılımla aynı ölçekten çıkarırdı. **Olay sayısının kapsamı** analize giren olaylardır, çünkü eşikler istatistik gücünü güvenceye alır ve güç yalnızca teste giren olaylardan gelir. **H3'ün dizisi** koşullarla tanımlıdır; metin bunu söylüyor ve bu okuma, dizinin başlangıcını funding tamlığı gibi getirinin yönünü seçmeyen koşullardan bağımsız tutar. **Adaylığın örneklemeden önce belirlenmesi**, "aday sayısı 10'dan azsa hepsi alınır" kuralının anlamlı olması için zorunludur; bedeli kontrol havuzu için tam bir geçiştir. **İkincil ufukların yalnızca seçilen yapılandırma için hesaplanması**, hiçbir hükmü değiştirmeden maliyeti sınırlar; onay kararları zaten birincil ufka göre verilir.
 
 **Ölçülmüş tek sayı.** Bu revizyonda ölçülmüş sayı yoktur. Kuru okumada ölçülen süreler (çağrı başına 1,55–1,61 saniye ve bunun yüzde doksan beşinin veri yüklemede geçmesi) yalnızca uygulama maliyetine ilişkindir ve hiçbir kuralı belirlemedi; önbellek ve ağ maddesinin gerekçesi tekrarlanabilirliktir, hız değil.
+
+### Revizyon 14 — ayrıntı
+
+**14.** Tarih: 2026-11-19.
+
+**Değişiklikler.** (a) §3: koşuların ağ erişiminin kapsamı. (b) §3: dondurulmuş önbelleğin tanımı. (c) §8: keşif koşusunun bağı. (d) §9: onay koşusunun yürütülmesi.
+
+**Kapsam ve gerekçe.** Revizyon 14, F1 boyunca uygulanan ama yalnızca RESULTS'ta kayıtlı olan işletim kurallarını ön-kayda taşır: ağ yasağının kapsamı, dondurulmuş önbelleğin tanımı, keşif koşusunun bağı ve onay koşusunun yürütülmesi.
+
+- Hiçbir eşik, ızgara, ufuk, maliyet, kontrol tanımı, istatistik ya da geçme ölçütü değişmez.
+- Hiçbir hipotezin tanımı değişmez.
+- **§14.36 kuralı 1 (H2 ön-kaydının dondurulması) açısından:** bu revizyon H2'ye özgü değildir, üç hipoteze aynı biçimde uygulanır. Hiçbir maddesi funding'in, açık pozisyonun ya da perp priminin yönüne veya büyüklüğüne dayanmaz. feature_lab'ın hiçbir sonucu bu revizyonun gerekçesi olarak kullanılmamıştır.
+- Maddelerin kaynağı: RESULTS §14.40, §14.41, §14.42, §14.44, §14.47, §14.48 ve §14.49'daki araştırma tarafı kararları ve uygulamaları.
