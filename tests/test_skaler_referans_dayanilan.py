@@ -78,7 +78,7 @@ SABIT = {
     "data.pencere.ADIMLAR": "4af80d4d8def14587ed545a16bb0c2f002d4d3c79ab5f6bf45b2b0316cf25ce3",
     "data.pencere.ADIM_4H": "af5678e82356521f8c4f1751e4a85c7d02959b90aae424e9ad762823b1b15d11",
     "data.pencere.CikisSonucu": "ab4784806d80a62c669a62c1c225de9dcc5ec1a10cb13e9eae9a79045746e40a",
-    "data.pencere.DonemDisiSinyal": "cc564872bddf74d66ebb55f1a5d65f91ba186ac73f3284d7c0c6ce1adeb96c95",
+    "data.pencere.DonemDisiSinyal": "48af2223a8a648e288371d5280f12238f279798b5c1f60378a2b70ce37e54698",
     "data.pencere.GUNUN_SON_4H_BARI": "59052065f88320b4d2c4abfa1bf4f129c0516f0c9a2ee0980806f33bd17bdb14",
     "data.pencere.GirisBariYok": "c605d654eb52c70e99c667d778c2ba9f546dcd5e04824b46656fc1abaae22db8",
     "data.pencere.HipotezUfuklari": "1e72e3d49a20ac5d9b98c190d4015a5e3ef317e948c928aee35914cb729d767c",

@@ -248,9 +248,10 @@ class IleriKaymaSiniriHatasi(OlayOlusmaz):
 class DonemDisiSinyal(ValueError):
     """Sinyal bari donem ici degil (on-kayit §6 rev.8 "Donem uyeligi").
 
-    Programlama hatasidir, `OlayOlusmaz` degildir: uygunluk (`eligibility.uygun_mu`)
-    ayni yuklemle donem disi bari zaten reddeder; buraya gelen bir sinyal cagiran
-    kodun uygunluk filtresini atladigini gosterir."""
+    Programlama hatasidir, `OlayOlusmaz` degildir. Kapida (`pozisyon._kapi_satirlari`)
+    ve skaler referansta plan uygunluktan ONCE calisir; bu istisnayi uygunluk
+    yakalamaz. Anlami: cagiran kapiya donem ici olmayan bir bar verdi (ornegin
+    `pozisyon.hipotez_izgarasi_barlari` yerine takvimden kurulan bir izgara)."""
 
 
 class GirisBariYok(OlayOlusmaz):
