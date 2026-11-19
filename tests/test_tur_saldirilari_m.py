@@ -118,7 +118,11 @@ def test_fiyat_sutununda_string_deger_giris_barinda_reddedilir():
     m = _hazirlanmis_mumlar()
     giris_ani = SINYAL_T["H1"] + H(4)
     m2 = m.copy()
+    # Sutun once acikca object turune cevrilir: float sutuna metin yazmak pandas'ta FutureWarning verir
+    # (ileride hata). Sinanan sey ayni: giris barinin `open` hucresi sayi degil, metin.
+    m2["open"] = m2["open"].astype(object)
     m2.loc[m2["open_time"] == giris_ani, "open"] = "bozuk"
+    assert m2.loc[m2["open_time"] == giris_ani, "open"].tolist() == ["bozuk"], "test kurulumu: metin yazilamadi"
     assert (m2["open_time"] == giris_ani).any(), "test kurulumu: giris bari seride bulunamadi"
     with pytest.raises(pencere.GirisBariYok):
         _karar_ham(m2)
