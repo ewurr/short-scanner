@@ -5003,6 +5003,118 @@ Başlangıç belleği 108 / 149 MB.
 
 **Commit'ler:** 0. aşama `88e8c3b`, `4255808`, `b57385f`, `a4b6d1f`, `388ff01`, `65fbab4`, `6cbf678`, `2ed0552`, `589a68c`, `fc35348`, `1bcbb08`, `3bd7156`; geçiş `cf15ca1`; eşitlik betikleri `7afb175`, `da2d213`; eşitlik CSV'leri `c04e45c`; gerileme düzeltmesi `307da1c`; sızıntı testleri `3a1c9aa`; bu kayıt.
 
+### §14.50 F1 kapanışı, 1. kısım: kod artıkları (2026-11-18/19)
+
+F1 kapanmadan önceki son kod turu (F1-K1). §14.49'da açık kalan ve F1 kapanmadan kapanması gereken maddeler kapatıldı. Sınırlar korundu: SABIT listesindeki tanımlar, `_skaler_referans` ve kilitli dosyalar değişmedi; onay koşusu açılmadı; ajan çalışmadı. Başlangıç: `main` = `origin/main` = `cd524cf`, ağaç temiz.
+
+#### D-B1: `olay_karari`'nın geri düşüş yolu kaldırıldı (G1, G10) — `aa32aa3`
+
+- **Ne değişti.** `olay_karari` eskiden seri kurulumu hata verdiğinde barı tek bar çekirdeğiyle (`_kapi_satirlari(baglam, [t])`) yeniden hesaplıyordu. Bu `try/except` kalktı. Seri kurulumunun hatası yakalanmıyor, olduğu gibi yükseliyor. Tek bar çekirdeği artık yalnızca seri **başarıyla** kurulduktan sonra çalışıyor; o da serinin satırı olmayan bir t için (ızgara dışı t, H1'de pencere dışı çapa). Denetçinin D-C7'si (geri düşüşteki `except OlayOlusmaz: raise`) de böylece kapandı: kod artık yok.
+- **G1.** `data/` içinde bar başına ikinci bir karar yolu kalmadı. Bir bar ya serinin satırından okunuyor ya da aynı çekirdeğin tek satırlık çağrısıyla hesaplanıyor; ikincisi yalnızca serinin satırı olmayan t için.
+- **G10.** `OlayOlusmaz` dışındaki her hata birimi durdurur. Yalnızca çok barlı seri yolunda çıkan bir hata (başka bir satırın penceresindeki bozuk fiyat) artık `olay_karari`'dan da aynı sınıfla yükseliyor. Eskiden tek bar yeniden hesabı bu hatayı gizliyordu.
+- **Eşitlik betiği** (`esitlik_kapi.karsilastir`). Yeni tarafta beklenmeyen bir hata çıktığında, aynı sınıfı `kapi_serisi` de veriyorsa durum **birim hatası** (`seri:<Sinif>`) sayılıyor. O andan sonra birimde yalnızca skaler taraf değerlendiriliyor. Birim, skaler tarafta aynı birimde en az bir beklenmeyen hata varsa uyuşan sayılıyor (uyuşmayan = hatadan önceki uyuşmazlıklar). Yoksa birimin bütün barları uyuşmazlık sayılıyor. Bar başına hata (seri kuruluyor, yalnızca o bar hata veriyor) birim hatası değil; eski kuralla karşılaştırılıyor.
+- **Hata veren kurulum ve önbellek.** Hatalar ayrı bir sözlükte tutuluyor: `_SERI_HATALARI`, LRU, sınırı `SERI_AZAMI_GIRDI`. `_SERI_BELLEGI`'ne hata yazılmıyor. Aynı anahtar için kurulum bir kez çalışıyor; sonraki çağrılar aynı hata nesnesini yeniden kurulum yapmadan yükseltiyor. Hata yalnızca kurulum sırasında dönem işareti değişmemişse yazılıyor (anahtarın son alanı). `kume_bellegi.temizle()` (koşu açılışı ve kapanışı) iki sözlüğü de boşaltıyor. `MemoryError` önbelleğe alınmıyor.
+- **Testler** (`tests/test_f1k1_db1_seri_hatasi.py`, yeni). Sentetik dünyada K2'de onaylı bir t'nin giriş barı `open` = 0. Bu durumda skaler referans yalnızca t'de, seri yolu ise birimin her barında `VeriHatasi` veriyor. Testlerin sınadıkları:
+  - uzak barlarda `olay_karari` aynı sınıfla yükselir, skaler taraf karar verir;
+  - ızgara dışı t de seri hatasını yükseltir;
+  - seri hatasından sonra tek bar çekirdeği hiç çağrılmaz;
+  - `olay_karari` kaynağında `try` yok (AST);
+  - eşitlik betiği bu durumu birim hatası sayar, iki dalda: skalerde karşılığı var ya da yok;
+  - `sembol_isi` `hata` sütununu yazar;
+  - bar başına hata birim hatası değildir;
+  - önbellek: bir kurulum, aynı nesne, `_SERI_BELLEGI`'nde yok;
+  - `temizle` hatayı düşürür; kurulum sırasında işaret değişirse yazılmaz;
+  - LRU sınırı, `MemoryError`, sağlam birim etkilenmez.
+- **Gerçek veri eşitlik koşuları yeniden yapılmadı.** Değişiklik yalnızca hata yoluna dokunuyor: seri kurulumu başarılıysa `olay_karari` eskisiyle aynı satırı, aynı çekirdekle döndürüyor. §14.49'un üç koşusunda (`p2b2_tum`, `p2b2_ornek`, `p2b2_seri_ornek`) beklenmeyen hata ve hatalı birim sayısı 0'dı, yani geri düşüş yolu gerçek veride hiç tetiklenmedi. Eşitlik betiğindeki yeni birim hatası dalı da yalnızca yeni tarafın beklenmeyen hatasında devreye giriyor; bu koşularda öyle bir hata yoktu. Yeniden koşu aynı sayıları üretirdi; yeni bir şey kanıtlamazdı.
+- **D-B1'in tam takımda gösterdiği üç test** (`32e2948`). İlk kapanış takımında üç başarısızlık çıktı: `test_rev12_kontrol_kosulsuz.py::test_kosul_degerlendirmesi_hata_verecek_veride_bile_kontrol_olusur[K1, K2]` ve `test_pozitif_fiyat.py::test_pencere_disindaki_pozitif_olmayan_high_onayi_etkilemez`. Üçünde de bozuk fiyat istenen barın değil, aynı birimdeki başka bir satırın penceresinde. Eski geri düşüş yolu bu seri hatasını gizliyordu. Testler amaçları korunarak uyarlandı:
+  - "bu barın kararı etkilenmez" iddiası artık skaler referansta (`_skaler_referans.olay_karari`) denetleniyor;
+  - `olay_karari`'nın `VeriHatasi` ile durduğu (G10) ayrıca iddia ediliyor.
+  
+  Kapı kodu değişmedi.
+
+#### Diğer maddelerin kapanışı
+
+| Madde | Kapanış | Commit |
+|---|---|---|
+| D-B2 (§14.49) | H3 olay rolünde onay oluşan sentetik dünya (`dunya(611, ...)`, dönem sonu 2021-11-26; yapılandırma 0, 2, 4). Onaylı pozisyonun bütün alanları referansla karşılaştırılıyor. `_gecersizlik_tabani`'nin 1d dalının çalıştığı casusla gösteriliyor; 1.0001 bozma testi alan farkının yakalandığını gösteriyor. `test_perf2b2_kapi_serisi.py`'deki H3 olay muafiyeti kalktı. | `47be36b` |
+| D-B3 (§14.49) | `test_kume_bellegi.py`: önbelleksiz seri, seri belleği tamamen boşaltılıp veri belleği korunarak bağımsız kuruluyor. Önbellekten okunan seriyle her satırda karşılaştırılıyor; aynı nesne kendisiyle karşılaştırılmıyor. Testler: gerçek veri testinin genişletilmesi (olay, K1, K2) ve sentetik `test_D_B3_*` (9 parametre). | `c19c8c8` |
+| D-C3 (§14.49) | `k2_bitleri` grup kuralını kendisi yazmıyor, `grup_dogrula`'yı çağırıyor. Reddedilirse (`ValueError`) bit 0 olur ve veri okunmaz; başka bir hata yükselir (G10). Test: casus, ret, başka hata, AST. | `fd3def7` |
+| D-C11 (§14.49) | `split._adres_kimliksiz` URL ve scp biçiminde sorgu dizgisini (`?***`, ardından gelen parça dahil) ve parçayı (`#***`) siliyor. Test: `?access_token=...`, `#...`, kullanıcı bilgisiyle birlikte, scp, temiz adres (7 parametre). | `1a65ced` |
+| D-C2 (§14.49) | G11 anahtar testi dönem ve küme alanlarını tek tek değiştiriyor (`_tek_alan_farki`). Küme alanı için sahte C2 onay koşusu kullanılıyor (`gecici_kayit` + `kosu`, sentetik dönem). | `838ad92` |
+| S-P2b2-2 | `pozisyon`'daki `seri_kurucu_modulu` takma adı `_seri_kurucu` oldu. `tests/tarama_yardimcisi.SERI_KURUCU_DESENI` = `r"seri_kurucu"` (sözcük sınırı yok). Strict xfail işareti kalktı; iki parametre geçiyor. İki test dosyasındaki casuslar yeni adla (yalnızca ad). | `a7a0fa6` |
+| Bayat kilit (§3.1) | `calistir.kosu_kilidi` kilit satırına `pid`, `surec_baslangici` ve `baslangic_utc` yazıyor. `bayat_alinir=True` iken kilit bayatsa (sahibi yaşamıyor, ya da pid yaşıyor ama başlangıç zamanı farklı: pid yeniden kullanılmış) bir uyarıyla alınıyor. Alma sırası: `os.replace` ile kenara alma, içeriği yeniden doğrulama, silme, yeniden O_EXCL. İçerik değişmişse kilit geri konuyor ve `KosuKilidiHatasi` yükseliyor. Sahibi yaşıyorsa ya da başlangıç zamanı okunamıyorsa bugünkü gibi `KosuKilidiHatasi`. `esitlik_kapi.py` ve `esitlik_seri.py` `bayat_alinir=True` geçiyor; varsayılan (öbür çağıranlar) değişmedi. | `7d0578c` |
+| `esitlik_seri.py --ara-dizin` (§3.2) | `esitlik_kapi` ile aynı kural: sembol başına ara kayıt (`head_commit`, ayar, satırlar). HEAD ya da ayar eşleşmezse birleştirilmiyor (`SystemExit`); ara dizin depo içinde olamaz. Test: yarıda kalan koşu kaldığı yerden devam ediyor ve sonuç tek seferde koşulanla aynı; HEAD ve ayar uyuşmazlığı; depo içi dizin; CLI geçişi. | `ec74d9c` |
+
+Yeni test dosyaları: `test_f1k1_db1_seri_hatasi.py`, `test_f1k1_kucuk.py` (D-C3, D-C11), `test_f1k1_isletim.py` (§3.1, §3.2); toplam 40 test.
+
+**Bilerek güncellenen mevcut testler** (amaç korundu):
+- `test_perf2b2_kapi_serisi.py`:
+  - `test_G10`: başka bir bar da `VeriHatasi` verir, skaler taraf vermez;
+  - G9 örneklenen bar testine `kume_bellegi.temizle()` (hata önbelleği);
+  - tarama açıklaması;
+  - H3 olay muafiyeti kalktı, D-B2 testi eklendi;
+  - D-C2'nin iki testi.
+- `test_sizinti_perf2b2.py`: geri düşüş yolu testi artık aynı `RuntimeError`'ı bekliyor ve `_kapi_satirlari`'nı yasaklıyor; S-P2b2-2 strict xfail işareti kalktı.
+- `test_p2a_funding_plan.py::test_olay_olusmaz_disindaki_hata_saklanmaz`: ikinci karşılaştırmadan önce `_seri_bellegini_temizle()` (hata önbelleği).
+- `test_kume_bellegi.py`: D-B3.
+- `tarama_yardimcisi.py`: desen.
+- `test_rev9_uygunluk_kapisi.py`, `test_sizinti_rev1213.py`: takma ad (yalnızca ad).
+- `test_esitlik_yan_kanal.py`: sahte kilit anahtar sözcük argümanı alıyor.
+- `test_rev12_kontrol_kosulsuz.py` (1 test, 2 parametre), `test_pozitif_fiyat.py` (1 test): yukarıda, `32e2948`.
+
+#### Kaldırılan işaretleyiciler ve xfail hesabı
+
+- Kaldırılan: `test_sizinti_perf2b2.py::test_seri_kurucuya_kapinin_takma_adi_uzerinden_erisim_taramada_yakalanmali` üzerindeki strict xfail işareti. Test 2 parametreli.
+- **xfail 198 − 2 = 196.** §14.49 kapanış takımı 198'di; bu turda başka işaretleyici eklenmedi ve kaldırılmadı.
+- İlk kapanış takımı (`--grup 8`, `ec74d9c`, ağaç temiz, araştırma tarafının terminalinde): 198 dosya, **5713 passed, 196 xfailed, 3 failed, 0 XPASS, 7 skipped**, çıkış 1. Üç başarısızlık yukarıda; `32e2948` ile uyarlandı, iki dosya hedefli koşuda 34 passed.
+- **Kapanış takımı** (`--grup 8`, `32e2948`, ağaç temiz, araştırma tarafının terminalinde): 198 dosya, **5716 passed, 196 xfailed, 0 failed, 0 XPASS, 7 skipped**, çıkış 0; toplam 9586 s, tepe bellek 1804 MB (grup 7).
+- **Tabandan farklar** (§14.49 kapanışı: 195 dosya, 5660 passed, 198 xfailed, 7 skipped):
+  - dosya +3 (yeni F1-K1 dosyaları);
+  - passed +56 = 40 (yeni dosyalar) + 14 (genişletilen dosyalar: D-B2 3, D-B3 9, D-C2 2) + 2 (S-P2b2-2'nin xfail'den geçmeye dönen parametreleri);
+  - xfail −2; atlanan aynı.
+- Süre notu: grup 5 bu koşuda 4745 s sürdü (ilk koşuda 983 s; dosyalar aynı). Neden araştırılmadı; sonuç sayılarını etkilemedi.
+
+#### Kayıtta kalan bulgular (tam liste)
+
+- **Sızıntı:**
+  - **S-P2b2-1:** `sonuc(t)` ve `pozisyon(t)` sorulan t ile satırın zamanını karşılaştırmıyor.
+  - **S-P2b2-3:** `_seri_bellekten` isabette serinin kimliğini anahtarla karşılaştırmıyor.
+  
+  İkisi de kasıtlı atlatma sınıfında (özel alana ya da özel sözlüğe yazma); strict xfail olarak kalıyor.
+- **§14.49'un açık C bulguları:**
+  - **D-C4:** G19 testi sıralamanın yalnız ortasını adıyla sınıyor.
+  - **D-C5:** G16 kapı düzeyinde koşul için sınanmıyor.
+  - **D-C6:** "ikinci karar yolu yok" taraması ada dayalı ve dar.
+  - **D-C8:** H1 olay rolünün gerçek veri kanıtı sınırlı; çapa dizili tam ızgara yolu P2c'de.
+  - **D-C9:** D-B3 yardımcıları SABIT'te değil.
+  - **D-C10:** olay rolünde kalan yan kanallar.
+  
+  (D-C1 §14.49'da kapandı; D-C2, D-C3 ve D-C11 bu turda kapandı; D-C7 D-B1 ile kapandı.)
+- **§14.48'in açık C bulguları:**
+  - **D-C2:** numpy varsayımı.
+  - **D-C7:** G7 tanımı alıntı değil.
+  - **D-C13:** keşif kaydından toplam süre.
+  - **D-C14:** GUVENLIK politikasıyla çelişki.
+- §14.49'un D-B1, D-B2, D-B3 bulguları ve S-P2b2-2 bu turda kapandı.
+
+#### F1-K2'ye bırakılanlar
+
+§14.49'un "F1 kapanışına bırakılanlar" listesinden bu turda kapanmayanlar:
+- **Ön-kayıt revizyonu:** git istisnası; "dondurulmuş" önbelleğin tanımı; koşuda yazma yasağı ve ilk okuma SHA'sı; F3 gölge koşusu.
+- **CLAUDE.md** §5 ve §7 güncellemeleri (seri kapı, `seri_kurucu.py`, `kume_bellegi` dönem işareti; dizin yapısı).
+- Manifestin kilitli listeye eklenmesi.
+- `DonemDisiSinyal` açıklaması.
+- Yedek kaydı.
+- Ruleset bypass teyidi.
+- `test_kisa_sifir_kosusu.py` belleği. Grup 7'nin tepe belleği 1804 MB.
+- Pandas uyarısı (`tests/test_tur_saldirilari_m.py:121`, FutureWarning).
+- Kanca yanlış pozitifleri.
+- Yukarıdaki açık C bulguları ile S-P2b2-1 ve S-P2b2-3.
+
+Bu turda kapanan listeden: bayat kilit (`7d0578c`) ve `esitlik_seri.py --ara-dizin` (`ec74d9c`).
+
+**Commit'ler:** `aa32aa3` (D-B1), `47be36b` (D-B2), `c19c8c8` (D-B3), `fd3def7` (D-C3), `1a65ced` (D-C11), `838ad92` (D-C2), `a7a0fa6` (S-P2b2-2), `7d0578c` (bayat kilit), `ec74d9c` (`--ara-dizin`), `32e2948` (takımın gösterdiği üç testin uyarlanması); bu kayıt.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
