@@ -59,7 +59,14 @@ saklanmaz, koda yazılmaz.
    sınıfıyla HATA — ve her satır yazıldığı anda commit edilip uzak depoya itilir.
    Tek atış denetimi `origin/main` geçmişine bakar: kaydı uzak depoda bulunan bir
    (hipotez, küme) çifti ikinci kez koşulamaz, yarıda kalmış koşu dahil. Kayıt
-   satırları hiçbir zaman silinmez.
+   satırları hiçbir zaman silinmez. Kesilen bir onay koşusu ön-kayıt §9'daki
+   şartlarla (aynı commit, ayar ve tohum; sembol başına korumalı ara kayıt) aynı
+   koşu olarak sürdürülebilir; bu ikinci bir koşu sayılmaz. Her kesinti ve devam
+   `ONAY_KAYDI.md`'ye yazılır. Sürdürülemezse hüküm TAMAMLANAMADI olur ve o kümenin
+   onay hakkı harcanır. Gölge denetimindeki uyuşmazlık uygulama bulgusudur; hüküm
+   skaler referanstan verilir. Bugünkü `split.onay_kosusu` devamı henüz
+   desteklemez; devam F3 koşucusuyla uygulanacak. O zamana kadar yarıda kalan bir
+   koşu için yukarıdaki kural geçerlidir.
 4. **Eşikler sonuçtan önce sabitlenir.** Başarı eşikleri, kontrol tanımları ve
    hipotez ızgaraları PREREGISTRATION.md'de yazılıdır. Sonuç görüldükten sonra
    değiştirilmez. Değişiklik gerekiyorsa gerekçesiyle **revizyon** olarak yazılır
@@ -100,7 +107,35 @@ F4'e geçmez; bu geçerli ve değerli bir sonuçtur.
   (ön-kayıt §3).
 - F2 ve F3 koşuları ağa çıkmaz: veri koşudan önce indirilir, koşu dondurulmuş yerel
   önbellekten okur (ön-kayıt §3). Gerekçe tekrarlanabilirliktir; koşu sırasında yapılan
-  bir ağ isteği sonucu borsanın o anki durumuna bağlar.
+  bir ağ isteği sonucu borsanın o anki durumuna bağlar. Yasak süreç düzeyindedir
+  (`binance_vision.kosu_agsiz`; keşif ve onay koşusu açar, alt süreçlere taşınır) ve
+  piyasa verisi kaynaklarını kapsar. Tek atış kaydı için uzak depoyla yapılan git
+  işlemleri sonuca girdi sağlamaz, bu yüzden kapsam dışıdır (ön-kayıt §3).
+- **Dondurulmuş önbellek: iki katmanlı manifest.** `data/onbellek_manifest.csv` (depoda,
+  kilitli) keşif dosyalarının yolunu, boyunu ve SHA256'sını, onay katmanının ise yalnızca
+  dosya sayısını ve birleşik SHA256'sını tutar. Onay dosyalarının ayrıntı listesi
+  `cache/manifest/` altındadır, git'e girmez, yalnızca onay izniyle okunur. Modül
+  `data/onbellek_manifest.py`.
+- **Koşu içinde okuma ve yazma.** Ağ yasaklı koşu açıkken önbelleğe yazılmaz
+  (`KosuYazmaYasagi`). Bir dosya süreçte ilk kez okunurken baytlarının SHA256'sı
+  manifestle karşılaştırılır; sonraki okumalar doğrulanmış bellek kopyasından gelir.
+- **Keşif koşusu.** F2'nin her koşusu `split.kesif_kosusu` içinde çalışır; KESIF karar
+  noktası onun dışında `KesifBaglamiYok` verir. Açılışta manifest, `split.csv` ve
+  `universe.csv` baytları HEAD'deki blob'la aynı olmalı ve keşif katmanı doğrulanmalıdır;
+  kapanışta ikisi yeniden denetlenir. Koşucu `KesifKaydi` alır (commit, manifest özeti,
+  ağaç temizliği, `origin/main` eşitliği). Resmî koşudan hemen önce `git fetch` yapılır.
+- **Tek seri kapı.** Kapının tek karar çekirdeği `pozisyon._kapi_satirlari`'dır.
+  `pozisyon.kapi_serisi` bir (sembol, dönem, hipotez, yapılandırma, rol) için bütün barların
+  kararını kurar; `olay_karari` onun ince sarmalayıcısıdır. Seri kurulduğu dönem işaretini
+  (`kume_bellegi.donem_isareti()`) taşır; koşu açılışı ve kapanışı işareti artırır, eski
+  seri okunamaz (`SeriEskidi`) ve seri önbelleği aynı temizlikle boşalır.
+  `data/seri_kurucu.py` yalnızca `data/pozisyon.py`'den ve testlerden kullanılır.
+  `data/_skaler_referans.py` eşitlik betiklerinin karşılaştırma tabanıdır; dayandığı
+  tanımlar testte SHA256 ile sabitlidir. F2'de kararı seri kapı verir; F3'te hükmü
+  `_skaler_referans` verir, seri kapı gölge olarak koşar (ön-kayıt §9).
+- **Sinyal ızgarası.** F2 koşucusu ve eşitlik betikleri sinyal barlarını yalnızca
+  `pozisyon.hipotez_izgarasi_barlari`'dan alır; takvimden ızgara kurulmaz. Izgara eşit
+  aralıklı değildir: süre ölçen her kural ızgara zamanıyla ölçer, sırayla değil.
 - Her modülün testi `tests/` altında. `pytest -q` ağa çıkmadan geçmelidir.
 - Rastgelelik her zaman sabit tohumla (seed) ve tohum sonuç dosyasına yazılır.
 - Her analiz `analysis/<ad>/` altında: çalıştırma betiği, `RESULTS.md`, ham çıktı CSV.
@@ -108,8 +143,9 @@ F4'e geçmez; bu geçerli ve değerli bir sonuçtur.
 ### Koruma katmanı
 
 **Kilitli dosyalar.** `PREREGISTRATION.md`, `data/split.csv`, `data/universe.csv`,
-`data/exchange_info_anlik.json`, `ONAY_KAYDI.md`, `analysis/<hipotez>/KILIT.md` (her
-hipotez için, oluşturulduğu andan itibaren) ve bu dosya (`CLAUDE.md`) kilitlidir.
+`data/exchange_info_anlik.json`, `data/onbellek_manifest.csv`, `ONAY_KAYDI.md`,
+`analysis/<hipotez>/KILIT.md` (her hipotez için, oluşturulduğu andan itibaren) ve bu
+dosya (`CLAUDE.md`) kilitlidir.
 `.claude/hooks/kilitli_dosya_korumasi.py` adlı `PreToolUse` hook'u bu dosyalara
 yapılan yazma ve düzenleme araç çağrılarını reddeder. Kilit yalnızca kullanıcının
 açık izniyle, `SHORT_LAB_KILIT_ACIK=1` ortam değişkeni ayarlanarak açılır.
@@ -126,11 +162,15 @@ yazmak ikisinin ayrışmasına yol açar, bu yüzden yetkili metin ön-kayıttı
 
 Hook araç çağrılarını yakalar; çalışan Python kodunu etkilemez.
 `data/split.py` içindeki onay koşusu bu yüzden `ONAY_KAYDI.md` dosyasına
-yazmaya devam eder. Hook `Bash` çağrılarını da denetler: kilitli bir dosyaya
-yazma niyeti taşıyan komutları (yönlendirme, `sed -i`, `mv`, `rm`, çalışma
-ağacını değiştiren git alt komutları vb.) reddeder, salt okuma komutları geçer.
-Kilitli dosyayı adıyla anmadan yazan bir betik yakalanamaz: kilit, dikkatsiz bir
-düzenlemeye karşı korur, kararlı bir atlatmaya karşı değil.
+yazmaya devam eder. Hook komut taşıyan her aracı denetler (Bash, PowerShell,
+tanınmayan kabuk araçları): kilitli bir dosyaya yazma niyeti taşıyan komutları
+(yönlendirme, `sed -i`, `mv`, `rm`, yazan PowerShell cmdlet'leri, çalışma ağacını
+değiştiren git alt komutları vb.) reddeder, salt okuma komutları geçer. Blok, alt
+ifade, atama ve komut ikamesinin içindeki komutlar düz komut gibi değerlendirilir.
+Git komutlarında iki kabuğun kararı aynıdır. Kilitli dosyayı adıyla anmadan yazan
+bir betik ya da dolaylı bir çağrı (`Start-Process`, `Invoke-Expression`, `cmd /c`,
+`bash -c`) yakalanamaz: kilit, dikkatsiz bir düzenlemeye karşı korur, kararlı bir
+atlatmaya karşı değil.
 
 **Metodoloji denetçisi** (`.claude/agents/metodoloji-denetcisi.md`): her faz
 sonunda ve her analiz kodu yazıldıktan sonra çalıştırılır. Geleceğe bakış,
@@ -141,6 +181,15 @@ tohum ve tekrarlanabilirlik başlıklarında bulgu listesi döner. Kod düzeltme
 **Sızıntı testçisi** (`.claude/agents/sizinti-testcisi.md`): yeni hesaplama kodu
 yazıldıktan sonra çalıştırılır. Kodu kırmaya çalışan testler üretir; yalnızca
 `tests/` altına yazar.
+
+**Bulgu politikası.** Bir ajan bulgusu yalnızca gerileme ise, sıradan ya da kazara
+bir kod yolundan ulaşılabiliyorsa ya da işletimi engelliyorsa düzeltilir. Kasıtlı
+kod biçimi gerektiren bulgular xfail olarak kayıtta kalır. Kapatma turlarında
+yalnızca metodoloji denetçisi çalışır (RESULTS §14.46).
+
+**Uzun koşular** (parçalı tam takım `tools/parcali_takim.py`, eşitlik betikleri)
+araştırma tarafının terminalinde yapılır. Asistan komutu verir; komut çıkış kodunu
+çıktı dosyasına yazar; asistan sonucu o dosyadan okur (RESULTS §14.47).
 
 ## 6. Eski projeyle ilişki
 
@@ -169,7 +218,10 @@ short-lab/
 │       └── sizinti-testcisi.md         # kodu kırmaya çalışan test yazarı
 ├── data/
 │   ├── __init__.py          # ağ ve disk erişimi yalnızca bu pakette
-│   ├── binance_vision.py    # data.binance.vision ortak erişim katmanı
+│   ├── binance_vision.py    # data.binance.vision ortak erişim katmanı, koşu ağ yasağı
+│   ├── onbellek_manifest.py # dondurulmuş önbelleğin iki katmanlı manifesti
+│   ├── onbellek_manifest.csv      # manifestin depodaki katmanı; kilitli
+│   ├── kume_bellegi.py      # küme anahtarlı bellek önbelleği, dönem işareti
 │   ├── universe.py          # tarihsel perpetual evreni (delist dahil)
 │   ├── universe.csv         # commit edilir, bir daha değişmez
 │   ├── exchange_info_anlik.json   # evren kurulumunun girdisi, bir kez üretilir
@@ -180,17 +232,22 @@ short-lab/
 │   ├── eligibility.py       # t anındaki uygunluk filtresi
 │   ├── sinyal.py            # hipotezlerin sinyal pencereleri, değerleri ve koşulları
 │   ├── dizi.py              # olay dizisi kuralları: bekleme, tek izleme, ilk gün
-│   ├── pozisyon.py          # tek karar noktası: olay ya da kontrol oluşur mu
+│   ├── pozisyon.py          # tek karar noktası: seri kapı (`kapi_serisi`), olay ya da kontrol
+│   ├── seri_kurucu.py       # kapının seri hesapları; yalnızca pozisyon.py kullanır
+│   ├── _skaler_referans.py  # bar başına skaler karar yolu; eşitlik tabanı
 │   ├── ornekleme.py         # K1 ve K2 kontrol havuzlarının örnekleme kuralları
 │   ├── istatistik.py        # test istatistiği, `r` ve p-değeri
-│   ├── split.py             # A/B coin bölmesi, dönem koruması, onay koşusu
+│   ├── split.py             # A/B coin bölmesi, dönem koruması, keşif ve onay koşusu
 │   └── split.csv            # commit edilir, bir daha değişmez
 ├── events/                  # F2: H1, H2, H3 olay tanımları
 ├── study/                   # F2-F3: olay çalışması, K1/K2 kontrolleri, permütasyon
 ├── analysis/
 │   ├── 00_veri_denetimi/    # F1 veri denetimi: betikler, RESULTS.md, ham çıktı CSV
+│   │   └── esitlik_kapi.py, esitlik_seri.py, esitlik_ornegi_sec.py   # kapı ile skaler referansın eşitlik betikleri
 │   └── <hipotez>/           # F2: her hipotezin kendi dizini
 │       └── KILIT.md         # F2'nin kilitlediği yapılandırma (ön-kayıt §8)
+├── tools/
+│   └── parcali_takim.py     # tam test takımını gruplara bölüp ayrı süreçlerde koşar
 ├── cache/                   # git'e girmez
 └── tests/                   # her modülün testi ve ortak yardımcıları
 ```
