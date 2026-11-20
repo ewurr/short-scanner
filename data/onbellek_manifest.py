@@ -61,6 +61,23 @@ class OnayKatmaniKilitli(PermissionError):
     """Onay katmani F1'de kurulduktan sonra acik bir onay kosusu disinda yeniden kurulmak istendi."""
 
 
+class OnKayitOzetiUyusmazligi(ManifestUyusmazligi):
+    """Manifest dosyasi ya da onay katmani on-kayittaki SHA256 ile tutmuyor (on-kayit §3 rev.14; RESULTS §14.51 D-B2).
+    Kosu acilmaz; onay kosusunda kayda satir yazilmaz, cift harcanmaz."""
+
+
+# --- On-kayittaki ozetler (RESULTS §14.51 D-B2, F2-0) ---------------------------------------------------------------
+#
+# On-kayit §3 rev.14 "Kuruluş" iki degeri sabitler. Kodda TEK yerleri burasidir: manifestin sahibi bu moduldur ve iki
+# kosu acilisi (`split.kesif_kosusu`, `split.onay_kosusu`) denetimi buradan cagirir. `tests/test_onkayit_ozeti.py` iki
+# degerin on-kayit metninde birebir gectigini ve depo kodunda baska bir yerde yazilmadigini sinar.
+#
+# `manifest-kur --uzerine-yaz` degismez; ama yeniden kurulan (baytlari farkli) bir manifest bu denetim yuzunden hicbir
+# kosuyu acamaz. Dondurma kaydini degistirmenin tek yolu on-kayit revizyonu ve bu sabitlerin birlikte degismesidir.
+ONKAYIT_MANIFEST_SHA256 = "8de2bb354e0b852856960b43463eaf24598b487fdec8a55d384ee9a307e15eec"
+ONKAYIT_ONAY_SHA256 = "7611f6f2fe138a3f518ba7f879d697aef1eb6a8bcb6fbac1647125413f227f24"
+
+
 # --- Test ayari (yalnizca pytest) --------------------------------------------------------------------------------
 #
 # Takimin sentetik onbellek kullanan testleri manifest tasimaz. pytest icinde denetim yalnizca testin kendi manifestini
@@ -93,6 +110,84 @@ def _etkin_yol() -> Path | None:
                               "kapatilamaz (RESULTS §14.44, S-11).")
         return Path(MANIFEST_YOLU)
     return _TEST_AYARI[1] if _TEST_AYARI is not None and _TEST_AYARI[0] == test else None
+
+
+_TEST_ONKAYIT: tuple[str, str, str] | None = None
+
+
+def _test_onkayit_ozeti_ayarla(manifest_sha256: str, onay_sha256: str) -> None:
+    """YALNIZCA TESTLER ICIN: bu pytest testi suresince on-kayit ozeti denetimi acilir ve beklenen degerler bunlardir.
+
+    Sahte manifestli testlerin manifesti on-kayittaki baytlari tasimaz. Bu yuzden pytest icinde denetim yalnizca bu
+    ayari yapan testte calisir; pytest disinda her zaman calisir ve beklenen degerler yukaridaki sabitlerdir."""
+    global _TEST_ONKAYIT
+    from data import split
+
+    test = split._pytest_testi()
+    if test is None:
+        raise bv.OnayVerisiKorumasi("On-kayit ozeti test ayari yalnizca bir pytest testi icinde yapilabilir.")
+    _TEST_ONKAYIT = (test, str(manifest_sha256), str(onay_sha256))
+
+
+def _beklenen_ozetler() -> tuple[str, str] | None:
+    """(manifest SHA256, onay katmani birlesik SHA256). pytest disinda her zaman on-kayittaki sabitler; pytest icinde
+    yalnizca `_test_onkayit_ozeti_ayarla` yapan testte o degerler, aksi halde None (denetim bu testte calismaz)."""
+    from data import split
+
+    test = split._pytest_testi()
+    if test is None:
+        return ONKAYIT_MANIFEST_SHA256, ONKAYIT_ONAY_SHA256
+    if _TEST_ONKAYIT is not None and _TEST_ONKAYIT[0] == test:
+        return _TEST_ONKAYIT[1], _TEST_ONKAYIT[2]
+    return None
+
+
+def onkayit_ozeti_denetle(*, onay: bool, manifest_sha256: str | None = None) -> None:
+    """Kosu acilisinin on-kayit denetimi (on-kayit §3 rev.14; RESULTS §14.51 D-B2).
+
+    - Manifest dosyasinin baytlarinin SHA256'si on-kayittaki degerle ayni olmali. `manifest_sha256` verilirse dosya
+      yeniden okunmaz, o ozet karsilastirilir (kesif kosusunun HEAD'e bagladigi tek okuma).
+    - `onay=True` (onay kosusu): ek olarak manifestteki `onay_ozeti` satirinin degeri ve onay ayrinti listesinin
+      baytlarinin SHA256'si on-kayittaki birlesik degerle ayni olmali. Onay verisi izni ister; mesajda onay tarafinin
+      bulunan ozeti yazilmaz.
+
+    Uyusmazlikta `OnKayitOzetiUyusmazligi`; dosya yoksa `ManifestYok`. Yalnizca hashlib ile okur, cerceve acmaz."""
+    beklenen = _beklenen_ozetler()
+    if beklenen is None:
+        return
+    yol = _etkin_yol()
+    if yol is None:
+        raise ManifestYok("Manifest yolu tanimli degil; on-kayit ozeti denetlenemez.")
+    govde = None
+    if manifest_sha256 is None or onay:
+        try:
+            govde = yol.read_bytes()
+        except FileNotFoundError:
+            raise ManifestYok(f"Manifest yok: {yol}; on-kayit ozeti denetlenemez.") from None
+        okunan = hashlib.sha256(govde).hexdigest()
+        if manifest_sha256 is not None and okunan != manifest_sha256:
+            raise OnKayitOzetiUyusmazligi("Manifest dosyasi acilis sirasinda degisti; on-kayit ozeti denetlenemez.")
+        manifest_sha256 = okunan
+    if manifest_sha256 != beklenen[0]:
+        raise OnKayitOzetiUyusmazligi(
+            f"Manifest dosyasinin SHA256'si ({manifest_sha256}) on-kayittaki degerle ({beklenen[0]}) ayni degil "
+            "(on-kayit §3 rev.14; RESULTS §14.51 D-B2). Yeniden kurulan bir manifest kosu acamaz; kosu acilmadi.")
+    if not onay:
+        return
+    if not bv.onay_izni_var():
+        raise bv.OnayVerisiKorumasi("Onay katmaninin on-kayit ozeti yalnizca onay verisi izniyle denetlenir.")
+    if _manifest_coz(govde.decode("utf-8")).onay_sha256 != beklenen[1]:
+        raise OnKayitOzetiUyusmazligi(
+            "Manifestteki onay_ozeti satiri on-kayittaki birlesik SHA256 ile ayni degil (on-kayit §3 rev.14; RESULTS "
+            "§14.51 D-B2); onay kosusu acilmadi, kayda satir yazilmadi.")
+    try:
+        ayrinti = onay_ayrinti_yolu().read_bytes()
+    except FileNotFoundError:
+        raise ManifestYok(f"Onay ayrinti listesi yok: {onay_ayrinti_yolu()}.") from None
+    if hashlib.sha256(ayrinti).hexdigest() != beklenen[1]:
+        raise OnKayitOzetiUyusmazligi(
+            "Onay ayrinti listesinin baytlari on-kayittaki birlesik SHA256 ile tutmuyor (on-kayit §3 rev.14; RESULTS "
+            "§14.51 D-B2); onay kosusu acilmadi, kayda satir yazilmadi.")
 
 
 def denetim_etkin() -> bool:

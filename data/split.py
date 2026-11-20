@@ -1497,6 +1497,8 @@ def onay_kosusu(hipotez: str, kume: str):
         - blok hata ile biterse `durum=HATA hata=<hata sinifi>`, sonuc bildirilmisse ardindan `sonuc=<sonuc>`
           (hata yeniden firlatilir);
         - sonuc bildirilmediyse `durum=HATA hata=OnaySonucuYok` ve `OnaySonucuYok`.
+    - Kayda satir yazilmadan once manifest dosyasinin SHA256'si ve onay katmaninin birlesik SHA256'si on-kayittaki
+      degerlerle karsilastirilir (RESULTS §14.51 D-B2); uyusmazlikta `OnKayitOzetiUyusmazligi`, cift harcanmaz.
     - Ic ice kosu acilamaz. Kayit yolu parametre olarak verilemez.
     """
     global _AKTIF_KOSU
@@ -1523,8 +1525,11 @@ def onay_kosusu(hipotez: str, kume: str):
 
     # Dondurma kaydi tam dogrulanir (on-kayit §3 rev.13; RESULTS §14.41). Kayda satir yazilmadan once: uyusmazlikta kosu
     # acilmaz, cift harcanmaz. Onay baytlari yalnizca `hashlib` ile okunur.
+    # Once on-kayittaki iki ozet (RESULTS §14.51 D-B2, F2-0): manifest dosyasinin SHA256'si ve onay katmaninin birlesik
+    # SHA256'si (manifestteki satir ve ayrinti listesinin baytlari). Uyusmazlikta kosu acilmaz, satir yazilmaz.
     if onbellek_manifest.denetim_etkin():
         with bv.onay_verisi_izni(f"split.onay_kosusu acilisi ({hipotez}, {kume})"):
+            onbellek_manifest.onkayit_ozeti_denetle(onay=True)
             onbellek_manifest.manifest_dogrula(katman="tam")
     kosu = _Kosu(hipotez, kume, uuid.uuid4().hex[:12], ortam.commit, ortam.betik, _iso_zaman(), os.getpid(),
                  kilit)
@@ -1935,7 +1940,9 @@ def kesif_kosusu():
             ...
             sonuc_dosyasina_yaz(kayit.alanlar())
 
-    `bv` analiz kodunda taramayla yasak oldugu icin kosucu ag yasagini ancak bu baglamla acar. Acilista commit bagi
+    `bv` analiz kodunda taramayla yasak oldugu icin kosucu ag yasagini ancak bu baglamla acar. Acilista once manifest
+    dosyasinin SHA256'si on-kayittaki degerle karsilastirilir (`onbellek_manifest.onkayit_ozeti_denetle`; RESULTS §14.51
+    D-B2; uyusmazlikta `OnKayitOzetiUyusmazligi`), sonra commit bagi
     denetlenir (`kesif_bagi_denetle`), kesif katmani dogrulanir (hicbir onay dosyasi acilmaz), manifestin SHA256'si
     sabitlenir, bellek ve donuk liste kopyalari duser, surec duzeyinde ag yasagi acilir. Kapanista yasak kalkar, kopyalar
     duser, manifest yeniden ozetlenir ve kesif katmani yeniden dogrulanir; uyusmazlik `KesifBagiHatasi`. Tek atis ve onay
@@ -1946,6 +1953,10 @@ def kesif_kosusu():
     if _AKTIF_KOSU is not None:
         raise RuntimeError(f"Acik onay kosusu icinde kesif kosusu acilamaz: {_AKTIF_KOSU}.")
     denetim = onbellek_manifest.denetim_etkin()
+    # On-kayit ozeti (RESULTS §14.51 D-B2, F2-0): manifest dosyasinin SHA256'si on-kayittaki degerle ayni olmali. Butun
+    # acilis denetimlerinden once; asagida HEAD'e baglanan tek okumanin ozetiyle bir kez daha karsilastirilir.
+    if denetim:
+        onbellek_manifest.onkayit_ozeti_denetle(onay=False)
     # Sabitlenen ozetler bagli dosyalarin TEK okumasindan gelir (RESULTS §14.43, F-3): git kipinde HEAD'e bayt bagindan,
     # aksi halde dogrudan okumadan. Kapanista ayni dosyalar yeniden ozetlenir (D-K3).
     if not denetim:
@@ -1956,6 +1967,8 @@ def kesif_kosusu():
         sabit = {str(y): _dosya_sha256(y) for y in _kesif_bagli_dosyalar() if y is not None}
     manifest_ozeti = sabit.get(str(onbellek_manifest._etkin_yol())) if denetim else None
     if denetim:
+        if manifest_ozeti is not None:
+            onbellek_manifest.onkayit_ozeti_denetle(onay=False, manifest_sha256=manifest_ozeti)
         onbellek_manifest.manifest_dogrula(katman="kesif")
     kayit = _kesif_kaydi_kur(manifest_ozeti)
     kume_bellegi.temizle()
