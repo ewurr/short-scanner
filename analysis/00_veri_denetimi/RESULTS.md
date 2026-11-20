@@ -5115,6 +5115,153 @@ Bu turda kapanan listeden: bayat kilit (`7d0578c`) ve `esitlik_seri.py --ara-diz
 
 **Commit'ler:** `aa32aa3` (D-B1), `47be36b` (D-B2), `c19c8c8` (D-B3), `fd3def7` (D-C3), `1a65ced` (D-C11), `838ad92` (D-C2), `a7a0fa6` (S-P2b2-2), `7d0578c` (bayat kilit), `ec74d9c` (`--ara-dizin`), `32e2948` (takımın gösterdiği üç testin uyarlanması); bu kayıt.
 
+### §14.51 F1 kapandı (2026-11-19)
+
+F1 kapanışının 2. kısmı (F1-K2). Üç aşama vardı ve her biri ayrı bir oturumda çalıştı: hazırlık (kilit kapalı), kilit oturumu (`SHORT_LAB_KILIT_ACIK=1`, yalnızca kilitli dosyalara yazıldı) ve kapanış (kilit kapalı). Getiri, sinyal değeri ve olay sayısı raporlanmadı. Onay koşusu açılmadı. `split.csv`, `universe.csv`, `exchange_info_anlik.json` ve `ONAY_KAYDI.md` dosyalarına dokunulmadı.
+
+#### Rev.14
+
+- **Commit:** `bb150e7` (`bb150e790815d244ebdfebf88adba33737aa1148`), `On-kayit: Revizyon 14 (ag yasaginin kapsami, dondurulmus onbellek, kesif kosusunun bagi, onay kosusunun yurutulmesi)`. Commit zamanı 2026-11-19T14:45:49+03:00.
+- **Push:** `293e90d..9946267  main -> main`, çıkış 0. Yerel `origin/main` reflog'u `2026-11-19T14:46:01+03:00` (11:46:01Z) gösteriyor. Rev.14, CLAUDE.md commit'iyle aynı push'ta `origin/main`'e girdi.
+- **Metin onaylı taslakla aynı.** Girdi `rev14_taslak.md` (SHA256 `88958462…`). Yerleştirme taslağı `f1_k2_kilit_degisiklikleri.md` (SHA256 `1f86e733…`, aşama 2'nin başında durum dosyasındaki değerle aynı). Üç bağımsız denetim yapıldı:
+  - Aşama 2, uygulamadan sonra `git diff` çıktısını taslakla karşılaştırdı: taslakta olmayan eklenen ya da silinen satır 0; ters uygulama HEAD'i birebir veriyor.
+  - Aşama 3'te iki kontrol yapıldı. Birincisi: `bb150e7^` içeriğine taslağın altı Eski→Yeni değişikliği uygulanınca `bb150e7` birebir elde ediliyor (`True`). İkincisi: `rev14_taslak.md`'deki A, B, C ve D alıntı bloklarının her biri, alıntı öneki çıkarılınca ön-kayıtta tam bir kez geçiyor.
+  - Metodoloji denetçisi aynı karşılaştırmayı karakter düzeyinde elle yaptı ve aynı buldu.
+- Yerler: A ve B §3'te, rev.13 hükmünün arkasında; C, §8'in 6. maddesi; D, §9'un sonunda; sürüm başlığı 13 → 14; günlük satırı; "Revizyon 14 — ayrıntı".
+
+#### CLAUDE.md güncellemesi
+
+- **Commit:** `9946267` (`99462679a81462b53a2e1ff0abe9e5d1596f56f4`), `CLAUDE.md: F1 sonu guncellemesi (kanca kapsami, veri ve kosu kurallari, kilitli dosyalar, dizin yapisi)`.
+- Altı değişiklik (2.1–2.6): §3.3'e kesinti ve devam; §5'e kanca kapsamı, veri ve koşu kuralları ve işletim; kilitli dosyalar listesi; §7 dizin yapısı. `9946267^` içeriğine taslak uygulanınca `9946267` birebir elde ediliyor.
+
+#### `DonemDisiSinyal` açıklaması ve SABIT'teki tek SHA güncellemesi
+
+- **Commit:** `af165fe` (KS3 D-C1, §14.48'den F1 kapanışına bırakılmıştı). Açıklama artık kapıdaki gerçek adım sırasını söylüyor: plan uygunluktan önce çalışır, bu istisna çağıranın dönem içi olmayan bir bar verdiği anlamına gelir.
+- **Gerekçe.** Sınıf SABIT listesinde. SABIT'teki SHA, sınıfın kaynak metnini açıklamasıyla birlikte kapsıyor. Bu yüzden açıklamanın düzeltilmesi SHA'nın güncellenmesini gerektirdi: `cc564872bddf74d66ebb55f1a5d65f91ba186ac73f3284d7c0c6ce1adeb96c95` → `48af2223a8a648e288371d5280f12238f279798b5c1f60378a2b70ce37e54698` (`tests/test_skaler_referans_dayanilan.py`). §14.45'teki "SABIT ancak referans yeniden dondurulduktan sonra güncellenir" kuralının bilinçli tek istisnasıdır, çünkü değişen yalnızca açıklamadır. **F1 boyunca SABIT'te yapılan tek değişiklik budur.**
+- **Yalnızca açıklama olduğunun kanıtı:** `D:\Projeler\prompts\f1_k2_ast_kaniti.txt` (SHA256 `7f404620fb3d75faf7d5d8f060438890e1b769067dd7132917f746d21ac3e3ea`). Açıklama çıkarıldıktan sonra sınıfın AST'si eski (`22318c1`) ve yeni hâlde aynı: `ClassDef(name='DonemDisiSinyal', bases=[Name(id='ValueError', ctx=Load())], body=[Pass()])`, `AST esit: True`.
+- **`_skaler_referans` davranışı değişmez.** Referans sınıfı `data.pencere`'den alıyor, kopyalamıyor. Sınıfın gövdesi (taban sınıf, üyeler) aynı kaldığı için referansın hangi durumda hangi istisnayı yükselttiği değişmez. Referansın kendi SHA256'sı (`933983b5…`, Rev.14 D) değişmedi.
+
+#### Manifestin kilitli listeye girmesi
+
+- **Commit:** `293e90d`. `data/onbellek_manifest.csv` kancanın `KILITLI` listesinde. Testler gösteriyor: Edit, Write, Bash ve PowerShell ile değiştirme girişimleri reddediliyor, okumalar serbest. `tests/test_sizinti_kimlik_kilit.py` listeyi sabitlediği için yedi tam yola güncellendi.
+- CLAUDE.md'deki kilitli dosyalar listesi `9946267` ile güncellendi. Denetçi kancanın listesinin CLAUDE.md'deki listeyle aynı olduğunu doğruladı.
+- Aynı turda pandas uyarısı da giderildi (`8543433`): `tests/test_tur_saldirilari_m.py`, bozuk fiyat hücresi yazmadan önce sütunu açıkça `object` türüne çeviriyor. Testin sınadığı şey değişmedi.
+
+#### Kilidin kapalı olduğunun kanıtı (aşama 3)
+
+`SHORT_LAB_KILIT_ACIK` tanımlı değilken kanca ayrı bir süreçte, gerçek stdin JSON'uyla çağrıldı. Hiçbir araç çalışmadı, hiçbir dosya yazılmadı. `PREREGISTRATION.md` için Write, Edit, Bash (`echo x >> …`) ve PowerShell (`Add-Content …`) girişimlerinin dördü de `deny` aldı; Read izin aldı. Karşılaştırma için `SHORT_LAB_KILIT_ACIK=1` ile aynı Write izin aldı. Dosyanın SHA256'sı (`6eb56b58…`) ve değişiklik zamanı sınamadan önce ve sonra aynı.
+
+#### Yedek kaydı
+
+- Önbellek ve onay ayrıntı listesi 2026-10-31'de harici bir USB belleğe (FAT32) yedeklendi (§14.42 D-C5).
+- 64.541 dosyanın tamamı SHA256 ile doğrulandı. Bir klasör `chkdsk` sonrası yeniden kopyalandı.
+- USB'deki `onay_ayrintisi.tsv`'nin SHA256'sı 2026-10-31'de `7611f6f2…` olarak doğrulandı. Bu değer, ön-kayıttaki (§3 rev.14) onay katmanı birleşik SHA256'sıyla aynıdır. Dosyanın baytları birleşik SHA'nın hesaplandığı kanonik metindir (`onbellek_manifest.manifest_kur`: `_atomik_yaz(ayrinti, govde)`). Dolayısıyla yedek onay ayrıntı listesini içeriyor.
+- Araştırma tarafının notu: USB'nin exFAT'e çevrilmesi ve yedeğin yenilenmesi önerildi (F3 gereksinimlerine bakın).
+
+#### Ruleset
+
+`main` için force push ve silme engeli etkin (ruleset `26207345`, §14.37). **Bypass listesinin teyidi:** araştırma tarafı 2026-11-19'da bypass listesinin **boş** olduğunu teyit etti.
+
+#### Tek bar çekirdeğinin tanımı (§14.50'nin belirsizliği)
+
+Izgara dışı bir t ya da pencere dışı bir H1 çapası sorulduğunda aynı `_kapi_satirlari` çekirdeği tek bar için çağrılır. Bu ikinci bir karar yolu değildir. G1'in yasakladığı şey, ayrı bir skaler karar gövdesidir; buradaki çağrı aynı gövdedir.
+
+#### Testler
+
+- Aşama 1 takımı (`293e90d`, `--grup 8`, araştırma tarafının terminalinde, `D:\Projeler\prompts\takim_f1_k2_a1.txt`): 199 dosya, **5778 passed, 196 xfailed, 0 failed, 0 XPASS, 7 skipped**, `cikis=0`.
+- Kapanış takımı (`9946267`, `--grup 8`, araştırma tarafının terminalinde, `D:\Projeler\prompts\takim_f1_k2_son.txt`): 199 dosya, **5778 passed, 196 xfailed, 0 failed, 0 XPASS, 7 skipped**, `cikis=0`; toplam 5501 s, tepe bellek 1790 MB (grup 0). Sayılar aşama 1 takımıyla aynı. CLAUDE.md ve ön-kaydı okuyan testler yeni metinle geçti. Koşu sırasında çalışma ağacındaki tek değişiklik bu bölümün yazılmakta olan metniydi (yalnızca ekleme). RESULTS'ı okuyan `test_skaler_referans_dayanilan.py` bu metinle ayrıca hedefli koşuldu: 6 passed.
+- xfail 196, §14.50 ile aynı. Bu turda işaretleyici eklenmedi ve kaldırılmadı.
+
+#### Metodoloji denetçisinin bulguları ve durumları
+
+Denetim HEAD `9946267` üzerinde, salt okuma olarak yapıldı. Hüküm: **"F1'de kapanması gereken açık nokta: YOK."** Kayıtlı hiçbir açık nokta bugünkü kodla, kasıtsız bir yoldan ulaşılıp bir KEŞİF ya da onay sonucunu değiştiremiyor. Faz sınırı sağlam: `events/` ve `study/` yalnızca `.gitkeep` içeriyor; `KILIT.md` yok; `analysis/**/*.csv` içinde getiri, olay sayısı, p değeri ya da K2 farkı sütunu yok; `ONAY_KAYDI.md` tablosu boş. Config ile ön-kayıt arasında sayı, eşik, ızgara, ufuk ya da tarih farkı yok.
+
+| Kod | Özet | Durum |
+|---|---|---|
+| D-B1 | §10'daki BTC rejimi dökümü (`PREREGISTRATION.md:371`), §3 ve Rev.14 B ile çelişiyor: BTCUSDT B grubunda, döküm C1 verisi ister (KS3 D-B4'ten beri açık) | Açık. F2 raporundan önce ön-kayıt kararı (F2 gereksinimi) |
+| D-B2 | Ön-kayıttaki manifest SHA256'sı (`8de2bb35…`) kodda denetlenmiyor; `manifest-kur --uzerine-yaz` ve ardından bir commit başka bir keşif verisini bağlar, `kesif_kosusu` reddetmez | Açık. **F2'nin 0. adımı** (araştırma tarafının kararı, aşağıda) |
+| D-B3 | `onay_ayrintisi.tsv` kaybolursa onay koşusu açılamaz; tek çıkış yedek | Yedek kaydı bu bölümde; yenileme F3 gereksinimi |
+| D-B4 | Rev.14 D'deki "aynı commit" şartı bugünkü kayıtla harfiyen sağlanamaz (her kayıt satırı ayrı commit) | F3 gereksinimi |
+| D-B5 | `ONAY_KAYDI.md` başlığı ("koşu başına iki satır") ve CLAUDE.md §3.3, Rev.14 D'nin kesinti, devam ve TAMAMLANAMADI kurallarıyla uyumsuz | F3 gereksinimi (kilit oturumu) |
+| D-B6 | Rev.14 D gerekçesindeki "her bar için birebir aynı" ifadesi kanıttan geniş (8 sembol; örnek kipi; §14.49'un saydığı kanıtlanmayanlar) | Not. Gerekçe cümlesi, kural değil; kayıtta |
+| D-B7 | Rev.14 D'deki "onay izni alt süreçlere geçmez" ile `onay_verisi_izni`'nin ortam değişkeniyle taşınması arasında terim belirsizliği; davranış uyumlu (`_AKTIF_KOSU` taşınmıyor) | F3 gereksinimi |
+| D-B8 | Rev.14 B'de iç gerilim: koşuda önbelleğe yazma yasağı ile onay katmanının yalnızca koşu içinde yeniden kurulabilmesi; `_atomik_yaz` yazma yasağını denetlemiyor | F3 gereksinimi |
+| D-B9 | CLAUDE.md §5 "`seri_kurucu` yalnızca `pozisyon`'dan ve testlerden kullanılır" diyor; `esitlik_seri.py:60` kayıtlı istisna (§14.48) | Açık. Bir sonraki kilit oturumunda CLAUDE.md düzeltmesi |
+| D-B10 | "Git komutlarında iki kabuğun kararı aynıdır" ifadesinin kayıtlı istisnaları var (`sudo git`, here-string/heredoc, blok içi `Get-Content`) | Not. Bir sonraki kilit oturumunda |
+| D-B11 | CLAUDE.md §3.3 "`main` `origin/main` ile eşit" diyor; kod `merge-base --is-ancestor` denetliyor; "iki satır" ITILEMEDI'yi saymıyor (eski metin) | Not. Bir sonraki kilit oturumunda; F3 gereksinimiyle birlikte |
+| D-B12 | CLAUDE.md §5 "önbellek anahtarı küme adını içerir"; `bv._DOGRULANMIS` anahtarı küme adı taşımıyor (§14.42 D-K1) | Not. Kayıtta |
+| D-B13 | Kancada ve taslakta, yazılmamış §14.51'e atıf vardı | Bu bölümle kapandı |
+| D-B14 | `klines` hücre kuralı taker sütunlarını da kapsıyor (§14.35 c, S-C8); KEŞİF etkisi 0 | Kayıtta |
+| D-B15 | §14.49'da olay rolünde onay oluşmayan (sembol, hipotez) çiftleri adıyla geçiyor; olay varlığının bir bitlik bilgisi, yalnızca KEŞİF | Not. Kayıtta; olay sayısı kuralının sınırında |
+| Not | `requirements.txt` aralıkları geniş; bit düzeyinde eşitlik numpy 2.4.4 ve pandas 2.3.3'te ölçüldü (§14.48 D-C2) | F2/F3 gereksinimi |
+
+**D-B2 için araştırma tarafının kararı (2026-11-19).** D-B2 F1'i durdurmaz. Bulguya yalnızca açık bir bayrakla ve kilitli bir dosyanın commit'iyle ulaşılabiliyor; henüz bir F2 sonucu da yok. Ancak **F2'nin 0. adımıdır: ilk F2 koşusundan ve ilk F2 kodundan önce kapanır.** Yapılacaklar:
+- `kesif_kosusu` açılışta manifest dosyasının SHA256'sını ön-kayıttaki değerle (`8de2bb35…`, ön-kayıt §3 rev.14) karşılaştırır. Uyuşmazlık varsa koşu açılmaz.
+- Aynı denetim onay koşusunun açılışında da yapılır (F3 gereksinimi). Onay koşusu ayrıca onay katmanının birleşik SHA256'sını ön-kayıttaki değerle (`7611f6f2…`) karşılaştırır.
+
+Gerekçe: Rev.14 bu iki değeri ön-kayıtta sabitledi. Kodun bunları denetlemesi, ön-kayıt hükmünün koddaki karşılığıdır.
+
+#### Kayıtta kalan açık bulgular (tam liste)
+
+Denetçi, §14.50'deki listenin yalnızca §14.48 ve §14.49 bulgularını saydığını belirtti. Aşağıdaki liste daha eski açıkları da içeriyor. "Kapanış kaydı görülmedi" diye işaretlenenlerin durumu F2 planında doğrulanır.
+
+- **§14.35:** (a) kancanın yazma biçimleri, satır 1–4, 6–17, A, C, D, F (satır 5 §14.39'da kapandı); (b) config atlatmaları 26, 27, 28; (c) S-C8 (D-B14).
+- **§14.37:** 2026-10-30 öncesinde force-push koruması yoktu; onay koşusunun dış kanıtı F3 planına bırakıldı.
+- **§14.38, §14.39:** dolaylı çağrılar kapsam dışı; `git diff --output`, `git config --file`.
+- **§14.41:** R3a, M-10, doğrudan `onbellege_yaz`, `pd.read_parquet`'in yalnızca taranması; S-12 (xfail). D-K1…D-K8'in tek tek kapanış kaydı görülmedi.
+- **§14.42:** D-K1 (D-B12); D-K5 (F2 koşucusunda); F-5…F-8 (F-7 xfail); S-8 ve R5'in C1/C2 varyantları (xfail).
+- **§14.43:** D-B7, D-C1, D-C3, D-C4, D-C5. Sızıntı bulguları S-1, S-2, S-3, S-4, S-7, S-8, S-9, S-12 ve S-14…S-21 için kapanış kaydı görülmedi (S-5, S-6, S-10, S-11, S-13 kapandı).
+- **§14.45:** D-C1 (autocrlf), D-C5 (statik grafiğin kör noktaları).
+- **§14.46:** S-34…S-37, S-41…S-45 (xfail).
+- **§14.48:** D-C2 (numpy varsayımı), D-C7 (G7 tanımı alıntı değil), D-C13 (keşif kaydından toplam süre), D-C14 (GUVENLIK politikasıyla çelişki).
+- **§14.49:** D-C4, D-C5, D-C6, D-C8, D-C9, D-C10; S-P2b2-1 ve S-P2b2-3 (strict xfail, kasıtlı atlatma sınıfı).
+- **Bu turun denetimi:** D-B1, D-B2, D-B4…D-B12, D-B14, D-B15 (tablo).
+- **F1-K2'ye bırakılıp bu turda ele alınmayanlar:**
+  - `test_kisa_sifir_kosusu.py` belleği: grup 7'nin tepe belleği 1804 MB.
+  - Kanca yanlış pozitifleri. Aşama 3'te bir örnek görüldü: içinde kilitli bir dosyanın adı geçen, scratchpad'e yazan bir heredoc temkinli olarak reddedildi. Tasarım gereği temkinli; yol Write aracı ve yol argümanıyla aşıldı.
+- **xfail envanteri:** 196.
+
+#### F2 gereksinimleri (tam liste)
+
+0. **D-B2 (F2'nin 0. adımı):** ilk F2 kodundan ve ilk F2 koşusundan önce kapanır. `kesif_kosusu` açılışta manifest dosyasının SHA256'sını ön-kayıttaki `8de2bb35…` ile karşılaştırır; uyuşmazlıkta açılmaz.
+1. Koşucu `split.kesif_kosusu` içinde çalışır; karar noktası başka yerde çalışmaz (§14.41, §14.42 D-C1).
+2. Paralellik iş parçacığıyla değil süreçle yapılır. Ağ yasağı ve keşif bağlamı alt süreçlere taşınır (§14.40 S-8, R1; §14.41; §14.42).
+3. Koşucu `KesifKaydi.alanlar()`'ı sonuç dosyalarına yazar (§14.42).
+4. Resmî F2 koşusu temiz ağaç (`agac_temiz=True`) ve `origin/main` eşitliği ister. Kod bugün bunu zorlamıyor (§14.42).
+5. `KILIT.md`'deki `kesif_commit` bir koşu kaydına ve temiz ağaca bağlanır (§14.42 D-K5; ön-kayıt §8 madde 6, rev.14 C).
+6. Resmî koşudan hemen önce `git fetch` yapılır. `origin_main_ref_zamani`, fetch yapıldığının kanıtı değildir (§14.43 D-C1).
+7. F2 koşucusu P2c bitmeden yazılmaz (§14.44 karar 2; plan v3).
+8. P2c ve P2d F2'nin ilk işidir. Plan v3'ün P2c ve P2d gereksinimleri aynen geçerlidir (§14.48 faz kararı):
+   - **P2c:** koşul serisi aynı kapı modülünde, aynı seri kurucularıyla kurulur ve skaler `sinyal_kosulu` `data/`'dan kalkar (G1 geçici istisnasının sonu, §14.49). Dizi kuralları sıralı yürür ve serileri okur. Akış iki aşamalıdır: sembol başına olay kümesi, sonra K2 adaylığı. `k2_bitleri`'nin örneklemede kullanılması da P2c'nin işidir (§14.49). Gerçek veri eşitliğinde dizi çıktısı (olay zamanları) referansla karşılaştırılır; olay sayısı yazılmaz. H1 olay rolü gerçek pump çapalarıyla ve çapa dizili tam ızgara yoluyla sınanır (G18, §14.49 D-C8).
+   - **P2d:** süreç havuzu; 1 işçi ile N işçinin aynı çıktıyı verdiği gösterilir; bellek ölçülür. Havuz `kesif_kosusu` içinde kurulur. Dönem işareti ve erişim denetimi alt süreçlerde de geçerlidir.
+9. F2'nin keşif koşusu, P2c ve P2d bitip gerçek veri eşitliğinden geçmeden yapılmaz (§14.48).
+10. Sinyal ızgarası yalnızca `pozisyon.hipotez_izgarasi_barlari`'dan alınır (§14.47).
+11. Süreler ızgara zamanıyla ölçülür: bekleme, H1 izleme penceresi ve ufuklar ızgara zamanıyla ölçülür, yardımcının listesindeki sırayla değil (§14.47, P2c gereksinimi).
+12. Hata önbelleği (`_SERI_HATALARI`) yalnızca veri hatalarını tutar, sistem hatalarını tutmaz (§14.50'nin belirsizliği). Bugün yalnızca `MemoryError` dışarıda; F2 koşucusu bu sınırı açıkça tanımlar.
+13. BTC rejimi dökümü için ön-kayıt kararı, F2 raporundan önce verilir (D-B1).
+14. numpy ve pandas sürümleri sonuç dosyalarına yazılır ve F2 ile F3 boyunca aynı tutulur (§14.48 D-C2).
+
+#### F3 gereksinimleri
+
+Rev.14 Madde D'den:
+- **Hükmü skaler referans verir:** `data/_skaler_referans.py`, SHA256 `933983b5…`. Seri yol (`kapi_serisi`) gölge olarak koşar; her olay ve kontrol barında karar, ret sınıfı ve onaylı pozisyonun bütün alanları karşılaştırılır.
+- **Uyuşmazlık bir uygulama bulgusudur.** Hüküm yine referanstan verilir ve ikinci bir onay koşusu yapılmaz. Uyuşmazlık `ONAY_KAYDI.md`'ye ve RESULTS'a yazılır: kaç barda, hangi rolde, hangi sınıfta.
+- **Tek süreç:** onay izni alt süreçlere geçmez (§14.42 D-C7). F3 koşucusu izin açıkken alt süreç başlatmaz (D-B7).
+- **Sembol başına korumalı ara kayıt ve devam:** aynı commit, ayar ve tohumla. Ara kayıt depo dışında tutulur, onay verisidir ve istatistik taşımaz. İstatistik bütün semboller bitince tek seferde hesaplanır. Devam edilemezse hüküm TAMAMLANAMADI olur ve o kümenin onay hakkı harcanır. Her kesinti ve devam `ONAY_KAYDI.md`'ye yazılır.
+
+Bu turdan:
+- **"Aynı commit" tanımı** F3 koşucusundan önce yazılır, çünkü her kayıt satırı HEAD'i ilerletir (D-B4). Örnek tanım: BASLADI satırındaki commit, aradaki fark yalnızca `ONAY_KAYDI.md`.
+- **F3 koşucusu devamı uyguladığında CLAUDE.md §3.3'teki "her koşu iki satır yazar" cümlesi güncellenir (kilit oturumu gerekir).** Aynı oturumda `ONAY_KAYDI.md` başlığındaki "koşu başına iki satır" metni de Rev.14 D ile uyumlu hâle getirilir (D-B5). Yalnızca ekleme kuralı korunur.
+- **Manifest denetimi (D-B2):** onay koşusu açılışta manifest dosyasının SHA256'sını `8de2bb35…` ile ve onay katmanının birleşik SHA256'sını `7611f6f2…` ile karşılaştırır (ön-kayıt §3 rev.14). Uyuşmazlık varsa koşu açılmaz.
+- **Onay katmanının koşu içinde yeniden kurulması ile koşudaki yazma yasağı arasındaki ilişki** F3 koşucusunda tanımlanır (D-B8).
+- **Yedek (D-B3):** F3'ten önce yedek exFAT biçimli bir bellekte yenilenir. Yenilenen yedekte iki şey sınanır: (a) bütün önbellek dosyaları kaynakla SHA256 düzeyinde karşılaştırılır, fark 0 olmalıdır; (b) `onay_ayrintisi.tsv`'nin SHA256'sı ön-kayıttaki birleşik SHA256'yla (`7611f6f2…`) aynı olmalıdır. Sonuç RESULTS'a yazılır.
+- `_skaler_referans` tarama istisnası F3 koşucusuna genişletilir. K2 adaylığı referanstan hesaplanır.
+- numpy ve pandas sürümleri F2'dekiyle aynıdır (D-C2).
+
+**Commit'ler (F1-K2):** `af165fe` (`DonemDisiSinyal`), `8543433` (pandas uyarısı), `293e90d` (kanca listesi), `bb150e7` (Rev.14), `9946267` (CLAUDE.md); bu kayıt.
+
+F1 kapandı. Sıradaki faz F2'dir; F2 planla başlar.
+
 ## 15. Tarihsel not: rev.3 boşluk kuralının etkisi (betik dışı)
 
 Önceki rapordaki "Revizyon 3 sonrası" tarama (birleşik eleme 19.763 bar-sembol,
