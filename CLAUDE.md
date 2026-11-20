@@ -54,9 +54,13 @@ saklanmaz, koda yazılmaz.
    Onay kümesi verisi yalnızca açık bir onay koşusu içinde okunabilir; koşu, veri
    katmanındaki `onay_kosusu` bağlam yöneticisiyle açılır ve hipotez ile küme adını
    alır. Koşu yalnızca temiz çalışma ağacında, git'te izlenen bir depo betiğinden ve
-   yerel `main` `origin/main` ile eşitken açılabilir. Her koşu `ONAY_KAYDI.md`
-   dosyasına iki satır yazar — açılışta BASLADI, kapanışta sonucuyla BITTI ya da hata
-   sınıfıyla HATA — ve her satır yazıldığı anda commit edilip uzak depoya itilir.
+   HEAD `origin/main`'i içerirken açılabilir: `origin/main` açılışta uzak depodan
+   alınır ve HEAD'in atası (ya da kendisi) olmalıdır; HEAD'deki kayıtta itilmemiş satır
+   bulunmamalıdır. Her koşu `ONAY_KAYDI.md` dosyasına iki satır yazar — açılışta
+   BASLADI, kapanışta sonucuyla BITTI ya da hata sınıfıyla HATA — ve her satır
+   yazıldığı anda commit edilip uzak depoya itilir. Bir satır itilemezse kayda ayrıca
+   ITILEMEDI satırı yazılır (yerelde commit edilir) ve kayıt elle itilmeden yeni koşu
+   açılmaz.
    Tek atış denetimi `origin/main` geçmişine bakar: kaydı uzak depoda bulunan bir
    (hipotez, küme) çifti ikinci kez koşulamaz, yarıda kalmış koşu dahil. Kayıt
    satırları hiçbir zaman silinmez. Kesilen bir onay koşusu ön-kayıt §9'daki
@@ -122,14 +126,18 @@ F4'e geçmez; bu geçerli ve değerli bir sonuçtur.
 - **Keşif koşusu.** F2'nin her koşusu `split.kesif_kosusu` içinde çalışır; KESIF karar
   noktası onun dışında `KesifBaglamiYok` verir. Açılışta manifest, `split.csv` ve
   `universe.csv` baytları HEAD'deki blob'la aynı olmalı ve keşif katmanı doğrulanmalıdır;
-  kapanışta ikisi yeniden denetlenir. Koşucu `KesifKaydi` alır (commit, manifest özeti,
-  ağaç temizliği, `origin/main` eşitliği). Resmî koşudan hemen önce `git fetch` yapılır.
+  kapanışta ikisi yeniden denetlenir. Açılışta manifest dosyasının SHA256'sı ön-kayıttaki
+  değerle (`onbellek_manifest.ONKAYIT_MANIFEST_SHA256`) aynı olmalıdır; onay koşusu ayrıca
+  onay katmanının birleşik SHA256'sını karşılaştırır. Koşucu `KesifKaydi` alır (commit,
+  manifest özeti, ağaç temizliği, `origin/main` eşitliği). Resmî koşudan hemen önce
+  `git fetch` yapılır.
 - **Tek seri kapı.** Kapının tek karar çekirdeği `pozisyon._kapi_satirlari`'dır.
   `pozisyon.kapi_serisi` bir (sembol, dönem, hipotez, yapılandırma, rol) için bütün barların
   kararını kurar; `olay_karari` onun ince sarmalayıcısıdır. Seri kurulduğu dönem işaretini
   (`kume_bellegi.donem_isareti()`) taşır; koşu açılışı ve kapanışı işareti artırır, eski
   seri okunamaz (`SeriEskidi`) ve seri önbelleği aynı temizlikle boşalır.
-  `data/seri_kurucu.py` yalnızca `data/pozisyon.py`'den ve testlerden kullanılır.
+  `data/seri_kurucu.py` yalnızca `data/pozisyon.py`'den ve testlerden kullanılır; kayıtlı
+  tek istisna eşitlik betiği `analysis/00_veri_denetimi/esitlik_seri.py`'dir (RESULTS §14.48).
   `data/_skaler_referans.py` eşitlik betiklerinin karşılaştırma tabanıdır; dayandığı
   tanımlar testte SHA256 ile sabitlidir. F2'de kararı seri kapı verir; F3'te hükmü
   `_skaler_referans` verir, seri kapı gölge olarak koşar (ön-kayıt §9).
@@ -166,8 +174,13 @@ yazmaya devam eder. Hook komut taşıyan her aracı denetler (Bash, PowerShell,
 tanınmayan kabuk araçları): kilitli bir dosyaya yazma niyeti taşıyan komutları
 (yönlendirme, `sed -i`, `mv`, `rm`, yazan PowerShell cmdlet'leri, çalışma ağacını
 değiştiren git alt komutları vb.) reddeder, salt okuma komutları geçer. Blok, alt
-ifade, atama ve komut ikamesinin içindeki komutlar düz komut gibi değerlendirilir.
-Git komutlarında iki kabuğun kararı aynıdır. Kilitli dosyayı adıyla anmadan yazan
+ifade, atama ve komut ikamesinin içindeki komutlar düz komut gibi değerlendirilir;
+bilinçli istisna, blok içindeki kilitli dosya okumasıdır (`if ($?) { Get-Content <K> }`,
+`if true; then cat <K>; fi`): düz hâli geçer, blok içinde temkinli reddedilir.
+Git komutlarında iki kabuğun kararı, kayıtlı iki istisna dışında aynıdır: `sudo git`
+PowerShell'de geçer, Bash'te reddedilir; `git commit -m` gövdesinde kilitli bir dosyanın
+adı geçerse PowerShell here-string'i reddedilir, Bash heredoc'u geçer (RESULTS
+§14.38–§14.39). Kilitli dosyayı adıyla anmadan yazan
 bir betik ya da dolaylı bir çağrı (`Start-Process`, `Invoke-Expression`, `cmd /c`,
 `bash -c`) yakalanamaz: kilit, dikkatsiz bir düzenlemeye karşı korur, kararlı bir
 atlatmaya karşı değil.
@@ -233,7 +246,7 @@ short-lab/
 │   ├── sinyal.py            # hipotezlerin sinyal pencereleri, değerleri ve koşulları
 │   ├── dizi.py              # olay dizisi kuralları: bekleme, tek izleme, ilk gün
 │   ├── pozisyon.py          # tek karar noktası: seri kapı (`kapi_serisi`), olay ya da kontrol
-│   ├── seri_kurucu.py       # kapının seri hesapları; yalnızca pozisyon.py kullanır
+│   ├── seri_kurucu.py       # kapının seri hesapları; pozisyon.py kullanır (istisna: esitlik_seri.py)
 │   ├── _skaler_referans.py  # bar başına skaler karar yolu; eşitlik tabanı
 │   ├── ornekleme.py         # K1 ve K2 kontrol havuzlarının örnekleme kuralları
 │   ├── istatistik.py        # test istatistiği, `r` ve p-değeri
