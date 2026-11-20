@@ -1,6 +1,6 @@
 # PREREGISTRATION.md — Short Öngörü Hipotezleri
 
-**Durum:** Sürüm 14 (2026-11-19). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
+**Durum:** Sürüm 15 (2026-11-20). F2 keşif aşaması başlamadan önce, hiçbir getiri hesaplanmadan commit edildi.
 **Kapsam:** F2 (keşif) ve F3 (onay). Taktik (F4) ve ileri-zaman testi (F5) ayrı revizyonla eklenir.
 
 Bu belge commit edildikten sonra aşağıdaki hiçbir tanım, eşik veya tarih sınırı
@@ -370,6 +370,12 @@ Commit, ayar ya da tohum değişmişse devam edilemez. Bu durumda hüküm **"TAM
 - H1 ile H2 olaylarının örtüşme oranı
 - BTC rejimine göre ayrım (BTC kapanışı 100 günlük ortalamanın üstünde / altında)
 
+**Dökümün zamanı (rev.15).** BTCUSDT B grubunda olduğu için, keşif kümesine ait BTC rejimi dökümü C1 verisi gerektirir. Bu yüzden:
+- Keşif (F2) raporunda BTC rejimi dökümü **yer almaz.** Raporda dökümün ertelendiği ve nedeni yazılır.
+- Keşif kümesine ait döküm, C1 için yapılacak bütün onay koşuları tamamlandıktan sonra, ya da hiçbir hipotezin onaya gitmeyeceği kesinleştikten sonra hesaplanır. Bu bölümdeki tanımla (BTC kapanışı, 100 günlük ortalamanın üstünde ya da altında) hesaplanır ve keşif raporuna **ek** olarak yazılır. Ekin tarihi ve hangi koşulun sağlandığı belirtilir.
+- Onay kümelerinin (C1, C2) dökümü, ilgili onay koşusunun içinde, onay izniyle okunan veriden hesaplanır.
+- Döküm hiçbir zaman bir seçimi, bir hükmü ya da bir eşiği etkilemez. Ertelenmiş ekin sonucu, daha önce verilmiş hiçbir kararı değiştirmez.
+
 ---
 
 ## Revizyon Günlüğü
@@ -390,6 +396,7 @@ Commit, ayar ya da tohum değişmişse devam edilemez. Bu durumda hüküm **"TAM
 | 12 | 2026-10-10 | Bekleme süresinin üst ucu, H1'de izlemeyi bitiren bar, K1'in tam ufuk eşitliği, kontrol barında sinyal tamlığı, K2'nin ölçütü, hacim birimi, bar düzeyli hücre ölçütü, dizi kurallarının gerekliliği, geçerli oranın kapsamı; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
 | 13 | 2026-10-10 | İzleme penceresinin dönem ve küme sınırı, H3 dizisinin koşulla tanımlı olması, H3 geçersizlik seviyesi, kontrol havuzlarında adaylığın örneklemeden önce belirlenmesi, K2 farkının olay başına ağırlıklandırılması, p-değerinin alt tohumu, raporlanacak kalemler ve sıfır olaylı yapılandırma, olay sayısının kapsamı, berabere kalma, aday bulunmaması, KILIT.md'nin alanları, ikincil ufukların kapsamı, sağlamlık kontrolünün kontrol tarafı, önbellek ve ağ; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
 | 14 | 2026-11-19 | Koşuların ağ erişiminin kapsamı, dondurulmuş önbelleğin tanımı, keşif koşusunun bağı, onay koşusunun yürütülmesi; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
+| 15 | 2026-11-20 | BTC rejimi dökümünün zamanı; ayrıntı tablonun altında | ayrıntı tablonun altında | Yok (henüz sonuç yok) |
 
 ### Revizyon 8 — ayrıntı
 
@@ -471,3 +478,15 @@ Beş karar ayrıca gerekçe ister. **K2 farkının ağırlıklandırması**, §7
 - Hiçbir hipotezin tanımı değişmez.
 - **§14.36 kuralı 1 (H2 ön-kaydının dondurulması) açısından:** bu revizyon H2'ye özgü değildir, üç hipoteze aynı biçimde uygulanır. Hiçbir maddesi funding'in, açık pozisyonun ya da perp priminin yönüne veya büyüklüğüne dayanmaz. feature_lab'ın hiçbir sonucu bu revizyonun gerekçesi olarak kullanılmamıştır.
 - Maddelerin kaynağı: RESULTS §14.40, §14.41, §14.42, §14.44, §14.47, §14.48 ve §14.49'daki araştırma tarafı kararları ve uygulamaları.
+
+### Revizyon 15 — ayrıntı
+
+**15.** Tarih: 2026-11-20.
+
+**Değişiklikler.** (a) §10: BTC rejimi dökümünün zamanı.
+
+**Kapsam ve gerekçe.** Revizyon 15, §10'daki BTC rejimi dökümünün **zamanını** belirler. Dökümün tanımı değişmez.
+
+- **Sorun:** BTCUSDT, coin bölmesinde B grubundadır (`data/split.csv`). Bu yüzden BTC'nin keşif dönemine ait fiyatı C1 verisidir. §3'e göre C1 verisine keşif sırasında bakılmaz. §10'un keşif raporu için istediği BTC rejimi dökümü, bu hâliyle C1 verisine bakmayı gerektirir. Çelişki F1 kapanış denetiminde bulundu (RESULTS §14.51, D-B1; ilk kaydı KS3 D-B4).
+- Hiçbir eşik, ızgara, ufuk, maliyet, kontrol tanımı, istatistik, seçim kuralı ya da geçme ölçütü değişmez. Döküm eşik değildir; hiçbir seçimi ve hükmü etkilemez.
+- **§14.36 kuralı 1 açısından:** bu revizyon H2'ye özgü değildir, üç hipoteze aynı biçimde uygulanır. funding'e, açık pozisyona ya da perp primine dayanmaz. feature_lab'ın hiçbir sonucu gerekçe olarak kullanılmamıştır.
