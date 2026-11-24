@@ -5268,6 +5268,130 @@ F1 kapandı. Sıradaki faz F2'dir; F2 planla başlar.
 %0,535) ay düzeyindeki eski dönemlerle yapılmıştı ve bu koşuda **yeniden
 üretilmedi**. Rev.7 dönemleriyle sayılar farklı olabilir.
 
+## 16. F2: keşif fazı
+
+**Numara.** §14 F1'in açık noktalarıdır (§14.1–§14.51) ve "F1 kapandı" ile biter. §15 bir tarihsel not olarak kullanılıyor. F2 yeni bir faz olduğu için §14'ün altına §14.52 olarak değil, yeni bir ana bölüm olarak girer. Kullanılmayan ilk numara 16'dır. F2'nin her turu bir alt bölümdür (§16.1, §16.2, …); "Değişiklik kaydı" belgenin sonunda kalır.
+
+### 16.1 F2-0: hazırlık
+
+F2'nin ilk turu (`plan_f2.md` tur 1). Üç aşama vardı ve her biri ayrı bir oturumda çalıştı:
+- hazırlık (kilit kapalı): D-B2 kodu ve kilitli dosyaların taslağı;
+- kilit oturumu (`SHORT_LAB_KILIT_ACIK=1`): yalnızca `PREREGISTRATION.md` ve `CLAUDE.md`;
+- kapanış (kilit kapalı).
+
+Getiri, sinyal değeri ve olay sayısı hesaplanmadı. Onay koşusu açılmadı. SABIT listesi ve `_skaler_referans` değişmedi. `split.csv`, `universe.csv`, `exchange_info_anlik.json`, `onbellek_manifest.csv` ve `ONAY_KAYDI.md` dosyalarına dokunulmadı.
+
+#### D-B2'nin kapanışı (§14.51, F2 gereksinimi 0)
+
+- **Commit:** `828ee4e` (`828ee4eeb46b34aa0ef9d8fcf688d8d7e74b9ebd`), `Veri: D-B2 kesif ve onay kosusu manifest ozetini on-kayittaki degerle karsilastirir (F2-0)`.
+- **Sabitlerin yeri.** Ön-kayıt §3 rev.14'teki iki değer kodda tek bir yerde duruyor: `data/onbellek_manifest.py` `ONKAYIT_MANIFEST_SHA256` (`8de2bb35…`) ve `ONKAYIT_ONAY_SHA256` (`7611f6f2…`). Gerekçe: manifestin sahibi bu modül, iki koşu açılışı da denetimi buradan çağırıyor (`onkayit_ozeti_denetle`). `tests/test_onkayit_ozeti.py` iki değerin ön-kayıt metninde birebir geçtiğini ve test dışındaki depo kodunda başka bir yerde yazılmadığını sınıyor.
+- **Keşif koşusu** (`split.kesif_kosusu`): manifest dosyasının SHA256'sı, bütün öteki açılış adımlarından önce karşılaştırılıyor. Sonra gelen adımlar sırasıyla: commit bağı, `manifest_dogrula`, `KesifKaydi`, bellek temizliği (dönem işareti), ağ yasağı ve keşif bağlamı. HEAD'e bağlanan okumanın özeti ayrıca karşılaştırılıyor, böylece iki okuma arasında dosyanın değişmesi de yakalanıyor. Uyuşmazlıkta `OnKayitOzetiUyusmazligi` yükseliyor ve koşu açılmıyor.
+- **Onay koşusu** (`split.onay_kosusu`): BASLADI satırından, `harcanan_ciftler`'den ve itme denemesinden önce aynı denetim yapılıyor. Ek olarak manifestteki `onay_ozeti` satırının değeri ve onay ayrıntı listesinin baytları, birleşik değerle (`7611f6f2…`) karşılaştırılıyor. Uyuşmazlıkta satır yazılmıyor, çift harcanmıyor, uzak depoya commit gitmiyor. Mesajda bulunan onay özeti yazılmıyor. Bu, §14.51'deki F3 gereksinimi "Manifest denetimi (D-B2)"yi de şimdiden kapatıyor.
+- **`manifest-kur --uzerine-yaz` değişmedi.** Yeniden kurulan bir manifestle iki koşunun da açılmadığını bir test gösteriyor. Dondurma kaydını değiştirmenin tek yolu, bir ön-kayıt revizyonuyla sabitlerin birlikte değişmesi.
+- **pytest içindeki davranış.** Sahte manifestli testler ön-kayıttaki baytları taşımıyor. Bu yüzden pytest içinde denetim yalnızca beklenen değerleri `_test_onkayit_ozeti_ayarla` ile kendisi veren testte çalışıyor. pytest dışında her zaman çalışıyor ve beklenen değerler sabitler. Anahtar `split._pytest_testi()`'dir; mevcut manifest denetiminin (`onbellek_manifest._TEST_AYARI`, `denetim_etkin`) bağlı olduğu anahtarla aynıdır. Gerçek bir koşuda tetiklenip tetiklenemeyeceği denetçiye ayrıca soruldu, yanıtı aşağıda.
+
+#### Rev.15 ve CLAUDE.md commit'leri (kilit oturumu, §14.51 F2 gereksinimi 13)
+
+- **Rev.15:** `21b55b5` (`21b55b510c9979a530e64fd27fa425870b998942`), `On-kayit: Revizyon 15 (BTC rejimi dokumunun zamani)`, 2026-11-20T14:27:56+03:00.
+  - Girdi `rev15_taslak.md` (SHA256 `2ec52b67…`).
+  - Yerleşim: madde §10'daki BTC rejimi kaleminin arkasında; sürüm başlığı 14 → 15 (2026-11-20); günlükte Sürüm 15 satırı; "Revizyon 15 — ayrıntı".
+  - `PREREGISTRATION.md` +20 −1.
+- **CLAUDE.md:** `7fb70d2` (`7fb70d255315843f21147b9ca00b79f29038fb7b`), `CLAUDE.md: D-B9, D-B10, D-B11 duzeltmeleri`, 2026-11-20T14:27:57+03:00. +22 −9. Kapsam:
+  - D-B9: `seri_kurucu` kullanımının kayıtlı istisnası `esitlik_seri.py`, §7 dizin satırıyla birlikte;
+  - D-B10: iki kabuğun git kararındaki kayıtlı istisnalar;
+  - D-B11: §3.3'te `origin/main` HEAD'in atası olmalı; ITILEMEDI satırı;
+  - taslağın 2.4'ü: §5 "Keşif koşusu"na D-B2 cümlesi. Bu madde araştırma tarafının kararıyla eklendi. Commit mesajı yönergedeki gibi bırakıldı, bu yüzden 2.4'ü anmıyor.
+- **Push:** `828ee4e..7fb70d2  main -> main`; `origin/main` reflog'u 2026-11-20T14:28:01+03:00.
+- **Metin taslakla aynı.** Yerleştirme taslağı `f2_0_kilit_degisiklikleri.md` (SHA256 `be8c30ac…`); aşama 2'nin başında bu değer durum dosyasındakiyle aynıydı. Üç bağımsız denetim yapıldı:
+  - Aşama 2, `git diff`'i taslakla karşılaştırdı: taslakta olmayan eklenen ya da silinen satır 0; ters uygulama HEAD blob'unu birebir verdi. İlk karşılaştırma CRLF/LF farkından `False` verdi, satır sonu normalleştirilince `True`; içerik farkı yok.
+  - Aşama 3'te `D:\Projeler\prompts\f2_0_betikler\rev15_birebir.py` (SHA256 `f6d0a406…`) koşuldu. `rev15_taslak.md`'nin alıntı bloğu (5 satır, 827 karakter), alıntı öneki çıkarılınca HEAD'deki ön-kayıtta tam bir kez geçiyor: `SONUC: BIREBIR`, `cikis=0`.
+  - Metodoloji denetçisi karşılaştırmayı karakter düzeyinde elle yaptı ve aynı buldu (madde metni, yer, sürüm başlığı, günlük satırı, ayrıntı girdisi).
+
+#### Kilidin kapalı olduğunun kanıtı (aşama 3)
+
+Yöntem F1-K2'deki gibi (§14.51). `SHORT_LAB_KILIT_ACIK` tanımlı değilken kanca ayrı bir süreçte, gerçek stdin JSON'uyla çağrıldı. Hiçbir araç çalışmadı, hiçbir dosya yazılmadı. Betik: `D:\Projeler\prompts\f2_0_betikler\kilit_kaniti.py` (SHA256 `5c94502a…`). Kanca SHA256'sı `ca94a4b4…`.
+- `PREREGISTRATION.md` ve `CLAUDE.md` için Write, Edit, Bash (`echo x >> …`) ve PowerShell (`Add-Content …`) girişimlerinin sekizi de `deny` aldı. Read iki dosyada da izin aldı.
+- Karşılaştırma için `SHORT_LAB_KILIT_ACIK=1` ile aynı Write iki dosyada da izin aldı.
+- İki dosyanın SHA256'sı (`634b6957…`, `df6553cd…`) ve değişiklik zamanı sınamadan önce ve sonra aynı.
+
+#### Testler
+
+- **Aşama 1 takımı** (`828ee4e`, `--grup 8`, araştırma tarafının terminalinde, `D:\Projeler\prompts\takim_f2_0_a1.txt`): 200 dosya, **5790 passed, 196 xfailed, 0 failed, 0 XPASS, 7 skipped**, `cikis=0`.
+- **Kapanış takımı** (`7fb70d2`, `--grup 8`, araştırma tarafının terminalinde, `D:\Projeler\prompts\takim_f2_0_son.txt`): 200 dosya, **5790 passed, 196 xfailed, 0 failed, 0 XPASS, 7 skipped**, `cikis=0`; toplam 5134 s, tepe bellek 1792 MB (grup 0). Sayılar aşama 1 takımıyla aynı. Koşu sırasında çalışma ağacındaki olası tek değişiklik bu bölümün yazılmakta olan metniydi (yalnızca ekleme); RESULTS, CLAUDE.md ve ön-kaydı okuyan testler son metinle ayrıca hedefli koşuldu: `tests/test_onkayit_ozeti.py, tests/test_rev10_kalan_bulgular.py, tests/test_skaler_referans_dayanilan.py, tests/test_sizinti_perf2b0.py`: 65 passed, 1 skipped, 11 xfailed, `cikis=0`.
+- xfail 196, §14.51 ile aynı. Bu turda işaretleyici eklenmedi ve kaldırılmadı.
+
+#### Metodoloji denetçisinin bulguları ve kararlar
+
+Denetim HEAD `7fb70d2` üzerinde salt okuma olarak yapıldı (Read, Grep, Glob; komut çalıştırılamadı). Hüküm: **F2'yi durduran bulgu yok.** D-B2 kodla kapanmış: iki koşuda da denetim açılıştan önce çalışıyor, uyuşmazlıkta yan etki bırakmıyor (D-B5'teki `fetch` hariç) ve sıradan bir yoldan atlatılamıyor. Bulgu kodları bu tura aittir, "(F2-0)" ile anılır; §14.51'deki aynı numaralı bulgularla karışmaz.
+
+**Araştırma tarafının ek sorusu.** D-B2 pytest içinde yalnızca beklenen değerleri kendisi veren testte çalışıyor. Bu anahtar gerçek bir koşuda tetiklenebilir mi, mevcut pytest korumalarıyla aynı düzeyde mi?
+
+Denetçinin yanıtı: **pytest dışındaki gerçek bir koşuda anahtar sıradan bir yoldan tetiklenemez.**
+- `split._pytest_testi()` üç koşulun üçünü birden istiyor: `PYTEST_CURRENT_TEST`, `"pytest" in sys.modules` ve `_PYTEST_OTURUMU["config"]`. Üçüncüsü yalnızca `conftest.py`'nin `pytest_configure` kancasında, gerçek bir `pytest.Config` nesnesiyle kuruluyor (S-10, §14.44).
+- Ortam değişkenini ayarlamak, `import pytest` yapmak ya da `sys.modules`'a modül eklemek tek başına yetmiyor.
+- İşareti başka yoldan kurmanın yolları kayıtlı sınır S-37'dir (§14.46): sözlük öğesine doğrudan yazma ya da sahte bir `pytest.Config`. Bu yolların hepsi `_KORUNAN_ADLAR`'daki ve `ONAY_ATLATMA_DESENI`'ndeki bir adı anmayı gerektiriyor. Bu kasıtlı kod biçimidir.
+- D-B2 bu anahtara mevcut manifest denetimiyle aynı düzeyde bağlı. Ayrıca `denetim_etkin()`'in içinde çalışıyor.
+- Sorudaki önkabulde düzeltme var: sorunun varsaydığı varsayılan yön asimetrisi yok. `onbellek_manifest._TEST_AYARI` da pytest içinde ayar yapılmamışsa denetimi atlıyor (`onbellek_manifest.py:83-84, 112, 198-200`).
+- Tek yeni sınır D-B7'dir: koşunun gerçek bir pytest sürecinin içinden açılması.
+
+| Kod | Özet | Ciddiyet | Karar |
+|---|---|---|---|
+| D-B1 (F2-0) | Rev.15'in ertelenen keşif dökümü, açık bir onay koşusunun dışında C1 verisi (BTCUSDT 2020–2025-08) okumayı gerektiriyor. "Hiçbir hipotez onaya gitmez" dalında hiç onay koşusu yok (CLAUDE.md §3.3; ön-kayıt §3 rev.13) | düzeltilmeli; F2'yi durdurmaz | F2-R öncesi kilit oturumu gündemi |
+| D-B2 (F2-0) | C2 dökümünün 100 günlük penceresi C1 dönemine uzanıyor; ödünç alma ve C1/C2 koşu sırası tanımsız (ön-kayıt §3 "Kümeler arası veri ödünç alınmaz", "Küme sınırı ve geriye bakış"). Keşif dökümünün ilk 100 günü için de aynı soru geçerli | not | F2-R öncesi kilit oturumu gündemi |
+| D-B3 (F2-0) | "C1 için yapılacak bütün onay koşuları tamamlandıktan sonra" ifadesi HATA, TAMAMLANAMADI ve hiç koşulmamış C1 için tanımsız | not | F2-R öncesi kilit oturumu gündemi |
+| D-B4 (F2-0) | `onbellek_manifest`'te `_KORUNAN_ADLAR` karşılığı yok; yeni adlar (`ONKAYIT_*`, `_TEST_ONKAYIT`, `_beklenen_ozetler`, `_test_onkayit_ozeti_ayarla`) `ONAY_ATLATMA_DESENI`'nde değil. Modül adı `ONBELLEK_DESENI`'nde; `None` ataması kapalı yönde düşüyor; açık yöne geçmek kasıtlı. `analysis/00_veri_denetimi/` bu desenden muaf, F2 koşucusu oraya yazılmamalı | not (kasıtlı) | Kayıtta kalır |
+| D-B5 (F2-0) | Onay açılışında `git fetch` D-B2'den önce çalışıyor (tek yan etki `refs/remotes/origin/main`'in güncellenmesi). D-B2 ile `tam` doğrulaması arasında iki ayrı okuma var; aradaki değişiklik ancak eşzamanlı bir yazmayla olur | not | Kayıtta kalır |
+| D-B6 (F2-0) | Test boşlukları: uyuşmazlıktan sonra dönem işaretinin değişmediği sınanmıyor; onay testleri sahte git kipinde, D-B2'nin itme denemesinden önce çalıştığı yalnızca kod sırasından görülüyor; `kayit.manifest_sha256 in (None, …)` iddiası zayıf; ön-kayıt bağı metnin herhangi bir yerine bakıyor | not | Kayıtta kalır |
+| D-B7 (F2-0) | Koşu gerçek bir pytest sürecinin içinden açılırsa bütün manifest denetimleri (D-B2, `manifest_dogrula`, commit bağı, okuma denetimi, KESIF bağlam şartı) atlanıyor; tek iz `KesifKaydi.manifest_sha256 = None`. Bunu reddeden bir kural yok. D-B2 bu yolda öteki korumalardan zayıf değil | not | **F2-K gereksinimi** (aşağıda) |
+| D-B8 (F2-0) | CLAUDE.md §5 "Git komutlarında iki kabuğun kararı, kayıtlı iki istisna dışında aynıdır" ifadesi, kancanın davranışından geniş. Aşama 3'te sınandı (aşağıda) | not | F2-R öncesi kilit oturumu gündemi |
+| D-B9 (F2-0) | CLAUDE.md §3.3 ITILEMEDI satırı için "yerelde commit edilir" diyor. Commit de başarısız olursa satır yalnızca çalışma ağacında kalıyor (`split.py:1437, 1442-1445`). Sonraki koşuyu bu durumda `_kayit_commitli_denetle` engelliyor; davranış güvenli yönde | not | F2-R öncesi kilit oturumu gündemi |
+
+**D-B8'in sınaması (aşama 3).** Denetçi bu bulguyu kodu okuyarak çıkardı ve "doğrulanmalı" diye bıraktı. Kanca ayrı bir süreçte, gerçek stdin JSON'uyla, kilit kapalıyken çağrıldı. Hiçbir komut çalışmadı. Betik: `D:\Projeler\prompts\f2_0_betikler\kanca_sudo.py` (SHA256 `2df71a6b2c574cc30aa4bf71784add71755cfe6e21f08d2a462ebc7c2d974c57`). Sonuç:
+
+| Komut (`<K>` = `PREREGISTRATION.md`) | Bash | PowerShell |
+|---|---|---|
+| `git log -- <K>` | izin | izin |
+| `sudo git log -- <K>` | izin | **deny** |
+| `git reset --hard` | deny | deny |
+| `sudo git reset --hard` | deny | **izin** |
+| `nohup`, `time`, `nice`, `command` ya da `exec` + `git reset --hard` | deny | **izin** |
+
+- `sudo` istisnası iki yönde de çalışıyor. Kilitli adı anan salt okuma (`sudo git log -- <K>`) PowerShell'de reddediliyor, Bash'te izin alıyor.
+- Bash'e özgü sarmalayıcılar Bash'te git kararından geçiyor, PowerShell'de geçmiyor. PowerShell'de bu sarmalayıcılar anlamlı komut olmadığı için pratik etkisi yok.
+
+Bu bir gerileme değil, kancanın önceden var olan davranışı (§14.39). Düzeltilecek olan CLAUDE.md'deki cümle.
+
+#### F2-K gereksinimi (D-B7; araştırma tarafının kararı, 2026-11-20)
+
+(a) `manifest_sha256` alanı boş (`None`) olan bir keşif kaydı `KILIT.md`'ye dayanak olamaz. Seçim kodu bunu reddeder.
+
+(b) Resmî keşif koşusu bir pytest süreci içinden açılmaz. Koşucu bunu açılışta denetler.
+
+#### F2-R öncesi kilit oturumu gündemi (araştırma tarafının kararı, 2026-11-20)
+
+Keşif koşusundan (F2-R) önce **tek bir kilit oturumunda** Rev.16 ve CLAUDE.md düzeltmeleri yapılır. Ön-kayıt revizyonları keşif koşusundan sonra yapılamaz (`plan_f2.md`, "Kural hatırlatmaları"). Gündem:
+
+1. **Rev.16 — D-B1 (F2-0):** ertelenen keşif dökümü (BTC rejimi) için kurallara uygun okuma yolu. İki koşulun ikisi de ("C1 onay koşuları tamamlandıktan sonra", "hiçbir hipotez onaya gitmez") dökümü açık bir onay koşusunun dışında hesaplatıyor; CLAUDE.md §3.3 ve ön-kayıt §3 rev.13 bunu yasaklıyor.
+2. **Rev.16 — D-B2 (F2-0):** BTC rejimi dökümünün 100 günlük penceresinin küme sınırındaki davranışı (C2'nin ilk 100 günü, keşif dönemine ait dökümün ilk 100 günü) ve C1/C2 koşu sırasıyla ilişkisi.
+3. **Rev.16 — D-B3 (F2-0):** "tamamlandıktan sonra" ifadesinin HATA, TAMAMLANAMADI ve hiç koşulmamış C1 durumlarındaki anlamı.
+4. **CLAUDE.md — D-B8 (F2-0):** §5'teki iki kabuğun git kararı cümlesi, yukarıdaki sınamanın sonucuyla uyumlu hâle getirilir (`sudo` istisnasının iki yönü; Bash'e özgü sarmalayıcılar).
+5. **CLAUDE.md — D-B9 (F2-0):** §3.3'teki ITILEMEDI cümlesi, commit'in de başarısız olduğu dalı anar.
+
+Gündem, F2-K'de ya da F2-R'den önce çıkacak başka kilitli dosya değişiklikleriyle aynı oturumda birleştirilir.
+
+#### §14.51 F2 gereksinimlerinin durumu
+
+- **Kapandı:**
+  - **0 (D-B2):** `828ee4e`. Kapanışı yukarıda; denetçi doğruladı.
+  - **13 (BTC rejimi dökümü için ön-kayıt kararı):** Rev.15, `21b55b5`. Rev.15'in eksikleri (D-B1, D-B2, D-B3 (F2-0)) yeni bir gereksinim olarak F2-R öncesi kilit oturumu gündemindedir.
+- **Açık:** 1–12 ve 14. Hepsi P2c-1, P2c-2, P2d, F2-K ve F2-R turlarına ait; bu turda bunlara ait kod yazılmadı.
+- **Yeni:** D-B7 (F2-0) F2-K gereksinimi (a, b). F2-R öncesi kilit oturumu gündemi (1–5).
+- **F3 gereksinimlerinden** "Manifest denetimi (D-B2)" kodla kapandı (`828ee4e`). Öteki F3 gereksinimleri açık.
+
+**Commit'ler (F2-0):** `828ee4e` (D-B2), `21b55b5` (Rev.15), `7fb70d2` (CLAUDE.md); bu kayıt.
+
+F2-0 kapandı. Sıradaki tur P2c-1'dir (`plan_f2.md`).
+
 ## Değişiklik kaydı
 
 - 2026-09-19: §14.5'teki **değer düzeyindeki analiz** çıkarıldı; **işaret sayımı (18/5)
