@@ -29,6 +29,7 @@ from kapi_yardimcisi import veri
 from onay_yardimcisi import gecici_kayit, kosu
 from tarama_yardimcisi import (CIKIS_KAPI_DISI_DESENI, FUNDING_KAPI_DISI_DESENI, HAM_ERISIM_DESENI, KAYIT_DESENI,
                                ONAY_ATLATMA_DESENI, ONBELLEK_DESENI, ONBELLEK_UZANTILARI, ihlaller)
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 A_SEMBOL = "SOLUSDT"
 
@@ -101,7 +102,7 @@ def _cagrilar(kimlik):
                 capa = capa_adayi if (hipotez == "H1" and rol == "olay") else None
                 cagrilar.append(lambda t=t, h=hipotez, r=rol, c=capa: _karar(sembol, t, h, r, c))
             for capa in ((None, capa_adayi) if hipotez == "H1" else (None,)):
-                cagrilar.append(lambda t=t, h=hipotez, c=capa: pozisyon.sinyal_kosulu(
+                cagrilar.append(lambda t=t, h=hipotez, c=capa: kaynak_kosulu(
                     t, hipotez=h, yapilandirma=sinyal.izgara(h)[0], capa=c, kume="KESIF", sembol=sembol,
                     donem_no=0))
     return cagrilar

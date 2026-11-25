@@ -385,9 +385,15 @@ def _izgara_degeri(hipotez: str, parametre: str, deger):
 #
 # Rev.11'den once `pozisyon.olay_karari` bu degerleri CAGIRANDAN aliyordu (F1 kapanis bulgusu
 # D-B1). On-kayit §5 "Pencere sinirlari" ve "Pencere sinirlarinin tamami" (rev.11) butun
-# sinirlari yaziya dokunce kapi degerleri kendisi hesaplayabilir hale geldi. Asagidaki iki
-# fonksiyon kapinin kullandigi tek yoldur: `deger_adlari` + `sinyal_degerleri` (pencere ve bar
-# degerleri) ve `kosullar_saglandi` (§5'teki esik karsilastirmalari).
+# sinirlari yaziya dokunce kapi degerleri kendisi hesaplayabilir hale geldi.
+#
+# P2c-1: skaler kosul govdeleri (`kosullar_saglandi`, `h1_pump_saglandi`) ve yalnizca onlarin
+# kullandigi `_fiyatlari_dogrula`, `h1_pump_degerleri` bu modulden kalkti (plan v3 G1). §5'teki
+# esik karsilastirmalarinin `data/`daki TEK govdesi kapinin vektorel kosuludur
+# (`pozisyon._kosul_dizisi`; kosul serisi ve kapinin olay rolu ayni kaynaktan, `_olay_kosulu`).
+# Skaler kopyalari yalnizca dondurulmus skaler referansta yasar. Asagidaki deger
+# fonksiyonlari (`sinyal_degerleri` ve pencere kuruculari) kalir: deger hesabidir, karar ya da
+# kosul degildir (kararlar B 3; `events/` ve `study/` bunlari cagirmaz, F2-K gereksinimi).
 
 # Hipotez basina hesaplanan deger adlari. Pencere degerleri on-kayit §5'teki kosullarin geriye
 # bakis pencereleridir; `kapanis` ve `yuksek` t barinin KENDI hucreleridir ve kosullarda okunur
@@ -475,48 +481,11 @@ def _sonlu(deger) -> bool:
     return math.isfinite(float(deger))
 
 
-def kosullar_saglandi(hipotez, yapilandirma, degerler) -> bool:
-    """Hipotezin §5'teki sinyal kosullari bu barda saglandi mi? Saf.
-
-    Butun degerler hesaplanmis olmali (`hesaplanamayan` bos); aksi halde ValueError. Kosullar
-    on-kayit §5'ten birebir:
-      - H1 (madde 1 + 3): pump barinda `close/dip - 1 >= θ` ve `hacim_6 >= 3 × medyan_180`;
-        teyit barinda `close <= tepe × (1 - δ)` ve `high < tepe`.
-      - H2 (madde 1-3): `funding_24s >= φ`, `close[t]/close[t-30] - 1 >= 0.10`,
-        `close[t] < min(low[t-k..t-1])`.
-      - H3 (madde 1-2): `medyan_30g <= (1 - ν) × medyan_120_31`, `close[t] < SMA50[t]`,
-        `close[t]/close[t-30] - 1 <= -τ`.
-    Esik yonleri ve esitlik durumlari on-kayitta yazildigi gibidir: H1 ve H2'nin yukselis
-    esikleri ">=", H1'in teyidi "<=", H1'in `high < tepe` ve H2'nin kirilimi kesin "<",
-    H3'un hacim ve trend kosullari "<=".
-    """
-    ad = _hipotez_dogrula(hipotez)
-    y = yapilandirma_dogrula(ad, yapilandirma)
-    eksik = hesaplanamayan(ad, degerler)
-    if eksik:
-        raise ValueError(f"{ad} kosullari hesaplanamayan degerle sinanamaz: {eksik} "
-                         "(on-kayit §2 'Tamlik sarti'; once tamlik denetlenir).")
-    d = {a: float(degerler[a]) for a in DEGER_ADLARI[ad]}
-    _fiyatlari_dogrula(ad, d)
-    if ad == "H1":
-        pump = (d["pump_kapanis"] / d["pump_dip"] - 1 >= float(y["theta"])
-                and d["pump_hacim_6"] >= config.H1_HACIM_CARPANI * d["pump_hacim_medyani_180"])
-        teyit = d["kapanis"] <= d["tepe"] * (1 - float(y["delta"])) and d["yuksek"] < d["tepe"]
-        return bool(pump and teyit)
-    if ad == "H2":
-        return bool(d["funding_24s"] >= float(y["phi"])
-                    and d["kapanis"] / d["kapanis_30_once"] - 1 >= config.H2_YUKSELIS_ESIGI
-                    and d["kapanis"] < d["kirilim_dip"])
-    return bool(d["hacim_medyani_30g"] <= (1 - float(y["nu"])) * d["hacim_medyani_120_31"]
-                and d["kapanis"] < d["sma50"]
-                and d["kapanis"] / d["kapanis_30_once"] - 1 <= -float(y["tau"]))
-
-
 # Hipotez basina FIYAT olan sinyal degerleri (F1 kapatma turu madde 1b, bulgu 19). Geri kalanlar
 # hacim (medyan, toplam) ya da orandir (funding): onlar icin sifir ve negatif deger bir fiyat
 # hatasi degildir ve bu yuklemin kapsaminda yer almaz.
 #
-# Bulgu neydi: `kosullar_saglandi` yalnizca ORANLARIN BOLENLERINI (`pump_dip`, `close[t-30]`)
+# Bulgu neydi (P2c-1'e kadar skaler `kosullar_saglandi`): yalnizca ORANLARIN BOLENLERINI (`pump_dip`, `close[t-30]`)
 # pozitif sayiyordu. Sifir ya da negatif bir `close[t]` hicbir bolene girmedigi icin kapidan
 # geciyor ve §5'teki esikleri EN GUCLU bicimde sagliyordu: H1'in teyidi (`close <= tepe x (1-δ)`)
 # ve H3'un dusus trendi (`close/close[t-30] - 1 <= -τ`) bozuk veriyle "olay" uretiyordu. Pozitiflik
@@ -528,14 +497,9 @@ FIYAT_DEGERLERI = {
     "H3": ("kapanis_30_once", "sma50", "kapanis"),
 }
 
-# H1'in pump kosulu teyit barindan bagimsiz hesaplanir (`h1_pump_saglandi`); o yolun fiyatlari.
+# H1'in pump kosulu teyit barindan bagimsiz hesaplanir (kosul serisinin capasiz H1 yolu,
+# `pozisyon._h1_pump_kosul_dizisi`); o yolun fiyatlari.
 H1_PUMP_FIYATLARI = ("pump_dip", "pump_kapanis")
-
-
-def _fiyatlari_dogrula(hipotez: str, degerler: dict[str, float]) -> None:
-    """Hipotezin butun FIYAT degerleri sonlu ve pozitif olmali (madde 1b, bulgu 19)."""
-    for a in FIYAT_DEGERLERI[hipotez]:
-        _pozitif(degerler[a], f"{hipotez} sinyal degeri {a}")
 
 
 def _pozitif(deger: float, ad: str) -> float:
@@ -674,34 +638,8 @@ def gecersizlik_seviyesi(hipotez, t, *, mumlar_4h, gunluk, capa, kume_baslangic,
 # H1'in sinyali iki adimdir: pump bari (madde 1) ve teyit bari (madde 3). Tepe penceresi teyit
 # barina kadar uzandigi icin `sinyal_degerleri` ancak teyit bari BILINDIGINDE hesaplanabilir.
 # Izleme kurallari (on-kayit §5 H1 madde 4; `data.dizi`) bir bari pump bari olarak TANIMAK icin
-# yalnizca madde 1'e ihtiyac duyar; asagidaki iki fonksiyon o adimdir.
+# yalnizca madde 1'e ihtiyac duyar. P2c-1'den beri o adim kosul serisinin capasiz H1 yoludur
+# (`pozisyon.kosul_serisi`, `_h1_pump_degerleri`, `_h1_pump_kosul_dizisi`); asagidaki ad listesi
+# onun deger adlaridir.
 
 H1_PUMP_ADLARI = ("pump_dip", "pump_hacim_6", "pump_hacim_medyani_180", "pump_kapanis")
-
-
-def h1_pump_degerleri(mumlar_4h, t, *, kume_baslangic, donem_baslangic) -> dict[str, float]:
-    """H1'in pump kosulunun (madde 1) degerleri, t barinda. Saf; hesaplanamayan deger NaN."""
-    sinir = {"kume_baslangic": kume_baslangic, "donem_baslangic": donem_baslangic}
-    return {
-        "pump_dip": h1_dip(mumlar_4h, t, **sinir),
-        "pump_hacim_6": h1_hacim_6(mumlar_4h, t, **sinir),
-        "pump_hacim_medyani_180": h1_hacim_medyani_180(mumlar_4h, t, **sinir),
-        "pump_kapanis": bar_degeri(mumlar_4h, t, "close"),
-    }
-
-
-def h1_pump_saglandi(yapilandirma, degerler) -> bool | None:
-    """Pump kosulu saglandi mi? Degerlerden biri hesaplanamiyorsa `None` (on-kayit §2 "Tamlik
-    sarti"; `data.dizi` bunu "hesaplanamaz" yaniti olarak okur). Saf.
-
-    Kosul (on-kayit §5 H1 madde 1): `close[t] / min(low[t-6..t-1]) - 1 >= θ` ve son 6 barin
-    toplam hacmi >= 3 x onceki 180 barin 6'li toplam hacim medyani.
-    """
-    y = yapilandirma_dogrula("H1", yapilandirma)
-    if any(not _sonlu(degerler[a]) for a in H1_PUMP_ADLARI):
-        return None
-    d = {a: float(degerler[a]) for a in H1_PUMP_ADLARI}
-    for a in H1_PUMP_FIYATLARI:                     # madde 1b, bulgu 19
-        _pozitif(d[a], f"H1 pump degeri {a}")
-    return bool(d["pump_kapanis"] / d["pump_dip"] - 1 >= float(y["theta"])
-                and d["pump_hacim_6"] >= config.H1_HACIM_CARPANI * d["pump_hacim_medyani_180"])

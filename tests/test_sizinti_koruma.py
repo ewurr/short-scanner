@@ -41,6 +41,7 @@ import pandas as pd
 import pytest
 
 import config
+from data import _skaler_referans as ref
 from data import dizi, donem, ornekleme, pencere, pozisyon, sinyal, split
 import dizi_cagri
 from dizi_yardimcisi import _karar_kur, olaylar_kur, tek_olay
@@ -337,10 +338,23 @@ H3_DEGERLER = {"hacim_medyani_30g": 1.0, "hacim_medyani_120_31": 1e9, "sma50": 1
                "kapanis": 5.0}
 
 
+def _vektorel_kosul(hipotez, degerler):
+    """P2c-1: `data/`daki kosul govdesi kapinin vektorel kosuludur (`pozisyon._kosul_dizisi`; kosul serisi ve kapinin
+    olay rolu ayni kaynagi okur). Tek barlik dizi; sonuc bool."""
+    return bool(pozisyon._kosul_dizisi(hipotez, sinyal.yapilandirma_dogrula(hipotez, yapilandirma(hipotez)),
+                                       {a: np.asarray([float(v)]) for a, v in degerler.items()})[0])
+
+
 def test_fiyat_saglam_degerlerde_kosullar_saglanir():
-    """Olumlu kontrol (saldirilarin kurulumu dogru mu): saglam H1/H3 degerleri kosulu saglar."""
-    assert sinyal.kosullar_saglandi("H1", yapilandirma("H1"), H1_DEGERLER) is True
-    assert sinyal.kosullar_saglandi("H3", yapilandirma("H3"), H3_DEGERLER) is True
+    """Olumlu kontrol (saldirilarin kurulumu dogru mu): saglam H1/H3 degerleri kosulu saglar.
+
+    P2c-1 (bilerek guncellendi): skaler `sinyal.kosullar_saglandi` `data/`dan kalkti. Kural iki yerde sinanir:
+    dondurulmus referansin kopyasi (`_skaler_referans.kosullar_saglandi`) ve `data/`daki tek kosul govdesi
+    (`pozisyon._kosul_dizisi`)."""
+    assert ref.kosullar_saglandi("H1", yapilandirma("H1"), H1_DEGERLER) is True
+    assert ref.kosullar_saglandi("H3", yapilandirma("H3"), H3_DEGERLER) is True
+    assert _vektorel_kosul("H1", H1_DEGERLER) is True
+    assert _vektorel_kosul("H3", H3_DEGERLER) is True
 
 
 @pytest.mark.parametrize("hipotez,degerler,bozuk", [
@@ -353,11 +367,13 @@ def test_fiyat_sinyal_barinin_kapanisi_pozitif_olmali(hipotez, degerler, bozuk):
     """Dayanak: madde 2b / `sinyal._pozitif` ilkesi (bozuk fiyat kural icat ettirmez, acik hata verir).
     `close[t]=0`, H1 teyidini (`close <= tepe*(1-delta)`) ve H3 dusus trendini (`oran <= -tau`) EN GUCLU biçimde saglar."""
     d = dict(degerler, kapanis=bozuk)
-    try:
-        sonuc = sinyal.kosullar_saglandi(hipotez, yapilandirma(hipotez), d)
-    except pencere.VeriHatasi:
-        return
-    assert sonuc is False, f"{hipotez}: close[t]={bozuk} bir olay uretti"
+    for kosul in (lambda: ref.kosullar_saglandi(hipotez, yapilandirma(hipotez), d),
+                  lambda: _vektorel_kosul(hipotez, d)):
+        try:
+            sonuc = kosul()
+        except pencere.VeriHatasi:
+            continue
+        assert sonuc is False, f"{hipotez}: close[t]={bozuk} bir olay uretti"
 
 # F1 kapatma turu madde 1b: kapandi, xfail kaldirildi.
 

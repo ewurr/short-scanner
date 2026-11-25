@@ -626,7 +626,7 @@ def _capa_dogrula(hipotez: str, rol: str, capa):
     rollerinde capa verilemez, cunku "H1'in kontrol barinda pump bari, dip penceresi ve tepe
     aranmaz". H2 ve H3'un butun degerleri t barindan hesaplanir, onlarda capa hicbir rolde
     verilemez. Capa bir deger degil bir BAR ZAMANIDIR ve kapi onu ayrica dogrular: pump kosulu
-    capada yeniden hesaplanir (`sinyal.kosullar_saglandi`), yani cagiran uydurma bir capayla
+    capada yeniden hesaplanir (`_olay_kosulu`), yani cagiran uydurma bir capayla
     olay uretemez.
     """
     capali = hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and rol == "olay"
@@ -777,76 +777,13 @@ def _test_onayi(*, hipotez: str, yapilandirma, t, rol: str = "olay", capa=None,
     return imzali
 
 
-def sinyal_kosulu(t, *, hipotez: str, yapilandirma, capa, kume: str, sembol: str, donem_no: int):
-    """Hipotezin §5'teki sinyal kosullari t barinda saglandi mi? `True` / `False` / `None`.
-
-    `None` = deger hesaplanamadi (on-kayit §2 "Tamlik sarti"). Bu fonksiyon `data.dizi`nin
-    `kosul` argumanidir: olay dizisi kurallari (bekleme suresi, H1'de tek izleme, H3'te "ilk
-    gun"; on-kayit §5 rev.11) bar bar bunu sorar, sonra kapiyi (`olay_karari`) cagirir.
-
-    Veri kapiyla AYNI yoldan yuklenir (`_kume_verisi`, `klines.gunluge_cevir`); sinirlar kume
-    adindan ve evren tablosundan okunur, cagiran sinir vermez. Degerler `data.sinyal`in pencere
-    kuruculariyla hesaplanir.
-
-    H1 iki adimlidir (on-kayit §5 H1): `capa=None` cagrisi madde 1'in PUMP kosulunu sorar
-    (`sinyal.h1_pump_saglandi`), `capa=p` cagrisi p capali madde 3'un TEYIT kosulunu sorar.
-    H2 ve H3'te `capa` her zaman `None`'dir.
-
-    Bu fonksiyon KARAR VERMEZ: uygunluk, dönem üyeliği, plan ve funding tamligi yalnizca
-    `olay_karari`dadir (on-kayit §4 "tek karar noktasi"). Getiri hesaplamaz, deger raporlamaz.
-    """
-    bar = pencere_modulu.hipotez_izgarasi(hipotez)
-    gecerli = sinyal_modulu.yapilandirma_dogrula(hipotez, yapilandirma)
-    zaman = _utc_sinyal_zamani(t)
-    kume_baslangic, kume_bitis = kume_sinirlari(kume)
-    split_modulu.onay_baglami_dogrula(hipotez, kume, sinyal_modulu.yapilandirma_kimligi(hipotez, gecerli))
-    split_modulu.kesif_baglami_dogrula(kume)  # RESULTS §14.42, denetci D-C1
-    donem_baslangic, donem_bitis, _ = donem_kaydi(sembol, donem_no)
-    grup_dogrula(sembol, kume)
-    # Veri kume araligina VE DONEME kesilir (bulgu K-B1; on-kayit §2 "Listeleme donemi": "Donem
-    # disindaki hiçbir bar ... hicbir hesaba girmez"). Rev.13'te yalnizca kume araligina
-    # kesiliyordu: donem bitisinden SONRAKI bir t icin kosul hesaplanabiliyor ve penceresi
-    # donemler arasi barlari (dolgu barlari, sonraki donemin barlari) icerebiliyordu. Sonucu
-    # olay kumesini de etkiler, cunku dizi durumu (H1 izlemesi, H3 dizisi) kosulun sonucuna
-    # gore degisir -- kapinin onayina degil (rev.13: "dizi kosullarla tanimlidir").
-    #
-    # Kesim KAPIYLA AYNI fonksiyondan gelir (`_karar_verisi`; P-C1): kural iki ayri mekanizmada
-    # degil tek yerde durur.
-    mumlar_4h, funding, gunluk_mumlar = _karar_verisi(
-        sembol, kume, kume_baslangic=kume_baslangic, kume_bitis=kume_bitis,
-        donem_baslangic=donem_baslangic, donem_bitis=donem_bitis)
-    _mum_zamanlari(mumlar_4h)
-    sinir = {"kume_baslangic": kume_baslangic, "donem_baslangic": donem_baslangic}
-
-    if hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and capa is None:
-        degerler = sinyal_modulu.h1_pump_degerleri(mumlar_4h, zaman, **sinir)
-        return sinyal_modulu.h1_pump_saglandi(gecerli, degerler)
-
-    try:
-        degerler = sinyal_modulu.sinyal_degerleri(
-            hipotez, gecerli, zaman, mumlar_4h=mumlar_4h, gunluk=gunluk_mumlar, funding=funding,
-            capa=capa, kume_bitis=kume_bitis, **sinir)
-    except sinyal_modulu.TepePenceresiKurulamaz:
-        # Tepe penceresi bu (pump, teyit) cifti icin TANIMSIZ (ör. teyit bari pump barindan 12
-        # bardan uzak): izleme kurallari bu bari teyit adayi saymaz; kosul hesaplanamaz.
-        #
-        # Yakalama rev.13'te daraltildi (denetci bulgusu D-C2): eskiden `except ValueError` idi ve
-        # `pencere.VeriHatasi` ile `ZamanDizisiHatasi` da (ikisi de `ValueError` alt sinifi) bu
-        # yoldan sessizce "kosul hesaplanamaz" oluyordu. Veri hatasi bir ret gerekcesi DEGILDIR:
-        # `pencere.OlayOlusmaz` ailesinden ayridir ve yukari cikmalidir (`pencere.VeriHatasi`
-        # aciklamasi; `sinyal._pozitif` ile ayni tutum).
-        return None
-    if sinyal_modulu.hesaplanamayan(hipotez, degerler):
-        return None
-    return sinyal_modulu.kosullar_saglandi(hipotez, gecerli, degerler)
-
-
 def hipotez_izgarasi_barlari(hipotez: str, *, kume: str, sembol: str, donem_no: int) -> pd.DatetimeIndex:
     """Hipotezin sinyal izgarasi: (sembol, donem, kume) icin kapinin GORDUGU sinyal barlarinin acilislari (RESULTS
     §14.47). F2 kosucusu ve esitlik betigi sinyal izgarasini YALNIZCA buradan alir; takvimden izgara kurulmaz.
 
     Yeni kural YOKTUR: seri kapinin veri yolundan (`_karar_verisi`) okunur; erisim denetimi, kume ve donem kesimi,
-    bar duzeyli mevcutluk ve 1d turetmesi `olay_karari` ile `sinyal_kosulu`nun kullandigi ayni yerden gelir.
+    bar duzeyli mevcutluk ve 1d turetmesi `olay_karari` ile kosul serisinin (`kosul_serisi`) kullandigi ayni
+yerden gelir.
 
     SOZLESME: izgara YALNIZCA MEVCUT barlari icerir -- satiri bulunan ve fiyat/hacim hucrelerinin tamami sayi olan bar
     (on-kayit §2 satir 40, rev.11/rev.12 bar duzeyli mevcutluk). Donem ici BOSLUKLAR (satiri olmayan ya da hucresi
@@ -899,8 +836,9 @@ def hipotez_izgarasi_barlari(hipotez: str, *, kume: str, sembol: str, donem_no: 
 #   - Plan skaler `pencere.pozisyon_plani` ile, bar basina, P2a'nin plan onbellegiyle (`_PlanSerisi`; vektorlestirilmez).
 #   - Funding tamligi ve toplami P2a'nin TOPLU yolundan (`funding._planlar_tamlik_satirlari`, `_satirdan_toplam`).
 #   - Kosul (olay rolu): seri degerleri ve yapilandirmanin esiklerinden vektorel, TEK kaynaktan (`_olay_kosulu` ->
-#     `_kosul_dizisi`). Dizi kurallarinin okudugu kosul ayni kaynaktan gelen KOSUL SERISIDIR (`kosul_serisi`; P2c-1).
-#     Skaler `sinyal_kosulu` P2c-1'in sonraki adiminda `data/`dan kalkar (G1).
+#     `_kosul_dizisi`). Dizi kurallarinin okudugu kosul ayni kaynaktan gelen KOSUL SERISIDIR (`kosul_serisi`,
+#     `kosul_kaynagi`; P2c-1). Bar basina skaler kosul govdesi `data/`da yoktur (G1); yalnizca dondurulmus skaler
+#     referansta yasar.
 #   - G10: `OlayOlusmaz` disindaki her istisna (`VeriHatasi` dahil) seri kurulumunu DURDURUR; hicbir zaman ret koduna
 #     ya da 0 bitine donusmez.
 #

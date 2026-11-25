@@ -164,7 +164,8 @@ def test_kosul_degerlendirmesi_hata_verecek_veride_bile_kontrol_olusur(rol):
                                        kume_bitis=T(config.KESIF_SONU.isoformat()),
                                        donem_baslangic=DB)
     with pytest.raises(pencere.VeriHatasi):
-        sinyal.kosullar_saglandi("H2", yapilandirma("H2"), degerler)
+        # P2c-1: skaler kosul govdesi `data/`dan kalkti; kural dondurulmus referansin kopyasinda sinanir.
+        ref.kosullar_saglandi("H2", yapilandirma("H2"), degerler)
     assert _karar("H2", sifirli, FUND, DB, B, T2, modul=ref, **kontrol("H2", rol)).rol == rol
     with pytest.raises(pencere.VeriHatasi, match="pozitif bir fiyat"):
         _karar("H2", sifirli, FUND, DB, B, T2, **kontrol("H2", rol))

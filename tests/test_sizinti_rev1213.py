@@ -65,6 +65,7 @@ from kume_yardimcisi import kume_adi
 from onay_yardimcisi import gecici_depo, gecici_kayit, git, kilit_metni, kilit_yaz, kilitleri_kur, kosu, uzak_depo
 from sinyal_yardimcisi import kontrol, yapilandirma
 from uygunluk_yardimcisi import esikler
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -346,9 +347,12 @@ def test_kontrol_barinda_kosul_ve_deger_kuruculari_cagrilmaz(monkeypatch, hipote
             raise AssertionError(f"sinyal.{ad} kontrol barinda cagrilamaz (on-kayit §6 rev.12)")
         return f
 
-    for ad in ("sinyal_degerleri", "kosullar_saglandi", "h1_pump_saglandi", "h1_pump_degerleri",
-               "gecersizlik_seviyesi"):
+    # P2c-1 (bilerek guncellendi): `kosullar_saglandi`, `h1_pump_saglandi`, `h1_pump_degerleri` `data/`dan kalkti
+    # (skaler kosul govdesi yalnizca dondurulmus referansta); yerlerine kosulun tek kaynagi asagida yasaklanir.
+    for ad in ("sinyal_degerleri", "gecersizlik_seviyesi"):
         monkeypatch.setattr(sinyal, ad, yasak(ad))
+    for ad in ("_olay_kosulu", "_kosul_satirlari", "_h1_pump_degerleri", "_h1_pump_kosul_dizisi", "_h1_pump_dizisi"):
+        monkeypatch.setattr(pozisyon, ad, yasak(ad))
     # P2b-2 (RESULTS §14.49; bilerek guncellendi): kapi seridir. Olay rolunun degerleri, vektorel kosulu ve
     # gecersizlik tabani kapinin kendi ic adimlaridir; onlar da yasaklanir. Capasiz pencereler seri kurucusundan
     # (`seri_kurucu.capasiz_pencereler`) gelir ve seri kurulumunda TAM BIR KEZ cagrilir (eski olcut: skaler
@@ -462,7 +466,7 @@ def test_eksik_barli_seride_12_bar_teyidi_dahil_13_bar_haric(teyit, olay_var):
 
 def _gercek_kosul(hipotez, mumlar, fund, t, capa=None, bitis=B):
     v = veri(mumlar, fund, DB, bitis, uygun_bas=DB, hacim=6 * HACIM)
-    return pozisyon.sinyal_kosulu(t, hipotez=hipotez, yapilandirma=yapilandirma(hipotez), capa=capa,
+    return kaynak_kosulu(t, hipotez=hipotez, yapilandirma=yapilandirma(hipotez), capa=capa,
                                   kume="KESIF", **v)
 
 

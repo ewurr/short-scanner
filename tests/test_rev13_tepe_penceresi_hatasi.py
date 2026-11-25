@@ -10,6 +10,9 @@ verinin hatasini gosterir ve yukari cikmalidir -- `pencere.VeriHatasi` aciklamas
 Cozum: tepe penceresinin TANIMSIZ oldugu durum kendi sinifini aldi
 (`sinyal.TepePenceresiKurulamaz`) ve `sinyal_kosulu` yalnizca onu yakaliyor.
 
+P2c-1: skaler `pozisyon.sinyal_kosulu` `data/`dan kalkti (dondurulmus kopyasi `_skaler_referans`ta). Ayni sozlesme
+kosul serisinde sinanir (`esitlik_yardimcisi.kaynak_kosulu` -> `pozisyon.kosul_kaynagi`).
+
 Aga cikmaz; getiri hesaplanmaz.
 """
 
@@ -23,6 +26,7 @@ from data import pencere, pozisyon, sinyal
 from kapi_yardimcisi import veri
 from sinyal_yardimcisi import yapilandirma
 from uygunluk_yardimcisi import esikler  # noqa: F401  (kapi yardimcilariyla ayni yol)
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -89,10 +93,10 @@ def test_izleme_disindaki_teyit_adayi_kosul_hesaplanamaz():
     """Davranis KORUNDU: tepe penceresi tanimsizken kosul `None` (hesaplanamaz)."""
     ortak = _h1_ortak()
     uzak_capa = T1 - (config.H1_IZLEME_BAR + 3) * H4
-    assert pozisyon.sinyal_kosulu(T1, capa=uzak_capa, **ortak) is None
+    assert kaynak_kosulu(T1, capa=uzak_capa, **ortak) is None
     # Izleme icindeki capa ile kosul HESAPLANIR (True/False, None degil).
     yakin_capa = T1 - 2 * H4
-    assert pozisyon.sinyal_kosulu(T1, capa=yakin_capa, **ortak) in (True, False)
+    assert kaynak_kosulu(T1, capa=yakin_capa, **ortak) in (True, False)
 
 
 @pytest.mark.parametrize("hata", [pencere.VeriHatasi("bozuk veri"),
@@ -100,23 +104,29 @@ def test_izleme_disindaki_teyit_adayi_kosul_hesaplanamaz():
                                   ValueError("duz cagri hatasi"),
                                   TypeError("yanlis tur")])
 def test_veri_hatasi_ret_gerekcesine_cevrilmez(monkeypatch, hata):
-    """D-C2: `sinyal_degerleri`den gelen bir VERI HATASI yukari cikmali, `None` olmamali."""
+    """D-C2: sinyal degerlerinden gelen bir VERI HATASI yukari cikmali, `None` olmamali.
+
+    P2c-1 (bilerek guncellendi): kosul artik kosul serisinden gelir (`pozisyon.kosul_kaynagi`); degerlerin kaynagi
+    skaler `sinyal.sinyal_degerleri` degil kapinin `_olay_degerleri`dir. Hata o noktaya enjekte edilir; olcut ayni."""
     ortak = _h1_ortak()
 
     def patla(*a, **k):
         raise hata
 
-    monkeypatch.setattr(sinyal, "sinyal_degerleri", patla)
+    monkeypatch.setattr(pozisyon, "_olay_degerleri", patla)
     with pytest.raises(type(hata)):
-        pozisyon.sinyal_kosulu(T1, capa=T1 - 2 * H4, **ortak)
+        kaynak_kosulu(T1, capa=T1 - 2 * H4, **ortak)
 
 
 def test_tepe_penceresi_hatasi_yine_yutulur(monkeypatch):
-    """Daraltma, kuralin kendisini degistirmedi: `TepePenceresiKurulamaz` hala `None` olur."""
+    """Daraltma, kuralin kendisini degistirmedi: `TepePenceresiKurulamaz` hala `None` olur.
+
+    P2c-1 (bilerek guncellendi): sinif, kuralin TEK yerinden (`sinyal.h1_tepe_bar_sayisi`) gelir; kosul serisi her
+    (pump, teyit) ciftini once onunla sinar ve tanimsiz cift `None`dir. Enjeksiyon o noktadadir."""
     ortak = _h1_ortak()
 
     def patla(*a, **k):
         raise sinyal.TepePenceresiKurulamaz("tepe penceresi tanimsiz")
 
-    monkeypatch.setattr(sinyal, "sinyal_degerleri", patla)
-    assert pozisyon.sinyal_kosulu(T1, capa=T1 - 2 * H4, **ortak) is None
+    monkeypatch.setattr(sinyal, "h1_tepe_bar_sayisi", patla)
+    assert kaynak_kosulu(T1, capa=T1 - 2 * H4, **ortak) is None

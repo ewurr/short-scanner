@@ -31,6 +31,7 @@ from data import klines, kume_bellegi, onbellek_manifest as mf
 from data import pozisyon, sinyal, split
 from kapi_yardimcisi import veri
 from onay_yardimcisi import gecici_depo, git
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 A_SEMBOL = "SOLUSDT"
 AY = "2021-01"
@@ -431,7 +432,7 @@ def _karar(kimlik, ikincil: bool = False, hipotez: str = "H2"):
 
 
 def _kosul(kimlik, hipotez: str = "H2"):
-    return pozisyon.sinyal_kosulu(T, hipotez=hipotez, yapilandirma=sinyal.izgara(hipotez)[0], capa=None,
+    return kaynak_kosulu(T, hipotez=hipotez, yapilandirma=sinyal.izgara(hipotez)[0], capa=None,
                                   kume="KESIF", **kimlik)
 
 

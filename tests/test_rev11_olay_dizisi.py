@@ -14,6 +14,7 @@ import pytest
 import config
 from data import dizi, pencere, pozisyon, sinyal
 import dizi_cagri
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -327,11 +328,12 @@ def test_kosul_yaniti_bool_olmali():
                          kosul=lambda t, capa: 1.0, karar=_kapi("H2", _h2_yap()), **DIZI_KIMLIGI)
 
 
-# --- Gercek kapiyla kopru: `pozisyon.sinyal_kosulu` (Rev.11 madde 6) --------------------------
+# --- Gercek kapiyla kopru: kosul kaynagi (Rev.11 madde 6; P2c-1) -------------------------------
 #
 # Dizi kurallari yukarida saf cagrilabilirlerle sinandi. Asagidaki testler ayni kurallarin
-# GERCEK kapi ve gercek sinyal pencereleriyle de calistigini gosterir: `pozisyon.sinyal_kosulu`
-# dizinin `kosul` argumani, `pozisyon.olay_karari` ise `karar` argumanidir.
+# GERCEK kapi ve gercek sinyal pencereleriyle de calistigini gosterir: kosul serisi
+# (`pozisyon.kosul_kaynagi`, `esitlik_yardimcisi.kaynak_kosulu` uzerinden; P2c-1'e kadar skaler
+# `pozisyon.sinyal_kosulu`) dizinin `kosul` argumani, `pozisyon.olay_karari` ise `karar` argumanidir.
 
 import functools  # noqa: E402
 
@@ -383,7 +385,7 @@ def _gercek_dizi(olay_zamanlari, barlar):
 
 
 def _kosul_koprusu(ortak, t, capa):
-    return pozisyon.sinyal_kosulu(t, capa=capa, **ortak)
+    return kaynak_kosulu(t, capa=capa, **ortak)
 
 
 def _karar_koprusu(ortak, t, capa):
@@ -412,14 +414,14 @@ def test_gercek_kosul_koprusu_uc_durumu_doner():
     """`sinyal_kosulu` True / False / None dondurur: kosul saglanir, saglanmaz, hesaplanamaz."""
     kayit = veri(_h2_serisi([T2]), _fund(DB2, B2 + H4), DB2, B2, uygun_bas=DB2, hacim=6 * HACIM)
     ortak = dict(hipotez="H2", yapilandirma=yapilandirma("H2"), kume=kume_adi(T2), **kayit)
-    assert pozisyon.sinyal_kosulu(T2, capa=None, **ortak) is True
-    assert pozisyon.sinyal_kosulu(T2 + 10 * H4, capa=None, **ortak) is False
+    assert kaynak_kosulu(T2, capa=None, **ortak) is True
+    assert kaynak_kosulu(T2 + 10 * H4, capa=None, **ortak) is False
 
     m = _h2_serisi([T2])
     eksik = m.loc[pd.DatetimeIndex(m["open_time"]) != T2 - H4].reset_index(drop=True)
     kayit2 = veri(eksik, _fund(DB2, B2 + H4), DB2, B2, uygun_bas=DB2, hacim=6 * HACIM)
     ortak2 = dict(hipotez="H2", yapilandirma=yapilandirma("H2"), kume=kume_adi(T2), **kayit2)
-    assert pozisyon.sinyal_kosulu(T2, capa=None, **ortak2) is None
+    assert kaynak_kosulu(T2, capa=None, **ortak2) is None
 
 
 def test_gercek_kosul_koprusu_h1de_pump_ve_teyit_adimlarini_ayirir():
@@ -432,11 +434,11 @@ def test_gercek_kosul_koprusu_h1de_pump_ve_teyit_adimlarini_ayirir():
     m.loc[z == p, ["close", "high"]] = [1.25, 1.30]
     kayit = veri(m, _fund(DB2, B2 + H4), DB2, B2, uygun_bas=DB2, hacim=6 * HACIM)
     ortak = dict(hipotez="H1", yapilandirma=yapilandirma("H1"), kume=kume_adi(p), **kayit)
-    assert pozisyon.sinyal_kosulu(p, capa=None, **ortak) is True          # pump bari
-    assert pozisyon.sinyal_kosulu(p - 10 * H4, capa=None, **ortak) is False
-    assert pozisyon.sinyal_kosulu(teyit, capa=p, **ortak) is True          # teyit bari
+    assert kaynak_kosulu(p, capa=None, **ortak) is True          # pump bari
+    assert kaynak_kosulu(p - 10 * H4, capa=None, **ortak) is False
+    assert kaynak_kosulu(teyit, capa=p, **ortak) is True          # teyit bari
     # 12 bardan uzak bir teyit adayi: tepe penceresi kurulamaz -> hesaplanamaz.
-    assert pozisyon.sinyal_kosulu(p + 13 * H4, capa=p, **ortak) is None
+    assert kaynak_kosulu(p + 13 * H4, capa=p, **ortak) is None
 
 
 def test_gercek_kapiyla_h1_tek_izleme():
@@ -462,7 +464,7 @@ def test_gercek_kapiyla_h1_tek_izleme():
     sonuc = dizi_cagri.cagir(
         "H1", y, pd.date_range(p - 2 * H4, p + 20 * H4, freq="4h"), config.BAR_4H,
         birincil_ufuk=tanim.birincil,
-        kosul=lambda t, capa: pozisyon.sinyal_kosulu(t, capa=capa, **ortak),
+        kosul=lambda t, capa: kaynak_kosulu(t, capa=capa, **ortak),
         karar=lambda t, capa: pozisyon.olay_karari(t, tanim.birincil, tanim.bar,
                                                    birincil_ufuk=tanim.birincil, rol="olay",
                                                    capa=capa, **ortak, **esikler(tanim.bar)),

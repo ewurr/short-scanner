@@ -20,6 +20,7 @@ from data import binance_vision as bv
 from data import kume_bellegi, onbellek_manifest as mf
 from data import pozisyon, sinyal, split
 from kapi_yardimcisi import veri
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 A_SEMBOL = "SOLUSDT"
 T = pd.Timestamp("2021-03-01 00:00", tz="UTC")
@@ -61,7 +62,7 @@ def _karar(kimlik, kume="KESIF", hipotez="H2"):
 
 
 def _kosul(kimlik, kume="KESIF", hipotez="H2"):
-    return pozisyon.sinyal_kosulu(T, hipotez=hipotez, yapilandirma=sinyal.izgara(hipotez)[0], capa=None, kume=kume,
+    return kaynak_kosulu(T, hipotez=hipotez, yapilandirma=sinyal.izgara(hipotez)[0], capa=None, kume=kume,
                                   **kimlik)
 
 

@@ -17,6 +17,7 @@ from kapi_yardimcisi import veri
 from onay_yardimcisi import gecici_kayit
 from conftest import sahte_4h
 from tarama_yardimcisi import KAYIT_DESENI, ONBELLEK_DESENI, ONBELLEK_UZANTILARI, ihlaller
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 
 def _sayan_yukleyici(cerceve_sayisi=1):
@@ -266,7 +267,7 @@ def test_onbellekli_ve_onbelleksiz_ayni_karari_verir(gercek_veri, sembol, hipote
 
     def cagri(rol, t):
         if rol == "kosul":
-            return pozisyon.sinyal_kosulu(t, hipotez=hipotez, yapilandirma=sinyal.izgara(hipotez)[0], capa=None,
+            return kaynak_kosulu(t, hipotez=hipotez, yapilandirma=sinyal.izgara(hipotez)[0], capa=None,
                                           kume="KESIF", sembol=sembol, donem_no=0)
         capa = t - pd.Timedelta(hours=24) if (hipotez == "H1" and rol == "olay") else None
         return _karar(sembol, t, hipotez, rol, capa)

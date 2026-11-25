@@ -27,6 +27,7 @@ from data import pozisyon, sinyal
 from kapi_yardimcisi import veri
 from sinyal_yardimcisi import yapilandirma
 from uygunluk_yardimcisi import esikler
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 H4 = pd.Timedelta(hours=4)
@@ -57,7 +58,7 @@ def _kayit(mumlar):
 
 
 def _kosul(t, kayit, capa=None):
-    return pozisyon.sinyal_kosulu(t, hipotez="H2", yapilandirma=Y2, capa=capa, kume="KESIF", **kayit)
+    return kaynak_kosulu(t, hipotez="H2", yapilandirma=Y2, capa=capa, kume="KESIF", **kayit)
 
 
 # --- 1. Donem bitisinden sonraki t: kosul hesaplanamaz ---------------------------------------

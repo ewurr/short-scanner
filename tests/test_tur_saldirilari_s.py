@@ -57,6 +57,7 @@ from ornekleme_yardimcisi import k1_adaylari_kur, k2_adaylari_kur
 from ornekleme_yardimcisi import ornekle as yardimci_ornekle
 from sinyal_yardimcisi import kontrol, olay, yapilandirma
 from uygunluk_yardimcisi import UYGUN_ONCELIK, esikler
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 
 DIZI_KIMLIGI = dict(sembol="TESTONAYUSDT", kume="KESIF", donem_no=0)
@@ -1046,7 +1047,7 @@ def test_h1_entegrasyon_gercek_kapi_ve_kosulla_tek_olay_capa_ilk_pump_ve_yapilan
     zamanlar = ZG[24:41]
 
     def kos(y):
-        return lambda t, capa: pozisyon.sinyal_kosulu(t, hipotez="H1", yapilandirma=y, capa=capa, kume="KESIF",
+        return lambda t, capa: kaynak_kosulu(t, hipotez="H1", yapilandirma=y, capa=capa, kume="KESIF",
                                                       **dunya)
 
     def kar(y):

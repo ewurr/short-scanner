@@ -636,7 +636,6 @@ IZINLI_CAGIRANLAR = {
     ("pozisyon", "_kosul_satirlari"): "P2c-1: kosul serisinin cekirdegi (karar vermez, ret uretmez)",
     ("pozisyon", "_kosul_tek_bar"): "P2c-1: kosul cekirdeginin tek bar kosusu (yalnizca seri satiri olmayan t)",
     ("pozisyon", "kosul_serisi"): "P2c-1: kosul serisinin kurulumu (`kur` kapanisi cekirdegi cagirir)",
-    ("pozisyon", "sinyal_kosulu"): "G1 gecici istisnasi: skaler kosul (dizi kurallari, P2c'ye kadar)",
     ("pozisyon", "_test_onayi"): "test dikisi (yalnizca pytest icinde; ONAY_ATLATMA_DESENI)",
     ("pozisyon", "mae"): "getiri tarafi: onayli pozisyonun MAE'si (karar degil)",
     ("pozisyon", "_mae_tepesi"): "kendi tanimi",

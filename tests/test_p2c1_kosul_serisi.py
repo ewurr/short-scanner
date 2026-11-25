@@ -484,6 +484,25 @@ def _cagiranlar(harita, ad) -> set[str]:
     return {f for f, adlar in harita.items() if ad in adlar and f != ad}
 
 
+def test_G1_data_icinde_skaler_kosul_govdesi_kalmadi():
+    """G1 (P2c-1 adim 4): `data/` icinde, dondurulmus referans disinda, skaler kosul govdesi TANIMI yok
+    (`sinyal_kosulu`, `kosullar_saglandi`, `h1_pump_saglandi`, `h1_pump_degerleri`, `_fiyatlari_dogrula`) ve bu adlar
+    hicbir yerden cagrilmaz. Referansin kendi kopyasi yerinde (G2: referans degismez)."""
+    yasak = {"sinyal_kosulu", "kosullar_saglandi", "h1_pump_saglandi", "h1_pump_degerleri", "_fiyatlari_dogrula"}
+    for yol in sorted((KOK / "data").glob("*.py")):
+        if yol.name == "_skaler_referans.py":
+            continue
+        agac = ast.parse(yol.read_text(encoding="utf-8"))
+        tanimlar = {d.name for d in ast.walk(agac) if isinstance(d, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        assert not tanimlar & yasak, (yol.name, tanimlar & yasak)
+        adlar = set().union(*_cagri_haritasi(yol).values()) if _cagri_haritasi(yol) else set()
+        assert not adlar & yasak, (yol.name, adlar & yasak)
+    assert not hasattr(pozisyon, "sinyal_kosulu")
+    for ad in ("kosullar_saglandi", "h1_pump_saglandi", "h1_pump_degerleri", "_fiyatlari_dogrula"):
+        assert not hasattr(sinyal, ad), ad
+    assert callable(ref.sinyal_kosulu) and callable(ref.kosullar_saglandi) and callable(ref.h1_pump_saglandi)
+
+
 def test_G1_tek_kaynak_taramasi():
     """Olay rolunun kosulu ile dizi kurallarinin okudugu kosul ayni fonksiyonlardan gelir (tasarim 5.3 madde 5, kararlar
     A3). Tarama AST'ye dayanir, ada baglidir ve dardir (§14.49 D-C6 ile ayni sinir)."""

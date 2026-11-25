@@ -17,6 +17,7 @@ from conftest import sahte_4h
 from data import binance_vision as bv
 from data import funding as funding_modulu
 from data import klines, pencere, pozisyon, sinyal, split
+from esitlik_yardimcisi import kaynak_kosulu  # noqa: E402  (P2c-1: skaler sinyal_kosulu data/'dan kalkti)
 
 A_SEMBOL = "SOLUSDT"
 AYLAR = ("2021-01", "2021-02", "2021-03")
@@ -85,7 +86,7 @@ def test_soket_kapaliyken_kapi_calisir(donuk_onbellek, soket_kapali, rol, hipote
 
 @pytest.mark.parametrize("hipotez", ["H1", "H2", "H3"])
 def test_soket_kapaliyken_kosul_calisir(donuk_onbellek, soket_kapali, hipotez):
-    pozisyon.sinyal_kosulu(pd.Timestamp("2021-02-15 00:00", tz="UTC"), hipotez=hipotez,
+    kaynak_kosulu(pd.Timestamp("2021-02-15 00:00", tz="UTC"), hipotez=hipotez,
                            yapilandirma=sinyal.izgara(hipotez)[0], capa=None, kume="KESIF", sembol=A_SEMBOL,
                            donem_no=0)
 

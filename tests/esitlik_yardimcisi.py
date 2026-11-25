@@ -102,11 +102,22 @@ def karar_cagrisi(modul, hipotez, kimlik, t, *, kume="KESIF", yapilandirma=None,
         return hata
 
 
+def kaynak_kosulu(t, *, hipotez, yapilandirma, capa, kume, sembol, donem_no):
+    """P2c-1: dizi kurallarinin okudugu kosul, F2 yolundan (`pozisyon.kosul_kaynagi(...)(t, capa)` -> kosul serisi).
+    `data/`daki skaler `pozisyon.sinyal_kosulu` kalkti; onu cagiran testler bu yardimciya gecti (ayni imza)."""
+    from data import pozisyon
+
+    return pozisyon.kosul_kaynagi(hipotez, yapilandirma, kume=kume, sembol=sembol, donem_no=donem_no)(t, capa)
+
+
 def kosul_cagrisi(modul, hipotez, kimlik, t, *, kume="KESIF", yapilandirma=None, capa=None):
-    from data import sinyal
+    """`modul` = `data.pozisyon` (bugunku yol: kosul kaynagi, P2c-1) ya da `data._skaler_referans` (`sinyal_kosulu`)."""
+    from data import pozisyon, sinyal
 
     y = dict(sinyal.izgara(hipotez)[0]) if yapilandirma is None else yapilandirma
     try:
+        if modul is pozisyon:
+            return kaynak_kosulu(t, hipotez=hipotez, yapilandirma=y, capa=capa, kume=kume, **kimlik)
         return modul.sinyal_kosulu(t, hipotez=hipotez, yapilandirma=y, capa=capa, kume=kume, **kimlik)
     except Exception as hata:  # noqa: BLE001
         return hata
