@@ -44,11 +44,16 @@ Sozlesme (performans 2b-0; denetci D-B2, D-B3, D-C4, D-C7, sizinti S-17, S-18, S
     `karsilastir`). Birim hatasi ancak skaler tarafta ayni birimde en az bir beklenmeyen hata varsa uyusan sayilir;
     yoksa birimin butun barlari uyusmayandir.
   - P2b-2 ekleri (plan v3 G1 gecici istisnasi ve G14; RESULTS §14.49; `--kosul-ve-onay-yolu`, varsayilan acik):
-      * `kosul` birimi (olay rolu kosulduysa): kapinin olay rolundeki VEKTOREL kosulu (`pozisyon.kosul_serisi`,
-        izgaranin tamami) ile dizi kurallarinin okudugu skaler `sinyal_kosulu` her barda karsilastirilir (True / False /
-        None, tur dahil). `uyusmayan_bar` = kosul uyusmazligi. Olay rolune aittir: kapsam, zaman damgasi ve sure
-        yazilmaz. Vektorel kosul `OlayOlusmaz` disi bir hatayla durursa birim hatasidir (`hata` = `seri:<Sinif>`);
-        skalerde ayni birimde en az bir beklenmeyen hata yoksa butun barlar uyusmayan sayilir (G10).
+      * `kosul` birimi (olay rolu kosulduysa; P2c-1): dizi kurallarinin okudugu KOSUL SERISI (`pozisyon.kosul_serisi`,
+        kapinin olay rolundeki kosulla ayni kaynak; izgaranin tamami) ile dondurulmus skaler referansin `sinyal_kosulu`su
+        her barda karsilastirilir (True / False / None, tur dahil). P2b-2'de taban `data/`daki skaler `sinyal_kosulu`
+        idi; P2c-1'de o fonksiyon `data/`dan kalkti. `uyusmayan_bar` = kosul uyusmazligi. Olay rolune aittir: kapsam,
+        zaman damgasi ve sure yazilmaz. Kosul serisi `OlayOlusmaz` disi bir hatayla durursa birim hatasidir (`hata` =
+        `seri:<Sinif>`); skalerde ayni birimde en az bir beklenmeyen hata yoksa butun barlar uyusmayan sayilir (G10).
+      * `kosul_pump` birimi (yalnizca H1; P2c-1): ayni karsilastirma, H1'in capasiz PUMP kosulu. `kosul` birimi H1'de
+        yalnizca capali (teyit) yolu sinar; pump kosulu gercek veride ilk kez bu birimle sinanir. Ornek kipinde `kosul`
+        biriminin ornegini (tohum etiketi "kosul") kullanir, bu yuzden karsilastirilan sayisi `kosul`un H1 sayisina
+        esittir. Olay birimidir: kapsam, zaman damgasi ve sure yazilmaz.
       * `ONAY_YOLU` satiri, her (sembol, hipotez) icin: olay rolunde EN AZ BIR barda iki taraf da onay verdi mi
         (`onay_yolu` = "evet" / "hayir"). Sayi yazilmaz.
 
@@ -103,7 +108,8 @@ SAYI_ALANLARI = ("karsilastirilan_bar", "uyusmayan_bar", "beklenmeyen_hata_refer
 ROLLER = ("olay", "K1", "K2")
 KONTROL_ROLLERI = ("K1", "K2")
 FUNDING_SATIRI = "funding_satiri"
-KOSUL = "kosul"            # P2b-2: vektorel kosul ile skaler `sinyal_kosulu` (olay rolune ait birim)
+KOSUL = "kosul"            # P2c-1: kosul serisi ile referansin `sinyal_kosulu`su (olay rolune ait birim)
+KOSUL_PUMP = "kosul_pump"  # P2c-1: H1'in capasiz pump kosulu, ayni karsilastirma (olay rolune ait birim; yalnizca H1)
 ONAY_YOLU = "ONAY_YOLU"    # P2b-2: (sembol, hipotez) basina onay yolunun sinandiginin kaniti (evet / hayir)
 BAR_KIPLERI = ("tum", "ornek")
 KUME = "KESIF"
@@ -266,19 +272,24 @@ def _kosul_esit(v, s) -> bool:
 
 
 def kosul_karsilastir(barlar, siralar, hipotez: str, yapilandirma, kimlik: dict, izgara, *,
-                      kapi=pozisyon_modulu) -> Sayac:
-    """G1 gecici istisnasi (P2b-2): kapinin olay rolundeki VEKTOREL kosulu (izgaranin tamami, tek cagri) ile dizi
-    kurallarinin okudugu skaler `sinyal_kosulu`, her barda. H1'de capa betigin sabit kuralidir (`h1_capasi`). Vektorel
-    kosul durursa birim hatasidir (G10): skalerde ayni birimde en az bir beklenmeyen hata yoksa butun barlar uyusmaz.
-    Deger dondurmez."""
-    capali = hipotez in sinyal_modulu.CAPALI_HIPOTEZLER
+                      kapi=pozisyon_modulu, ref=None, pump: bool = False) -> Sayac:
+    """P2c-1: dizi kurallarinin okudugu KOSUL SERISI (`pozisyon.kosul_serisi`; izgaranin tamami, tek kurulum) ile
+    dondurulmus skaler referansin kosulu (`_skaler_referans.sinyal_kosulu`), her barda. Deger ve tur (True / False /
+    None) karsilastirilir.
+      - `pump=False` (`kosul` birimi): H1'de capali TEYIT kosulu; capa betigin sabit kuralidir (`h1_capasi`, bu turda
+        degismez; dizinin gercek capalariyla sinama P2c-2'de, G18). H2 ve H3'te capasiz kosul.
+      - `pump=True` (`kosul_pump` birimi, yalnizca H1): capasiz PUMP kosulu (`capa=None`).
+    Kosul serisi durursa birim hatasidir (G10): skalerde ayni birimde en az bir beklenmeyen hata yoksa butun barlar
+    uyusmaz. Deger dondurmez."""
+    ref = _referans_modulu(ref)
+    capali = hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and not pump
     capalar = pd.DatetimeIndex([h1_capasi(t, i) for i, t in enumerate(izgara)]) if capali else None
     seri = _cagir(kapi.kosul_serisi, hipotez, dict(yapilandirma), kume=KUME, **kimlik, capa=capalar)
     sayac = Sayac()
     if isinstance(seri, BaseException):
         sayac.birim_hatasi = f"seri:{type(seri).__name__}"
     for t, sira in zip(barlar, siralar):
-        s = _cagir(kapi.sinyal_kosulu, t, hipotez=hipotez, yapilandirma=dict(yapilandirma),
+        s = _cagir(ref.sinyal_kosulu, t, hipotez=hipotez, yapilandirma=dict(yapilandirma),
                    capa=h1_capasi(t, sira) if capali else None, kume=KUME, **kimlik)
         esit = beklenmeyen(s) if sayac.birim_hatasi else _kosul_esit(_cagir(seri.deger, t), s)
         sayac.bar(t, esit, (s,), ())
@@ -410,17 +421,20 @@ def _donemler(sembol: str) -> list[int]:
     return sonuc
 
 
-def _birim_etiketleri(roller, funding_satiri: bool, kosul: bool = False):
-    return (list(roller) + ([KOSUL] if kosul and "olay" in roller else [])
-            + ([FUNDING_SATIRI] if funding_satiri else []))
+def _birim_etiketleri(roller, funding_satiri: bool, kosul: bool = False, hipotez: str | None = None):
+    """Birimler. `kosul_pump` yalnizca H1'de (capasiz pump kosulu; H2 ve H3'te `kosul` biriminin kendisi capasizdir)."""
+    kosul_birimleri = []
+    if kosul and "olay" in roller:
+        kosul_birimleri = [KOSUL] + ([KOSUL_PUMP] if hipotez in sinyal_modulu.CAPALI_HIPOTEZLER else [])
+    return list(roller) + kosul_birimleri + ([FUNDING_SATIRI] if funding_satiri else [])
 
 
 def _kos(birim, izgara, siralar, hipotez, y, kimlik) -> Sayac:
     barlar = [izgara[i] for i in siralar]
     if birim == FUNDING_SATIRI:
         return funding_karsilastir(barlar, hipotez, kimlik)
-    if birim == KOSUL:
-        return kosul_karsilastir(barlar, siralar, hipotez, y, kimlik, izgara)
+    if birim in (KOSUL, KOSUL_PUMP):
+        return kosul_karsilastir(barlar, siralar, hipotez, y, kimlik, izgara, pump=birim == KOSUL_PUMP)
     return karsilastir(barlar, siralar, hipotez, y, birim, kimlik)
 
 
@@ -447,11 +461,12 @@ def sembol_isi(sembol: str, ayar: dict) -> list[dict]:
     for donem_no in _donemler(sembol):
         kimlik = {"sembol": sembol, "donem_no": donem_no}
         for hipotez in ayar["hipotezler"]:
+            hipotez_birimleri = _birim_etiketleri(ayar["roller"], ayar["funding_satiri"], kosul=ekler, hipotez=hipotez)
             izgara_y = list(sinyal_modulu.izgara(hipotez))
             yapilandirmalar = izgara_y[:1] if ayar["yapilandirma"] == "ilk" else izgara_y
             for y in yapilandirmalar:
                 yk = sinyal_modulu.yapilandirma_kimligi(hipotez, y)
-                for birim in birimler:
+                for birim in hipotez_birimleri:
                     t0 = time.perf_counter()
                     satir = _bos_satir(sembol, donem_no, hipotez, yk, birim)
                     try:
@@ -460,13 +475,15 @@ def sembol_isi(sembol: str, ayar: dict) -> list[dict]:
                             siralar = list(range(len(izgara)))
                             satir["bar_kumesi"] = "tum"
                         else:
-                            birim_tohumu = tohum(sembol, donem_no, hipotez, yk, birim)
+                            # `kosul_pump` `kosul` biriminin ornegini kullanir (ayni tohum etiketi; tasarim §7): iki
+                            # birimin karsilastirilan sayisi onceden kesin yazilabilir.
+                            birim_tohumu = tohum(sembol, donem_no, hipotez, yk, KOSUL if birim == KOSUL_PUMP else birim)
                             sec = tohumlu_siralar(len(izgara), ayar["n"], birim_tohumu)
                             siralar = sorted(sec | sinir_siralari(izgara, kimlik))
                             satir["bar_kumesi"] = f"ornek_{ayar['n']}+sinir"
                             satir["tohum"] = str(birim_tohumu)
                         sayac = _kos(birim, izgara, siralar, hipotez, y, kimlik)
-                        olay_birimi = birim in ("olay", KOSUL)
+                        olay_birimi = birim in ("olay", KOSUL, KOSUL_PUMP)
                         satir.update(sayac.alanlar(kapsam_yazilir=not olay_birimi, zaman_yazilir=not olay_birimi))
                         satir["hata"] = sayac.birim_hatasi
                         if birim == "olay" and sayac.iki_taraf_onay:
@@ -583,7 +600,7 @@ def ozet(tablo: pd.DataFrame) -> dict:
     """Komut satiri ozeti: yalnizca sayilar."""
     sayilar = {a: int(pd.to_numeric(tablo[a], errors="coerce").fillna(0).sum()) for a in SAYI_ALANLARI}
     sayilar["hatali_birim"] = int((tablo["hata"].fillna("") != "").sum())
-    kosul = tablo["rol"] == KOSUL
+    kosul = tablo["rol"].isin([KOSUL, KOSUL_PUMP])
     sayilar["kosul_uyusmayan"] = int(pd.to_numeric(tablo.loc[kosul, "uyusmayan_bar"], errors="coerce").fillna(0).sum())
     sayilar["onay_yolu_hayir"] = int((tablo.loc[tablo["rol"] == ONAY_YOLU, "onay_yolu"] == "hayir").sum())
     return sayilar
@@ -597,7 +614,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--rol", nargs="+", default=list(ROLLER), choices=list(ROLLER))
     ap.add_argument("--funding-satiri", action=argparse.BooleanOptionalAction, default=True)
     ap.add_argument("--kosul-ve-onay-yolu", action=argparse.BooleanOptionalAction, default=True,
-                    help="P2b-2: vektorel kosul ile sinyal_kosulu (kosul birimi) ve ONAY_YOLU satirlari")
+                    help="kosul serisi ile referansin sinyal_kosulu'su (kosul, H1'de kosul_pump) ve ONAY_YOLU satirlari")
     ap.add_argument("--n", type=int, default=2000)
     ap.add_argument("--isci", type=int, default=max(1, (multiprocessing.cpu_count() or 2) - 1))
     ap.add_argument("--sembol", nargs="*", default=None, help="ornegin alt kumesi (varsayilan: butun ornek)")

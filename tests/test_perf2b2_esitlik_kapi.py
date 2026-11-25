@@ -1,7 +1,9 @@
-"""Gercek veri esitlik betiginin P2b-2 ekleri (`esitlik_kapi.py`; plan v3 G1 gecici istisnasi, G14; RESULTS §14.49).
+"""Gercek veri esitlik betiginin P2b-2 ve P2c-1 ekleri (`esitlik_kapi.py`; plan v3 G1, G14; RESULTS §14.49).
 
-- `kosul` birimi: kapinin vektorel kosulu ile skaler `sinyal_kosulu` her barda; bozulan tek bar tek uyusmazlik;
-  vektorel kosulun seri duzeyindeki hatasi skalerde karsiligi yoksa butun barlari uyusmayan yapar (G10).
+- `kosul` birimi (P2c-1): kosul serisi (`pozisyon.kosul_serisi`) ile dondurulmus referansin `sinyal_kosulu`su her
+  barda; bozulan tek bar tek uyusmazlik; kosul serisinin seri duzeyindeki hatasi skalerde karsiligi yoksa butun barlari
+  uyusmayan yapar (G10).
+- `kosul_pump` birimi (P2c-1, yalnizca H1): capasiz pump kosulu, ayni karsilastirma; `kosul` biriminin ornegi.
 - `ONAY_YOLU` satiri: (sembol, hipotez) basina evet / hayir; sayi, zaman damgasi ve sure tasimaz.
 Sentetik girdi; aga cikmaz.
 """
@@ -13,6 +15,7 @@ import sys
 import pandas as pd
 import pytest
 
+from data import _skaler_referans as ref
 from data import pozisyon, sinyal
 from esitlik_yardimcisi import dunya
 from tarama_yardimcisi import KOK
@@ -44,12 +47,8 @@ def test_kosul_birimi_vektorel_ve_skaler_kosul_her_barda_ayni(hipotez):
 
 
 class _BozukKapi:
-    def __init__(self, hedef=None, vektor_hatasi=None):
-        self.hedef, self.vektor_hatasi = hedef, vektor_hatasi
-
-    def sinyal_kosulu(self, t, **k):
-        s = pozisyon.sinyal_kosulu(t, **k)
-        return (not s if s is not None else True) if t == self.hedef else s
+    def __init__(self, vektor_hatasi=None):
+        self.vektor_hatasi = vektor_hatasi
 
     def kosul_serisi(self, *a, **k):
         if self.vektor_hatasi is not None:
@@ -57,13 +56,72 @@ class _BozukKapi:
         return pozisyon.kosul_serisi(*a, **k)
 
 
+class _BozukReferans:
+    """P2c-1: karsilastirmanin skaler tarafi dondurulmus referansin `sinyal_kosulu`sudur; bozulan tek bar oradan."""
+
+    def __init__(self, hedef):
+        self.hedef = hedef
+
+    def sinyal_kosulu(self, t, **k):
+        s = ref.sinyal_kosulu(t, **k)
+        return (not s if s is not None else True) if t == self.hedef else s
+
+
 def test_kosul_birimi_bozulan_tek_bar_tek_uyusmazlik():
     kimlik, izgara, y = _kur(702, "H2")
     siralar = list(range(0, len(izgara), 9))
     hedef = izgara[siralar[len(siralar) // 2]]
     sayac = ek.kosul_karsilastir([izgara[i] for i in siralar], siralar, "H2", y, kimlik, izgara,
-                                 kapi=_BozukKapi(hedef=hedef))
+                                 ref=_BozukReferans(hedef))
     assert sayac.uyusmayan == [hedef]
+
+
+def test_kosul_birimi_skaler_taraf_referanstir_pozisyonun_skaler_kosulu_cagrilmaz(monkeypatch):
+    """P2c-1: `kosul` biriminin karsilastirma tabani `_skaler_referans.sinyal_kosulu`dur (tasarim §7)."""
+    kimlik, izgara, y = _kur(705, "H2")
+    cagrilar = []
+    asil = ref.sinyal_kosulu
+
+    def say(t, **k):
+        cagrilar.append(t)
+        return asil(t, **k)
+
+    monkeypatch.setattr(ref, "sinyal_kosulu", say)
+    siralar = list(range(0, 300, 7))
+    sayac = ek.kosul_karsilastir([izgara[i] for i in siralar], siralar, "H2", y, kimlik, izgara)
+    assert len(cagrilar) == len(siralar) == sayac.karsilastirilan and not sayac.uyusmayan
+
+
+def test_kosul_pump_birimi_H1_capasiz_pump_kosulu_her_barda_ayni():
+    kimlik, izgara, y = _kur(706, "H1")
+    siralar = list(range(len(izgara)))
+    sayac = ek.kosul_karsilastir([izgara[i] for i in siralar], siralar, "H1", y, kimlik, izgara, pump=True)
+    assert sayac.karsilastirilan == len(izgara) > 100
+    assert (len(sayac.uyusmayan), sayac.beklenmeyen_referans, sayac.birim_hatasi) == (0, 0, "")
+    seri = pozisyon.kosul_serisi("H1", y, kume="KESIF", **kimlik)
+    assert {True, False, None} <= {seri.deger(t) for t in izgara}, "kurulum: pump, pump degil ve hesaplanamaz"
+
+
+def test_kosul_pump_birimi_yalnizca_H1_de_ve_kosul_biriminin_ornegini_kullanir(monkeypatch):
+    """`kosul_pump` yalnizca H1'de vardir ve ornek kipinde `kosul` biriminin tohumunu (ornegini) kullanir: iki birimin
+    karsilastirilan sayisi ayni ve tohumu ayni. Olay birimidir: kapsam, zaman damgasi ve sure yazilmaz."""
+    kimlik, _, _ = _kur(707, "H1")
+    monkeypatch.setattr(ek, "_donemler", lambda sembol: [0])
+    # Izgara KESILMEZ: `kosul` biriminin H1 capa dizisi izgarayla ayni uzunlukta olmali. Ornek kucuk tutulur.
+    for ad, deger in (("SINIR_DONEM", 5), ("SINIR_KUME", 5), ("SINIR_RITIM", 2)):
+        monkeypatch.setattr(ek, ad, deger)
+    ayar = {"hipotezler": ["H1", "H2"], "yapilandirma": "ilk", "roller": ["olay"], "funding_satiri": False,
+            "bar": "ornek", "n": 40, "kosul_ve_onay_yolu": True}
+    satirlar = ek.sembol_isi(kimlik["sembol"], ayar)
+    pump = [s for s in satirlar if s["rol"] == ek.KOSUL_PUMP]
+    kosul = {s["hipotez"]: s for s in satirlar if s["rol"] == ek.KOSUL}
+    assert [s["hipotez"] for s in pump] == ["H1"] and set(kosul) == {"H1", "H2"}
+    p = pump[0]
+    assert p["tohum"] == kosul["H1"]["tohum"] and p["karsilastirilan_bar"] == kosul["H1"]["karsilastirilan_bar"] > 0
+    assert p["hata"] == "" and p["uyusmayan_bar"] == 0
+    assert p["kapsam_bar"] == "" and p["sure_s"] == "" and p["ilk_20_uyusmayan"] == p["ilk_20_beklenmeyen"] == ""
+    tablo = pd.DataFrame(satirlar).reindex(columns=ek.SUTUNLAR)
+    assert ek.ozet(tablo)["kosul_uyusmayan"] == 0
 
 
 def test_kosul_birimi_seri_hatasi_skalerde_karsiligi_yoksa_butun_barlar_uyusmaz():
