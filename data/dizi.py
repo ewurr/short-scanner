@@ -84,6 +84,7 @@ import config
 from data import pencere as pencere_modulu
 from data import pozisyon as pozisyon_modulu
 from data import sinyal as sinyal_modulu
+from data import split as split_modulu
 
 # Beklemenin ust ucu penceredeki gibi DAHILDIR (yukaridaki uygulama karari). False yapilirsa
 # bekleme `(t0, t0 + h × adim)` olur ve tam o ana denk gelen bar serbest kalir.
@@ -260,6 +261,34 @@ def _olay_dogrula(pozisyon, *, hipotez: str, yapilandirma_kimligi: str, t, capa)
                          "olay sayar).")
 
 
+def _kaynak_denetimi(kosul, karar, *, beklenen: tuple) -> None:
+    """`kosul` ve `karar` cagrilabilirlerinin GIRDI denetimi (P2c-1; tasarim 6.1, kararlar A1, A2 ve 2026-11-25 A2
+    karari). Yuruyusten once, bir kez:
+      - `pozisyon.KosulKaynagi` / `pozisyon.KararKaynagi` ise imzasi (`pozisyon.kaynak_dogrula`) ve KIMLIGI dizinin
+        argumanlariyla ayni olmalidir: (hipotez, yapilandirma kimligi, kume, sembol, donem_no). Degilse `ValueError`.
+      - Kaynak degilse YALNIZCA pytest testi icinde kabul edilir (`split._pytest_testi()`; `pozisyon._test_onayi` ile
+        ayni dikis; dizi kurallarini lambda kosullarla sinayan testler bu yolu kullanir). Pytest disinda, kume ne olursa
+        olsun (onay kumesinde acik onay kosusu olsa bile; kararlar A1) `TypeError`.
+    Bulgu neydi (kararlar A2 envanteri): `karar`in CIKTISI denetleniyordu (`_olay_dogrula`), cagrilabilirin kendisi
+    denetlenmiyordu; keyfi bir `karar` `OlayOlusmaz` firlatarak olay dusurebilir, keyfi bir `kosul` dizi durumunu (H1
+    izlemesi, H3 dizisi, bekleme) kaydirabilirdi. Tarama testi yalnizca dikkatsiz kullanimi yakalar; bu denetim kodda."""
+    for ad, nesne, sinif in (("kosul", kosul, pozisyon_modulu.KosulKaynagi),
+                             ("karar", karar, pozisyon_modulu.KararKaynagi)):
+        if type(nesne) is sinif:
+            pozisyon_modulu.kaynak_dogrula(nesne)
+            if nesne.kimlik != beklenen:
+                raise ValueError(f"olay_dizisi: `{ad}` kaynaginin kimligi {nesne.kimlik}, dizinin kimligi {beklenen}. "
+                                 "Bekleme yapilandirma basina isler ve her yapilandirma kendi olay dizisini uretir "
+                                 "(on-kayit §5 rev.11).")
+            continue
+        if isinstance(nesne, (pozisyon_modulu.KosulKaynagi, pozisyon_modulu.KararKaynagi)):
+            raise TypeError(f"olay_dizisi: `{ad}` {sinif.__name__} olmali; verilen {type(nesne).__name__} (kosul ve "
+                            "karar kaynaklari yer degistiremez).")
+        if split_modulu._pytest_testi() is None:
+            raise TypeError(f"olay_dizisi: `{ad}` {sinif.__name__} olmali (`pozisyon.{ad}_kaynagi`); verilen "
+                            f"{type(nesne).__name__}. Keyfi cagrilabilir yalnizca pytest testinde kabul edilir (P2c-1).")
+
+
 def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int, kosul, karar,
                 sembol: str, kume: str, donem_no: int, donem_baslangic, donem_bitis) -> DiziSonucu:
     """Bir (sembol, donem, kume, yapilandirma) dizisinde olaylari sirayla bulur (on-kayit §5 rev.11).
@@ -296,6 +325,11 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
     doner, olusmazsa `pencere.OlayOlusmaz` alt sinifi firlatir. Kapidan gecmeyen aday beklemeyi
     BASLATMAZ (on-kayit §5 rev.11).
 
+    Kaynaklar (P2c-1): F2'de `kosul` YALNIZCA `pozisyon.kosul_kaynagi(...)` (kapinin olay rolundeki
+    kosulla ayni kaynaktan gelen kosul serisi), `karar` YALNIZCA `pozisyon.karar_kaynagi(...)`
+    (`olay_karari`) olabilir ve ikisinin kimligi dizinin argumanlariyla aynidir (`_kaynak_denetimi`).
+    Keyfi cagrilabilir yalnizca pytest testinde kabul edilir.
+
     Doner: `DiziSonucu` (olaylar ve retler). Getiri hesaplanmaz, deger raporlanmaz.
     """
     ad = sinyal_modulu._hipotez_dogrula(hipotez)
@@ -316,6 +350,8 @@ def olay_dizisi(hipotez, yapilandirma, zamanlar, bar: str, *, birincil_ufuk: int
     if isinstance(donem_no, bool) or not isinstance(donem_no, int) or donem_no < 0:
         raise TypeError(f"olay_dizisi: `donem_no` negatif olmayan tamsayi olmali; verilen {donem_no!r} "
                         "(on-kayit §2 'Listeleme donemi').")
+    # Kosul ve karar kaynaklarinin girdi denetimi (P2c-1): yuruyusten once; yuruyusun kendisi degismez.
+    _kaynak_denetimi(kosul, karar, beklenen=(ad, kimlik, kume, sembol, donem_no))
     # Donem ve kume sinirlari: butun barlar icinde olmali (P-C3). Kume araligi kume ADINDAN
     # okunur (cagiran serbest sinir vermez; `pozisyon.kume_sinirlari` ile ayni yol).
     donem_bas = pencere_modulu.utc_zamani(donem_baslangic, "donem_baslangic")

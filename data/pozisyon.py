@@ -1812,6 +1812,144 @@ def kosul_serisi(hipotez, yapilandirma, *, kume, sembol, donem_no, capa=None) ->
     return seri
 
 
+# --- Dizinin kosul ve karar kaynaklari (P2c-1; tasarim 6.1, kararlar A1, A2 ve 2026-11-25 A2 karari) -----------------
+#
+# `data.dizi.olay_dizisi` kosulu `kosul(t, capa)` ve karari `karar(t, capa)` biciminde cagirir (yuruyus degismez). F2'de
+# bu iki cagrilabilir YALNIZCA asagidaki imzali kaynaklardir: dizi, kaynak olmayan bir nesneyi pytest disinda `TypeError`
+# ile reddeder ve kaynagin kimligini kendi argumanlariyla karsilastirir. Kaynaklarin parametreleri YALNIZCA kimliktir
+# (hipotez, yapilandirma, kume, sembol, donem_no); ufuk, bar turu, rol ve esikler on-kayit sabitlerinden gelir ve
+# cagiran degistiremez. Kilit dikkatsiz bir kullanima karsi korur, kararli bir atlatmaya karsi degil.
+
+_KAYNAK_GIZLI = object()
+
+
+def _kaynak_imzasi(tur: str, kimlik: tuple, yapilandirma) -> int:
+    return hash((_KAYNAK_GIZLI, tur, kimlik, tuple(sorted(dict(yapilandirma).items()))))
+
+
+class _Kaynak:
+    """Ortak korumalar: imzali, degistirilemez, kopyalanamaz (`KapiSerisi` / `KosulSerisi` ile ayni tutum)."""
+
+    __slots__ = ("_Kaynak__kimlik", "_Kaynak__yapilandirma", "_Kaynak__imza", "_Kaynak__bellek")
+    _TUR = ""
+
+    def __init__(self, gizli, kimlik: tuple, yapilandirma):
+        if gizli is not _KAYNAK_GIZLI or type(self) is _Kaynak:
+            raise TypeError(f"{type(self).__name__} yalnizca `pozisyon.kosul_kaynagi` / `pozisyon.karar_kaynagi` ile "
+                            "kurulur (imzali kaynak).")
+        y = MappingProxyType(dict(yapilandirma))
+        sett = object.__setattr__
+        sett(self, "_Kaynak__kimlik", tuple(kimlik))
+        sett(self, "_Kaynak__yapilandirma", y)
+        sett(self, "_Kaynak__imza", _kaynak_imzasi(self._TUR, tuple(kimlik), y))
+        sett(self, "_Kaynak__bellek", {})
+
+    def __setattr__(self, ad, deger):
+        raise AttributeError(f"{type(self).__name__} degistirilemez.")
+
+    def __delattr__(self, ad):
+        raise AttributeError(f"{type(self).__name__} degistirilemez.")
+
+    def __reduce__(self):
+        raise TypeError(f"{type(self).__name__} kopyalanamaz ya da serilestirilemez; alt surec kendi kaynagini kurar.")
+
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, bellek):
+        return self
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.__kimlik})"
+
+    @property
+    def kimlik(self) -> tuple:
+        """(hipotez, yapilandirma kimligi, kume, sembol, donem_no)."""
+        return self.__kimlik
+
+    def _yapilandirma(self):
+        return self.__yapilandirma
+
+    def _bellek(self) -> dict:
+        return self.__bellek
+
+    def _imza_tutuyor(self) -> bool:
+        return self.__imza == _kaynak_imzasi(self._TUR, self.__kimlik, self.__yapilandirma)
+
+
+class KosulKaynagi(_Kaynak):
+    """Dizinin `kosul(t, capa)` argumani: kosul serisinin t degeri (`kosul_serisi(...).deger(t)`).
+      - `capa=None`: capasiz seri (H2/H3 kosulu, H1 pump kosulu); ilk cagrida kurulur, kaynakta tutulur (seri onbellegi
+        H1'in tek capali serileriyle dolsa bile her bar icin yeniden kurulmaz).
+      - `capa=p` (yalnizca H1): p capali teyit serisi; son capanin serisi kaynakta tutulur (izleme ayni capayla en cok
+        12 bar sorar).
+    t once dogrulanir (`_utc_sinyal_zamani`; kararlar A4), sonra seri kurulur ya da okunur. Seri okumasi her cagrida
+    erisim denetiminden ve donem isaretinden gecer (`KosulSerisi.deger`); kosu acildi ya da kapandiysa `SeriEskidi`."""
+
+    __slots__ = ()
+    _TUR = "kosul_kaynagi"
+
+    def __call__(self, t, capa):
+        zaman = _utc_sinyal_zamani(t)
+        hipotez, _, kume, sembol, donem_no = self.kimlik
+        bellek = self._bellek()
+        if capa is None:
+            seri = bellek.get("capasiz")
+            if seri is None:
+                seri = kosul_serisi(hipotez, self._yapilandirma(), kume=kume, sembol=sembol, donem_no=donem_no)
+                bellek["capasiz"] = seri
+        else:
+            onceki = bellek.get("capali")
+            capa_zamani = pencere_modulu.utc_zamani(capa, "capa")
+            if onceki is not None and onceki[0] == int(capa_zamani.value):
+                seri = onceki[1]
+            else:
+                seri = kosul_serisi(hipotez, self._yapilandirma(), kume=kume, sembol=sembol, donem_no=donem_no,
+                                    capa=capa_zamani)
+                bellek["capali"] = (int(capa_zamani.value), seri)
+        return seri.deger(zaman)
+
+
+class KararKaynagi(_Kaynak):
+    """Dizinin `karar(t, capa)` argumani: YALNIZCA `olay_karari` (tek karar noktasi), birincil ufukta, rol "olay" ve
+    on-kayit esikleriyle (`eligibility.hacim_esigi`, `config.ASGARI_LISTELEME_YASI_GUN`). Ikinci bir karar yolu ya da
+    kapinin ic adimlarina dogrudan cagri yoktur (2026-11-25 A2 karari (b); tarama testi)."""
+
+    __slots__ = ()
+    _TUR = "karar_kaynagi"
+
+    def __call__(self, t, capa):
+        hipotez, _, kume, sembol, donem_no = self.kimlik
+        tanim = pencere_modulu.hipotez_ufuklari(hipotez)
+        return olay_karari(t, tanim.birincil, tanim.bar, hipotez=hipotez, yapilandirma=dict(self._yapilandirma()),
+                           rol="olay", capa=capa, birincil_ufuk=tanim.birincil, kume=kume, sembol=sembol,
+                           donem_no=donem_no, asgari_hacim=eligibility_modulu.hacim_esigi(tanim.bar),
+                           asgari_listeleme_yasi_gun=config.ASGARI_LISTELEME_YASI_GUN)
+
+
+def _kaynak_kur(sinif, hipotez, yapilandirma, kume, sembol, donem_no):
+    b = _kapi_baglami(hipotez, yapilandirma, "olay", kume=kume, sembol=sembol, donem_no=donem_no)
+    return sinif(_KAYNAK_GIZLI, (b.hipotez, b.yapilandirma_kimligi, b.kume, b.sembol, int(b.donem_no)), b.yapilandirma)
+
+
+def kosul_kaynagi(hipotez, yapilandirma, *, kume, sembol, donem_no) -> KosulKaynagi:
+    """Dizinin kosul kaynagi (yukaridaki bolum aciklamasi). Kurulum denetimleri kapiyla ayni (`_kapi_baglami`)."""
+    return _kaynak_kur(KosulKaynagi, hipotez, yapilandirma, kume, sembol, donem_no)
+
+
+def karar_kaynagi(hipotez, yapilandirma, *, kume, sembol, donem_no) -> KararKaynagi:
+    """Dizinin karar kaynagi (yukaridaki bolum aciklamasi). Kurulum denetimleri kapiyla ayni (`_kapi_baglami`)."""
+    return _kaynak_kur(KararKaynagi, hipotez, yapilandirma, kume, sembol, donem_no)
+
+
+def kaynak_dogrula(kaynak) -> None:
+    """`kosul_kaynagi` / `karar_kaynagi` ile kurulmus ve degistirilmemis bir kaynak mi? Degilse `TypeError` (tur) ya da
+    `ValueError` (imza)."""
+    if type(kaynak) not in (KosulKaynagi, KararKaynagi):
+        raise TypeError(f"KosulKaynagi ya da KararKaynagi gerekir; verilen: {type(kaynak).__name__}.")
+    if not kaynak._imza_tutuyor():
+        raise ValueError(f"{type(kaynak).__name__} elle kurulmus ya da degistirilmis (imza tutmuyor).")
+
 
 def pozisyon_fiyatlari(pozisyon) -> tuple[float, float]:
     """(P0, P1): brut getirinin tek girdisi. Yalnizca `olay_karari` ciktisini kabul eder."""
