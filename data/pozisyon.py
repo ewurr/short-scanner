@@ -849,6 +849,19 @@ _SERI_GIZLI = object()
 SERI_AZAMI_GIRDI = 32
 _SERI_BELLEGI: OrderedDict = OrderedDict()
 _SERI_HATALARI: OrderedDict = OrderedDict()     # hata veren kurulumlar (F1-K1, D-B1): ayni anahtar yeniden kurulmaz
+# CAPALI KOSUL SERILERI icin ayri bellek (P2c-1, kararlar A5; G15 olcumu `p2c1_kayit\a2_50_olcum_g15_cikti.txt`): H1'in
+# dizi yuruyusu pump basina bir tek capali kosul serisi kurar (kararlar B 7); paylasilan LRU'ya yazildiklarinda K1/K2 ve
+# olay serilerini dusuruyordu (H1'de ikinci yapilandirmada K1 onbellekten gelmiyordu). Capali kosul serileri (tek capali
+# ve izgara uzunlugunda capa dizili) ve onlarin kurulum hatalari ayri bir cifte yazilir; mekanizma ayni
+# (`_seri_bellekten`). Sinir `CAPALI_KOSUL_AZAMI_GIRDI` = 32. Gerekce: (1) yuruyus ayni capayi art arda en cok 12 bar
+# sorar ve kaynak son capali seriyi zaten tutar (`KosulKaynagi`), yani bu bellek yuruyus icinde yeniden kullanilmaz;
+# yalnizca kurulmus serilerin paylasilan LRU'yu doldurmasini engeller ve tekrar sorgulara kucuk bir pencere birakir.
+# (2) Bellek sinirli kalir: tek capali seri en cok `H1_IZLEME_BAR` (12) satirdir; capa dizili seri izgara boyundadir ve
+# satir basina yalnizca True / False / None tasir (kapi serisinden kucuk). En kotu durumda bu bellek paylasilan seri
+# belleginin sinirini (32 seri) asmaz.
+CAPALI_KOSUL_AZAMI_GIRDI = 32
+_CAPALI_KOSUL_BELLEGI: OrderedDict = OrderedDict()
+_CAPALI_KOSUL_HATALARI: OrderedDict = OrderedDict()
 _SERI_KILIDI = threading.Lock()
 
 
@@ -1353,30 +1366,40 @@ def _seri_bellegini_temizle() -> None:
     with _SERI_KILIDI:
         _SERI_BELLEGI.clear()
         _SERI_HATALARI.clear()
+        _CAPALI_KOSUL_BELLEGI.clear()
+        _CAPALI_KOSUL_HATALARI.clear()
 
 
 kume_bellegi.temizleyici_ekle(_seri_bellegini_temizle)
 
 
-def _seri_bellekten(anahtar: tuple, kur) -> KapiSerisi:
+def _seri_bellekten(anahtar: tuple, kur, *, capali_kosul: bool = False) -> KapiSerisi:
     """Seri onbellegi: SABIT tanimlara (`_karar_girdisi`, `_PlanSerisi`, `_karar_verisi`) DOKUNMADAN, ayri bir anahtar
     ve ayri bir LRU ile (G2, G11). Anahtar donem isaretini de tasir; kosu acilisi ve kapanisi (`kume_bellegi.temizle`)
     onbellegi dusurur.
+
+    `capali_kosul=True` (yalnizca `kosul_serisi`, capa verildiginde; kararlar A5): seri ve hata ayri ciftte tutulur
+    (`_CAPALI_KOSUL_BELLEGI`, `_CAPALI_KOSUL_HATALARI`, sinir `CAPALI_KOSUL_AZAMI_GIRDI`). Asagidaki kurallarin hepsi
+    iki cift icin AYNIDIR; yalnizca hangi sozluge yazildigi degisir.
 
     Hata veren kurulum (F1-K1, denetci D-B1; G10): hata seri bellegine YAZILMAZ (kismi seri yoktur), ayri bir LRU'da
     (`_SERI_HATALARI`, ayni anahtar ve ayni sinir) tutulur. Ayni anahtarla sonraki cagri seriyi yeniden kurmaz, AYNI hata
     nesnesini yeniden yukseltir; boylece birimin her bari seriyi yeniden kurmaya calismaz. Hata bellegi seri bellegiyle
     ayni donem isareti kuralina uyar: anahtar isareti tasir, yalnizca isaret degismemisse yazilir ve kosu acilisi /
     kapanisi (`_seri_bellegini_temizle`) onu da dusurur. `MemoryError` tutulmaz (ortamin durumudur, birimin degil)."""
+    if capali_kosul:
+        bellek, hatalar, sinir = _CAPALI_KOSUL_BELLEGI, _CAPALI_KOSUL_HATALARI, CAPALI_KOSUL_AZAMI_GIRDI
+    else:
+        bellek, hatalar, sinir = _SERI_BELLEGI, _SERI_HATALARI, SERI_AZAMI_GIRDI
     with _SERI_KILIDI:
-        seri = _SERI_BELLEGI.get(anahtar)
+        seri = bellek.get(anahtar)
         hata = None
         if seri is not None:
-            _SERI_BELLEGI.move_to_end(anahtar)
+            bellek.move_to_end(anahtar)
         else:
-            hata = _SERI_HATALARI.get(anahtar)
+            hata = hatalar.get(anahtar)
             if hata is not None:
-                _SERI_HATALARI.move_to_end(anahtar)
+                hatalar.move_to_end(anahtar)
     if hata is not None:
         raise hata.with_traceback(None)
     if seri is None:
@@ -1387,17 +1410,17 @@ def _seri_bellekten(anahtar: tuple, kur) -> KapiSerisi:
         except Exception as kurulum_hatasi:
             with _SERI_KILIDI:
                 if kume_bellegi.donem_isareti() == anahtar[-1]:
-                    _SERI_HATALARI[anahtar] = kurulum_hatasi
-                    _SERI_HATALARI.move_to_end(anahtar)
-                    while len(_SERI_HATALARI) > SERI_AZAMI_GIRDI:
-                        _SERI_HATALARI.popitem(last=False)
+                    hatalar[anahtar] = kurulum_hatasi
+                    hatalar.move_to_end(anahtar)
+                    while len(hatalar) > sinir:
+                        hatalar.popitem(last=False)
             raise
         with _SERI_KILIDI:
             if kume_bellegi.donem_isareti() == anahtar[-1]:
-                _SERI_BELLEGI[anahtar] = seri
-                _SERI_BELLEGI.move_to_end(anahtar)
-                while len(_SERI_BELLEGI) > SERI_AZAMI_GIRDI:
-                    _SERI_BELLEGI.popitem(last=False)
+                bellek[anahtar] = seri
+                bellek.move_to_end(anahtar)
+                while len(bellek) > sinir:
+                    bellek.popitem(last=False)
     return seri
 
 
@@ -1728,7 +1751,8 @@ def kosul_serisi(hipotez, yapilandirma, *, kume, sembol, donem_no, capa=None) ->
 
     Onbellek (G11; tasarim 5.5): anahtar `("kosul_serisi", kume, sembol, donem, hipotez, yapilandirma kimligi, capa
     anahtari, bar turu, donem isareti)`; mekanizma kapiyla ayni (`_seri_bellekten`: hata veren kurulum seri bellegine
-    yazilmaz, `_SERI_HATALARI` ayni hatayi yeniden yukseltir). Ufuk ve birincil ufuk alanlari YOKTUR: kosul ufka bagli
+    yazilmaz, hata bellegi ayni hatayi yeniden yukseltir). Capasiz seri paylasilan ciftte (`_SERI_BELLEGI`,
+    `_SERI_HATALARI`), capali seri ayri ciftte (`_CAPALI_KOSUL_BELLEGI`, `_CAPALI_KOSUL_HATALARI`; kararlar A5). Ufuk ve birincil ufuk alanlari YOKTUR: kosul ufka bagli
     degildir (kararlar B 4). Onbellekten donen nesnenin turu ve kimligi istenenle karsilastirilir (S-P2b2-3'un bu
     yoldaki karsiligi). `OlayOlusmaz` disindaki her istisna kurulumu durdurur (G10). Getiri hesaplamaz."""
     b = _kapi_baglami(hipotez, yapilandirma, "olay", kume=kume, sembol=sembol, donem_no=donem_no)
@@ -1744,7 +1768,7 @@ def kosul_serisi(hipotez, yapilandirma, *, kume, sembol, donem_no, capa=None) ->
         degerler = _kosul_satirlari(b, satirlar, capalar, mumlar_4h, gunluk_mumlar, funding)
         return KosulSerisi(_SERI_GIZLI, b, kimlik, isaret, satirlar, degerler, capa_bicimli)
 
-    seri = _seri_bellekten(anahtar, kur)
+    seri = _seri_bellekten(anahtar, kur, capali_kosul=capa_anahtari is not None)
     if not isinstance(seri, KosulSerisi) or seri.kimlik != kimlik:
         raise ValueError(f"Kosul serisi onbellegi tutarsiz: {kimlik[:6]} anahtarina baska bir seri kayitli (G11).")
     return seri

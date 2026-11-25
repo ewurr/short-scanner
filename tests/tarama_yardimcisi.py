@@ -96,6 +96,7 @@ CIKIS_KAPI_DISI_DESENI = (
     r"|" + "|".join(UYGUNLUK_ADLARI) + r")\s*\(|\b(CikisSonucu|PozisyonPlani|OnaylanmisPozisyon|KosulSerisi)\s*\("
     r"|_PLAN_GIZLI|_plan_imzasi|_ONAY_GIZLI|\beligibility\b|\b_TamlikSatiri\b|\b_ic_sutunlar\b"
     r"|_SERI_GIZLI|_SERI_BELLEGI|_SERI_HATALARI|_KapiSerisi__|_KosulSerisi__"
+    r"|_CAPALI_KOSUL_BELLEGI|_CAPALI_KOSUL_HATALARI"     # P2c-1, kararlar A5: capali kosul serilerinin ayri bellegi
 )
 """Olayin ya da kontrolun olusup olusmadigina yalnizca `pozisyon.olay_karari` karar
 verir (on-kayit §4 rev.8 "Olayin kumede olusma olcutu": tek karar noktasi, funding

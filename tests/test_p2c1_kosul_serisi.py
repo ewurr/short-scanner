@@ -414,8 +414,11 @@ def test_G11_anahtar_alanlari_ve_kapi_anahtarlarindan_ayrimi(dunya_k):
         "capa2": pozisyon.kosul_serisi("H1", _y("H1"), kume="KESIF", **kimlik, capa=p + H4),
     }
     kapi = pozisyon.kapi_serisi("H2", _y("H2"), "olay", kume="KESIF", **kimlik)
-    anahtarlar = [a for a in pozisyon._SERI_BELLEGI if a[0] == "kosul_serisi"]
+    # Capasiz seriler paylasilan bellekte, capali seriler ayri bellekte (kararlar A5); iki bellek birlikte her istegi
+    # ayri girdi olarak tutar.
+    anahtarlar = [a for a in pozisyon._SERI_BELLEGI if a[0] == "kosul_serisi"] + list(pozisyon._CAPALI_KOSUL_BELLEGI)
     assert len(anahtarlar) == len(set(anahtarlar)) == len(seriler)
+    assert len(pozisyon._CAPALI_KOSUL_BELLEGI) == 2 and all(a[6] is not None for a in pozisyon._CAPALI_KOSUL_BELLEGI)
     assert len({id(s) for s in seriler.values()} | {id(kapi)}) == len(seriler) + 1
     assert all(len(a) == 9 and a[-1] == kume_bellegi.donem_isareti() for a in anahtarlar)
     assert pozisyon.kosul_serisi("H2", _y("H2"), kume="KESIF", **kimlik) is seriler["temel"]
