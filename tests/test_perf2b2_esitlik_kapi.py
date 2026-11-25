@@ -36,8 +36,10 @@ def test_kosul_birimi_vektorel_ve_skaler_kosul_her_barda_ayni(hipotez):
     sayac = ek.kosul_karsilastir([izgara[i] for i in siralar], siralar, hipotez, y, kimlik, izgara)
     assert sayac.karsilastirilan == len(izgara) > 100
     assert (len(sayac.uyusmayan), sayac.beklenmeyen_referans, sayac.birim_hatasi) == (0, 0, "")
-    v = pozisyon._olay_kosulu_serisi(hipotez, y, kume="KESIF", **kimlik,
-                                     capa=[ek.h1_capasi(t, i) for i, t in enumerate(izgara)] if hipotez == "H1" else None)
+    # P2c-1: vektorel taraf kosul serisidir (`_olay_kosulu_serisi` kalkti; ayni kaynak `_olay_kosulu`).
+    capa = pd.DatetimeIndex([ek.h1_capasi(t, i) for i, t in enumerate(izgara)]) if hipotez == "H1" else None
+    seri = pozisyon.kosul_serisi(hipotez, y, kume="KESIF", **kimlik, capa=capa)
+    v = [seri.deger(t) for t in izgara]
     assert None in set(v) and False in set(v), "kurulum: hesaplanamayan ve saglanmayan barlar birlikte"
 
 
@@ -49,10 +51,10 @@ class _BozukKapi:
         s = pozisyon.sinyal_kosulu(t, **k)
         return (not s if s is not None else True) if t == self.hedef else s
 
-    def _olay_kosulu_serisi(self, *a, **k):
+    def kosul_serisi(self, *a, **k):
         if self.vektor_hatasi is not None:
             raise self.vektor_hatasi
-        return pozisyon._olay_kosulu_serisi(*a, **k)
+        return pozisyon.kosul_serisi(*a, **k)
 
 
 def test_kosul_birimi_bozulan_tek_bar_tek_uyusmazlik():

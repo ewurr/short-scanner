@@ -898,8 +898,9 @@ def hipotez_izgarasi_barlari(hipotez: str, *, kume: str, sembol: str, donem_no: 
 #   - Pencereler, hesaplanabilirlik ve uygunluk `data.seri_kurucu`dan (G3, G6, G7; bit duzeyinde skalerle ayni).
 #   - Plan skaler `pencere.pozisyon_plani` ile, bar basina, P2a'nin plan onbellegiyle (`_PlanSerisi`; vektorlestirilmez).
 #   - Funding tamligi ve toplami P2a'nin TOPLU yolundan (`funding._planlar_tamlik_satirlari`, `_satirdan_toplam`).
-#   - Kosul (olay rolu): seri degerleri ve yapilandirmanin esiklerinden vektorel (`_kosul_dizisi`). G1 gecici istisnasi:
-#     skaler `sinyal_kosulu` dizi kurallari icin P2c'ye kadar kalir; ikisinin esitligi gercek veride ayrica sinanir (G14).
+#   - Kosul (olay rolu): seri degerleri ve yapilandirmanin esiklerinden vektorel, TEK kaynaktan (`_olay_kosulu` ->
+#     `_kosul_dizisi`). Dizi kurallarinin okudugu kosul ayni kaynaktan gelen KOSUL SERISIDIR (`kosul_serisi`; P2c-1).
+#     Skaler `sinyal_kosulu` P2c-1'in sonraki adiminda `data/`dan kalkar (G1).
 #   - G10: `OlayOlusmaz` disindaki her istisna (`VeriHatasi` dahil) seri kurulumunu DURDURUR; hicbir zaman ret koduna
 #     ya da 0 bitine donusmez.
 #
@@ -986,6 +987,18 @@ def _sonlu_dizi(d) -> np.ndarray:
 
 # --- Olay rolunun sinyal degerleri ve vektorel kosul -----------------------------------------------------------------
 
+def _h1_pump_degerleri(m4, zamanlar: pd.DatetimeIndex, sinir: dict) -> dict[str, np.ndarray]:
+    """H1'in pump kosulunun (on-kayit §5 H1 madde 1) degerleri, `zamanlar`in her barinda (`sinyal.H1_PUMP_ADLARI`; seri
+    kuruculari, skalerle bit duzeyinde ayni). TEK yer (P2c-1 kararlar A3): kapinin H1 dalindaki pump barlari ve capasiz
+    kosul serisi (H1 pump kosulu) ayni cagrilari kullanir."""
+    return {
+        "pump_dip": _seri_kurucu.h1_dip(m4, zamanlar, **sinir),
+        "pump_hacim_6": _seri_kurucu.h1_hacim_6(m4, zamanlar, **sinir),
+        "pump_hacim_medyani_180": _seri_kurucu.h1_hacim_medyani_180(m4, zamanlar, **sinir),
+        "pump_kapanis": _seri_kurucu.kapanis(m4, zamanlar, config.BAR_4H),
+    }
+
+
 def _olay_degerleri(b: _KapiBaglami, z: pd.DatetimeIndex, capalar, m4, gunluk, funding) -> dict[str, np.ndarray]:
     """Olay rolunun `sinyal.DEGER_ADLARI` degerleri, `z`nin her bari icin (seri kuruculari; skalerle bit duzeyinde ayni).
     H1'de `capalar` bar basina pump bari (ayni uzunlukta); tepe penceresinin bar sayisi once skalerin TEK kuraliyla
@@ -997,12 +1010,15 @@ def _olay_degerleri(b: _KapiBaglami, z: pd.DatetimeIndex, capalar, m4, gunluk, f
             sinyal_modulu.h1_tepe_bar_sayisi(pump, teyit)
         essiz = c.unique().sort_values()
         sira = essiz.get_indexer(c)
+        # Pump barlarinin degerleri TEK yardimcidan (`_h1_pump_degerleri`; P2c-1 kararlar A3): capasiz kosul serisi
+        # (H1 pump kosulu) ayni cagrilari kullanir, ikinci bir cagri listesi yoktur.
+        pump = _h1_pump_degerleri(m4, essiz, sinir)
         return {
-            "pump_dip": _seri_kurucu.h1_dip(m4, essiz, **sinir)[sira],
-            "pump_hacim_6": _seri_kurucu.h1_hacim_6(m4, essiz, **sinir)[sira],
-            "pump_hacim_medyani_180": _seri_kurucu.h1_hacim_medyani_180(m4, essiz, **sinir)[sira],
+            "pump_dip": pump["pump_dip"][sira],
+            "pump_hacim_6": pump["pump_hacim_6"][sira],
+            "pump_hacim_medyani_180": pump["pump_hacim_medyani_180"][sira],
             "tepe": _seri_kurucu.h1_tepe(m4, c, z, **sinir),
-            "pump_kapanis": _seri_kurucu.kapanis(m4, essiz, config.BAR_4H)[sira],
+            "pump_kapanis": pump["pump_kapanis"][sira],
             "kapanis": _seri_kurucu.kapanis(m4, z, config.BAR_4H),
             "yuksek": _seri_kurucu.yuksek(m4, z, config.BAR_4H),
         }
@@ -1024,6 +1040,40 @@ def _olay_degerleri(b: _KapiBaglami, z: pd.DatetimeIndex, capalar, m4, gunluk, f
     }
 
 
+def _fiyat_pozitifligi(d: dict[str, np.ndarray], adlar, onek: str) -> None:
+    """FIYAT degerlerinin pozitifligi (G10): ilk bozuk barda, `adlar` sirasiyla, skalerin tek fonksiyonu
+    (`sinyal._pozitif`) `f"{onek} {ad}"` adiyla `VeriHatasi` verir. Iki cagiran, iki skaler mesaj: olay kosulu
+    (`"<H> sinyal degeri"`, `FIYAT_DEGERLERI`) ve H1 pump kosulu (`"H1 pump degeri"`, `H1_PUMP_FIYATLARI`). Mesaj
+    parametreyle secilir, denetim ikinci kez yazilmaz (P2c-1 tasarim 5.3 madde 3). Degerler sonlu olmalidir."""
+    n = len(next(iter(d.values()))) if d else 0
+    if not n:
+        return
+    bozuk = np.zeros(n, dtype=bool)
+    for a in adlar:
+        bozuk |= (d[a] <= 0) | (d[a] < sys.float_info.min)
+    if bozuk.any():
+        j = int(np.nonzero(bozuk)[0][0])
+        for a in adlar:
+            sinyal_modulu._pozitif(float(d[a][j]), f"{onek} {a}")
+
+
+def _h1_pump_dizisi(d: dict[str, np.ndarray], yapilandirma) -> np.ndarray:
+    """H1 pump esitsizligi (on-kayit §5 H1 madde 1), her bar icin: `close / dip - 1 >= θ` ve `hacim_6 >= 3 x medyan_180`.
+    Pump esitsizligi YALNIZCA burada yazilidir: olay kosulu (`_kosul_dizisi`, pump ve teyit) ve capasiz H1 kosulu
+    (`_h1_pump_kosul_dizisi`) bunu cagirir."""
+    teta = float(yapilandirma["theta"])
+    return (d["pump_kapanis"] / d["pump_dip"] - 1 >= teta) \
+        & (d["pump_hacim_6"] >= config.H1_HACIM_CARPANI * d["pump_hacim_medyani_180"])
+
+
+def _h1_pump_kosul_dizisi(yapilandirma, degerler: dict[str, np.ndarray]) -> np.ndarray:
+    """Capasiz H1 kosulu (pump; skaler `sinyal.h1_pump_saglandi`in vektorel karsiligi). Degerler sonlu olmali (cagiran
+    tam barlari verir). Pozitiflik yalnizca `sinyal.H1_PUMP_FIYATLARI` uzerinde, skalerin mesajiyla (`"H1 pump degeri"`)."""
+    d = {a: np.asarray(degerler[a], dtype=float) for a in sinyal_modulu.H1_PUMP_ADLARI}
+    _fiyat_pozitifligi(d, sinyal_modulu.H1_PUMP_FIYATLARI, "H1 pump degeri")
+    return np.asarray(_h1_pump_dizisi(d, yapilandirma), dtype=bool)
+
+
 def _kosul_dizisi(hipotez: str, yapilandirma, degerler: dict[str, np.ndarray]) -> np.ndarray:
     """Hipotezin §5 kosullari, her bar icin (VEKTOREL KOSUL; skaler `sinyal.kosullar_saglandi` ile ayni esitsizlikler,
     ayni esik yonleri, ayni sabitler). Degerlerin TAMAMI sonlu olmali (cagiran tam barlari verir). Once FIYAT degerleri
@@ -1031,21 +1081,11 @@ def _kosul_dizisi(hipotez: str, yapilandirma, degerler: dict[str, np.ndarray]) -
     `VeriHatasi` verir (G10: seri durur). Elemanter islemler (bolme, carpma, karsilastirma) IEEE 754 cift duyarlikta
     Python float'iyla bit duzeyinde aynidir; skaler sabitler (`1 - δ` gibi) once Python float'i olarak kurulur."""
     d = {a: np.asarray(degerler[a], dtype=float) for a in sinyal_modulu.DEGER_ADLARI[hipotez]}
-    n = len(next(iter(d.values()))) if d else 0
-    if n:
-        bozuk = np.zeros(n, dtype=bool)
-        for a in sinyal_modulu.FIYAT_DEGERLERI[hipotez]:
-            bozuk |= (d[a] <= 0) | (d[a] < sys.float_info.min)
-        if bozuk.any():
-            j = int(np.nonzero(bozuk)[0][0])
-            for a in sinyal_modulu.FIYAT_DEGERLERI[hipotez]:
-                sinyal_modulu._pozitif(float(d[a][j]), f"{hipotez} sinyal degeri {a}")
+    _fiyat_pozitifligi(d, sinyal_modulu.FIYAT_DEGERLERI[hipotez], f"{hipotez} sinyal degeri")
     y = yapilandirma
     if hipotez == "H1":
-        teta = float(y["theta"])
         delta_carpani = 1 - float(y["delta"])
-        pump = (d["pump_kapanis"] / d["pump_dip"] - 1 >= teta) \
-            & (d["pump_hacim_6"] >= config.H1_HACIM_CARPANI * d["pump_hacim_medyani_180"])
+        pump = _h1_pump_dizisi(d, y)
         teyit = (d["kapanis"] <= d["tepe"] * delta_carpani) & (d["yuksek"] < d["tepe"])
         return np.asarray(pump & teyit, dtype=bool)
     if hipotez == "H2":
@@ -1057,6 +1097,26 @@ def _kosul_dizisi(hipotez: str, yapilandirma, degerler: dict[str, np.ndarray]) -
     return np.asarray((d["hacim_medyani_30g"] <= nu_carpani * d["hacim_medyani_120_31"])
                       & (d["kapanis"] < d["sma50"])
                       & (d["kapanis"] / d["kapanis_30_once"] - 1 <= eksi_tau), dtype=bool)
+
+
+def _olay_kosulu(b: _KapiBaglami, z: pd.DatetimeIndex, capalar, m4, gunluk, funding):
+    """OLAY ROLUNUN KOSULU, TEK KAYNAK (P2c-1, tasarim 5.3 madde 1): `(degerler, sonlu, tam, kosul)`.
+      - `degerler`: `sinyal.DEGER_ADLARI` degerleri (`_olay_degerleri`);
+      - `sonlu`: ad basina sonluluk maskesi (kapinin ret mesajindaki eksik adlar);
+      - `tam`: butun degerleri sonlu barlar (on-kayit §2 "Tamlik sarti");
+      - `kosul`: tam barlarda §5 kosullari (`_kosul_dizisi`), tam olmayanlarda False.
+    Kapinin olay rolu (`_kapi_satirlari`) ve kosul serisi (`_kosul_satirlari`) bunu cagirir; ikisi ayni degerleri ve
+    ayni kosulu okur. Fiyat pozitifligi ilk bozuk tam barda `VeriHatasi` verir (G10)."""
+    degerler = _olay_degerleri(b, z, capalar, m4, gunluk, funding)
+    adlar = sinyal_modulu.DEGER_ADLARI[b.hipotez]
+    sonlu = {a: _sonlu_dizi(degerler[a]) for a in adlar}
+    tam = np.ones(len(z), dtype=bool)
+    for a in adlar:
+        tam &= sonlu[a]
+    kosul = np.zeros(len(z), dtype=bool)
+    if tam.any():
+        kosul[tam] = _kosul_dizisi(b.hipotez, b.yapilandirma, {a: degerler[a][tam] for a in adlar})
+    return degerler, sonlu, tam, kosul
 
 
 def _gecersizlik_tabani(b: _KapiBaglami, z: pd.DatetimeIndex, degerler: dict, secim: np.ndarray, m4, gunluk) -> np.ndarray:
@@ -1139,20 +1199,15 @@ def _kapi_satirlari(b: _KapiBaglami, sorgu: pd.DatetimeIndex, capalar=None) -> l
                         f"rev.12); {planlar[i].sinyal_zamani} barinda kontrol olusmaz."))
         else:
             c = None if not capali else pd.DatetimeIndex([capalar[i] for i in aktif])
-            degerler = _olay_degerleri(b, z, c, mumlar_4h, gunluk_mumlar, funding)
+            # Degerler, tamlik ve kosul TEK kaynaktan (`_olay_kosulu`; P2c-1): kosul serisi ayni fonksiyonu cagirir.
+            degerler, sonlu, tam, kosul = _olay_kosulu(b, z, c, mumlar_4h, gunluk_mumlar, funding)
             adlar = sinyal_modulu.DEGER_ADLARI[b.hipotez]
-            sonlu = {a: _sonlu_dizi(degerler[a]) for a in adlar}
-            tam = np.ones(len(aktif), dtype=bool)
             for j, i in enumerate(aktif):
                 eksik = [a for a in adlar if not sonlu[a][j]]
                 if eksik:
-                    tam[j] = False
                     sonuc[i] = _ret(SinyalPenceresiTamDegil(
                         f"Sinyal penceresi tam degil: {eksik} (on-kayit §2 'Tamlik sarti'); "
                         f"{planlar[i].sinyal_zamani} barinda olay olusmaz."))
-            kosul = np.zeros(len(aktif), dtype=bool)
-            if tam.any():
-                kosul[tam] = _kosul_dizisi(b.hipotez, b.yapilandirma, {a: degerler[a][tam] for a in adlar})
             for j, i in enumerate(aktif):
                 if tam[j] and not kosul[j]:
                     sonuc[i] = _ret(SinyalKosuluSaglanmadi(
@@ -1229,6 +1284,18 @@ def _satir_imzasi(kimlik: tuple, isaret: int, zaman_ns: int, sonuc) -> int:
     return hash((_SERI_GIZLI, kimlik, isaret, zaman_ns, sonuc))
 
 
+def _seri_erisimi_denetle(b: _KapiBaglami, isaret: int, etiket) -> None:
+    """Seri okumasinin erisim denetimi, TEK kaynak (G11): `KapiSerisi` ve `KosulSerisi` her okumada bunu cagirir.
+    Donem isareti (kosu acildi ya da kapandiysa `SeriEskidi`), onay ve kesif baglami, grup uyeligi, kume erisimi."""
+    if kume_bellegi.donem_isareti() != isaret:
+        raise SeriEskidi(f"{etiket} serisi bir kosu acilisindan ya da kapanisindan once kuruldu; okuma "
+                         "reddedildi (G11 donem isareti). Seri yeniden kurulmalidir.")
+    split_modulu.onay_baglami_dogrula(b.hipotez, b.kume, b.yapilandirma_kimligi)
+    split_modulu.kesif_baglami_dogrula(b.kume)
+    grup_dogrula(b.sembol, b.kume)
+    split_modulu.onay_erisimi_denetle(b.kume, b.onay)
+
+
 class KapiSerisi:
     """`kapi_serisi`nin ciktisi: bir (kume, sembol, donem, hipotez, yapilandirma, rol, capa, bar turu, ufuk, birincil
     ufuk) biriminin satirlari. Satir = barin onayli pozisyonu ya da ret sinifi ve mesaji (skalerle birebir).
@@ -1287,14 +1354,7 @@ class KapiSerisi:
         return self.__kimlik
 
     def _denetle(self) -> None:
-        b = self.__baglam
-        if kume_bellegi.donem_isareti() != self.__isaret:
-            raise SeriEskidi(f"{self.__kimlik[:6]} serisi bir kosu acilisindan ya da kapanisindan once kuruldu; okuma "
-                             "reddedildi (G11 donem isareti). Seri yeniden kurulmalidir.")
-        split_modulu.onay_baglami_dogrula(b.hipotez, b.kume, b.yapilandirma_kimligi)
-        split_modulu.kesif_baglami_dogrula(b.kume)
-        grup_dogrula(b.sembol, b.kume)
-        split_modulu.onay_erisimi_denetle(b.kume, b.onay)
+        _seri_erisimi_denetle(self.__baglam, self.__isaret, self.__kimlik[:6])
 
     def _satir(self, i: int):
         z, s = self.__zamanlar[i], self.__sonuclar[i]
@@ -1524,42 +1584,233 @@ def k2_aday_pozisyonu(hipotez, yapilandirma, *, kume, sembol, donem_no, t) -> On
     return seri.pozisyon(t)
 
 
-def _olay_kosulu_serisi(hipotez, yapilandirma, *, kume, sembol, donem_no, capa=None) -> np.ndarray:
-    """Kapinin olay rolundeki VEKTOREL KOSULU, hipotez izgarasinin her barinda: True / False / None (None = degerlerden
-    biri hesaplanamadi ya da H1 tepe penceresi o (pump, teyit) cifti icin tanimsiz; skaler `sinyal_kosulu` ile ayni
-    sozlesme). YALNIZCA gercek veri esitlik betigi icindir (G1 gecici istisnasi, G14: vektorel kosul ile skaler
-    `sinyal_kosulu` her barda karsilastirilir); karar vermez. Degerler ve kosul cekirdegin kullandigi AYNI
-    fonksiyonlardan (`_olay_degerleri`, `_kosul_dizisi`). H1'de `capa`: izgarayla ayni uzunlukta pump barlari."""
-    b = _kapi_baglami(hipotez, yapilandirma, "olay", kume=kume, sembol=sembol, donem_no=donem_no)
-    izgara = hipotez_izgarasi_barlari(b.hipotez, kume=b.kume, sembol=b.sembol, donem_no=b.donem_no)
+# =====================================================================================================================
+# KOSUL SERISI (P2c-1; plan v3 G1, G10, G11, G16, G19; tasarim notu p2c1_tasarim.md §5, kararlar p2c1_kararlar.md)
+# =====================================================================================================================
+#
+# Dizi kurallarinin (bekleme, H1 tek izleme, H3 ilk gun; `data.dizi`) okudugu sinyal kosulu. Kapinin olay rolundeki
+# kosulla AYNI kaynaktan gelir (`_olay_kosulu`; H1 pump kosulu `_h1_pump_degerleri` + `_h1_pump_kosul_dizisi`):
+#   - H2, H3, `capa=None`: §5 kosulu, hipotez izgarasinin butun barlarinda;
+#   - H1, `capa=None`: PUMP kosulu (madde 1), izgaranin butun barlarinda;
+#   - H1, `capa=p` (tek zaman): p capali TEYIT kosulu (madde 3); satirlar kapinin tek capa kuralinin aynisiyla
+#     (`_capa_satirlari`) p'nin izleme penceresindeki izgara barlari;
+#   - H1, `capa` izgarayla ayni uzunlukta dizi: satir basina pump bari (yalnizca esitlik betigi; G14).
+# Satir degeri `True` / `False` / `None` (None = hesaplanamaz, skalerin sozlesmesi): degerlerden biri sonlu degil ya da
+# H1'de tepe penceresi o (pump, teyit) cifti icin tanimsiz (`sinyal.h1_tepe_bar_sayisi`, skalerin TEK kurali). Kosul
+# serisi KARAR VERMEZ ve ret uretmez; retler kapida kalir. `OlayOlusmaz` disindaki her istisna (fiyat pozitifligi dahil)
+# kurulumu durdurur (G10). Satir t'ye kadarki barlara bakar (G16): pencereler t'yi ya da t-1'i bitis alir, tepe
+# `[p..t-1]`, funding t'nin kapanisinda kesilir.
+
+
+class KosulSerisi:
+    """`kosul_serisi`nin ciktisi: bir (kume, sembol, donem, hipotez, yapilandirma, capa, bar turu) biriminin kosul
+    satirlari (`True` / `False` / `None`).
+
+    `KapiSerisi` ile AYNI KORUMALAR (G11; tasarim 5.4): yalnizca `kosul_serisi` kurar (gizli belirtec); her satirin
+    imzasi kimlik (basinda `"kosul"` etiketi), donem isareti, zaman ve degeri baglar; nitelik atamasi, silme ve
+    serilestirme reddedilir; kopya kendisidir. Okuma YALNIZCA `deger`, `icerir` ve `zamanlar` ile ve her okuma erisim
+    denetimini (`_seri_erisimi_denetle`: donem isareti, onay ve kesif baglami, grup, kume erisimi) yeniden calistirir.
+    `deger(t)` sira haritasindan gelen satirin KENDI zamaninin sorulan t ile esitligini de denetler (S-P2b2-1'in bu
+    siniftaki karsiligi). Kilit dikkatsiz bir kullanima karsi korur, kararli bir atlatmaya karsi degil."""
+
+    __slots__ = ("_KosulSerisi__kimlik", "_KosulSerisi__isaret", "_KosulSerisi__zamanlar", "_KosulSerisi__sira",
+                 "_KosulSerisi__degerler", "_KosulSerisi__imzalar", "_KosulSerisi__baglam", "_KosulSerisi__capa")
+
+    def __init__(self, gizli, baglam: _KapiBaglami, kimlik: tuple, isaret: int, zamanlar: pd.DatetimeIndex, degerler,
+                 capa):
+        if gizli is not _SERI_GIZLI:
+            raise TypeError("KosulSerisi yalnizca `pozisyon.kosul_serisi` ile kurulur (imzali seri; G11).")
+        if not kimlik or kimlik[0] != "kosul":
+            raise ValueError("KosulSerisi kimligi 'kosul' etiketiyle baslamali (G11).")
+        ns = tuple(int(x) for x in pd.DatetimeIndex(zamanlar).asi8)
+        degerler = tuple(None if d is None else bool(d) for d in degerler)
+        if len(ns) != len(degerler):
+            raise ValueError("KosulSerisi: zaman ve deger sayilari esit olmali.")
+        sett = object.__setattr__
+        sett(self, "_KosulSerisi__baglam", baglam)
+        sett(self, "_KosulSerisi__kimlik", kimlik)
+        sett(self, "_KosulSerisi__isaret", int(isaret))
+        sett(self, "_KosulSerisi__zamanlar", ns)
+        sett(self, "_KosulSerisi__sira", MappingProxyType({z: i for i, z in enumerate(ns)}))
+        sett(self, "_KosulSerisi__degerler", degerler)
+        sett(self, "_KosulSerisi__imzalar", tuple(_satir_imzasi(kimlik, int(isaret), z, d) for z, d in zip(ns, degerler)))
+        sett(self, "_KosulSerisi__capa", capa)
+
+    def __setattr__(self, ad, deger):
+        raise AttributeError("KosulSerisi degistirilemez (G11).")
+
+    def __delattr__(self, ad):
+        raise AttributeError("KosulSerisi degistirilemez (G11).")
+
+    def __reduce__(self):
+        raise TypeError("KosulSerisi kopyalanamaz ya da serilestirilemez (G11); alt surec kendi serisini kurar.")
+
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, bellek):
+        return self
+
+    def __len__(self) -> int:
+        self._denetle()
+        return len(self.__zamanlar)
+
+    def __repr__(self) -> str:
+        return f"KosulSerisi({self.__kimlik[:7]})"
+
+    @property
+    def kimlik(self) -> tuple:
+        """("kosul", kume, sembol, donem, hipotez, yapilandirma kimligi, capa anahtari, bar turu)."""
+        return self.__kimlik
+
+    def _denetle(self) -> None:
+        _seri_erisimi_denetle(self.__baglam, self.__isaret, self.__kimlik[:6])
+
+    def icerir(self, t) -> bool:
+        """t (kesin zaman esitligiyle) serinin bir satiri mi?"""
+        self._denetle()
+        return int(pencere_modulu.utc_zamani(t, "t").value) in self.__sira
+
+    def zamanlar(self) -> pd.DatetimeIndex:
+        self._denetle()
+        return pd.DatetimeIndex(np.asarray(self.__zamanlar, dtype="int64"), tz="UTC") if self.__zamanlar else \
+            pd.DatetimeIndex([], tz="UTC")
+
+    def deger(self, t):
+        """t barinda kosul: `True` / `False` / `None` (hesaplanamaz). Skalerle ayni sira (kararlar A4): once t
+        dogrulanir (`_utc_sinyal_zamani`: saat dilimsiz `TypeError`, UTC olmayan `ValueError`), sonra erisim denetimi.
+        t serinin satiriysa satir okunur (imzasi ve kendi zamani denetlenir). Degilse ayni cekirdek YALNIZCA t icin
+        kosar (`_kosul_tek_bar`; `olay_karari`nin kurali); bu yol seri basariyla kurulduktan sonra calisir."""
+        zaman = _utc_sinyal_zamani(t)
+        self._denetle()
+        i = self.__sira.get(int(zaman.value))
+        if i is not None:
+            z, d = self.__zamanlar[i], self.__degerler[i]
+            if z != int(zaman.value):
+                raise ValueError(f"KosulSerisi sira haritasi tutarsiz: {zaman} sorusuna baska bir satir dondu (G11).")
+            if self.__imzalar[i] != _satir_imzasi(self.__kimlik, self.__isaret, z, d):
+                raise ValueError("KosulSerisi satiri degistirilmis (imza tutmuyor; G11).")
+            return d
+        return _kosul_tek_bar(self.__baglam, zaman, self.__capa)
+
+
+def _kosul_capasi(b: _KapiBaglami, capa):
+    """(capa anahtari, bicimlenmis capa). H2 ve H3'te capa verilemez: skalerle ayni sinif (`ValueError`; kararlar B 11).
+    H1'de `None` (pump kosulu), tek zaman ya da izgarayla ayni uzunlukta dizi (`_capa_anahtari`nin bicimleri)."""
+    if capa is None:
+        return None, None
+    if b.hipotez not in sinyal_modulu.CAPALI_HIPOTEZLER:
+        raise ValueError(f"{b.hipotez} icin capa verilemez (on-kayit §5 H1: sinyal pump barina capalidir; H2 ve H3 t "
+                         "barindan hesaplanir).")
+    return _capa_anahtari(b, capa)
+
+
+def _kosul_satirlari(b: _KapiBaglami, z: pd.DatetimeIndex, capalar, m4, gunluk, funding) -> list:
+    """KOSUL CEKIRDEGI: `z`nin her bari icin `True` / `False` / `None`. Degerler ve kosul kapinin kaynagindan:
+      - H1, `capalar=None`: pump degerleri (`_h1_pump_degerleri`) ve pump kosulu (`_h1_pump_kosul_dizisi`);
+      - H1 capali: (pump, teyit) cifti once skalerin TEK kuraliyla denetlenir (`sinyal.h1_tepe_bar_sayisi`); tanimsiz
+        cift `None`dir (skalerde `TepePenceresiKurulamaz -> None`). Gecerli ciftler `_olay_kosulu`ndan;
+      - H2, H3: `_olay_kosulu`.
+    Sira skalerle ayni (G19): degerler -> tamlik (`None`) -> fiyat pozitifligi (`VeriHatasi`, G10) -> esitsizlik."""
+    n = len(z)
+    sonuc: list = [None] * n
+    if not n:
+        return sonuc
+    if b.hipotez in sinyal_modulu.CAPALI_HIPOTEZLER and capalar is None:
+        sinir = {"kume_baslangic": b.kume_baslangic, "donem_baslangic": b.donem_baslangic}
+        degerler = _h1_pump_degerleri(m4, z, sinir)
+        tam = np.ones(n, dtype=bool)
+        for a in sinyal_modulu.H1_PUMP_ADLARI:
+            tam &= _sonlu_dizi(degerler[a])
+        kosul = np.zeros(n, dtype=bool)
+        if tam.any():
+            kosul[tam] = _h1_pump_kosul_dizisi(b.yapilandirma, {a: degerler[a][tam] for a in sinyal_modulu.H1_PUMP_ADLARI})
+    else:
+        secim = np.ones(n, dtype=bool)
+        c = None
+        if b.hipotez in sinyal_modulu.CAPALI_HIPOTEZLER:
+            c = pd.DatetimeIndex(capalar)
+            for j, (pump, teyit) in enumerate(zip(c, z)):
+                try:
+                    sinyal_modulu.h1_tepe_bar_sayisi(pump, teyit)
+                except sinyal_modulu.TepePenceresiKurulamaz:
+                    secim[j] = False
+        if not secim.any():
+            return sonuc
+        yer = np.nonzero(secim)[0]
+        _, _, tam_s, kosul_s = _olay_kosulu(b, z[secim], None if c is None else c[secim], m4, gunluk, funding)
+        tam = np.zeros(n, dtype=bool)
+        kosul = np.zeros(n, dtype=bool)
+        tam[yer], kosul[yer] = tam_s, kosul_s
+    for j in range(n):
+        if tam[j]:
+            sonuc[j] = bool(kosul[j])
+    return sonuc
+
+
+def _kosul_verisi(b: _KapiBaglami):
+    """(4h mumlari, funding, 1d mumlari): kapinin tek veri yolundan (`_karar_girdisi`; cagiran cerceve vermez)."""
     mumlar_4h, funding, gunluk_mumlar, _ = _karar_girdisi(
         b.sembol, b.kume, kume_baslangic=b.kume_baslangic, kume_bitis=b.kume_bitis,
         donem_baslangic=b.donem_baslangic, donem_bitis=b.donem_bitis)
     _mum_zamanlari(mumlar_4h)
-    sonuc = np.full(len(izgara), None, dtype=object)
-    gecerli = np.ones(len(izgara), dtype=bool)
-    c = None
-    if b.hipotez in sinyal_modulu.CAPALI_HIPOTEZLER:
-        c = pd.DatetimeIndex(capa)
-        if len(c) != len(izgara):
-            raise ValueError("capa dizisi hipotez izgarasiyla ayni uzunlukta olmali.")
-        fark = izgara - c
-        adim = pencere_modulu.ADIM_4H
-        gecerli = np.asarray((fark % adim == pd.Timedelta(0)) & (fark >= adim)
-                             & (fark <= config.H1_IZLEME_BAR * adim), dtype=bool)
-    if not gecerli.any():
-        return sonuc
-    z = izgara[gecerli]
-    degerler = _olay_degerleri(b, z, None if c is None else c[gecerli], mumlar_4h, gunluk_mumlar, funding)
-    adlar = sinyal_modulu.DEGER_ADLARI[b.hipotez]
-    tam = np.logical_and.reduce([_sonlu_dizi(degerler[a]) for a in adlar])
-    kosul = np.zeros(len(z), dtype=bool)
-    if tam.any():
-        kosul[tam] = _kosul_dizisi(b.hipotez, b.yapilandirma, {a: degerler[a][tam] for a in adlar})
-    yerel = np.full(len(z), None, dtype=object)
-    yerel[tam] = [bool(x) for x in kosul[tam]]
-    sonuc[gecerli] = yerel
-    return sonuc
+    return mumlar_4h, funding, gunluk_mumlar
+
+
+def _kosul_tek_bar(b: _KapiBaglami, zaman: pd.Timestamp, capa):
+    """Serinin satiri olmayan t (kararlar A4; `olay_karari`nin kurali): ayni cekirdek yalnizca t icin.
+      - t'nin kendi bari donem ici seride yoksa (izgara boslugu, hizasiz t, donem ya da kume disi) `None`: skalerde barin
+        kendi degeri NaN'dir (`sinyal.bar_degeri`). On denetim kapinin `SinyalBariYok` yuklemiyle ayni
+        (`pencere.ayni_andaki_bar`).
+      - Bar varsa (ör. tolerans payiyla verilmis t) cekirdek `[t]` icin kosar.
+      - Capa dizisi kipinde satir disi t'nin capasi tanimsizdir: `KeyError` (kapali yon)."""
+    if isinstance(capa, pd.DatetimeIndex):
+        raise KeyError(f"{zaman}: capa dizisi kipinde kosul serisinin satiri degil (kapali yon; kararlar A4).")
+    mumlar_4h, funding, gunluk_mumlar = _kosul_verisi(b)
+    seri_t = _mum_zamanlari(mumlar_4h) if b.bar == config.BAR_4H else pd.DatetimeIndex(gunluk_mumlar["open_time"])
+    bar = pencere_modulu.ayni_andaki_bar(seri_t, zaman)
+    if bar is None:
+        return None
+    if b.bar == config.BAR_1D and int(bar.value) != int(zaman.value):
+        # Kararlar A4, skalerle TUTMAYAN durum: 1d'de tolerans payiyla verilmis t (ör. gun acilisi + 30 sn). Skaler
+        # `None` verir (1d pencereleri gun acilisi ister, deger NaN); seri kuruculari gun acilisi olmayan zamani
+        # `ValueError` ile reddeder. Durum kapali yonde durdurulur ve rapora yazilir; baska bir yorum yapilmaz.
+        raise KeyError(f"{zaman}: 1d kosul serisinde gun acilisi olmayan zaman (tolerans payi); skalerle tutmayan "
+                       "durum kapali yonde durdurulur (kararlar A4).")
+    capalar = None if capa is None else [capa]
+    return _kosul_satirlari(b, pd.DatetimeIndex([zaman]), capalar, mumlar_4h, gunluk_mumlar, funding)[0]
+
+
+def kosul_serisi(hipotez, yapilandirma, *, kume, sembol, donem_no, capa=None) -> KosulSerisi:
+    """KOSUL SERISI (P2c-1): dizi kurallarinin okudugu sinyal kosulu, kapinin olay rolundeki kosulla ayni kaynaktan
+    (yukaridaki bolum aciklamasi). Karar vermez.
+
+    Kurulum denetimleri kapiyla ayni (`_kapi_baglami`, rol "olay"): hipotez, yapilandirma, kume adi, onay ve kesif
+    baglami, donem kaydi, grup uyeligi. Capa veri yuklenmeden once denetlenir (`_kosul_capasi`).
+
+    Onbellek (G11; tasarim 5.5): anahtar `("kosul_serisi", kume, sembol, donem, hipotez, yapilandirma kimligi, capa
+    anahtari, bar turu, donem isareti)`; mekanizma kapiyla ayni (`_seri_bellekten`: hata veren kurulum seri bellegine
+    yazilmaz, `_SERI_HATALARI` ayni hatayi yeniden yukseltir). Ufuk ve birincil ufuk alanlari YOKTUR: kosul ufka bagli
+    degildir (kararlar B 4). Onbellekten donen nesnenin turu ve kimligi istenenle karsilastirilir (S-P2b2-3'un bu
+    yoldaki karsiligi). `OlayOlusmaz` disindaki her istisna kurulumu durdurur (G10). Getiri hesaplamaz."""
+    b = _kapi_baglami(hipotez, yapilandirma, "olay", kume=kume, sembol=sembol, donem_no=donem_no)
+    capa_anahtari, capa_bicimli = _kosul_capasi(b, capa)
+    isaret = kume_bellegi.donem_isareti()
+    kimlik = ("kosul", b.kume, b.sembol, int(b.donem_no), b.hipotez, b.yapilandirma_kimligi, capa_anahtari, b.bar)
+    anahtar = ("kosul_serisi", *kimlik[1:], isaret)
+
+    def kur() -> KosulSerisi:
+        izgara = hipotez_izgarasi_barlari(b.hipotez, kume=b.kume, sembol=b.sembol, donem_no=b.donem_no)
+        satirlar, capalar = _capa_satirlari(b, capa_bicimli, izgara)
+        mumlar_4h, funding, gunluk_mumlar = _kosul_verisi(b)
+        degerler = _kosul_satirlari(b, satirlar, capalar, mumlar_4h, gunluk_mumlar, funding)
+        return KosulSerisi(_SERI_GIZLI, b, kimlik, isaret, satirlar, degerler, capa_bicimli)
+
+    seri = _seri_bellekten(anahtar, kur)
+    if not isinstance(seri, KosulSerisi) or seri.kimlik != kimlik:
+        raise ValueError(f"Kosul serisi onbellegi tutarsiz: {kimlik[:6]} anahtarina baska bir seri kayitli (G11).")
+    return seri
+
 
 
 def pozisyon_fiyatlari(pozisyon) -> tuple[float, float]:

@@ -207,8 +207,10 @@ def test_G8_esik_tarafi_degisince_K1_K2_maskesi_degismez(dunya_g1, hipotez, monk
     if hipotez == "H2":
         yapilar = [y for y in yapilar if y["k"] == yapilar[0]["k"]]
     assert len(yapilar) >= 2
-    capalar = [_capa(t, i) for i, t in enumerate(izgara)] if hipotez == "H1" else None
-    kosullar = [tuple(pozisyon._olay_kosulu_serisi(hipotez, y, kume="KESIF", **kimlik, capa=capalar)) for y in yapilar]
+    capalar = pd.DatetimeIndex([_capa(t, i) for i, t in enumerate(izgara)]) if hipotez == "H1" else None
+    # P2c-1: kapinin olay rolundeki kosul `_olay_kosulu_serisi` yerine ayni kaynaktan gelen kosul serisinden okunur.
+    seriler = [pozisyon.kosul_serisi(hipotez, y, kume="KESIF", **kimlik, capa=capalar) for y in yapilar]
+    kosullar = [tuple(s.deger(t) for t in s.zamanlar()) for s in seriler]
     assert len(set(kosullar)) >= 2, "kurulum: esik degisimi kosulu degistirmeli"
 
     def yasak(*a, **k):
@@ -619,7 +621,9 @@ def test_S19_plan_onbellegi_tutarsizligi_seriyi_durdurur(dunya_g1):
 KARAR_ADIMLARI = {"pozisyon_plani", "uygunluk_karari", "uygunluk", "capasiz_pencere_degerleri", "capasiz_pencereler",
                   "sinyal_degerleri", "kosullar_saglandi", "_kosul_dizisi", "_olay_degerleri", "gecersizlik_seviyesi",
                   "_gecersizlik_tabani", "_pozisyon_tamlik_satiri", "_planlar_tamlik_satirlari", "_satirdan_toplam",
-                  "pozisyon_funding_ayrintisi", "_mae_tepesi", "OnaylanmisPozisyon", "_kapi_satirlari"}
+                  "pozisyon_funding_ayrintisi", "_mae_tepesi", "OnaylanmisPozisyon", "_kapi_satirlari",
+                  # P2c-1: olay rolunun kosulunun tek kaynagi ve kosul serisinin cekirdegi.
+                  "_olay_kosulu", "_kosul_satirlari", "_h1_pump_kosul_dizisi"}
 
 # (modul, fonksiyon) -> izin gerekcesi. Bunun disinda `data/` icinde (dondurulmus referans haric) kapinin ic adimini
 # cagiran fonksiyon yoktur.
@@ -628,7 +632,10 @@ IZINLI_CAGIRANLAR = {
     ("pozisyon", "olay_karari"): "ince sarmalayici: cekirdegin tek bar kosusu (yalnizca seri satiri olmayan t; F1-K1 D-B1)",
     ("pozisyon", "kapi_serisi"): "seri kurulumu: cekirdegi cagirir",
     ("pozisyon", "kur"): "`kapi_serisi` icindeki kurulum kapanisi (ayni fonksiyonun parcasi)",
-    ("pozisyon", "_olay_kosulu_serisi"): "esitlik betigi icin vektorel kosul (G1 istisnasi, karar vermez)",
+    ("pozisyon", "_olay_kosulu"): "P2c-1: olay rolunun kosulunun TEK kaynagi (kapi ve kosul serisi cagirir)",
+    ("pozisyon", "_kosul_satirlari"): "P2c-1: kosul serisinin cekirdegi (karar vermez, ret uretmez)",
+    ("pozisyon", "_kosul_tek_bar"): "P2c-1: kosul cekirdeginin tek bar kosusu (yalnizca seri satiri olmayan t)",
+    ("pozisyon", "kosul_serisi"): "P2c-1: kosul serisinin kurulumu (`kur` kapanisi cekirdegi cagirir)",
     ("pozisyon", "sinyal_kosulu"): "G1 gecici istisnasi: skaler kosul (dizi kurallari, P2c'ye kadar)",
     ("pozisyon", "_test_onayi"): "test dikisi (yalnizca pytest icinde; ONAY_ATLATMA_DESENI)",
     ("pozisyon", "mae"): "getiri tarafi: onayli pozisyonun MAE'si (karar degil)",

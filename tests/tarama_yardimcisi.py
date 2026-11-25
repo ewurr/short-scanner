@@ -89,9 +89,13 @@ CIKIS_KAPI_DISI_DESENI = (
     # Performans 2b-2 (RESULTS §14.49): tek seri kapinin ic adimlari. Analiz kodu kapiyi yalnizca `kapi_serisi` ya da
     # `olay_karari` ile cagirir; cekirdek, vektorel kosul ve seri nesnesinin ic verisi yasak.
     r"|_kapi_satirlari|_olay_kosulu_serisi|_kosul_dizisi|_olay_degerleri|_gecersizlik_tabani|_kapi_baglami"
-    r"|" + "|".join(UYGUNLUK_ADLARI) + r")\s*\(|\b(CikisSonucu|PozisyonPlani|OnaylanmisPozisyon)\s*\("
+    # P2c-1: kosul serisinin cekirdegi ve tek kaynak ic adimlari. Analiz kodu kosulu yalnizca `kosul_serisi` ya da
+    # `kosul_kaynagi` ile okur.
+    r"|_olay_kosulu|_kosul_satirlari|_kosul_tek_bar|_kosul_verisi|_h1_pump_degerleri|_h1_pump_dizisi"
+    r"|_h1_pump_kosul_dizisi|_fiyat_pozitifligi|_seri_erisimi_denetle"
+    r"|" + "|".join(UYGUNLUK_ADLARI) + r")\s*\(|\b(CikisSonucu|PozisyonPlani|OnaylanmisPozisyon|KosulSerisi)\s*\("
     r"|_PLAN_GIZLI|_plan_imzasi|_ONAY_GIZLI|\beligibility\b|\b_TamlikSatiri\b|\b_ic_sutunlar\b"
-    r"|_SERI_GIZLI|_SERI_BELLEGI|_KapiSerisi__"
+    r"|_SERI_GIZLI|_SERI_BELLEGI|_SERI_HATALARI|_KapiSerisi__|_KosulSerisi__"
 )
 """Olayin ya da kontrolun olusup olusmadigina yalnizca `pozisyon.olay_karari` karar
 verir (on-kayit §4 rev.8 "Olayin kumede olusma olcutu": tek karar noktasi, funding

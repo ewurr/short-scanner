@@ -44,7 +44,7 @@ Sozlesme (performans 2b-0; denetci D-B2, D-B3, D-C4, D-C7, sizinti S-17, S-18, S
     `karsilastir`). Birim hatasi ancak skaler tarafta ayni birimde en az bir beklenmeyen hata varsa uyusan sayilir;
     yoksa birimin butun barlari uyusmayandir.
   - P2b-2 ekleri (plan v3 G1 gecici istisnasi ve G14; RESULTS §14.49; `--kosul-ve-onay-yolu`, varsayilan acik):
-      * `kosul` birimi (olay rolu kosulduysa): kapinin olay rolundeki VEKTOREL kosulu (`pozisyon._olay_kosulu_serisi`,
+      * `kosul` birimi (olay rolu kosulduysa): kapinin olay rolundeki VEKTOREL kosulu (`pozisyon.kosul_serisi`,
         izgaranin tamami) ile dizi kurallarinin okudugu skaler `sinyal_kosulu` her barda karsilastirilir (True / False /
         None, tur dahil). `uyusmayan_bar` = kosul uyusmazligi. Olay rolune aittir: kapsam, zaman damgasi ve sure
         yazilmaz. Vektorel kosul `OlayOlusmaz` disi bir hatayla durursa birim hatasidir (`hata` = `seri:<Sinif>`);
@@ -272,15 +272,15 @@ def kosul_karsilastir(barlar, siralar, hipotez: str, yapilandirma, kimlik: dict,
     kosul durursa birim hatasidir (G10): skalerde ayni birimde en az bir beklenmeyen hata yoksa butun barlar uyusmaz.
     Deger dondurmez."""
     capali = hipotez in sinyal_modulu.CAPALI_HIPOTEZLER
-    capalar = [h1_capasi(t, i) for i, t in enumerate(izgara)] if capali else None
-    vektor = _cagir(kapi._olay_kosulu_serisi, hipotez, dict(yapilandirma), kume=KUME, **kimlik, capa=capalar)
+    capalar = pd.DatetimeIndex([h1_capasi(t, i) for i, t in enumerate(izgara)]) if capali else None
+    seri = _cagir(kapi.kosul_serisi, hipotez, dict(yapilandirma), kume=KUME, **kimlik, capa=capalar)
     sayac = Sayac()
-    if isinstance(vektor, BaseException):
-        sayac.birim_hatasi = f"seri:{type(vektor).__name__}"
+    if isinstance(seri, BaseException):
+        sayac.birim_hatasi = f"seri:{type(seri).__name__}"
     for t, sira in zip(barlar, siralar):
         s = _cagir(kapi.sinyal_kosulu, t, hipotez=hipotez, yapilandirma=dict(yapilandirma),
                    capa=h1_capasi(t, sira) if capali else None, kume=KUME, **kimlik)
-        esit = beklenmeyen(s) if sayac.birim_hatasi else _kosul_esit(vektor[sira], s)
+        esit = beklenmeyen(s) if sayac.birim_hatasi else _kosul_esit(_cagir(seri.deger, t), s)
         sayac.bar(t, esit, (s,), ())
     if sayac.birim_hatasi and sayac.beklenmeyen_referans == 0:
         sayac.uyusmayan = [pd.Timestamp(t) for t in barlar]
